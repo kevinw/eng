@@ -9,6 +9,7 @@
 File :: #import "File";
 Debug :: #import "Debug";
 Plugin :: #import "plugin";
+Platform :: #import "platform";
 
 panic :: (msg: string) {
     write_string(msg);
@@ -17,26 +18,24 @@ panic :: (msg: string) {
 
 on_asset_change :: (using asset_change: *Asset_Change) {
     print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
-    if extension == "jai" {
-        if short_name == "game" {
-            arguments: [..]string;
-            array_add(*arguments, "jai", "-x64", "first.jai");
+    if extension == "jai" && short_name == "game" {
+        arguments: [..]string;
+        array_add(*arguments, "jai", "-x64", "first.jai");
 
-            cmd_string := concatenate(..arguments, " ");
-            defer free(cmd_string);
-            print("Running jai compiler: %\n", cmd_string);
+        cmd_string := concatenate(..arguments, " ");
+        defer free(cmd_string);
+        print("Running jai compiler: %\n", cmd_string);
 
-            success, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
-            if !success {
-                print("success: %\n");
-                print("exit code: %\n", exit_code);
-                print("output_string: %\n", output_string);
-                print("error string: %\n", error_string);
-            } else {
-                print("%", output_string);
-                if error_string && error_string.count {
-                    print("[stderr] %", error_string);
-                }
+        success, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
+        if !success {
+            print("success: %\n");
+            print("exit code: %\n", exit_code);
+            print("output_string: %\n", output_string);
+            print("error string: %\n", error_string);
+        } else {
+            print("%", output_string);
+            if error_string && error_string.count {
+                print("[stderr] %", error_string);
             }
         }
     }
@@ -46,6 +45,28 @@ host_settings: struct {
     window_pos_x: s32;
     window_pos_y: s32;
 };
+
+// plugin functions
+Update_And_Draw_Func :: #type ();
+Plugin_Init_Func     :: #type (state: *void);
+Plugin_Deinit_Func   :: #type (shutting_down: bool) -> *void;
+
+update_and_draw: Update_And_Draw_Func;
+plugin_init: Plugin_Init_Func;
+plugin_deinit: Plugin_Deinit_Func;
+
+update_plugin_functions :: (module: *Plugin.Module) {
+    update_and_draw = cast(Update_And_Draw_Func)GetProcAddress(module.native_module, "update_and_draw");
+    if !update_and_draw panic("Could not load update_and_draw func");
+
+    plugin_init = cast(Plugin_Init_Func)GetProcAddress(module.native_module, "plugin_init");
+    if !plugin_init panic("Could not load plugin_init func");
+
+    plugin_deinit = cast(Plugin_Deinit_Func)GetProcAddress(module.native_module, "plugin_deinit");
+    if !plugin_deinit panic("Could not load plugin_deinit func");
+}
+
+ALWAYS_ON_TOP :: true;
 
 main :: () {
     Debug.init();
@@ -58,7 +79,6 @@ main :: () {
 
     SetTraceLogLevel(.LOG_WARNING);
 
-
     parse_config_file(*host_settings, tprint("%/%", exe_path, "game.cfg"));
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
@@ -67,33 +87,43 @@ main :: () {
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
+    #if ALWAYS_ON_TOP
+        Platform.SetWindowAlwaysOnTop(GetWindowHandle());
+
+    print("working directory %\n", get_working_directory());
+    hotloader_init("src", _DEBUG_LOGGING=false);
+    hotloader_register_callback(on_asset_change);
+    defer hotloader_shutdown();
+
     module: Plugin.Module;
     if !Plugin.load(*module, "game.dll")
         panic("Could not load game.dll\n");
     defer Plugin.unload(*module);
+    update_plugin_functions(*module);
 
-    hotloader_init("src", true);
-    hotloader_register_callback(on_asset_change);
-    defer hotloader_shutdown();
-
-    Update_And_Draw_Func :: #type ();
-    update_and_draw := cast(Update_And_Draw_Func)GetProcAddress(module.native_module, "update_and_draw");
-    if !update_and_draw panic("Could not load update_and_draw func");
+    plugin_init(null);
+    defer plugin_deinit(shutting_down = true);
 
     SetTargetFPS(60);
     while !WindowShouldClose() {
         hotloader_process_change();
-        if Plugin.maybe_reload(*module) {
-            print("plugin did reload.\n");
+
+        if Plugin.should_reload(*module) {
+            old_state := plugin_deinit(shutting_down = false);
+
+            if !Plugin.reload(*module) // TODO: this calls file_modtime for a second time and doesn't need to.
+                panic("couldn't reload module");
             assert(module.native_module != null);
-            update_and_draw = cast(Update_And_Draw_Func)GetProcAddress(module.native_module, "update_and_draw");
-            if !update_and_draw {
-                print("no update_and_draw, exiting!\n");
-                break;
-            }
+
+            update_plugin_functions(*module);
+            assert(update_and_draw != null);
+
+            plugin_init(old_state);
         }
 
         update_and_draw();
+
+        reset_temporary_storage();
     }
 
     pos := GetWindowPosition();
@@ -109,8 +139,4 @@ main :: () {
         defer free(output);
         File.write_entire_file("game.cfg", output);
     }
-
-
-
-
 }

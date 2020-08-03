@@ -1,7 +1,7 @@
 #import "Basic";
 #import "Compiler";
 
-module_search_paths := {:string: "../jai-raylib", "lib"};
+module_search_paths := string.["../jai-raylib", "lib"];
 
 build_plugin :: () {
     set_working_directory(#filepath);
@@ -50,7 +50,6 @@ build_host :: () {
         while true {
             message := compiler_wait_for_message();
             if !message || message.workspace != w continue;
-
             if message.kind == .COMPLETE break;
         }
     }

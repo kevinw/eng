@@ -88,7 +88,24 @@ wait_for_readable_file :: (filename: string) -> bool {
     return true;
 }
 
-maybe_reload :: (plugin: *Module) -> bool {
+should_reload :: (plugin: *Module) -> bool {
+    if !plugin.native_module
+        return false;
+
+    file_time, ok := file_modtime(plugin.path_on_disk);
+
+    if !ok {
+        print("could not get modtime: '%'\n", plugin.path_on_disk);
+        return false;
+    }
+
+    if file_time == plugin.last_write_time
+        return false;
+
+    return true;
+}
+
+reload :: (plugin: *Module) -> bool {
     if !plugin.native_module return false;
 
     file_time, ok := file_modtime(plugin.path_on_disk);
@@ -110,15 +127,15 @@ maybe_reload :: (plugin: *Module) -> bool {
         return false;
     }
 
-    if !unload(plugin) {
+    if !unload(plugin) { // Actually unload the old DLL
         print("error tring to unload the old plugin!\n");
         return false;
     }
-    if !load(plugin, plugin.name) {
+
+    if !load(plugin, plugin.name) { // Load the new DLL
         print("error trying to load the new plugin!\n");
         return false;
     }
-
 
     return true;
 }
