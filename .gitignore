@@ -5,3 +5,5 @@
 *.exp
 .build/
 .vs/
+
+game.cfg

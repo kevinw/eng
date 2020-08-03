@@ -3,7 +3,10 @@
 #import "Windows";
 #import "Hotloader";
 #import "String";
+#import "config";
 #import "Process";
+#import "System";
+File :: #import "File";
 Debug :: #import "Debug";
 Plugin :: #import "plugin";
 
@@ -39,10 +42,29 @@ on_asset_change :: (using asset_change: *Asset_Change) {
     }
 }
 
+host_settings: struct {
+    window_pos_x: s32;
+    window_pos_y: s32;
+};
+
 main :: () {
     Debug.init();
 
+    found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
+    if !found {
+        print("Error: unable to find my own exe\n");
+        return;
+    }
+
+    SetTraceLogLevel(.LOG_WARNING);
+
+
+    parse_config_file(*host_settings, tprint("%/%", exe_path, "game.cfg"));
+    win_x:= host_settings.window_pos_x;
+    win_y:= host_settings.window_pos_y;
+
     InitWindow(800, 450, "game");
+    SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
     module: Plugin.Module;
@@ -73,5 +95,22 @@ main :: () {
 
         update_and_draw();
     }
+
+    pos := GetWindowPosition();
+    {
+        builder: String_Builder;
+        defer free_buffers(*builder);
+
+        append(*builder, "[1]\n\n");
+        print_to_builder(*builder, "window_pos_x %\n", cast(s32)pos.x);
+        print_to_builder(*builder, "window_pos_y %\n", cast(s32)pos.y);
+
+        output := builder_to_string(*builder);
+        defer free(output);
+        File.write_entire_file("game.cfg", output);
+    }
+
+
+
 
 }
