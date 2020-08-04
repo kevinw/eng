@@ -12,6 +12,7 @@ Player :: struct {
     position: Vector2;
     speed: float;
     canJump: bool;
+    grounded: bool;
 
     jump_button_time: float64;
     jump_button_last_frame: bool;
@@ -21,8 +22,14 @@ Player :: struct {
 
     sprite_timer: float;
     gino_texture: Texture;
-    idle_sprite: []Atlas_Sprite;
-    run_sprite: []Atlas_Sprite;
+
+    sprites: struct {
+        idle: []Sprite;
+        run: []Sprite;
+        jump_start: []Sprite;
+        jump_mid: []Sprite;
+        jump_landing: []Sprite;
+    };
 }
 
 EnvItem :: struct {
@@ -38,9 +45,11 @@ state: struct {
 
     cameraOption: int;
 
-    bg_texture: Texture;
-    shader: Shader;
-    seconds: float64;
+    bg: struct {
+        texture: Texture;
+        timer: float64;
+        shader: Shader;
+    };
 };
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, items: []EnvItem, delta: float, w: int, h: int);
@@ -77,8 +86,14 @@ plugin_init :: (old_value: *void) {
 
         player.gino_texture = LoadTexture("resources/sprites/gino.png");
         gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
-        player.idle_sprite = sprites_with_prefix(gino_sprites, "Idle/");
-        player.run_sprite = sprites_with_prefix(gino_sprites, "Run/");
+        {
+            using player.sprites;
+            idle         = sprites_with_prefix(gino_sprites, "Idle/");
+            run          = sprites_with_prefix(gino_sprites, "Run/");
+            jump_start   = sprites_with_prefix(gino_sprites, "Jump/start/");
+            jump_mid     = sprites_with_prefix(gino_sprites, "Jump/mid/");
+            jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
+        }
 
         player.position = Vector2.{ 400, 280 };
         player.speed = 0;
@@ -97,17 +112,17 @@ plugin_init :: (old_value: *void) {
         camera.rotation = 0.0;
         camera.zoom = 1.0;
 
-        bg_texture = LoadTexture("resources/textures/space.png");
-        shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", 330));
+        bg.texture = LoadTexture("resources/textures/space.png");
+        bg.shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", 330));
     }
 
-    set_shader_val(shader, "size", make_Vector2(GetScreenWidth(), GetScreenHeight()));
-    set_shader_val(shader, "freqX", 25.0);
-    set_shader_val(shader, "freqY", 25.0);
-    set_shader_val(shader, "ampX", 5.0);
-    set_shader_val(shader, "ampY", 5.0);
-    set_shader_val(shader, "speedX", 8.0);
-    set_shader_val(shader, "speedY", 8.0);
+    set_shader_val(bg.shader, "size", make_Vector2(GetScreenWidth(), GetScreenHeight()));
+    set_shader_val(bg.shader, "freqX", 25.0);
+    set_shader_val(bg.shader, "freqY", 25.0);
+    set_shader_val(bg.shader, "ampX", 5.0);
+    set_shader_val(bg.shader, "ampY", 5.0);
+    set_shader_val(bg.shader, "speedX", 8.0);
+    set_shader_val(bg.shader, "speedY", 8.0);
 }
 
 #program_export
@@ -115,8 +130,8 @@ plugin_deinit :: (shutting_down: bool) -> *void {
 
     using state;
     if shutting_down {
-        UnloadTexture(bg_texture);
-        UnloadShader(shader);
+        UnloadTexture(bg.texture);
+        UnloadShader(bg.shader);
         return null;
     }
 
@@ -131,11 +146,10 @@ update_and_draw :: () {
 
     {
         deltaTime := GetFrameTime();
-        seconds += deltaTime * 0.2;
+        bg.timer += deltaTime * 0.2;
 
-        set_shader_val(shader, "secondes", cast(float)seconds);
-
-        
+        set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
+       
         player_update(*player, envItems, deltaTime);
 
         camera.zoom += (cast(float)GetMouseWheelMove()*0.05);
@@ -165,10 +179,12 @@ update_and_draw :: () {
         ClearBackground(LIGHTGRAY);
 
         {
-            BeginShaderMode(shader);
+            BeginShaderMode(bg.shader);
             defer EndShaderMode();
-            DrawTexture(bg_texture, 0, 0, WHITE);
-            DrawTexture(bg_texture, bg_texture.width, 0, WHITE);
+            DrawTexture(bg.texture, 0, 0, WHITE);
+            DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
+            DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
+            DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
         }
         {
             BeginMode2D(camera);
@@ -199,37 +215,36 @@ update_and_draw :: () {
         */
     }
 }
-v2 :: make_Vector2;
+
+sprite_get_rect :: (spr: []Sprite, timer: float, fps: int) -> Rectangle {
+    sprite_index := cast(int)(timer * fps);
+    while sprite_index >= spr.count sprite_index -= spr.count;
+    s := *spr[sprite_index];
+    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y);
+}
 
 player_draw :: (player: *Player) {
+    spr: []Sprite;
+    if !player.grounded 
+        spr = player.sprites.jump_mid;
+    else if Math.abs(player.horizontal_movement) > 0
+        spr = player.sprites.run;
+    else
+        spr = player.sprites.idle;
+
     FPS :: 18;
-    sprite_index := cast(int)(player.sprite_timer * FPS);
-    spr := ifx Math.abs(player.horizontal_movement) > 0 then *player.run_sprite else *player.idle_sprite;
-    while sprite_index >= spr.count sprite_index -= spr.count;
-    current_sprite := (<<spr)[sprite_index];
-    xy := current_sprite.xy;
-    size := current_sprite.size;
-    sprite_rect := make_Rectangle(xy.x, xy.y, size.x, size.y);
-
-
-    player_rect := make_Rectangle(player.position.x - 15, player.position.y - 40, 30, 40);
+    sprite_rect := sprite_get_rect(spr, player.sprite_timer, FPS);
+    player_rect := rect(player.position.x - 15, player.position.y - 40, 30, 40);
 
     //DrawRectangleRec(playerRect, RED);
     //DrawRectangleGradientEx(player_rect, RED, GREEN, WHITE, BLUE);
     //DrawCircleV(player.position - v2(0, 45), 10, make_Color(90, 40, 60, 255));
-
     // void DrawTexturePro(Texture2D texture, Rectangle sourceRec, Rectangle destRec, Vector2 origin, float rotation, Color tint);       // Draw a part of a texture defined by a rectangle with 'pro' parameters
 
     dest_rect_pos := player.position - v2(10, 37);
-    dest_rect := make_Rectangle(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
-    if player.last_direction < 0
-        sprite_rect.width *= -1;
+    dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
+    sprite_rect.width *= ifx player.last_direction < 0 then -1 else 1;
     DrawTexturePro(player.gino_texture, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
-}
-
-sign :: inline (x: $T) -> int {
-    if x < cast(T)0 return -1;
-    return 1;
 }
 
 player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
@@ -259,10 +274,18 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
                               IsKeyDown(.KEY_W) ||
                               IsKeyDown(.KEY_UP) ||
                               IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+    
 
-    if player.canJump && jump_button_this_frame
+    now := GetTime();
+    if jump_button_this_frame && !player.jump_button_last_frame
+        player.jump_button_time = now;
+
+    player.jump_button_last_frame = jump_button_this_frame;
+
+    if player.grounded && (now - player.jump_button_time) < 0.2
     {
         player.speed = -PLAYER_JUMP_SPD;
+        player.grounded = false;
         player.canJump = false;
     }
 
@@ -278,6 +301,7 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
             hitObstacle = true;
             player.speed = 0.0;
             p.y = it.rect.y;
+            player.grounded = true;
         }
     }
     
@@ -285,8 +309,9 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
         player.position.y += player.speed * delta_time;
         player.speed += G * delta_time;
         player.canJump = false;
-    } 
-    else player.canJump = true;
+    } else {
+        player.canJump = true;
+    }
 }
 
 UpdateCameraCenter :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)

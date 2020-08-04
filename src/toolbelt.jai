@@ -56,7 +56,7 @@ Int2 :: struct {
     y: s16;
 }
 
-Atlas_Sprite :: struct {
+Sprite :: struct {
     name: string;
     rotate: bool;
     xy: Int2;
@@ -78,7 +78,7 @@ parse_int2 :: (s: string) -> Int2 {
     return result;
 }
 
-sprites_with_prefix :: (sprites: []Atlas_Sprite, prefix: string) -> []Atlas_Sprite {
+sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
     i := -1;
     j := -1;
 
@@ -98,7 +98,7 @@ sprites_with_prefix :: (sprites: []Atlas_Sprite, prefix: string) -> []Atlas_Spri
     assert(j != -1);
 
     // TODO: this assumes sprites are sorted
-    new_slice: []Atlas_Sprite;
+    new_slice: []Sprite;
     new_slice.data = *sprites[i];
     new_slice.count = j - i;
     //print("sprites_with_prefix of % total w prefix '%': %\n", sprites.count, prefix, new_slice.count);
@@ -106,7 +106,7 @@ sprites_with_prefix :: (sprites: []Atlas_Sprite, prefix: string) -> []Atlas_Spri
 }
 
 
-parse_spriter_atlas :: (filename: string) -> []Atlas_Sprite {
+parse_spriter_atlas :: (filename: string) -> []Sprite {
     handler: Text_File_Handler;
     handler.do_version_number = false;
     handler.strip_comments_from_ends_of_lines;
@@ -121,9 +121,9 @@ parse_spriter_atlas :: (filename: string) -> []Atlas_Sprite {
 
     atlas_image_filename:string;
 
-    sprites: [..]Atlas_Sprite;
-    current_entry: Atlas_Sprite;
-    empty_entry: Atlas_Sprite;
+    sprites: [..]Sprite;
+    current_entry: Sprite;
+    empty_entry: Sprite;
     for line: *handler {
         if atlas_image_filename.count == 0 {
             atlas_image_filename = line;
@@ -166,3 +166,11 @@ parse_spriter_atlas :: (filename: string) -> []Atlas_Sprite {
 
     return sprites;
 }
+
+sign :: inline (x: $T) -> int {
+    if x < cast(T)0 return -1;
+    return 1;
+}
+
+v2 :: make_Vector2;
+rect :: make_Rectangle;
