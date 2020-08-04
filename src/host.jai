@@ -16,6 +16,9 @@ panic :: (msg: string) {
     debug_break();
 }
 
+WINDOW_WIDTH :: 1200;
+WINDOW_HEIGHT :: 675;
+
 on_asset_change :: (using asset_change: *Asset_Change) {
     print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name == "game" {
@@ -83,14 +86,13 @@ main :: () {
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
 
-    InitWindow(800, 450, "");
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "");
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
     #if ALWAYS_ON_TOP
         Platform.SetWindowAlwaysOnTop(GetWindowHandle());
 
-    print("working directory %\n", get_working_directory());
     hotloader_init("src", _DEBUG_LOGGING=false);
     hotloader_register_callback(on_asset_change);
     defer hotloader_shutdown();

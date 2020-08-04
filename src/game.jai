@@ -4,12 +4,25 @@ Math :: #import "Math";
 #import "raymath";
 #load "toolbelt.jai";
 
+gameWidth :: 640;
+gameHeight :: 360;
+
 PLAYER_JUMP_SPD :: 350;
 PLAYER_HOR_SPD :: 200;
 G :: 600;
+GLSL_VERSION :: 330;
+
+Entity :: struct {
+    position: Vector2;
+}
+
+Enemy :: struct {
+    using entity: Entity;
+}
 
 Player :: struct {
-    position: Vector2;
+    using entity: Entity;
+
     speed: float;
     canJump: bool;
     grounded: bool;
@@ -43,12 +56,17 @@ state: struct {
     envItems: [..]EnvItem;
     camera: Camera2D;
 
-    cameraOption: int;
+    cameraOption: int = 2;
 
     bg: struct {
         texture: Texture;
         timer: float64;
         shader: Shader;
+    };
+
+    screen: struct {
+        shader: Shader;
+        texture: RenderTexture;
     };
 };
 
@@ -61,17 +79,6 @@ cameraUpdaters :: CameraFunc.[
     UpdateCameraEvenOutOnLanding,
     UpdateCameraPlayerBoundsPush
 ];
-
-cameraDescriptions :: string.[
-    "Follow player center",
-    "Follow player center, but clamp to map edges",
-    "Follow player center; smoothed",
-    "Follow player center horizontally; updateplayer center vertically after landing",
-    "Player push camera on getting too close to screen edge",
-];
-
-screenWidth :: 800;
-screenHeight :: 450;
 
 #program_export
 plugin_init :: (old_value: *void) {
@@ -95,6 +102,9 @@ plugin_init :: (old_value: *void) {
             jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
         }
 
+        screen.texture = LoadRenderTexture(gameWidth, gameHeight);
+        screen.shader = LoadShader(null, null);
+
         player.position = Vector2.{ 400, 280 };
         player.speed = 0;
         player.canJump = false;
@@ -108,15 +118,15 @@ plugin_init :: (old_value: *void) {
         );
         
         camera.target = player.position;
-        camera.offset = Vector2.{ cast(float)screenWidth/2.0, cast(float)screenHeight/2.0 };
+        camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
         camera.rotation = 0.0;
         camera.zoom = 1.0;
 
         bg.texture = LoadTexture("resources/textures/space.png");
-        bg.shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", 330));
+        bg.shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", GLSL_VERSION));
     }
 
-    set_shader_val(bg.shader, "size", make_Vector2(GetScreenWidth(), GetScreenHeight()));
+    set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
     set_shader_val(bg.shader, "freqX", 25.0);
     set_shader_val(bg.shader, "freqY", 25.0);
     set_shader_val(bg.shader, "ampX", 5.0);
@@ -170,49 +180,54 @@ update_and_draw :: () {
             ToggleFullscreen();
 
         // Call update camera function by its pointer
-        cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, screenWidth, screenHeight);
+        cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
         //----------------------------------------------------------------------------------
     }
     {
         BeginDrawing();
         defer EndDrawing();
-        ClearBackground(LIGHTGRAY);
-
         {
-            BeginShaderMode(bg.shader);
-            defer EndShaderMode();
-            DrawTexture(bg.texture, 0, 0, WHITE);
-            DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
-            DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
-            DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
-        }
-        {
-            BeginMode2D(camera);
-            defer EndMode2D();
+            BeginTextureMode(screen.texture);
+            defer EndTextureMode();
 
-            for * envItems {
-                color := it.color;
-                color2 := color;
-                color2.r -= 100;
-                color2.g -= 100;
-                color2.b -= 100;
-
-                DrawRectangleGradientEx(it.rect, color, color2, color2, color);
+            ClearBackground(LIGHTGRAY);
+            {
+                BeginShaderMode(bg.shader);
+                defer EndShaderMode();
+                DrawTexture(bg.texture, 0, 0, WHITE);
+                DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
+                DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
+                DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
             }
+            {
+                BeginMode2D(camera);
+                defer EndMode2D();
 
-            player_draw(*player);
+                for * envItems {
+                    color := it.color;
+                    color2 := color;
+                    color2.r -= 100;
+                    color2.g -= 100;
+                    color2.b -= 100;
+
+                    DrawRectangleGradientEx(it.rect, color, color2, color2, color);
+                }
+
+                player_draw(*player);
+            }
         }
-/*
-        DrawText("Controls:", 20, 20, 10, BLACK);
-        DrawText("- Right/Left to move", 40, 40, 10, DARKGRAY);
-        DrawText("- Space to jump", 40, 60, 10, DARKGRAY);
-        DrawText("- Mouse Wheel to Zoom in-out, R to reset zoom", 40, 80, 10, DARKGRAY);
-        DrawText("- C to change camera mode", 40, 100, 10, DARKGRAY);
-        DrawText("Current camera mode:", 20, 120, 10, BLACK);
 
-        desc := to_temp_c_string(cameraDescriptions[cameraOption]);
-        DrawText(desc, 40, 140, 10, DARKGRAY);
-        */
+        {
+            // blit to screen
+            BeginShaderMode(screen.shader);
+            defer EndShaderMode();
+
+            //DrawTextureRec(screen.texture.texture, make_Rectangle(0, 0, screen.texture.texture.width, -screen.texture.texture.height), Vector2.{ 0, 0 }, WHITE);
+
+            source_rect := make_Rectangle(0, 0, screen.texture.texture.width, -screen.texture.texture.height);
+            dest_rect   := make_Rectangle(0, 0, GetScreenWidth(), GetScreenHeight());
+            DrawTexturePro(screen.texture.texture, source_rect, dest_rect, Vector2.{0, 0}, 0, WHITE);
+        }
     }
 }
 
@@ -225,15 +240,19 @@ sprite_get_rect :: (spr: []Sprite, timer: float, fps: int) -> Rectangle {
 
 player_draw :: (player: *Player) {
     spr: []Sprite;
-    if !player.grounded 
+    fps: int;
+    if !player.grounded {
         spr = player.sprites.jump_mid;
-    else if Math.abs(player.horizontal_movement) > 0
+        fps = 14;
+    } else if Math.abs(player.horizontal_movement) > 0 {
         spr = player.sprites.run;
-    else
+        fps = 18;
+    } else {
         spr = player.sprites.idle;
+        fps = 10;
+    }
 
-    FPS :: 18;
-    sprite_rect := sprite_get_rect(spr, player.sprite_timer, FPS);
+    sprite_rect := sprite_get_rect(spr, player.sprite_timer, fps);
     player_rect := rect(player.position.x - 15, player.position.y - 40, 30, 40);
 
     //DrawRectangleRec(playerRect, RED);
@@ -282,7 +301,7 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
 
     player.jump_button_last_frame = jump_button_this_frame;
 
-    if player.grounded && (now - player.jump_button_time) < 0.2
+    if player.grounded && (now - player.jump_button_time) < 0.15
     {
         player.speed = -PLAYER_JUMP_SPD;
         player.grounded = false;
