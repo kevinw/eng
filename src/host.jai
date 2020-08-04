@@ -83,7 +83,7 @@ main :: () {
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
 
-    InitWindow(800, 450, "game");
+    InitWindow(800, 450, "");
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
@@ -126,12 +126,12 @@ main :: () {
         reset_temporary_storage();
     }
 
-    pos := GetWindowPosition();
-    {
+    if !IsWindowFullscreen() {
         builder: String_Builder;
         defer free_buffers(*builder);
 
         append(*builder, "[1]\n\n");
+        pos := GetWindowPosition();
         print_to_builder(*builder, "window_pos_x %\n", cast(s32)pos.x);
         print_to_builder(*builder, "window_pos_y %\n", cast(s32)pos.y);
 
