@@ -3,6 +3,7 @@ Math :: #import "Math";
 #import "raylib";
 #import "raymath";
 #load "toolbelt.jai";
+reaper :: #import "reaper";
 
 gameWidth :: 640;
 gameHeight :: 360;
@@ -57,11 +58,13 @@ EnvItem :: struct {
 }
 
 state: struct {
+    beat_markers: []reaper.Marker;
     player: Player;
     envItems: [..]EnvItem;
     camera: Camera2D;
 
     bgm: Music;
+    beat_timer:float64;
 
     cameraOption: int = 2;
 
@@ -96,6 +99,8 @@ plugin_init :: (old_value: *void) {
         state = << old_state;
         free(old_state);
     } else {
+        beat_markers = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
+        print("%", beat_markers[0]);
         // actual init
         player.gino_texture = LoadTexture("resources/sprites/gino.png");
         gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
@@ -110,7 +115,9 @@ plugin_init :: (old_value: *void) {
             attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
         }
 
-        bgm = LoadMusicStream("resources/music/white-knuckle.mp3");
+        bgm = LoadMusicStream("resources/music/i-think-she-knows.mp3");
+        SetMusicVolume(bgm, 0.05);
+        SetMusicLoopCount(bgm, 0);
         PlayMusicStream(bgm);
 
         screen.texture = LoadRenderTexture(gameWidth, gameHeight);
@@ -181,10 +188,10 @@ update_and_draw :: () {
         if camera.zoom > 3.0 camera.zoom = 3.0;
         else if camera.zoom < 0.25 camera.zoom = 0.25;
         
-        if IsKeyPressed(.KEY_R)
-        {
+        if IsKeyPressed(.KEY_R) {
             camera.zoom = 1.0;
-            player.position = Vector2.{ 400, 280 };
+            camera.target = .{0, 0};
+            player.position = .{ 400, 280 };
         }
 
         if IsKeyPressed(.KEY_C)
@@ -204,7 +211,6 @@ update_and_draw :: () {
             BeginTextureMode(screen.texture);
             defer EndTextureMode();
 
-            ClearBackground(LIGHTGRAY);
             {
                 BeginShaderMode(bg.shader);
                 defer EndShaderMode();
@@ -217,30 +223,38 @@ update_and_draw :: () {
                 BeginMode2D(camera);
                 defer EndMode2D();
 
+                // draw world
                 for * envItems {
                     color := it.color;
                     color2 := color;
-                    color2.r -= 100;
-                    color2.g -= 100;
-                    color2.b -= 100;
-
+                    color2.r -= 100; color2.g -= 100; color2.b -= 100;
                     DrawRectangleGradientEx(it.rect, color, color2, color2, color);
                 }
 
+                // draw entities
                 player_draw(*player);
+
+            }
+
+            // Update beats
+            beat_timer = GetMusicTimePlayed(bgm);
+            bgm_bpm:float = 122.069;
+            beats_per_second := bgm_bpm * (1.0 / 60.0);
+            beat := beat_timer * beats_per_second;
+            found, marker := reaper.most_recent_marker(beat_markers, beat_timer);
+            if found {
+                time_since_marker := beat_timer - marker.time;
+                alpha := 1.0 - time_since_marker;
+                color := Vector4.{1, 1, 1, 1};
+                color.w = cast(float32)alpha;
+                DrawText(to_temp_c_string(tprint("%", marker.beat_type)), 16, 10, 10, ColorFromNormalized(color));
             }
         }
 
         {
-            // blit to screen
             BeginShaderMode(screen.shader);
             defer EndShaderMode();
-
-            //DrawTextureRec(screen.texture.texture, make_Rectangle(0, 0, screen.texture.texture.width, -screen.texture.texture.height), Vector2.{ 0, 0 }, WHITE);
-
-            source_rect := make_Rectangle(0, 0, screen.texture.texture.width, -screen.texture.texture.height);
-            dest_rect   := make_Rectangle(0, 0, GetScreenWidth(), GetScreenHeight());
-            DrawTexturePro(screen.texture.texture, source_rect, dest_rect, Vector2.{0, 0}, 0, WHITE);
+            blit_render_texture_to_screen(screen.texture);
         }
     }
 }
@@ -252,7 +266,7 @@ sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int) -> Rectangle {
     return rect(s.xy.x, s.xy.y, s.size.x, s.size.y);
 }
 
-ATTACK_FPS :: 9;
+ATTACK_FPS :: 13;
 
 player_is_attacking :: (player: *Player) -> bool {
     return (GetTime() - player.last_attack_time) < cast(float)player.sprites.attack.count/ATTACK_FPS;
@@ -287,11 +301,6 @@ player_draw :: (player: *Player) {
 
     sprite_rect := sprite_get_rect(spr, timer, fps);
     player_rect := rect(player.position.x - 15, player.position.y - 40, 30, 40);
-
-    //DrawRectangleRec(playerRect, RED);
-    //DrawRectangleGradientEx(player_rect, RED, GREEN, WHITE, BLUE);
-    //DrawCircleV(player.position - v2(0, 45), 10, make_Color(90, 40, 60, 255));
-    // void DrawTexturePro(Texture2D texture, Rectangle sourceRec, Rectangle destRec, Vector2 origin, float rotation, Color tint);       // Draw a part of a texture defined by a rectangle with 'pro' parameters
 
     dest_rect_pos := player.position - v2(10, 37);
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
@@ -346,7 +355,7 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
         player.sprite_timer = 0;
     }
 
-    if player.grounded && (now - player.jump_button_time) < 0.15
+    if !attacking && player.grounded && (now - player.jump_button_time) < 0.15
     {
         player.speed = -PLAYER_JUMP_SPD;
         player.grounded = false;

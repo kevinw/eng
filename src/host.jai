@@ -18,6 +18,7 @@ panic :: (msg: string) {
 
 WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
+ALWAYS_ON_TOP :: true;
 
 on_asset_change :: (using asset_change: *Asset_Change) {
     print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
@@ -69,8 +70,6 @@ update_plugin_functions :: (module: *Plugin.Module) {
     if !plugin_deinit panic("Could not load plugin_deinit func");
 }
 
-ALWAYS_ON_TOP :: true;
-
 main :: () {
     Debug.init();
 
@@ -110,10 +109,14 @@ main :: () {
     defer plugin_deinit(shutting_down = true);
 
     SetTargetFPS(60);
+    frame_count := 0;
     while !WindowShouldClose() {
-        hotloader_process_change();
+        frame_count += 1;
 
-        if Plugin.should_reload(*module) {
+        if frame_count % 4 == 0
+            hotloader_process_change();
+
+        if frame_count % 2 == 0 && Plugin.should_reload(*module) {
             old_state := plugin_deinit(shutting_down = false);
 
             if !Plugin.reload(*module) // TODO: this calls file_modtime for a second time and doesn't need to.
@@ -127,7 +130,6 @@ main :: () {
         }
 
         update_and_draw();
-
         reset_temporary_storage();
     }
 

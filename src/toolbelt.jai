@@ -106,6 +106,12 @@ sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
 }
 
 
+blit_render_texture_to_screen :: (rt: RenderTexture) {
+    source_rect := make_Rectangle(0, 0, rt.texture.width, -rt.texture.height);
+    dest_rect   := make_Rectangle(0, 0, GetScreenWidth(), GetScreenHeight());
+    DrawTexturePro(rt.texture, source_rect, dest_rect, Vector2.{0, 0}, 0, WHITE);
+}
+
 parse_spriter_atlas :: (filename: string) -> []Sprite {
     handler: Text_File_Handler;
     handler.do_version_number = false;
