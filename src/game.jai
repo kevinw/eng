@@ -30,10 +30,13 @@ Player :: struct {
     jump_button_time: float64;
     jump_button_last_frame: bool;
 
+    last_attack_time:float64 = -10000;
+
     horizontal_movement: float;
     last_direction: float;
 
-    sprite_timer: float;
+    sprite_timer: float64;
+    walk_timer: float64;
     gino_texture: Texture;
 
     sprites: struct {
@@ -42,6 +45,8 @@ Player :: struct {
         jump_start: []Sprite;
         jump_mid: []Sprite;
         jump_landing: []Sprite;
+        attack: []Sprite;
+        attack_air: []Sprite;
     };
 }
 
@@ -55,6 +60,8 @@ state: struct {
     player: Player;
     envItems: [..]EnvItem;
     camera: Camera2D;
+
+    bgm: Music;
 
     cameraOption: int = 2;
 
@@ -90,7 +97,6 @@ plugin_init :: (old_value: *void) {
         free(old_state);
     } else {
         // actual init
-
         player.gino_texture = LoadTexture("resources/sprites/gino.png");
         gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
         {
@@ -100,7 +106,12 @@ plugin_init :: (old_value: *void) {
             jump_start   = sprites_with_prefix(gino_sprites, "Jump/start/");
             jump_mid     = sprites_with_prefix(gino_sprites, "Jump/mid/");
             jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
+            attack       = sprites_with_prefix(gino_sprites, "Attacks/A/");
+            attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
         }
+
+        bgm = LoadMusicStream("resources/music/white-knuckle.mp3");
+        PlayMusicStream(bgm);
 
         screen.texture = LoadRenderTexture(gameWidth, gameHeight);
         screen.shader = LoadShader(null, null);
@@ -142,6 +153,7 @@ plugin_deinit :: (shutting_down: bool) -> *void {
     if shutting_down {
         UnloadTexture(bg.texture);
         UnloadShader(bg.shader);
+        UnloadMusicStream(bgm);
         return null;
     }
 
@@ -155,6 +167,8 @@ update_and_draw :: () {
     using state;
 
     {
+        UpdateMusicStream(bgm);
+
         deltaTime := GetFrameTime();
         bg.timer += deltaTime * 0.2;
 
@@ -231,28 +245,47 @@ update_and_draw :: () {
     }
 }
 
-sprite_get_rect :: (spr: []Sprite, timer: float, fps: int) -> Rectangle {
+sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int) -> Rectangle {
     sprite_index := cast(int)(timer * fps);
     while sprite_index >= spr.count sprite_index -= spr.count;
     s := *spr[sprite_index];
     return rect(s.xy.x, s.xy.y, s.size.x, s.size.y);
 }
 
+ATTACK_FPS :: 9;
+
+player_is_attacking :: (player: *Player) -> bool {
+    return (GetTime() - player.last_attack_time) < cast(float)player.sprites.attack.count/ATTACK_FPS;
+}
+
 player_draw :: (player: *Player) {
+    attacking := player_is_attacking(player);
+
     spr: []Sprite;
     fps: int;
+    timer: float64 = player.sprite_timer;
+    
     if !player.grounded {
-        spr = player.sprites.jump_mid;
-        fps = 14;
+        if attacking {
+            spr = player.sprites.attack_air;
+            fps = ATTACK_FPS;
+        } else {
+            spr = player.sprites.jump_mid;
+            fps = 14;
+        }
+    } else if attacking {
+        spr = player.sprites.attack;
+        fps = ATTACK_FPS;
     } else if Math.abs(player.horizontal_movement) > 0 {
         spr = player.sprites.run;
+        timer = player.walk_timer;
         fps = 18;
     } else {
         spr = player.sprites.idle;
         fps = 10;
     }
 
-    sprite_rect := sprite_get_rect(spr, player.sprite_timer, fps);
+    sprite_rect := sprite_get_rect(spr, timer, fps);
     player_rect := rect(player.position.x - 15, player.position.y - 40, 30, 40);
 
     //DrawRectangleRec(playerRect, RED);
@@ -272,6 +305,8 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
 
     horizontal_movement: float;
 
+    attacking := player_is_attacking(player);
+
     // keyboard movement
     if IsKeyDown(.KEY_LEFT) || IsKeyDown(.KEY_A)  horizontal_movement -= 1.0;
     if IsKeyDown(.KEY_RIGHT) || IsKeyDown(.KEY_D) horizontal_movement += 1.0;
@@ -283,11 +318,15 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
 
     if horizontal_movement > 1  horizontal_movement = 1;
     if horizontal_movement < -1 horizontal_movement = -1;
-    player.position.x += horizontal_movement * PLAYER_HOR_SPD * delta_time;
+
+    if attacking && player.grounded
+        horizontal_movement = 0;
 
     player.horizontal_movement = horizontal_movement;
+    player.position.x += horizontal_movement * PLAYER_HOR_SPD * delta_time;
     if Math.abs(horizontal_movement) > 0
         player.last_direction = cast(float)sign(horizontal_movement);
+    player.walk_timer += delta_time * Math.abs(horizontal_movement);
 
     jump_button_this_frame := IsKeyDown(.KEY_SPACE) ||
                               IsKeyDown(.KEY_W) ||
@@ -301,12 +340,19 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
 
     player.jump_button_last_frame = jump_button_this_frame;
 
+
+    if IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT) {
+        player.last_attack_time = now;
+        player.sprite_timer = 0;
+    }
+
     if player.grounded && (now - player.jump_button_time) < 0.15
     {
         player.speed = -PLAYER_JUMP_SPD;
         player.grounded = false;
         player.canJump = false;
     }
+
 
     hitObstacle := false;
 

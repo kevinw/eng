@@ -94,7 +94,7 @@ sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
     if j == -1
         j = sprites.count;
 
-    assert(i != -1);
+    assert(i != -1, tprint("no sprites with prefix '%' found!", prefix));
     assert(j != -1);
 
     // TODO: this assumes sprites are sorted

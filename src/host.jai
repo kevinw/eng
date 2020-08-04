@@ -90,6 +90,9 @@ main :: () {
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
+    InitAudioDevice();
+    defer CloseAudioDevice();
+
     #if ALWAYS_ON_TOP
         Platform.SetWindowAlwaysOnTop(GetWindowHandle());
 
