@@ -14,18 +14,17 @@ Marker :: struct {
 }
 
 most_recent_marker :: (markers: []Marker, time: float64) -> (found: bool, marker: *Marker) {
+    // TODO: remember the last one. then we can just wait for the next one. this
+    // shouldn't be a linear search :)
     for it, n: markers {
         if it.time <= time continue;
-        if n == 0
-            return false, null;
-        else
-            return true, *markers[n - 1];
+        if n == 0 return false, null;
+        else return true, *markers[n - 1];
     }
-
     return false, null;
 }
 
-parse_reaper_project_file :: (filename: string) -> []Marker {
+parse_reaper_project_file :: (filename: string) -> (bool, []Marker) {
     handler: Text_File_Handler;
     handler.do_version_number = false;
     handler.strip_comments_from_ends_of_lines;
@@ -35,8 +34,7 @@ parse_reaper_project_file :: (filename: string) -> []Marker {
     if handler.failed {
         Log.error();
         Log.print("could not open '%' for parsing\n", filename);
-        assert(false);
-        return .[];
+        return false, .[];
     }
 
     markers: [..]Marker;
@@ -65,6 +63,6 @@ parse_reaper_project_file :: (filename: string) -> []Marker {
         array_add(*markers, marker);
     }
 
-    return markers;
+    return true, markers;
 }
 

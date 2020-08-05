@@ -1,16 +1,18 @@
 #import "Basic";
-Math :: #import "Math";
 #import "raylib";
 #import "raymath";
-#load "toolbelt.jai";
+screenlog :: #import "screenlog";
+#import "toolbelt";
 reaper :: #import "reaper";
 
 gameWidth :: 640;
 gameHeight :: 360;
 
 PLAYER_JUMP_SPD :: 350;
-PLAYER_HOR_SPD :: 200;
-G :: 600;
+PLAYER_HOR_SPD :: 220;
+G :: 1150;
+JUMP_FLOAT :: 0.39;
+JUMP_FLOAT_POW :: 1.1;
 GLSL_VERSION :: 330;
 
 Entity :: struct {
@@ -19,6 +21,8 @@ Entity :: struct {
 
 Enemy :: struct {
     using entity: Entity;
+
+    sprite_timer: float64;
 }
 
 Player :: struct {
@@ -38,17 +42,6 @@ Player :: struct {
 
     sprite_timer: float64;
     walk_timer: float64;
-    gino_texture: Texture;
-
-    sprites: struct {
-        idle: []Sprite;
-        run: []Sprite;
-        jump_start: []Sprite;
-        jump_mid: []Sprite;
-        jump_landing: []Sprite;
-        attack: []Sprite;
-        attack_air: []Sprite;
-    };
 }
 
 EnvItem :: struct {
@@ -58,13 +51,34 @@ EnvItem :: struct {
 }
 
 state: struct {
+    textures: struct {
+        gino: Texture;
+        evilplant: Texture;
+    };
+    sprites: struct {
+        player: struct {
+            idle: []Sprite;
+            run: []Sprite;
+            jump_start: []Sprite;
+            jump_mid: []Sprite;
+            jump_landing: []Sprite;
+            attack: []Sprite;
+            attack_air: []Sprite;
+        };
+        evilplant: struct {
+            idle: []Sprite;
+            hit: []Sprite;
+        };
+    };
+
     beat_markers: []reaper.Marker;
+    current_marker: *reaper.Marker;
+    bgm: Music;
+    beat_timer: float64;
+
     player: Player;
     envItems: [..]EnvItem;
     camera: Camera2D;
-
-    bgm: Music;
-    beat_timer:float64;
 
     cameraOption: int = 2;
 
@@ -78,6 +92,8 @@ state: struct {
         shader: Shader;
         texture: RenderTexture;
     };
+
+    enemies: [..]Enemy;
 };
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, items: []EnvItem, delta: float, w: int, h: int);
@@ -99,13 +115,17 @@ plugin_init :: (old_value: *void) {
         state = << old_state;
         free(old_state);
     } else {
-        beat_markers = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
-        print("%", beat_markers[0]);
+        ok: bool;
+        ok, beat_markers = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
+        assert(ok);
+
         // actual init
-        player.gino_texture = LoadTexture("resources/sprites/gino.png");
-        gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
+
+        // load textures and sprites
+        textures.gino = LoadTexture("resources/sprites/gino.png");
         {
-            using player.sprites;
+            using sprites.player;
+            gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
             idle         = sprites_with_prefix(gino_sprites, "Idle/");
             run          = sprites_with_prefix(gino_sprites, "Run/");
             jump_start   = sprites_with_prefix(gino_sprites, "Jump/start/");
@@ -115,8 +135,16 @@ plugin_init :: (old_value: *void) {
             attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
         }
 
+        textures.evilplant = LoadTexture("resources/sprites/evilplant.png");
+        {
+            using sprites.evilplant;
+            evilplant_sprites := parse_spriter_atlas("resources/sprites/evilplant.atlas");
+            idle = sprites_with_prefix(evilplant_sprites, "Idle/");
+            hit  = sprites_with_prefix(evilplant_sprites, "Hit/");
+        }
+
         bgm = LoadMusicStream("resources/music/i-think-she-knows.mp3");
-        SetMusicVolume(bgm, 0.05);
+        SetMusicVolume(bgm, 0.01);
         SetMusicLoopCount(bgm, 0);
         PlayMusicStream(bgm);
 
@@ -130,10 +158,18 @@ plugin_init :: (old_value: *void) {
         array_add(*envItems,
             //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
             EnvItem.{.{ 0, 400, 1000, 200 }, 1, GRAY },
-            EnvItem.{.{ 300, 200, 400, 10 }, 1, GRAY },
-            EnvItem.{.{ 250, 300, 100, 10 }, 1, GRAY },
-            EnvItem.{.{ 650, 300, 100, 10 }, 1, GRAY }
+                   .{.{ 300, 200, 400, 10 }, 1, GRAY },
+                   .{.{ 250, 300, 100, 10 }, 1, GRAY },
+                   .{.{ 650, 300, 100, 10 }, 1, GRAY }
         );
+
+        enemy: Enemy;
+        enemy.position.x = 400;
+        enemy.position.y = 197;
+        array_add(*enemies, enemy);
+        enemy.position.x = 600;
+        enemy.position.y = 197;
+        array_add(*enemies, enemy);
         
         camera.target = player.position;
         camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
@@ -173,36 +209,46 @@ plugin_deinit :: (shutting_down: bool) -> *void {
 update_and_draw :: () {
     using state;
 
+    deltaTime := GetFrameTime();
+
+    // update
     {
+        screenlog.update(deltaTime);
+
         UpdateMusicStream(bgm);
 
-        deltaTime := GetFrameTime();
+        // update beat
+        {
+            beat_timer = GetMusicTimePlayed(bgm);
+            bgm_bpm:float = 122.069;
+            beats_per_second := bgm_bpm * (1.0 / 60.0);
+            found: bool;
+            found, current_marker = reaper.most_recent_marker(beat_markers, beat_timer);
+        }
+
         bg.timer += deltaTime * 0.2;
 
         set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
        
         player_update(*player, envItems, deltaTime);
 
+        for * enemies {
+            it.sprite_timer += deltaTime;
+        }
+
         camera.zoom += (cast(float)GetMouseWheelMove()*0.05);
         
-        if camera.zoom > 3.0 camera.zoom = 3.0;
-        else if camera.zoom < 0.25 camera.zoom = 0.25;
+        camera.zoom = clamp(camera.zoom, 0.25, 3.0);
         
         if IsKeyPressed(.KEY_R) {
             camera.zoom = 1.0;
             camera.target = .{0, 0};
             player.position = .{ 400, 280 };
         }
+        if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
+        if IsKeyPressed(.KEY_F) ToggleFullscreen();
 
-        if IsKeyPressed(.KEY_C)
-            cameraOption = (cameraOption + 1) % cameraUpdaters.count;
-
-        if IsKeyPressed(.KEY_F)
-            ToggleFullscreen();
-
-        // Call update camera function by its pointer
         cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
-        //----------------------------------------------------------------------------------
     }
     {
         BeginDrawing();
@@ -231,23 +277,28 @@ update_and_draw :: () {
                     DrawRectangleGradientEx(it.rect, color, color2, color2, color);
                 }
 
+                // draw enemies
+                {
+                    for * enemies {
+                        fps := 10;
+                        sprite_rect := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
+                        dest_rect_pos := it.position - v2(10, 37);
+                        dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
+                        DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
+                    }
+                }
+
                 // draw entities
                 player_draw(*player);
-
             }
 
             // Update beats
-            beat_timer = GetMusicTimePlayed(bgm);
-            bgm_bpm:float = 122.069;
-            beats_per_second := bgm_bpm * (1.0 / 60.0);
-            beat := beat_timer * beats_per_second;
-            found, marker := reaper.most_recent_marker(beat_markers, beat_timer);
-            if found {
-                time_since_marker := beat_timer - marker.time;
-                alpha := 1.0 - time_since_marker;
+            if current_marker != null {
+                time_since_marker := beat_timer - current_marker.time;
+                alpha := max(cast(float64)0.0, 1.0 - time_since_marker);
                 color := Vector4.{1, 1, 1, 1};
                 color.w = cast(float32)alpha;
-                DrawText(to_temp_c_string(tprint("%", marker.beat_type)), 16, 10, 10, ColorFromNormalized(color));
+                DrawText(to_temp_c_string(tprint("%", current_marker.beat_type)), 16, 10, 10, ColorFromNormalized(color));
             }
         }
 
@@ -255,6 +306,7 @@ update_and_draw :: () {
             BeginShaderMode(screen.shader);
             defer EndShaderMode();
             blit_render_texture_to_screen(screen.texture);
+            screenlog.draw();
         }
     }
 }
@@ -269,51 +321,52 @@ sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int) -> Rectangle {
 ATTACK_FPS :: 13;
 
 player_is_attacking :: (player: *Player) -> bool {
-    return (GetTime() - player.last_attack_time) < cast(float)player.sprites.attack.count/ATTACK_FPS;
+    return (GetTime() - player.last_attack_time) < cast(float)state.sprites.player.attack.count/ATTACK_FPS;
 }
 
-player_draw :: (player: *Player) {
+player_draw :: (using player: *Player) {
     attacking := player_is_attacking(player);
 
     spr: []Sprite;
     fps: int;
-    timer: float64 = player.sprite_timer;
+    timer: float64 = sprite_timer;
     
-    if !player.grounded {
-        if attacking {
-            spr = player.sprites.attack_air;
+    {
+        using state.sprites.player;
+        if !grounded {
+            if attacking {
+                spr = attack_air;
+                fps = ATTACK_FPS;
+            } else {
+                spr = jump_mid;
+                fps = 14;
+            }
+        } else if attacking {
+            spr = attack;
             fps = ATTACK_FPS;
+        } else if Math.abs(horizontal_movement) > 0 {
+            spr = run;
+            timer = walk_timer;
+            fps = 18;
         } else {
-            spr = player.sprites.jump_mid;
-            fps = 14;
+            spr = idle;
+            fps = 10;
         }
-    } else if attacking {
-        spr = player.sprites.attack;
-        fps = ATTACK_FPS;
-    } else if Math.abs(player.horizontal_movement) > 0 {
-        spr = player.sprites.run;
-        timer = player.walk_timer;
-        fps = 18;
-    } else {
-        spr = player.sprites.idle;
-        fps = 10;
     }
 
     sprite_rect := sprite_get_rect(spr, timer, fps);
-    player_rect := rect(player.position.x - 15, player.position.y - 40, 30, 40);
 
-    dest_rect_pos := player.position - v2(10, 37);
+    dest_rect_pos := position - v2(10, 37);
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
-    sprite_rect.width *= ifx player.last_direction < 0 then -1 else 1;
-    DrawTexturePro(player.gino_texture, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
+    sprite_rect.width *= ifx last_direction < 0 then -1 else 1;
+    DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
 }
 
-player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
+player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 {
-    player.sprite_timer += delta_time;
+    sprite_timer += delta_time;
 
-    horizontal_movement: float;
-
+    horizontal_movement = 0;
     attacking := player_is_attacking(player);
 
     // keyboard movement
@@ -331,11 +384,10 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
     if attacking && player.grounded
         horizontal_movement = 0;
 
-    player.horizontal_movement = horizontal_movement;
-    player.position.x += horizontal_movement * PLAYER_HOR_SPD * delta_time;
+    position.x += horizontal_movement * PLAYER_HOR_SPD * delta_time;
     if Math.abs(horizontal_movement) > 0
-        player.last_direction = cast(float)sign(horizontal_movement);
-    player.walk_timer += delta_time * Math.abs(horizontal_movement);
+        last_direction = cast(float)sign(horizontal_movement);
+    walk_timer += delta_time * Math.abs(horizontal_movement);
 
     jump_button_this_frame := IsKeyDown(.KEY_SPACE) ||
                               IsKeyDown(.KEY_W) ||
@@ -344,54 +396,56 @@ player_update :: (player: *Player, envItems: []EnvItem, delta_time: float)
     
 
     now := GetTime();
-    if jump_button_this_frame && !player.jump_button_last_frame
-        player.jump_button_time = now;
+    if jump_button_this_frame && !jump_button_last_frame
+        jump_button_time = now;
 
-    player.jump_button_last_frame = jump_button_this_frame;
-
+    jump_button_last_frame = jump_button_this_frame;
 
     if IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT) {
-        player.last_attack_time = now;
-        player.sprite_timer = 0;
+        last_attack_time = now;
+        sprite_timer = 0;
     }
 
-    if !attacking && player.grounded && (now - player.jump_button_time) < 0.15
-    {
-        player.speed = -PLAYER_JUMP_SPD;
-        player.grounded = false;
-        player.canJump = false;
-    }
+    if !attacking && grounded && (now - jump_button_time) < 0.15 {
+        // JUMP
+        speed = -PLAYER_JUMP_SPD;
+        grounded = false;
+        canJump = false;
 
+        logprint("player", "did jump at %", now);
+    }
 
     hitObstacle := false;
 
-    for * envItems
-    {
-        p := *player.position;
+    for * envItems {
+        p := *position;
         if it.blocking &&
            it.rect.x <= p.x && it.rect.x + it.rect.width >= p.x &&
-           it.rect.y >= p.y && it.rect.y < p.y + player.speed * delta_time
+           it.rect.y >= p.y && it.rect.y < p.y + speed * delta_time
         {
             hitObstacle = true;
-            player.speed = 0.0;
+            speed = 0.0;
             p.y = it.rect.y;
-            player.grounded = true;
+            grounded = true;
         }
     }
-    
+
     if !hitObstacle {
-        player.position.y += player.speed * delta_time;
-        player.speed += G * delta_time;
-        player.canJump = false;
+        position.y += speed * delta_time;
+        drag := G * delta_time;
+        if speed < 0 && jump_button_this_frame
+            drag = Math.pow(drag * JUMP_FLOAT, JUMP_FLOAT_POW);
+        speed += drag;
+        canJump = false;
     } else {
-        player.canJump = true;
+        canJump = true;
     }
 }
 
-UpdateCameraCenter :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
+UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
 {
-    camera.offset = make_Vector2(width/2, height/2);
-    camera.target = player.position;
+    offset = make_Vector2(width/2, height/2);
+    target = player.position;
 }
 
 UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)

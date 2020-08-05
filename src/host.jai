@@ -10,6 +10,7 @@ File :: #import "File";
 Debug :: #import "Debug";
 Plugin :: #import "plugin";
 Platform :: #import "platform";
+screenlog :: #import "screenlog";
 
 panic :: (msg: string) {
     write_string(msg);
@@ -88,6 +89,10 @@ main :: () {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "");
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
+
+    context.logger_data = New(screenlog.Logger_State);
+    context.logger = screenlog.context_func;
+    defer free(context.logger_data);
 
     InitAudioDevice();
     defer CloseAudioDevice();

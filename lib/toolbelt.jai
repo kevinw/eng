@@ -2,6 +2,8 @@
 #import "Text_File_Handler";
 #import "config";
 #import "String";
+#import "raylib";
+Math :: #import "Math";
 
 to_temp_c_string :: (s: string) -> *u8 {
     result : *u8 = talloc(s.count + 1);
