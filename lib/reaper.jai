@@ -2,6 +2,7 @@
 #import "Text_File_Handler";
 #import "Basic";
 #import "String";
+Math :: #import "Math";
 
 Beat_Type :: enum {
     Kick;
@@ -11,6 +12,32 @@ Beat_Type :: enum {
 Marker :: struct {
     beat_type: Beat_Type;
     time: float64;
+}
+
+get_nearest_marker :: (markers: []Marker, last_marker: *Marker, time: float64) -> (marker: *Marker) {
+    // TODO: use last_marker
+    if last_marker != null {
+        assert(last_marker >= *markers[0]);
+        assert(last_marker <= *markers[markers.count - 1]);
+    }
+
+    for * it, n: markers {
+        if it.time <= time continue;
+
+        after := it;
+        if n == 0 return after;
+        before := *markers[n - 1];
+
+        after_time := after.time;
+        before_time := before.time;
+
+        if Math.abs(after_time - time) > Math.abs(before_time - time)
+            return after;
+        else
+            return before;
+    }
+
+    return *markers[markers.count - 1];
 }
 
 most_recent_marker :: (markers: []Marker, time: float64) -> (found: bool, marker: *Marker) {

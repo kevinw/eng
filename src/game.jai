@@ -1,8 +1,8 @@
 #import "Basic";
 #import "raylib";
 #import "raymath";
-screenlog :: #import "screenlog";
 #import "toolbelt";
+screenlog :: #import "screenlog";
 reaper :: #import "reaper";
 
 gameWidth :: 640;
@@ -14,6 +14,7 @@ G :: 1150;
 JUMP_FLOAT :: 0.39;
 JUMP_FLOAT_POW :: 1.1;
 GLSL_VERSION :: 330;
+DEFAULT_BGM_VOLUME :: 0.03;
 
 Entity :: struct {
     position: Vector2;
@@ -21,7 +22,6 @@ Entity :: struct {
 
 Enemy :: struct {
     using entity: Entity;
-
     sprite_timer: float64;
 }
 
@@ -29,13 +29,17 @@ Player :: struct {
     using entity: Entity;
 
     speed: float;
-    canJump: bool;
+    can_jump: bool;
     grounded: bool;
 
     jump_button_time: float64;
     jump_button_last_frame: bool;
+    last_jump_time:float64 = -10000;
 
     last_attack_time:float64 = -10000;
+    attack_did_hit: bool;
+
+    last_grounded_time:float64 = -10000;
 
     horizontal_movement: float;
     last_direction: float;
@@ -51,6 +55,7 @@ EnvItem :: struct {
 }
 
 state: struct {
+    muted := true;
     textures: struct {
         gino: Texture;
         evilplant: Texture;
@@ -63,6 +68,7 @@ state: struct {
             jump_mid: []Sprite;
             jump_landing: []Sprite;
             attack: []Sprite;
+            attack_miss: []Sprite;
             attack_air: []Sprite;
         };
         evilplant: struct {
@@ -73,6 +79,7 @@ state: struct {
 
     beat_markers: []reaper.Marker;
     current_marker: *reaper.Marker;
+    nearest_marker: *reaper.Marker;
     bgm: Music;
     beat_timer: float64;
 
@@ -106,6 +113,11 @@ cameraUpdaters :: CameraFunc.[
     UpdateCameraPlayerBoundsPush
 ];
 
+update_bgm_volume :: () {
+    using state;
+    SetMusicVolume(bgm, ifx muted then 0 else 0.03);
+}
+
 #program_export
 plugin_init :: (old_value: *void) {
     using state;
@@ -132,6 +144,7 @@ plugin_init :: (old_value: *void) {
             jump_mid     = sprites_with_prefix(gino_sprites, "Jump/mid/");
             jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
             attack       = sprites_with_prefix(gino_sprites, "Attacks/A/");
+            attack_miss  = sprites_with_prefix(gino_sprites, "Throw/Throw Attack/");
             attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
         }
 
@@ -144,7 +157,7 @@ plugin_init :: (old_value: *void) {
         }
 
         bgm = LoadMusicStream("resources/music/i-think-she-knows.mp3");
-        SetMusicVolume(bgm, 0.01);
+        update_bgm_volume();
         SetMusicLoopCount(bgm, 0);
         PlayMusicStream(bgm);
 
@@ -153,7 +166,7 @@ plugin_init :: (old_value: *void) {
 
         player.position = Vector2.{ 400, 280 };
         player.speed = 0;
-        player.canJump = false;
+        player.can_jump = false;
 
         array_add(*envItems,
             //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
@@ -191,8 +204,8 @@ plugin_init :: (old_value: *void) {
 
 #program_export
 plugin_deinit :: (shutting_down: bool) -> *void {
-
     using state;
+
     if shutting_down {
         UnloadTexture(bg.texture);
         UnloadShader(bg.shader);
@@ -224,6 +237,8 @@ update_and_draw :: () {
             beats_per_second := bgm_bpm * (1.0 / 60.0);
             found: bool;
             found, current_marker = reaper.most_recent_marker(beat_markers, beat_timer);
+
+            nearest_marker = reaper.get_nearest_marker(beat_markers, null, beat_timer);
         }
 
         bg.timer += deltaTime * 0.2;
@@ -232,11 +247,10 @@ update_and_draw :: () {
        
         player_update(*player, envItems, deltaTime);
 
-        for * enemies {
+        for * enemies
             it.sprite_timer += deltaTime;
-        }
 
-        camera.zoom += (cast(float)GetMouseWheelMove()*0.05);
+        camera.zoom += cast(float)GetMouseWheelMove() * 0.05;
         
         camera.zoom = clamp(camera.zoom, 0.25, 3.0);
         
@@ -244,9 +258,18 @@ update_and_draw :: () {
             camera.zoom = 1.0;
             camera.target = .{0, 0};
             player.position = .{ 400, 280 };
+
+            // Reset the song back to the beginning for now.
+            StopMusicStream(bgm);
+            PlayMusicStream(bgm);
+            beat_timer = 0;
         }
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
         if IsKeyPressed(.KEY_F) ToggleFullscreen();
+        if IsKeyPressed(.KEY_M) {
+            muted = !muted;
+            update_bgm_volume();
+        }
 
         cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
     }
@@ -330,6 +353,10 @@ player_draw :: (using player: *Player) {
     spr: []Sprite;
     fps: int;
     timer: float64 = sprite_timer;
+
+    // Should this be an argument? Probably. I think we want "now" to stay the
+    // same, except maybe for graphics-y interpolated things.
+    now := GetTime(); 
     
     {
         using state.sprites.player;
@@ -338,19 +365,26 @@ player_draw :: (using player: *Player) {
                 spr = attack_air;
                 fps = ATTACK_FPS;
             } else {
-                spr = jump_mid;
-                fps = 14;
+                fps = 9;
+
+                if now - player.last_jump_time < cast(float)state.sprites.player.jump_start.count/fps
+                    spr = jump_start;
+                else 
+                    spr = jump_mid;
             }
         } else if attacking {
-            spr = attack;
+            spr = ifx attack_did_hit then attack else attack_miss;
             fps = ATTACK_FPS;
         } else if Math.abs(horizontal_movement) > 0 {
+            fps = 18;
             spr = run;
             timer = walk_timer;
-            fps = 18;
         } else {
-            spr = idle;
             fps = 10;
+            if now - player.last_grounded_time < cast(float)state.sprites.player.jump_landing.count/fps
+                spr = jump_landing;
+            else
+                spr = idle;
         }
     }
 
@@ -401,22 +435,45 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     jump_button_last_frame = jump_button_this_frame;
 
-    if IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT) {
-        last_attack_time = now;
-        sprite_timer = 0;
+    LATENCY_ADJUSTMENT := 0.25;
+    time_since_marker := state.beat_timer - state.nearest_marker.time + LATENCY_ADJUSTMENT;
+
+    allow_all_beats := false;
+
+    // ATTACK
+    if !attacking && (IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+        if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
+            logprint("player", "HIT attack");
+            last_attack_time = now;
+            attack_did_hit = true;
+            sprite_timer = 0;
+        } else {
+            logprint("player", "MISS attack");
+            last_attack_time = now;
+            attack_did_hit = false;
+            sprite_timer = 0;
+        }
     }
 
+    // JUMP
     if !attacking && grounded && (now - jump_button_time) < 0.15 {
-        // JUMP
-        speed = -PLAYER_JUMP_SPD;
-        grounded = false;
-        canJump = false;
+        if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Snare) {
+            logprint("player", "jump %", time_since_marker);
+            speed = -PLAYER_JUMP_SPD;
+        } else {
+            early_late := ifx time_since_marker > 0 then "late" else "early";
+            logprint("player", "MISS % jump %", early_late, time_since_marker);
+            speed = -PLAYER_JUMP_SPD * .2;
+        }
 
-        logprint("player", "did jump at %", now);
+        grounded = false;
+        can_jump = false;
+        last_jump_time = now;
     }
 
     hitObstacle := false;
 
+    // COLLISION
     for * envItems {
         p := *position;
         if it.blocking &&
@@ -426,19 +483,22 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
             hitObstacle = true;
             speed = 0.0;
             p.y = it.rect.y;
+            if !grounded 
+                last_grounded_time = now;
             grounded = true;
         }
     }
 
+    // GRAVITY
     if !hitObstacle {
         position.y += speed * delta_time;
         drag := G * delta_time;
         if speed < 0 && jump_button_this_frame
             drag = Math.pow(drag * JUMP_FLOAT, JUMP_FLOAT_POW);
         speed += drag;
-        canJump = false;
+        can_jump = false;
     } else {
-        canJump = true;
+        can_jump = true;
     }
 }
 
@@ -505,33 +565,24 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: [
     camera.offset = make_Vector2(width/2, height/2);
     camera.target.x = player.position.x;
     
-    if eveningOut
-    {
-        if evenOutTarget > camera.target.y
-        {
+    if eveningOut {
+        if evenOutTarget > camera.target.y {
             camera.target.y += evenOutSpeed*delta;
             
-            if camera.target.y > evenOutTarget
-            {
+            if camera.target.y > evenOutTarget {
                 camera.target.y = evenOutTarget;
                 eveningOut = 0;
             }
-        } 
-        else 
-        {
+        } else {
             camera.target.y -= evenOutSpeed*delta;
             
-            if camera.target.y < evenOutTarget
-            {
+            if camera.target.y < evenOutTarget {
                 camera.target.y = evenOutTarget;
                 eveningOut = 0;
             }
         }
-    } 
-    else 
-    {
-        if player.canJump && (player.speed == 0) && (player.position.y != camera.target.y)
-        {
+    } else {
+        if player.can_jump && (player.speed == 0) && (player.position.y != camera.target.y) {
             eveningOut = 1;
             evenOutTarget = player.position.y;
         }
