@@ -21,17 +21,13 @@ get_nearest_marker :: (markers: []Marker, last_marker: *Marker, time: float64) -
         assert(last_marker <= *markers[markers.count - 1]);
     }
 
-    for * it, n: markers {
-        if it.time <= time continue;
+    for * after, n: markers {
+        if after.time <= time continue;
 
-        after := it;
         if n == 0 return after;
         before := *markers[n - 1];
 
-        after_time := after.time;
-        before_time := before.time;
-
-        if Math.abs(after_time - time) > Math.abs(before_time - time)
+        if Math.abs(after.time - time) > Math.abs(before.time - time)
             return after;
         else
             return before;

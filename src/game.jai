@@ -230,8 +230,8 @@ update_and_draw :: () {
 
         UpdateMusicStream(bgm);
 
-        // update beat
         {
+            // update beat
             beat_timer = GetMusicTimePlayed(bgm);
             bgm_bpm:float = 122.069;
             beats_per_second := bgm_bpm * (1.0 / 60.0);
@@ -257,7 +257,7 @@ update_and_draw :: () {
         if IsKeyPressed(.KEY_R) {
             camera.zoom = 1.0;
             camera.target = .{0, 0};
-            player.position = .{ 400, 280 };
+            player.position = .{400, 280};
 
             // Reset the song back to the beginning for now.
             StopMusicStream(bgm);
@@ -281,6 +281,7 @@ update_and_draw :: () {
             defer EndTextureMode();
 
             {
+                // draw background
                 BeginShaderMode(bg.shader);
                 defer EndShaderMode();
                 DrawTexture(bg.texture, 0, 0, WHITE);
@@ -289,6 +290,7 @@ update_and_draw :: () {
                 DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
             }
             {
+                // draw foreground
                 BeginMode2D(camera);
                 defer EndMode2D();
 
@@ -321,7 +323,7 @@ update_and_draw :: () {
                 alpha := max(cast(float64)0.0, 1.0 - time_since_marker);
                 color := Vector4.{1, 1, 1, 1};
                 color.w = cast(float32)alpha;
-                DrawText(to_temp_c_string(tprint("%", current_marker.beat_type)), 16, 10, 10, ColorFromNormalized(color));
+                DrawText(to_temp_c_string(tprint("%", current_marker.beat_type)), 16, 10, 40, ColorFromNormalized(color));
             }
         }
 
@@ -366,7 +368,6 @@ player_draw :: (using player: *Player) {
                 fps = ATTACK_FPS;
             } else {
                 fps = 9;
-
                 if now - player.last_jump_time < cast(float)state.sprites.player.jump_start.count/fps
                     spr = jump_start;
                 else 
@@ -463,7 +464,7 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
         } else {
             early_late := ifx time_since_marker > 0 then "late" else "early";
             logprint("player", "MISS % jump %", early_late, time_since_marker);
-            speed = -PLAYER_JUMP_SPD * .2;
+            speed = -PLAYER_JUMP_SPD * 0.25;
         }
 
         grounded = false;
