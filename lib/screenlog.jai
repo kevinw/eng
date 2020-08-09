@@ -7,6 +7,7 @@ TIME_ON_SCREEN :: 2.0;
 Logger_State :: struct {
     time: float64;
     entries: [..]Entry;
+    this_frame_entries: [..]Entry;
 }
 
 Entry :: struct {
@@ -22,6 +23,16 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     entry.time = time;
     entry.message = copy_string(message);
     array_add(*entries, entry);
+}
+
+sticky :: (message: string, args: ..Any) {
+    assert(context.logger_data != null);
+    using cast(*Logger_State)context.logger_data;
+
+    entry: Entry;
+    entry.time = 0;
+    entry.message = copy_string(tprint(message, ..args));
+    array_add(*this_frame_entries, entry);
 }
 
 update :: (delta_time: float64) {
@@ -41,9 +52,19 @@ draw :: () {
     using cast(*Logger_State)context.logger_data;
 
     y:s32 = 0;
-    font_size:s32 : 30;
+    font_size:s32 = 30;
     for * entries {
         DrawText(to_temp_c_string(it.message), 0, y, font_size, WHITE);
         y += font_size;
     }
+
+    x := cast(s32)500;
+    font_size = 15;
+    y = 0;
+    for * this_frame_entries {
+        DrawText(to_temp_c_string(it.message), x, y, font_size, WHITE);
+        y += font_size;
+        free(it.message);
+    }
+    array_reset(*this_frame_entries);
 }

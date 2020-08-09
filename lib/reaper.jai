@@ -3,6 +3,7 @@
 #import "Basic";
 #import "String";
 Math :: #import "Math";
+screenlog :: #import "screenlog";
 
 Beat_Type :: enum {
     Kick;
@@ -14,29 +15,60 @@ Marker :: struct {
     time: float64;
 }
 
-get_nearest_marker :: (markers: []Marker, last_marker: *Marker, time: float64) -> (marker: *Marker) {
-    // TODO: use last_marker
-    if last_marker != null {
-        assert(last_marker >= *markers[0]);
-        assert(last_marker <= *markers[markers.count - 1]);
-    }
+Song :: struct {
+    Type :: enum {
+        Explicit_Markers :: 0;
+        Tempo :: 1;
+    };
 
-    for * after, n: markers {
-        if after.time <= time continue;
+    type: Type;
+    markers: []Marker;
 
-        if n == 0 return after;
-        before := *markers[n - 1];
-
-        if Math.abs(after.time - time) > Math.abs(before.time - time)
-            return after;
-        else
-            return before;
-    }
-
-    return *markers[markers.count - 1];
+    beats_per_minute: float;
+    bpm_marker: Marker;
 }
 
-most_recent_marker :: (markers: []Marker, time: float64) -> (found: bool, marker: *Marker) {
+LATENCY_ADJUSTMENT := 0.25;
+
+get_nearest_marker :: (using song: Song, last_marker: *Marker, time: float64) -> (marker: *Marker) {
+    time += LATENCY_ADJUSTMENT;
+
+    if song.type == .Tempo {
+        beats_per_second := beats_per_minute * (1.0 / 60.0);
+        beat := time / beats_per_second;
+        fraction := Math.fmod(beat, 1.0);
+        beat_int:int = cast(int)beat + (ifx fraction >= 0.5 then 1 else 0);
+        bpm_marker.beat_type = ifx beat_int % 2 == 0 then Beat_Type.Kick else Beat_Type.Snare;
+        bpm_marker.time = cast(float64)(beat_int) * beats_per_second;
+
+        return *bpm_marker;
+    } else {
+        // TODO: use last_marker
+        if last_marker != null {
+            assert(last_marker >= *markers[0]);
+            assert(last_marker <= *markers[markers.count - 1]);
+        }
+
+        for * after, n: markers {
+            if after.time <= time continue;
+
+            if n == 0 return after;
+            before := *markers[n - 1];
+
+            if Math.abs(after.time - time) > Math.abs(before.time - time)
+                return after;
+            else
+                return before;
+        }
+
+        return *markers[markers.count - 1];
+    }
+}
+
+most_recent_marker :: (using song: Song, time: float64) -> (found: bool, marker: *Marker) {
+    if song.type == .Tempo 
+        return false, null;
+
     // TODO: remember the last one. then we can just wait for the next one. this
     // shouldn't be a linear search :)
     for it, n: markers {
@@ -47,7 +79,13 @@ most_recent_marker :: (markers: []Marker, time: float64) -> (found: bool, marker
     return false, null;
 }
 
-parse_reaper_project_file :: (filename: string) -> (bool, []Marker) {
+create_song_for_tempo :: (bpm: float) -> (bool, Song) {
+    song: Song = .{ type = .Tempo };
+    song.beats_per_minute = bpm;
+    return true, song;
+}
+
+parse_reaper_project_file :: (filename: string) -> (bool, Song) {
     handler: Text_File_Handler;
     handler.do_version_number = false;
     handler.strip_comments_from_ends_of_lines;
@@ -57,7 +95,7 @@ parse_reaper_project_file :: (filename: string) -> (bool, []Marker) {
     if handler.failed {
         Log.error();
         Log.print("could not open '%' for parsing\n", filename);
-        return false, .[];
+        return false, .{};
     }
 
     markers: [..]Marker;
@@ -86,6 +124,9 @@ parse_reaper_project_file :: (filename: string) -> (bool, []Marker) {
         array_add(*markers, marker);
     }
 
-    return true, markers;
+    song: Song;
+    song.type = .Explicit_Markers;
+    song.markers = markers;
+    return true, song;
 }
 

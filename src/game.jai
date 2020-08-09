@@ -2,6 +2,7 @@
 #import "raylib";
 #import "raymath";
 #import "toolbelt";
+wbml :: #import "wbml";
 screenlog :: #import "screenlog";
 reaper :: #import "reaper";
 
@@ -55,7 +56,7 @@ EnvItem :: struct {
 }
 
 state: struct {
-    muted := true;
+    muted := false;
     textures: struct {
         gino: Texture;
         evilplant: Texture;
@@ -77,8 +78,7 @@ state: struct {
         };
     };
 
-    beat_markers: []reaper.Marker;
-    current_marker: *reaper.Marker;
+    song: reaper.Song;
     nearest_marker: *reaper.Marker;
     bgm: Music;
     beat_timer: float64;
@@ -120,6 +120,7 @@ update_bgm_volume :: () {
 
 #program_export
 plugin_init :: (old_value: *void) {
+
     using state;
 
     if old_value != null {
@@ -127,10 +128,6 @@ plugin_init :: (old_value: *void) {
         state = << old_state;
         free(old_state);
     } else {
-        ok: bool;
-        ok, beat_markers = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
-        assert(ok);
-
         // actual init
 
         // load textures and sprites
@@ -156,7 +153,12 @@ plugin_init :: (old_value: *void) {
             hit  = sprites_with_prefix(evilplant_sprites, "Hit/");
         }
 
-        bgm = LoadMusicStream("resources/music/i-think-she-knows.mp3");
+        ok: bool;
+        //ok, song = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
+        ok, song = reaper.create_song_for_tempo(60);
+        assert(ok);
+        //bgm = LoadMusicStream("resources/music/Jivasifoki.mp3");
+        bgm = LoadMusicStream("resources/music/kick-snare-60.mp3");
         update_bgm_volume();
         SetMusicLoopCount(bgm, 0);
         PlayMusicStream(bgm);
@@ -236,9 +238,7 @@ update_and_draw :: () {
             bgm_bpm:float = 122.069;
             beats_per_second := bgm_bpm * (1.0 / 60.0);
             found: bool;
-            found, current_marker = reaper.most_recent_marker(beat_markers, beat_timer);
-
-            nearest_marker = reaper.get_nearest_marker(beat_markers, null, beat_timer);
+            nearest_marker = reaper.get_nearest_marker(song, null, beat_timer);
         }
 
         bg.timer += deltaTime * 0.2;
@@ -318,12 +318,12 @@ update_and_draw :: () {
             }
 
             // Update beats
-            if current_marker != null {
-                time_since_marker := beat_timer - current_marker.time;
-                alpha := max(cast(float64)0.0, 1.0 - time_since_marker);
+            if nearest_marker != null {
+                time_since_marker := beat_timer - state.nearest_marker.time;
+                alpha := max(cast(float64)0.0, 1.0 - Math.abs(time_since_marker));
                 color := Vector4.{1, 1, 1, 1};
                 color.w = cast(float32)alpha;
-                DrawText(to_temp_c_string(tprint("%", current_marker.beat_type)), 16, 10, 40, ColorFromNormalized(color));
+                DrawText(tprint("%", nearest_marker.beat_type), 16, 10, 40, ColorFromNormalized(color));
             }
         }
 
@@ -436,8 +436,7 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     jump_button_last_frame = jump_button_this_frame;
 
-    LATENCY_ADJUSTMENT := 0.25;
-    time_since_marker := state.beat_timer - state.nearest_marker.time + LATENCY_ADJUSTMENT;
+    time_since_marker := state.beat_timer - state.nearest_marker.time;
 
     allow_all_beats := false;
 

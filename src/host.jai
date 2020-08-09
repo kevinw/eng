@@ -71,6 +71,35 @@ update_plugin_functions :: (module: *Plugin.Module) {
     if !plugin_deinit panic("Could not load plugin_deinit func");
 }
 
+wbml :: #import "wbml";
+Math :: #import "Math";
+
+main_wbml :: () {
+    val: struct {
+        foo:string;
+        floating_point: float64;
+        bool_value: bool;
+        bool_value_2: bool;
+        meep:int;
+        baz: struct {
+            blap: string;
+        };
+    };
+
+    val.foo = "bar";
+    val.meep = 7;
+    val.bool_value = true;
+    val.bool_value_2 = false;
+    val.floating_point = Math.PI;
+    val.baz.blap = "maaz";
+
+    output := wbml.serialize(*val);
+    print("serialized '%' as:\n%", val, output);
+
+    new_val := wbml.deserialize_to_value(type_of(val), output);
+    print("unserialized as\n%", new_val);
+}
+
 main :: () {
     Debug.init();
 
