@@ -5,6 +5,7 @@
 #import "Hash_Table";
 #import "Any";
 #import "Compiler";
+String :: #import "String";
 Reflection :: #import "Reflection";
 
 #scope_file
@@ -73,19 +74,18 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
 }
 
-deserialize_to_value :: inline ($T: Type, data: string) -> T {
+deserialize :: inline ($T: Type, data: string) -> T {
     t: T;
-    deserialize_into_pointer(data, *t);
+    deserialize(data, *t);
     return t;
 }
 
-deserialize_into_pointer :: (data: string, ptr: *$Type) {
+deserialize :: (data: string, ptr: *$Type) {
     ti := type_info(Type);
     lexer := laas.make_lexer(data);
     root := parse_value(*lexer, false);
     defer delete_node(root);
     write_value(root, ptr, ti);
-
 }
 
 parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_location) -> *Node {
@@ -122,7 +122,9 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 						var_name_token: laas.Token;
 						ok := laas.get_next_token(lexer, *var_name_token);
 						assert(ok, "end of text from within object");
-						assert(var_name_token.kind == .Identifier);
+						assert(lexer.lex_idx < lexer.lexer_text.count);
+						assert(var_name_token.kind == .Identifier,
+							tprint("expected an Identifier but got %\n%", var_name_token, <<lexer));
 
 						value := parse_value(lexer);
 
@@ -213,6 +215,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 				case;
                     node := Node.{type = .Enum_Value};
                     node._enum.value = root_token.text;
+					node.source_str = root_token.text;
                     return new_clone(node);
 			}
 
@@ -223,7 +226,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 			float64_value, ok3 := string_to_float64(root_token.text); assert(ok3);
 
             node := Node.{type = .Number};
-            node._number.source_str = root_token.text;
+            node.source_str = root_token.text;
             node._number.int_value = s64_value * sign;
             node._number.uint_value = cast(u64)(cast(s64)u64_value * sign);
             node._number.float_value = float64_value * cast(float64)sign;
@@ -256,6 +259,7 @@ eat_newlines :: (lexer: *laas.Lexer) {
 }
 
 Node :: struct {
+    source_str: string;
     Type :: enum {
         Number;
         Bool;
@@ -282,7 +286,6 @@ Node :: struct {
 }
 
 Node_Number :: struct {
-    source_str: string;
 	int_value: s64;
 	uint_value: u64;
 	float_value: float64;
@@ -369,12 +372,12 @@ delete_node :: (node: *Node) {
 	free(node);
 }
 
-write_value :: (node: *Node, ptr: *$T) {
+write_value :: (node: *Node, ptr: *$T, debug_string: string = "") {
     ti := type_info(T);
     write_value(node, ptr, ti);
 }
 
-write_value :: (node: *Node, ptr: *void, ti: *Type_Info) {
+write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = "") {
     any: Any;
     any.type = ti;
     any.value_pointer = ptr;
@@ -388,24 +391,61 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info) {
                     if member.name == field.name {
                         field_ptr := ptr + member.offset_in_bytes;
                         field_ti := member.type;
-                        write_value(field.value, field_ptr, field_ti);
+                        write_value(field.value, field_ptr, field_ti, member.name);
                     }
                 }
             }
+		case .ARRAY;
+			ti_array := cast(*Type_Info_Array)ti;
+			assert(ti_array.relative_pointer_size == 0, "TODO: implement relative pointers");
+			if ti_array.array_type == {
+				case .FIXED;
+					assert(ti_array.array_count != -1);
+					assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
+						node._array.elements.count, ti_array.array_count);
+				case .VIEW;
+					T :: *void;
+					array := cast([]T)ptr;
+					assert(array.data == null, "TODO: what to do with the old slice data?");
+					desired_items := node._array.elements.count;
+					if desired_items > array.count {
+						array.data = cast(*T) realloc(array.data, desired_items * ti_array.element_type.runtime_size, desired_items * ti_array.element_type.runtime_size);
+						array.count = desired_items;
+					}
+				case .RESIZABLE;
+					array := cast([..]*void)ptr;
+					desired_items := node._array.elements.count;
+					if desired_items > array.allocated {
+						if !array.allocator {
+							if context.allocator {
+								array.allocator      = context.allocator;
+								array.allocator_data = context.allocator_data;
+							} else {
+								array.allocator      = context.default_allocator;
+							}
+						}
+						array.data = cast(*void)realloc(array.data, desired_items * ti_array.element_type.runtime_size, array.allocated * ti_array.element_type.runtime_size, array.allocator, array.allocator_data);
+						assert(array.data != null);
+						array.allocated = desired_items;
+					}
+			}
+			for node._array.elements
+				write_value(it, ptr + it_index * ti_array.element_type.runtime_size, tprint("%[%]", debug_name, it_index));
         case .INTEGER;
-            Reflection.set_value_from_string(any, node._number.source_str);
+            Reflection.set_value_from_string(any, node.source_str);
         case .FLOAT;
-            Reflection.set_value_from_string(any, node._number.source_str);
+            Reflection.set_value_from_string(any, node.source_str);
         case .STRING;
+			assert(node.type == .String);
+			print("need to set string: %\n", node._string.value);
             temp := tprint("\"%\"", node._string.value);
             Reflection.set_value_from_string(any, temp); // TODO: XXX nono no
         case .BOOL;
             Reflection.set_value_from_string(any, ifx node._bool.value then "true" else "false"); // TODO XXX Nononono
-            
-
-
+		case .ENUM;
+			Reflection.set_value_from_string(any, node.source_str);
         case;
-            print("unhandled: %\n", ti.type);
+            print("unhandled: % %\n", debug_name, ti.type);
     }
 }
 
@@ -421,7 +461,14 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
         if !escape {
             if c == {
                 case #char "\\"; escape = true; length -= 1;
-                case; print_to_builder(*sb, "%", c);
+
+				case;
+
+				// TODO: there has to be a better way to print a character
+				s: string;
+				s.data = *c;
+				s.count = 1;
+                print_to_builder(*sb, "%", s);
             }
         }
         else {
@@ -443,3 +490,245 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
     escaped := builder_to_string(*sb);
     return escaped, length;
 }
+
+
+run_tests :: () {
+    len :: (a: []$A) -> int { return a.count; }
+
+	Int_Enum :: enum int {
+		Foo;
+		Bar;
+		Baz;
+	};
+
+	Byte_Enum :: enum u8 {
+		Qwe;
+		Asd;
+		Zxc;
+	};
+
+	Foo :: struct {
+		x: float;
+        y: float;
+        z: float;
+	};
+
+	Bar :: struct {
+		str: string;
+		big_bool: bool;
+	};
+
+	Nightmare :: struct {
+		some_int: int;
+		some_string: string;
+		some_float: float64;
+		some_bool: bool;
+		some_unserialized_thing: int; @wbml_noserialize
+		enum1: Int_Enum;
+		enum2: Byte_Enum;
+		some_nested_thing: struct {
+			asd: float;
+			super_nested: struct {
+				blah: string;
+			};
+			some_array: [4]string;
+			dyn_array: [..]bool;
+			slice: []struct {
+				x: float64;
+                y: float64;
+			};
+		};
+		empty_dynamic_array: [..]Foo;
+		missing_dynamic_array: [..]Foo;
+		empty_slice: []Foo;
+		missing_slice: []Foo;
+	};
+
+	source := #string END
+{
+	some_int 123
+	some_string "henlo lizer"
+	some_float 123.400
+	some_bool true
+	enum1 Baz
+	enum2 Asd
+	some_nested_thing {
+		asd 432.500
+		super_nested {
+			blah "super nested string"
+		}
+		some_array [
+			"123"
+			"qwe"
+			"asd"
+			"zxc"
+		]
+		dyn_array [
+			true
+			false
+			false
+			true
+		]
+		slice [
+			{
+				x 12.000
+				y 34.000
+			}
+			{
+				x 43.000
+				y 21.000
+			}
+		]
+	}
+
+	empty_dynamic_array [
+
+	]
+
+	empty_slice [
+
+	]
+}
+END;
+
+	a := deserialize(Nightmare, source);
+
+	assert(a.some_int == 123, tprint("%", a.some_int));
+	assert(a.some_string == "henlo lizer", tprint("expected a string, got: '%'", a.some_string));
+	assert(a.some_float == 123.4, tprint("%", a.some_float));
+	assert(a.some_bool == true, tprint("%", a.some_bool));
+
+	assert(a.enum1 == .Baz, tprint("%", a.enum1));
+	assert(a.enum2 == .Asd, tprint("%", a.enum2));
+
+/*
+	if str, ok := a.some_union.(string); ok {
+		assert(str == "foo", tprint(str));
+	}
+	else {
+		assert(false, tprint("some_union wasn't a string: ", a.some_union));
+	}
+
+	if foo, ok := a.union_foo.(Foo); ok {
+		assert(foo.x == 1, tprint(foo));
+		assert(foo.y == 4, tprint(foo));
+		assert(foo.z == 9, tprint(foo));
+	}
+	else {
+		assert(false, tprint("union_foo wasn't a Foo: ", a.union_foo));
+	}
+
+	if bar, ok := a.union_bar.(Bar); ok {
+		assert(bar.str == "bar string", tprint(bar));
+		assert(bar.big_bool == true, tprint(bar));
+	}
+	else {
+		assert(false, tprint("union_bar wasn't a Bar: ", a.union_bar));
+	}
+    */
+
+	assert(a.some_unserialized_thing == 0);
+
+	assert(a.some_nested_thing.asd == 432.500, tprint("%", a.some_nested_thing.asd));//tprintf("%.8f", a.some_nested_thing.asd));
+	assert(a.some_nested_thing.super_nested.blah == "super nested string", tprint(a.some_nested_thing.super_nested.blah));
+
+	assert(len(a.some_nested_thing.some_array) == 4, tprint("%", len(a.some_nested_thing.some_array)));
+	assert(a.some_nested_thing.some_array[0] == "123", tprint("%", a.some_nested_thing.some_array[0]));
+	assert(a.some_nested_thing.some_array[1] == "qwe", tprint("%", a.some_nested_thing.some_array[1]));
+	assert(a.some_nested_thing.some_array[2] == "asd", tprint("%", a.some_nested_thing.some_array[2]));
+	assert(a.some_nested_thing.some_array[3] == "zxc", tprint("%", a.some_nested_thing.some_array[3]));
+
+	assert(len(a.some_nested_thing.dyn_array) == 4, tprint("%", len(a.some_nested_thing.dyn_array)));
+	assert(a.some_nested_thing.dyn_array[0] == true, tprint("%", a.some_nested_thing.dyn_array[0]));
+	assert(a.some_nested_thing.dyn_array[1] == false, tprint("%", a.some_nested_thing.dyn_array[1]));
+	assert(a.some_nested_thing.dyn_array[2] == false, tprint("%", a.some_nested_thing.dyn_array[2]));
+	assert(a.some_nested_thing.dyn_array[3] == true, tprint("%", a.some_nested_thing.dyn_array[3]));
+
+	assert(len(a.some_nested_thing.slice) == 2, tprint("%", len(a.some_nested_thing.slice)));
+	assert(a.some_nested_thing.slice[0].x == 12, tprint("%", a.some_nested_thing.slice[0].x));
+	assert(a.some_nested_thing.slice[0].y == 34, tprint("%", a.some_nested_thing.slice[0].y));
+	assert(a.some_nested_thing.slice[1].x == 43, tprint("%", a.some_nested_thing.slice[1].x));
+	assert(a.some_nested_thing.slice[1].y == 21, tprint("%", a.some_nested_thing.slice[1].y));
+
+	assert(a.empty_dynamic_array.data == null, tprint("%", a.empty_dynamic_array));
+	assert(len(a.empty_dynamic_array) == 0, tprint("%", len(a.empty_dynamic_array)));
+	assert(a.empty_slice.data == null, tprint("%", a.empty_slice));
+	assert(len(a.empty_slice) == 0, tprint("%", len(a.empty_slice)));
+
+
+	a_text := serialize(*a);
+	defer free(a_text);
+	print("%\n", a_text);
+	b := deserialize(Nightmare, a_text);
+
+	assert(a.some_int == b.some_int);
+	assert(a.some_string == b.some_string);
+	assert(a.some_float == b.some_float);
+	assert(a.some_bool == b.some_bool);
+
+	assert(a.enum1 == b.enum1);
+	assert(a.enum2 == b.enum2);
+
+/*
+	if str, ok := b.some_union.(string); ok {
+		assert(str == a.some_union.(string));
+	}
+	else {
+		assert(false, tprint("some_union wasn't a string: ", b.some_union));
+	}
+
+	if foo, ok := b.union_foo.(Foo); ok {
+		assert(foo.x == a.union_foo.(Foo).x);
+		assert(foo.y == a.union_foo.(Foo).y);
+		assert(foo.z == a.union_foo.(Foo).z);
+	}
+	else {
+		assert(false, tprint("union_foo wasn't a Foo: ", b.union_foo));
+	}
+
+	if bar, ok := b.union_bar.(Bar); ok {
+		assert(bar.str      == a.union_bar.(Bar).str);
+		assert(bar.big_bool == a.union_bar.(Bar).big_bool);
+	}
+	else {
+		assert(false, tprint("union_foo wasn't a Foo: ", b.union_foo));
+	}
+    */
+
+	assert(a.some_nested_thing.asd == b.some_nested_thing.asd);
+	assert(a.some_nested_thing.super_nested.blah == b.some_nested_thing.super_nested.blah);
+
+	assert(len(a.some_nested_thing.some_array) == len(b.some_nested_thing.some_array));
+	assert(len(a.some_nested_thing.some_array) == 4);
+	assert(a.some_nested_thing.some_array[0] == b.some_nested_thing.some_array[0]);
+	assert(a.some_nested_thing.some_array[1] == b.some_nested_thing.some_array[1]);
+	assert(a.some_nested_thing.some_array[2] == b.some_nested_thing.some_array[2]);
+	assert(a.some_nested_thing.some_array[3] == b.some_nested_thing.some_array[3]);
+
+	assert(len(a.some_nested_thing.dyn_array) == len(b.some_nested_thing.dyn_array));
+	assert(len(a.some_nested_thing.dyn_array) == 4);
+	assert(a.some_nested_thing.dyn_array[0] == b.some_nested_thing.dyn_array[0]);
+	assert(a.some_nested_thing.dyn_array[1] == b.some_nested_thing.dyn_array[1]);
+	assert(a.some_nested_thing.dyn_array[2] == b.some_nested_thing.dyn_array[2]);
+	assert(a.some_nested_thing.dyn_array[3] == b.some_nested_thing.dyn_array[3]);
+
+	assert(len(a.some_nested_thing.slice) == len(b.some_nested_thing.slice));
+	assert(len(a.some_nested_thing.slice) == 2);
+	assert(a.some_nested_thing.slice[0].x == b.some_nested_thing.slice[0].x);
+	assert(a.some_nested_thing.slice[0].y == b.some_nested_thing.slice[0].y);
+	assert(a.some_nested_thing.slice[1].x == b.some_nested_thing.slice[1].x);
+	assert(a.some_nested_thing.slice[1].y == b.some_nested_thing.slice[1].y);
+
+	assert(a.empty_dynamic_array.data == null, tprint("%", a.empty_dynamic_array));
+	assert(len(a.empty_dynamic_array) == 0, tprint("%", len(a.empty_dynamic_array)));
+	assert(a.empty_slice.data == null, tprint("%", a.empty_slice));
+	assert(len(a.empty_slice) == 0, tprint("%", len(a.empty_slice)));
+
+	assert(b.empty_dynamic_array.data == null, tprint("%", b.empty_dynamic_array));
+	assert(len(b.empty_dynamic_array) == 0, tprint("%", len(b.empty_dynamic_array)));
+	assert(b.empty_slice.data == null, tprint("%", b.empty_slice));
+	assert(len(b.empty_slice) == 0, tprint("%", len(b.empty_slice)));
+
+	print("Tests done!\n");
+}
+
