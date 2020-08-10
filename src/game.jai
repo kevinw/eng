@@ -188,9 +188,12 @@ plugin_init :: (old_value: *void) {
         enemy.position.x = 400;
         enemy.position.y = 197;
         array_add(*enemies, enemy);
-        enemy.position.x = 600;
-        enemy.position.y = 197;
-        array_add(*enemies, enemy);
+        
+        {
+            e := array_add(*enemies);
+            e.position.x = 600;
+            e.position.y = 197;
+        }
         
         camera.target = player.position;
         camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
@@ -278,8 +281,14 @@ update_and_draw :: () {
         }
 
         cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
+
+        now := GetTime();
+        for * worldspace_texts
+            if now - it.time > 2 remove it;
     }
     {
+        // DRAW
+
         BeginDrawing();
         defer EndDrawing();
         {
@@ -312,8 +321,8 @@ update_and_draw :: () {
                 {
                     for * enemies {
                         fps := 10;
-                        sprite_rect := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
-                        dest_rect_pos := it.position - v2(10, 37);
+                        sprite_rect, offset := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
+                        dest_rect_pos := it.position - v2(10, 37) + offset;
                         dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
                         DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
                     }
@@ -348,11 +357,14 @@ update_and_draw :: () {
     }
 }
 
-sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int) -> Rectangle {
+sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) -> (rect: Rectangle, offset: Vector2) {
     sprite_index := cast(int)(timer * fps);
     while sprite_index >= spr.count sprite_index -= spr.count;
     s := *spr[sprite_index];
-    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y);
+    offset := v2(s.offset.x, s.offset.y);
+    if flip_x
+        offset.x = cast(float)(-s.size.x - s.offset.x);
+    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y), offset;
 }
 
 ATTACK_FPS :: 13;
@@ -401,12 +413,26 @@ player_draw :: (using player: *Player) {
         }
     }
 
-    sprite_rect := sprite_get_rect(spr, timer, fps);
+    flip_x := last_direction < 0;
+    sprite_rect, offset := sprite_get_rect(spr, timer, fps, last_direction < 0);
 
-    dest_rect_pos := position - v2(10, 37);
+    x_offset := 21 * (ifx flip_x then -1 else 1);
+    dest_rect_pos := position - v2(x_offset, 38) + offset;
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
-    sprite_rect.width *= ifx last_direction < 0 then -1 else 1;
+    sprite_rect.width *= ifx flip_x then -1 else 1;
     DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
+
+    // debug pos
+    w := 6;
+    DrawRectangleV(position - v2(w/2, w/2), make_Vector2(w, w), RED);
+
+}
+
+add_worldspace_text :: (message: string, pos: Vector2) {
+    txt := array_add(*state.worldspace_texts);
+    txt.message = message;
+    txt.position = pos;
+    txt.time = GetTime();
 }
 
 player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
@@ -454,13 +480,16 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     // ATTACK
     if !attacking && (IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+        attack_offset :: Vector2.{0, -20};
         if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
             logprint("player", "HIT attack");
+            add_worldspace_text("HIT", player.position + attack_offset);
             last_attack_time = now;
             attack_did_hit = true;
             sprite_timer = 0;
         } else {
             logprint("player", "MISS attack");
+            add_worldspace_text("MISS", player.position + attack_offset);
             last_attack_time = now;
             attack_did_hit = false;
             sprite_timer = 0;
@@ -469,11 +498,15 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     // JUMP
     if !attacking && grounded && (now - jump_button_time) < 0.15 {
-        if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Snare) {
+        beat_match_type := state.nearest_marker.beat_type == .Snare;
+        if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
+            add_worldspace_text("HIT", player.position);
             logprint("player", "jump %", time_since_marker);
             speed = -PLAYER_JUMP_SPD;
         } else {
+            add_worldspace_text("MISS", player.position);
             early_late := ifx time_since_marker > 0 then "late" else "early";
+            if !beat_match_type early_late = "wrong beat";
             logprint("player", "MISS % jump %", early_late, time_since_marker);
             speed = -PLAYER_JUMP_SPD * 0.25;
         }
