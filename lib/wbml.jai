@@ -85,7 +85,7 @@ deserialize :: (data: string, ptr: *$Type) {
     lexer := laas.make_lexer(data);
     root := parse_value(*lexer, false);
     defer delete_node(root);
-    write_value(root, ptr, ti);
+    write_value(root, ptr, ti, "<root>");
 }
 
 parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_location) -> *Node {
@@ -374,10 +374,11 @@ delete_node :: (node: *Node) {
 
 write_value :: (node: *Node, ptr: *$T, debug_string: string = "") {
     ti := type_info(T);
-    write_value(node, ptr, ti);
+    write_value(node, ptr, ti, debug_string);
 }
 
 write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = "") {
+	//print("write_value ptr=% name=%\n", ptr, debug_name);
     any: Any;
     any.type = ti;
     any.value_pointer = ptr;
@@ -391,29 +392,42 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                     if member.name == field.name {
                         field_ptr := ptr + member.offset_in_bytes;
                         field_ti := member.type;
-                        write_value(field.value, field_ptr, field_ti, member.name);
+                        write_value(field.value, field_ptr, field_ti, tprint("%.%", debug_name, member.name));
                     }
                 }
             }
 		case .ARRAY;
 			ti_array := cast(*Type_Info_Array)ti;
+			elem_size := ti_array.element_type.runtime_size;
 			assert(ti_array.relative_pointer_size == 0, "TODO: implement relative pointers");
 			if ti_array.array_type == {
 				case .FIXED;
 					assert(ti_array.array_count != -1);
 					assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
 						node._array.elements.count, ti_array.array_count);
+					for node._array.elements
+						write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
 				case .VIEW;
-					T :: *void;
-					array := cast([]T)ptr;
-					assert(array.data == null, "TODO: what to do with the old slice data?");
-					desired_items := node._array.elements.count;
-					if desired_items > array.count {
-						array.data = cast(*T) realloc(array.data, desired_items * ti_array.element_type.runtime_size, desired_items * ti_array.element_type.runtime_size);
-						array.count = desired_items;
+					if ti_array.relative_pointer_size == {
+						case 0;
+							array := cast(*Resizable_Array)ptr;
+							assert(array.data == null, "TODO: what to do with the old slice data?");
+							desired_items := node._array.elements.count;
+							if desired_items == 0 {
+								array.data = null;
+								array.count = 0;
+							} else {
+								array.data = cast(*void) realloc(array.data, desired_items * elem_size, array.count * elem_size);
+								assert(array.data != null);
+								array.count = desired_items;
+								for node._array.elements
+									write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+							}
+						case;
+							assert(false, "TODO: relative pointer sizes for slices");
 					}
 				case .RESIZABLE;
-					array := cast([..]*void)ptr;
+					array := cast(*Resizable_Array)ptr;
 					desired_items := node._array.elements.count;
 					if desired_items > array.allocated {
 						if !array.allocator {
@@ -424,20 +438,20 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
 								array.allocator      = context.default_allocator;
 							}
 						}
-						array.data = cast(*void)realloc(array.data, desired_items * ti_array.element_type.runtime_size, array.allocated * ti_array.element_type.runtime_size, array.allocator, array.allocator_data);
+						array.data = cast(*void)realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator, array.allocator_data);
 						assert(array.data != null);
 						array.allocated = desired_items;
+						array.count = desired_items;
 					}
+					for node._array.elements
+						write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
 			}
-			for node._array.elements
-				write_value(it, ptr + it_index * ti_array.element_type.runtime_size, tprint("%[%]", debug_name, it_index));
         case .INTEGER;
             Reflection.set_value_from_string(any, node.source_str);
         case .FLOAT;
             Reflection.set_value_from_string(any, node.source_str);
         case .STRING;
 			assert(node.type == .String);
-			print("need to set string: %\n", node._string.value);
             temp := tprint("\"%\"", node._string.value);
             Reflection.set_value_from_string(any, temp); // TODO: XXX nono no
         case .BOOL;
@@ -445,7 +459,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
 		case .ENUM;
 			Reflection.set_value_from_string(any, node.source_str);
         case;
-            print("unhandled: % %\n", debug_name, ti.type);
+            print("unhandled: '%' %\n", debug_name, ti.type);
     }
 }
 
@@ -638,13 +652,14 @@ END;
 	assert(a.some_nested_thing.some_array[2] == "asd", tprint("%", a.some_nested_thing.some_array[2]));
 	assert(a.some_nested_thing.some_array[3] == "zxc", tprint("%", a.some_nested_thing.some_array[3]));
 
-	assert(len(a.some_nested_thing.dyn_array) == 4, tprint("%", len(a.some_nested_thing.dyn_array)));
+	assert(len(a.some_nested_thing.dyn_array) == 4, tprint("expected count to be 4: %", len(a.some_nested_thing.dyn_array)));
 	assert(a.some_nested_thing.dyn_array[0] == true, tprint("%", a.some_nested_thing.dyn_array[0]));
 	assert(a.some_nested_thing.dyn_array[1] == false, tprint("%", a.some_nested_thing.dyn_array[1]));
 	assert(a.some_nested_thing.dyn_array[2] == false, tprint("%", a.some_nested_thing.dyn_array[2]));
 	assert(a.some_nested_thing.dyn_array[3] == true, tprint("%", a.some_nested_thing.dyn_array[3]));
 
-	assert(len(a.some_nested_thing.slice) == 2, tprint("%", len(a.some_nested_thing.slice)));
+	assert(len(a.some_nested_thing.slice) == 2, tprint("expected slice % to have 2 count: %", 
+		a.some_nested_thing.slice.data, len(a.some_nested_thing.slice)));
 	assert(a.some_nested_thing.slice[0].x == 12, tprint("%", a.some_nested_thing.slice[0].x));
 	assert(a.some_nested_thing.slice[0].y == 34, tprint("%", a.some_nested_thing.slice[0].y));
 	assert(a.some_nested_thing.slice[1].x == 43, tprint("%", a.some_nested_thing.slice[1].x));
