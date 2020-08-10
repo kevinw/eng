@@ -9,6 +9,7 @@ reaper :: #import "reaper";
 gameWidth :: 640;
 gameHeight :: 360;
 
+DEFAULT_CAM_ZOOM :: 1.2;
 PLAYER_JUMP_SPD :: 350;
 PLAYER_HOR_SPD :: 220;
 G :: 1150;
@@ -189,7 +190,7 @@ plugin_init :: (old_value: *void) {
         camera.target = player.position;
         camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
         camera.rotation = 0.0;
-        camera.zoom = 1.0;
+        camera.zoom = DEFAULT_CAM_ZOOM;
 
         bg.texture = LoadTexture("resources/textures/space.png");
         bg.shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", GLSL_VERSION));
@@ -255,7 +256,7 @@ update_and_draw :: () {
         camera.zoom = clamp(camera.zoom, 0.25, 3.0);
         
         if IsKeyPressed(.KEY_R) {
-            camera.zoom = 1.0;
+            camera.zoom = DEFAULT_CAM_ZOOM;
             camera.target = .{0, 0};
             player.position = .{400, 280};
 
