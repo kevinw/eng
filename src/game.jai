@@ -62,6 +62,11 @@ state: struct {
         gino: Texture;
         evilplant: Texture;
     };
+    worldspace_texts: [..]struct {
+        message: string;
+        position: Vector2;
+        time: float64;
+    };
     sprites: struct {
         player: struct {
             idle: []Sprite;
@@ -316,6 +321,12 @@ update_and_draw :: () {
 
                 // draw entities
                 player_draw(*player);
+
+                // draw worldspace texts
+                for * worldspace_texts {
+                    DrawText(it.message, xx it.position.x, xx it.position.y, 12, WHITE);
+                }
+
             }
 
             // Update beats
