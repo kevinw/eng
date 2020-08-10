@@ -3,21 +3,6 @@
 
 #import "Basic";
 #import "Hash_Table";
-#import "Any";
-#import "Compiler";
-String :: #import "String";
-Reflection :: #import "Reflection";
-
-#scope_file
-
-laas :: #import "laas";
-
-_type_info_table: Table(string, Type_Info);
-
-panic :: (msg: string, args: ..Any, loc := #caller_location) { // TODO
-	print("%\n", loc);
-    assert(false, tprint(msg, ..args));
-}
 
 #scope_module
 
@@ -54,9 +39,10 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
     t := ti.type;
     if t == {
+        case .BOOL;
+			print_to_builder(sb, ifx (<< (cast(*bool)value)) then "true" else "false");
         case .INTEGER; #through;
         case .FLOAT; #through;
-        case .BOOL; #through;
         case .ENUM;
             print_item_to_builder(sb, tprint("%", item));
         case .STRING;
@@ -67,9 +53,9 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 				ti_array := cast(*Type_Info_Array)ti;
 				count, data := Reflection.get_array_count_and_data(value, ti_array);
 				for i: 0..count-1 {
-					data := value + ti_array.element_type.runtime_size * i;
+					elem_data := data + ti_array.element_type.runtime_size * i;
 					print_indents(indent_level, sb);
-					serialize_with_type_info("", data, ti_array.element_type, sb, indent_level);
+					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level);
 				}
 			}
 			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
@@ -87,7 +73,6 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
     if do_newline
         print_to_builder(sb, "\n");
-
 }
 
 deserialize :: inline ($T: Type, data: string) -> T {
@@ -254,26 +239,6 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
     return null;
 }
 
-unreachable :: () {
-    // TODO
-    panic("unreachable");
-}
-
-
-eat_newlines :: (lexer: *laas.Lexer) {
-    token: laas.Token;
-
-    while true {
-        ok := laas.peek(lexer, *token);
-        if !ok return;
-
-        if token.kind == .New_Line
-            laas.eat(lexer);
-        else
-            return;
-    }
-}
-
 Node :: struct {
     source_str: string;
     Type :: enum {
@@ -351,15 +316,6 @@ Node_Quat :: struct {
 	w, x, y, z: *Node;
 }
 
-new_clone :: inline (data: $T) -> *T {
-	ptr := cast(*T)alloc(size_of(T));
-	if ptr != null {
-        (<< ptr) = data;
-    }
-	return ptr;
-}
-
-
 delete_node :: (node: *Node) {
 	if node.type == {
 		case .Number;     // do nothing
@@ -402,16 +358,10 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
     t := ti.type;
     if t == {
         case .STRUCT;
-            object := *node._object;
-            for field: object.fields {
-                for member: (cast(*Type_Info_Struct)ti).members {
-                    if member.name == field.name {
-                        field_ptr := ptr + member.offset_in_bytes;
-                        field_ti := member.type;
-                        write_value(field.value, field_ptr, field_ti, tprint("%.%", debug_name, member.name));
-                    }
-                }
-            }
+            for field: node._object.fields
+                for (cast(*Type_Info_Struct)ti).members
+                    if it.name == field.name
+                        write_value(field.value, ptr + it.offset_in_bytes, it.type, tprint("%.%", debug_name, it.name));
 		case .ARRAY;
 			ti_array := cast(*Type_Info_Array)ti;
 			elem_size := ti_array.element_type.runtime_size;
@@ -454,13 +404,14 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
 								array.allocator      = context.default_allocator;
 							}
 						}
-						array.data = cast(*void)realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator, array.allocator_data);
+						array.data = realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator, array.allocator_data);
 						assert(array.data != null);
 						array.allocated = desired_items;
-						array.count = desired_items;
 					}
-					for node._array.elements
-						write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+					array.count = desired_items;
+					if desired_items > 0
+						for node._array.elements
+							write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
 			}
         case .INTEGER;
             Reflection.set_value_from_string(any, node.source_str);
@@ -471,7 +422,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
             temp := tprint("\"%\"", node._string.value);
             Reflection.set_value_from_string(any, temp); // TODO: XXX nono no
         case .BOOL;
-            Reflection.set_value_from_string(any, ifx node._bool.value then "true" else "false"); // TODO XXX Nononono
+			<<cast(*bool)ptr = node._bool.value;
 		case .ENUM;
 			Reflection.set_value_from_string(any, node.source_str);
         case;
@@ -519,6 +470,53 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
 
     escaped := builder_to_string(*sb);
     return escaped, length;
+}
+
+run_tests :: run_tests;
+
+#scope_file
+
+#import "Any";
+#import "Compiler";
+String :: #import "String";
+Reflection :: #import "Reflection";
+
+new_clone :: inline (data: $T) -> *T {
+	ptr := cast(*T)alloc(size_of(T));
+	if ptr != null {
+        (<< ptr) = data;
+    }
+	return ptr;
+}
+
+laas :: #import "laas";
+
+_type_info_table: Table(string, Type_Info);
+
+panic :: (msg: string, args: ..Any, loc := #caller_location) { // TODO
+	print("%\n", loc);
+    assert(false, tprint(msg, ..args));
+}
+
+
+unreachable :: () {
+    // TODO
+    panic("unreachable");
+}
+
+
+eat_newlines :: (lexer: *laas.Lexer) {
+    token: laas.Token;
+
+    while true {
+        ok := laas.peek(lexer, *token);
+        if !ok return;
+
+        if token.kind == .New_Line
+            laas.eat(lexer);
+        else
+            return;
+    }
 }
 
 
@@ -686,10 +684,8 @@ END;
 	assert(a.empty_slice.data == null, tprint("%", a.empty_slice));
 	assert(len(a.empty_slice) == 0, tprint("%", len(a.empty_slice)));
 
-
 	a_text := serialize(*a);
 	defer free(a_text);
-	print("%\n", a_text);
 	b := deserialize(Nightmare, a_text);
 
 	assert(a.some_int == b.some_int, tprint("expected equal: % %", a.some_int, b.some_int));
