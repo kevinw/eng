@@ -14,7 +14,8 @@ laas :: #import "laas";
 
 _type_info_table: Table(string, Type_Info);
 
-panic :: (msg: string, args: ..Any) { // TODO
+panic :: (msg: string, args: ..Any, loc := #caller_location) { // TODO
+	print("%\n", loc);
     assert(false, tprint(msg, ..args));
 }
 
@@ -47,16 +48,31 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
     do_newline := true;
 
+	item: Any;
+	item.type = ti;
+	item.value_pointer = value;
+
     t := ti.type;
     if t == {
         case .INTEGER; #through;
         case .FLOAT; #through;
         case .BOOL; #through;
+        case .ENUM;
+            print_item_to_builder(sb, tprint("%", item));
         case .STRING;
-            item: Any;
-            item.type = ti;
-            item.value_pointer = value;
-            print_item_to_builder(sb, item);
+            print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
+		case .ARRAY;
+			print_to_builder(sb, "[\n"); indent_level += 1;
+			{
+				ti_array := cast(*Type_Info_Array)ti;
+				count, data := Reflection.get_array_count_and_data(value, ti_array);
+				for i: 0..count-1 {
+					data := value + ti_array.element_type.runtime_size * i;
+					print_indents(indent_level, sb);
+					serialize_with_type_info("", data, ti_array.element_type, sb, indent_level);
+				}
+			}
+			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
         case .STRUCT;
             print_to_builder(sb, "{\n"); indent_level += 1;
             for * (cast(*Type_Info_Struct)ti).members {
@@ -65,7 +81,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             }
             indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "}");
         case;
-            panic(tprint(name, ti.type));
+            panic(tprint("%: %", name, ti.type));
 
     }
 
@@ -676,7 +692,7 @@ END;
 	print("%\n", a_text);
 	b := deserialize(Nightmare, a_text);
 
-	assert(a.some_int == b.some_int);
+	assert(a.some_int == b.some_int, tprint("expected equal: % %", a.some_int, b.some_int));
 	assert(a.some_string == b.some_string);
 	assert(a.some_float == b.some_float);
 	assert(a.some_bool == b.some_bool);
@@ -725,7 +741,12 @@ END;
 	assert(a.some_nested_thing.dyn_array[0] == b.some_nested_thing.dyn_array[0]);
 	assert(a.some_nested_thing.dyn_array[1] == b.some_nested_thing.dyn_array[1]);
 	assert(a.some_nested_thing.dyn_array[2] == b.some_nested_thing.dyn_array[2]);
-	assert(a.some_nested_thing.dyn_array[3] == b.some_nested_thing.dyn_array[3]);
+	assert(a.some_nested_thing.dyn_array[3] == b.some_nested_thing.dyn_array[3],
+		tprint("expected dyn_array elems [3] to be equal: % vs %",
+			a.some_nested_thing.dyn_array[3],
+			b.some_nested_thing.dyn_array[3],
+
+		));
 
 	assert(len(a.some_nested_thing.slice) == len(b.some_nested_thing.slice));
 	assert(len(a.some_nested_thing.slice) == 2);
