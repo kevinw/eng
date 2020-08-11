@@ -6,9 +6,10 @@ wbml :: #import "wbml";
 screenlog :: #import "screenlog";
 reaper :: #import "reaper";
 
+#import "entity";
+
 gameWidth :: 640;
 gameHeight :: 360;
-
 DEFAULT_CAM_ZOOM :: 1.2;
 PLAYER_JUMP_SPD :: 350;
 PLAYER_HOR_SPD :: 220;
@@ -57,11 +58,13 @@ EnvItem :: struct {
 }
 
 state: struct {
+    txt: *Worldspace_Text;
     muted := false;
     textures: struct {
         gino: Texture;
         evilplant: Texture;
     };
+    world: World;
     worldspace_texts: [..]struct {
         message: string;
         position: Vector2;
@@ -202,6 +205,9 @@ plugin_init :: (old_value: *void) {
 
         bg.texture = LoadTexture("resources/textures/space.png");
         bg.shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", GLSL_VERSION));
+
+        test := create_entity(*world);
+        txt = add_component(test, Worldspace_Text);
     }
 
     set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
@@ -227,6 +233,19 @@ plugin_deinit :: (shutting_down: bool) -> *void {
     heap_state := cast(*type_of(state))alloc(size_of(type_of(state)) * 2); // * 2 for adding extra things on the end
     << heap_state = state;
     return heap_state;
+}
+
+restart :: () {
+    using state;
+
+    camera.zoom = DEFAULT_CAM_ZOOM;
+    camera.target = .{0, 0};
+    player.position = .{400, 280};
+
+    // Reset the song back to the beginning for now.
+    StopMusicStream(bgm);
+    PlayMusicStream(bgm);
+    beat_timer = 0;
 }
 
 #program_export
@@ -255,6 +274,7 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
        
         player_update(*player, envItems, deltaTime);
+        txt.position = player.position;
 
         for * enemies
             it.sprite_timer += deltaTime;
@@ -263,16 +283,7 @@ update_and_draw :: () {
         
         camera.zoom = clamp(camera.zoom, 0.25, 3.0);
         
-        if IsKeyPressed(.KEY_R) {
-            camera.zoom = DEFAULT_CAM_ZOOM;
-            camera.target = .{0, 0};
-            player.position = .{400, 280};
-
-            // Reset the song back to the beginning for now.
-            StopMusicStream(bgm);
-            PlayMusicStream(bgm);
-            beat_timer = 0;
-        }
+        if IsKeyPressed(.KEY_R) restart();
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
         if IsKeyPressed(.KEY_F) ToggleFullscreen();
         if IsKeyPressed(.KEY_M) {
@@ -285,10 +296,12 @@ update_and_draw :: () {
         now := GetTime();
         for * worldspace_texts
             if now - it.time > 2 remove it;
+
+        world_update(*world, deltaTime);
     }
+
     {
         // DRAW
-
         BeginDrawing();
         defer EndDrawing();
         {
@@ -318,24 +331,16 @@ update_and_draw :: () {
                 }
 
                 // draw enemies
-                {
-                    for * enemies {
-                        fps := 10;
-                        sprite_rect, offset := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
-                        dest_rect_pos := it.position - v2(10, 37) + offset;
-                        dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
-                        DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
-                    }
+                for * enemies {
+                    fps := 10;
+                    sprite_rect, offset := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
+                    dest_rect_pos := it.position - v2(10, 37) + offset;
+                    dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
+                    DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
                 }
 
-                // draw entities
                 player_draw(*player);
-
-                // draw worldspace texts
-                for * worldspace_texts {
-                    DrawText(it.message, xx it.position.x, xx it.position.y, 12, WHITE);
-                }
-
+                world_draw(*world);
             }
 
             // Update beats
@@ -423,8 +428,8 @@ player_draw :: (using player: *Player) {
     DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
 
     // debug pos
-    w := 6;
-    DrawRectangleV(position - v2(w/2, w/2), make_Vector2(w, w), RED);
+    //w := 6;
+    //DrawRectangleV(position - v2(w/2, w/2), make_Vector2(w, w), RED);
 
 }
 
@@ -545,6 +550,9 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
     } else {
         can_jump = true;
     }
+
+    // catch player falling off the universe
+    if position.y > 1000 restart();
 }
 
 UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)

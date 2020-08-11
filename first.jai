@@ -1,7 +1,7 @@
 #import "Basic";
 #import "Compiler";
 
-module_search_paths := string.["../jai-raylib", "lib"];
+module_search_paths := string.["../jai-raylib", "lib", "src"];
 
 build_plugin :: () {
     set_working_directory(#filepath);
