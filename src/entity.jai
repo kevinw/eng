@@ -34,10 +34,25 @@ Entity :: struct {
     components: [..]Any;
 }
 
+all_component_types :: Type.[
+    Worldspace_Text,
+];
+
+get_component_buckets :: () -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    for all_component_types {
+        print_to_builder(*sb, "_%: [..]%;\n", it, it);
+    }
+    
+    return builder_to_string(*sb);
+}
+
 World :: struct {
     entities: [..]Entity;
 
-    _Worldspace_Text: [..]Worldspace_Text;
+    #insert #run get_component_buckets();
 };
 
 world_update :: (world: *World, delta_time: float) {
@@ -73,7 +88,6 @@ add_component :: (entity: *Entity, $component_type: Type) -> *component_type {
         array_reserve(bucket, MAX);
 
     bucket_entry := array_add(bucket);
-    print("add_component made count % of: %\n", bucket.count, bucket.data);
     assert(bucket.count <= MAX, "TODO: implement a freelist and a generation index thing");
 
     c := cast(*component_type)bucket_entry;

@@ -383,6 +383,8 @@ player_draw :: (using player: *Player) {
     // Should this be an argument? Probably. I think we want "now" to stay the
     // same, except maybe for graphics-y interpolated things.
     now := GetTime(); 
+
+    squish:float = 1.0;
     
     {
         using state.sprites.player;
@@ -406,10 +408,15 @@ player_draw :: (using player: *Player) {
             timer = walk_timer;
         } else {
             fps = 10;
-            if now - player.last_grounded_time < cast(float)state.sprites.player.jump_landing.count/fps
+            since_land := now - player.last_grounded_time;
+            landing_animation_time := cast(float)state.sprites.player.jump_landing.count/fps;
+            if since_land < landing_animation_time {
                 spr = jump_landing;
-            else
+                N:float : 0.6;
+                squish = N + (1.0 - N) * cast(float)(since_land / landing_animation_time);
+            } else {
                 spr = idle;
+            }
         }
     }
 
@@ -420,6 +427,11 @@ player_draw :: (using player: *Player) {
     dest_rect_pos := position - v2(x_offset, 38) + offset;
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
     sprite_rect.width *= ifx flip_x then -1 else 1;
+
+    squish_offset := dest_rect.height * (1.0 - squish);
+    dest_rect.height *= squish;
+    dest_rect.y += squish_offset;
+
     DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
 
     // debug pos
