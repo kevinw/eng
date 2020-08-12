@@ -550,10 +550,15 @@ player_draw :: (using player: *Player) {
                 fps = ATTACK_FPS;
             } else {
                 fps = 9;
-                if now - player.last_jump_time < cast(float)state.sprites.player.jump_start.count/fps
+                since_jump := now - player.last_jump_time;
+                launching_anim_time := cast(float)state.sprites.player.jump_start.count/fps;
+                if since_jump < launching_anim_time {
                     spr = jump_start;
-                else 
+                    N:float : 1.27;
+                    squish = 1.0 + (N - 1.0) * (1.0 - cast(float)(since_jump / launching_anim_time));
+                } else {
                     spr = jump_mid;
+                }
             }
         } else if attacking {
             spr = ifx attack_did_hit then attack else attack_miss;
@@ -669,13 +674,13 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
         beat_match_type := state.nearest_marker.beat_type == .Snare;
         if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
             add_worldspace_text("HIT", player.position);
-            logprint("player", "jump %", time_since_marker);
+            //logprint("player", "jump %", time_since_marker);
             speed = -PLAYER_JUMP_SPD;
         } else {
             add_worldspace_text("MISS", player.position);
             early_late := ifx time_since_marker > 0 then "late" else "early";
             if !beat_match_type early_late = "wrong beat";
-            logprint("player", "MISS % jump %", early_late, time_since_marker);
+            //logprint("player", "MISS % jump %", early_late, time_since_marker);
             speed = -PLAYER_JUMP_SPD * 0.25;
         }
 
