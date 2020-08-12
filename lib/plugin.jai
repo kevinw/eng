@@ -4,12 +4,6 @@
 #import "Windows_Utf8";
 #import "File_Utilities";
 
-#scope_file
-
-COPY_TO_TEMP_PATH :: true;
-
-#scope_export
-
 Module :: struct {
     name: string;
     path_on_disk: string;
@@ -18,9 +12,10 @@ Module :: struct {
     count: u16;
 }
 
-load :: (plugin: *Module, name: string) -> bool {
-    #if COPY_TO_TEMP_PATH {
-        temp_path     := copy_string(tprint("bin\\temp\\temp_%.dll", plugin.count));
+load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
+    temp_path: string;
+    if COPY_TO_TEMP_PATH {
+        temp_path = copy_string(tprint("bin\\temp\\temp_%.dll", plugin.count));
         plugin.count += 1;
         // TODO: pdb rewriting stuff (I believe the path or the name of the DLL
         // is hardcoded in the pdb, so there is some stuff online we can use
@@ -31,7 +26,7 @@ load :: (plugin: *Module, name: string) -> bool {
             return false;
         }
     } else {
-        temp_path := name;
+        temp_path = name;
     }
 
     // load dll

@@ -35,8 +35,10 @@ get_gamepad_stick :: (gamepad: int, x_axis: GamepadAxis, y_axis: GamepadAxis, DE
     return stick;
 }
 
+
 set_shader_val :: (shader: Shader, name: string, val: $T) {
     location := GetShaderLocation(shader, to_temp_c_string(name));
+    if location == -1 return;
 
     uniform_type: ShaderUniformDataType;
     #if T == Vector2 || T == [2]float32

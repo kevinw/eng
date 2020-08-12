@@ -8,6 +8,12 @@ reaper :: #import "reaper";
 
 #import "entity";
 
+HOTLOADING_ENABLED :: true;
+#if HOTLOADING_ENABLED {
+    #import "Hotloader";
+}
+
+
 gameWidth :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
@@ -26,6 +32,146 @@ Entity :: struct {
 Enemy :: struct {
     using entity: Entity;
     sprite_timer: float64;
+}
+
+LiveTexture :: struct { using _entry: *LiveTextureEntry; }
+LiveShader  :: struct { using _entry: *LiveShaderEntry; }
+
+LiveTextureEntry :: struct {
+    count: u16;
+    filename: string;
+    using resource: Texture;
+}
+
+LiveShaderEntry :: struct {
+    count: u16;
+    vs_filename: string;
+    fs_filename: string;
+    using resource: Shader;
+}
+
+
+LoadLiveTexture :: (filename: string) -> LiveTexture {
+    assert(filename.count > 0);
+    using state;
+
+    obj: LiveTexture;
+    for * state.live.textures {
+        if it.filename == filename {
+            obj._entry = it;
+            break;
+        }
+    }
+
+    if obj._entry == null {
+        old_pointer := state.live.textures.data;
+        new_entry := array_add(*state.live.textures);
+        assert(old_pointer == null || state.live.textures.data == old_pointer, "moved!?");
+        new_entry.filename = copy_string(filename);
+        new_entry.resource = LoadTexture(constant_or_temp_cstring(filename));
+        obj._entry = new_entry;
+    }
+
+    obj._entry.count += 1;
+    return obj;
+}
+
+
+LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
+    using state;
+
+    obj: LiveShader;
+    for * state.live.shaders {
+        if it.vs_filename == vs_filename && it.fs_filename == fs_filename {
+            obj._entry = it;
+            break;
+        }
+    }
+
+    if obj._entry == null {
+        old_pointer := state.live.shaders.data;
+        new_entry := array_add(*state.live.shaders);
+        assert(old_pointer == null || state.live.shaders.data == old_pointer, "moved!?");
+        new_entry.vs_filename = copy_string(vs_filename);
+        new_entry.fs_filename = copy_string(fs_filename);
+
+        vs_filenamez: *u8 = ifx new_entry.vs_filename.count > 0 then constant_or_temp_cstring(new_entry.vs_filename) else null;
+        fs_filenamez: *u8 = ifx new_entry.fs_filename.count > 0 then constant_or_temp_cstring(new_entry.fs_filename) else null;
+
+        new_entry.resource = LoadShader(vs_filenamez, fs_filenamez);
+        obj._entry = new_entry;
+    }
+
+    obj._entry.count += 1;
+    return obj;
+}
+
+_to_temp_c_string :: (s: string) -> *u8 {
+    if s.count == 0 return null;
+    result : *u8 = talloc(s.count + 1);
+    memcpy(result, s.data, s.count);
+    result[s.count] = 0;
+    return result;
+}
+
+constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
+    c_str: *u8;
+    #if is_constant(text) {
+        if text.data.count > 0 {
+            return text.data;
+        }
+    }
+
+    return _to_temp_c_string(text);
+}
+
+
+DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: Color) {
+    DrawTexture(texture._entry.resource, posX, posY, tint);
+}
+
+UnloadTexture :: (texture: LiveTexture) {
+    texture._entry.count -= 1;
+    if texture._entry.count == 0 {
+        UnloadTexture(texture._entry.resource);
+        free(texture._entry.filename);
+        for * state.live.textures {
+            if texture._entry == it {
+                remove it;
+            }
+        }
+    }
+}
+
+TryReloadLiveShaderPath :: (filename: string) -> bool {
+    found := false;
+
+    for * state.live.shaders {
+        if it.vs_filename == filename || it.fs_filename == filename {
+            UnloadShader(it.resource);
+            it.resource = LoadShader(
+                _to_temp_c_string(it.vs_filename),
+                _to_temp_c_string(it.fs_filename),
+            );
+            found = true;
+        }
+    }
+
+    return found;
+}
+
+TryReloadLiveTexturePath :: (filename: string) -> bool {
+    found := false;
+
+    for * state.live.textures {
+        if it.filename == filename {
+            UnloadTexture(it.resource);
+            it.resource = LoadTexture(_to_temp_c_string(it.filename));
+            found = true;
+        }
+    }
+
+    return found;
 }
 
 Player :: struct {
@@ -58,6 +204,10 @@ EnvItem :: struct {
 }
 
 state: struct {
+    live: struct {
+        textures: [..]LiveTextureEntry;
+        shaders:  [..]LiveShaderEntry;
+    };
     txt: *Worldspace_Text;
     muted := false;
     textures: struct {
@@ -99,9 +249,9 @@ state: struct {
     cameraOption: int = 2;
 
     bg: struct {
-        texture: Texture;
         timer: float64;
-        shader: Shader;
+        texture: LiveTexture;
+        shader: LiveShader;
     };
 
     screen: struct {
@@ -203,21 +353,19 @@ plugin_init :: (old_value: *void) {
         camera.rotation = 0.0;
         camera.zoom = DEFAULT_CAM_ZOOM;
 
-        bg.texture = LoadTexture("resources/textures/space.png");
-        bg.shader = LoadShader(null, TextFormat("resources/shaders/glsl%i/wave.fs", GLSL_VERSION));
+        bg.texture = LoadLiveTexture("resources/textures/space.png");
+        bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
 
         test := create_entity(*world);
         txt = add_component(test, Worldspace_Text);
     }
 
-    set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
-    set_shader_val(bg.shader, "freqX", 25.0);
-    set_shader_val(bg.shader, "freqY", 25.0);
-    set_shader_val(bg.shader, "ampX", 5.0);
-    set_shader_val(bg.shader, "ampY", 5.0);
-    set_shader_val(bg.shader, "speedX", 8.0);
-    set_shader_val(bg.shader, "speedY", 8.0);
 }
+
+set_shader_val :: (shader: LiveShader, name: string, val: $T) {
+    set_shader_val(shader.resource, name, val);
+}
+
 
 #program_export
 plugin_deinit :: (shutting_down: bool) -> *void {
@@ -225,7 +373,7 @@ plugin_deinit :: (shutting_down: bool) -> *void {
 
     if shutting_down {
         UnloadTexture(bg.texture);
-        UnloadShader(bg.shader);
+        UnloadShader(bg.shader.resource);
         UnloadMusicStream(bgm);
         return null;
     }
@@ -272,6 +420,13 @@ update_and_draw :: () {
         bg.timer += deltaTime * 0.2;
 
         set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
+        set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
+        set_shader_val(bg.shader, "freqX", 25.0);
+        set_shader_val(bg.shader, "freqY", 25.0);
+        set_shader_val(bg.shader, "ampX", 5.0);
+        set_shader_val(bg.shader, "ampY", 5.0);
+        set_shader_val(bg.shader, "speedX", 8.0);
+        set_shader_val(bg.shader, "speedY", 8.0);
        
         player_update(*player, envItems, deltaTime);
         txt.position = player.position;
@@ -308,7 +463,7 @@ update_and_draw :: () {
 
             {
                 // draw background
-                PushShaderMode(bg.shader);
+                PushShaderMode(bg.shader.resource);
                 DrawTexture(bg.texture, 0, 0, WHITE);
                 DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
                 DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
@@ -344,6 +499,7 @@ update_and_draw :: () {
                 time_since_marker := beat_timer - state.nearest_marker.time;
                 alpha := max(cast(float64)0.0, 1.0 - Math.abs(time_since_marker));
                 color := Vector4.{1, 1, 1, 1};
+                if time_since_marker < 0 color = Vector4.{0, 0, 0, 1};
                 color.w = cast(float32)alpha;
                 DrawText(tprint("%", nearest_marker.beat_type), 16, 10, 40, ColorFromNormalized(color));
             }
@@ -488,7 +644,7 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     time_since_marker := state.beat_timer - state.nearest_marker.time;
 
-    allow_all_beats := false;
+    allow_all_beats := true;
 
     // ATTACK
     if !attacking && (IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
@@ -560,6 +716,29 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     // catch player falling off the universe
     if position.y > 1000 restart();
+}
+
+#if HOTLOADING_ENABLED {
+
+strip_dot_slash :: (path: string) -> string {
+    s := path;
+    if s.count >= 2 && s[0] == #char "." && s[1] == #char "/"
+        advance(*s, 2);
+    return s;
+}
+
+#program_export
+on_resource_change :: (using change: *Asset_Change) {
+    full_name_stripped := strip_dot_slash(change.full_name);
+
+    if extension == "png" {
+        TryReloadLiveTexturePath(full_name_stripped);
+    } else if extension == "fs" || extension == "vs" {
+
+        TryReloadLiveShaderPath(full_name_stripped);
+    }
+}
+
 }
 
 UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)

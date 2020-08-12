@@ -1,0 +1,11 @@
+digraph {
+
+    s12884908967 [label="LAMBDA_BODY #300001ba7\ngame.jai:239",shape=ellipse]
+    s12884908215 [label="LiveShader\nSTRUCT #3000018b7\ngame.jai:44",shape=ellipse]
+    s12884908215 [label="LiveShader\nSTRUCT #3000018b7\ngame.jai:44",shape=ellipse]
+    s12884908218 [label="_entry\nDECLARATION #3000018ba\ngame.jai:45",shape=ellipse]
+    s12884908222 [label="USING #3000018be\ngame.jai:45",shape=ellipse]
+
+    s12884908218 -> s12884908222;
+    s12884908222 -> s12884908218;
+}

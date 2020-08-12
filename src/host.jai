@@ -22,7 +22,7 @@ WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
 
 on_asset_change :: (using asset_change: *Asset_Change) {
-    print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
+    //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name == "game" {
         arguments: [..]string;
         array_add(*arguments, "jai", "-x64", "first.jai");
@@ -43,6 +43,11 @@ on_asset_change :: (using asset_change: *Asset_Change) {
                 print("[stderr] %", error_string);
             }
         }
+    } else {
+        // all other changes go to the plugin, which may want to live reload
+        // textures, etc.
+        if on_resource_change != null
+            on_resource_change(asset_change);
     }
 }
 
@@ -52,13 +57,15 @@ host_settings: struct {
 };
 
 // plugin functions
-Update_And_Draw_Func :: #type ();
-Plugin_Init_Func     :: #type (state: *void);
-Plugin_Deinit_Func   :: #type (shutting_down: bool) -> *void;
+Update_And_Draw_Func    :: #type ();
+Plugin_Init_Func        :: #type (state: *void);
+Plugin_Deinit_Func      :: #type (shutting_down: bool) -> *void;
+On_Resource_Change_Func :: #type (change: *Asset_Change);
 
-update_and_draw: Update_And_Draw_Func;
-plugin_init: Plugin_Init_Func;
-plugin_deinit: Plugin_Deinit_Func;
+update_and_draw:    Update_And_Draw_Func;
+plugin_init:        Plugin_Init_Func;
+plugin_deinit:      Plugin_Deinit_Func;
+on_resource_change: On_Resource_Change_Func;
 
 update_plugin_functions :: (module: *Plugin.Module) {
     update_and_draw = cast(Update_And_Draw_Func)GetProcAddress(module.native_module, "update_and_draw");
@@ -69,6 +76,9 @@ update_plugin_functions :: (module: *Plugin.Module) {
 
     plugin_deinit = cast(Plugin_Deinit_Func)GetProcAddress(module.native_module, "plugin_deinit");
     if !plugin_deinit panic("Could not load plugin_deinit func");
+
+    on_resource_change = cast(On_Resource_Change_Func)GetProcAddress(module.native_module, "on_resource_change");
+    // ^optional
 }
 
 wbml :: #import "wbml";
@@ -103,7 +113,7 @@ main :: () {
     #if ALWAYS_ON_TOP
         Platform.SetWindowAlwaysOnTop(GetWindowHandle());
 
-    hotloader_init("src", _DEBUG_LOGGING=false);
+    hotloader_init(".", _DEBUG_LOGGING=false);
     hotloader_register_callback(on_asset_change);
     defer hotloader_shutdown();
 
