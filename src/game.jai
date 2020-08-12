@@ -302,16 +302,13 @@ update_and_draw :: () {
 
     {
         // DRAW
-        BeginDrawing();
-        defer EndDrawing();
+        PushDrawing();
         {
-            BeginTextureMode(screen.texture);
-            defer EndTextureMode();
+            PushTextureMode(screen.texture);
 
             {
                 // draw background
-                BeginShaderMode(bg.shader);
-                defer EndShaderMode();
+                PushShaderMode(bg.shader);
                 DrawTexture(bg.texture, 0, 0, WHITE);
                 DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
                 DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
@@ -319,8 +316,7 @@ update_and_draw :: () {
             }
             {
                 // draw foreground
-                BeginMode2D(camera);
-                defer EndMode2D();
+                PushMode2D(camera);
 
                 // draw world
                 for * envItems {
@@ -354,8 +350,7 @@ update_and_draw :: () {
         }
 
         {
-            BeginShaderMode(screen.shader);
-            defer EndShaderMode();
+            PushShaderMode(screen.shader);
             blit_render_texture_to_screen(screen.texture);
             screenlog.draw();
         }
