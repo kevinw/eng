@@ -177,6 +177,19 @@ parse_spriter_atlas :: (filename: string) -> []Sprite {
     return sprites;
 }
 
+sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) ->
+    (rect: Rectangle, offset: Vector2, sprite_index: int)
+{
+    sprite_index := cast(int)(timer * fps);
+    while sprite_index >= spr.count sprite_index -= spr.count;
+    s := *spr[sprite_index];
+    offset := v2(s.offset.x, s.offset.y);
+    if flip_x
+        offset.x = cast(float)(-s.size.x - s.offset.x);
+    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y), offset, sprite_index;
+}
+
+
 sign :: inline (x: $T) -> int {
     if x < cast(T)0 return -1;
     return 1;

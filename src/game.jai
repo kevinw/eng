@@ -5,15 +5,16 @@
 wbml :: #import "wbml";
 screenlog :: #import "screenlog";
 reaper :: #import "reaper";
+
+#load "game_sound.jai";
+
 #import "soloud";
 
 #import "entity";
 #load "editor.jai";
 
-HOTLOADING_ENABLED :: true;
-#if HOTLOADING_ENABLED {
-    #import "Hotloader";
-}
+#load "live_raylib.jai";
+#load "plugin_exports.jai";
 
 gameWidth :: 640;
 gameHeight :: 360;
@@ -33,144 +34,6 @@ Entity :: struct {
 Enemy :: struct {
     using entity: Entity;
     sprite_timer: float64;
-}
-
-LiveTexture :: struct { using _entry: *LiveTextureEntry; }
-LiveShader  :: struct { using _entry: *LiveShaderEntry; }
-
-LiveTextureEntry :: struct {
-    count: u16;
-    filename: string;
-    using resource: Texture;
-}
-
-LiveShaderEntry :: struct {
-    count: u16;
-    vs_filename: string;
-    fs_filename: string;
-    using resource: Shader;
-}
-
-
-LoadLiveTexture :: (filename: string) -> LiveTexture {
-    assert(filename.count > 0);
-    using state;
-
-    obj: LiveTexture;
-    for * state.live.textures {
-        if it.filename == filename {
-            obj._entry = it;
-            break;
-        }
-    }
-
-    if obj._entry == null {
-        old_pointer := state.live.textures.data;
-        new_entry := array_add(*state.live.textures);
-        assert(old_pointer == null || state.live.textures.data == old_pointer, "moved!?");
-        new_entry.filename = copy_string(filename);
-        new_entry.resource = LoadTexture(constant_or_temp_cstring(filename));
-        obj._entry = new_entry;
-    }
-
-    obj._entry.count += 1;
-    return obj;
-}
-
-
-LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
-    using state;
-
-    obj: LiveShader;
-    for * state.live.shaders {
-        if it.vs_filename == vs_filename && it.fs_filename == fs_filename {
-            obj._entry = it;
-            break;
-        }
-    }
-
-    if obj._entry == null {
-        old_pointer := state.live.shaders.data;
-        new_entry := array_add(*state.live.shaders);
-        assert(old_pointer == null || state.live.shaders.data == old_pointer, "moved!?");
-        new_entry.vs_filename = copy_string(vs_filename);
-        new_entry.fs_filename = copy_string(fs_filename);
-
-        vs_filenamez: *u8 = ifx new_entry.vs_filename.count > 0 then constant_or_temp_cstring(new_entry.vs_filename) else null;
-        fs_filenamez: *u8 = ifx new_entry.fs_filename.count > 0 then constant_or_temp_cstring(new_entry.fs_filename) else null;
-
-        new_entry.resource = LoadShader(vs_filenamez, fs_filenamez);
-        obj._entry = new_entry;
-    }
-
-    obj._entry.count += 1;
-    return obj;
-}
-
-_to_temp_c_string :: (s: string) -> *u8 {
-    if s.count == 0 return null;
-    result : *u8 = talloc(s.count + 1);
-    memcpy(result, s.data, s.count);
-    result[s.count] = 0;
-    return result;
-}
-
-constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
-    c_str: *u8;
-    #if is_constant(text) {
-        if text.data.count > 0 {
-            return text.data;
-        }
-    }
-
-    return _to_temp_c_string(text);
-}
-
-
-DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: Color) {
-    DrawTexture(texture._entry.resource, posX, posY, tint);
-}
-
-UnloadTexture :: (texture: LiveTexture) {
-    texture._entry.count -= 1;
-    if texture._entry.count == 0 {
-        UnloadTexture(texture._entry.resource);
-        free(texture._entry.filename);
-        for * state.live.textures
-            if texture._entry == it
-                remove it;
-    }
-}
-
-TryReloadLiveShaderPath :: (filename: string) -> bool {
-    found := false;
-
-    for * state.live.shaders {
-        if it.vs_filename == filename || it.fs_filename == filename {
-            UnloadShader(it.resource);
-            it.resource = LoadShader(
-                _to_temp_c_string(it.vs_filename),
-                _to_temp_c_string(it.fs_filename),
-            );
-            found = true;
-        }
-    }
-
-    return found;
-}
-
-TryReloadLiveTexturePath :: (filename: string) -> bool {
-    found := false;
-
-    for * state.live.textures {
-        if it.filename == filename {
-            UnloadTexture(it.resource);
-            it.resource = LoadTexture(_to_temp_c_string(it.filename));
-            found = true;
-        }
-    }
-
-    return found;
 }
 
 Player :: struct {
@@ -207,14 +70,7 @@ EnvItem :: struct {
 state: struct {
     editor: *Editor;
 
-    sound: struct {
-        soloud: *Soloud;
-        fx: struct {
-            footstep1: *Wav;
-            footstep2: *Wav;
-        };
-    };
-
+    sound_state: Sound_State;
 
     live: struct {
         textures: [..]LiveTextureEntry;
@@ -285,138 +141,95 @@ cameraUpdaters :: CameraFunc.[
 ];
 
 update_bgm_volume :: () {
-    using state;
-    SetMusicVolume(bgm, ifx muted then 0 else 0.03);
+    using state.sound_state;
+    Soloud_setVolume(soloud, bgm_voice, ifx state.muted then 0.0 else 1.0);
+    //SetMusicVolume(bgm, ifx muted then 0 else 0.03);
 }
 
-#program_export
-plugin_init :: (old_value: *void) {
-
+on_host_init :: () {
     using state;
 
-    if old_value != null {
-        old_state := cast(*type_of(state))old_value;
-        state = << old_state;
-        free(old_state);
-    } else {
-        // actual init
-        {
-            using sound;
-            soloud =  Soloud_create();
-            Soloud_init(soloud, SOLOUD_CLIP_ROUNDOFF);
+    sound_init(*sound_state);
+    state.editor = New(Editor);
 
-            res: s32;
-
-            fx.footstep1 = Wav_create();
-            res = Wav_load(fx.footstep1, "resources/sfx/footsteps/wood1.wav");
-            assert(res == 0);
-
-            fx.footstep2 = Wav_create();
-            res = Wav_load(fx.footstep2, "resources/sfx/footsteps/wood2.wav");
-            assert(res == 0);
-        }
-
-        state.editor = New(Editor);
-
-        // load textures and sprites
-        textures.gino = LoadTexture("resources/sprites/gino.png");
-        {
-            using sprites.player;
-            gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
-            idle         = sprites_with_prefix(gino_sprites, "Idle/");
-            run          = sprites_with_prefix(gino_sprites, "Run/");
-            jump_start   = sprites_with_prefix(gino_sprites, "Jump/start/");
-            jump_mid     = sprites_with_prefix(gino_sprites, "Jump/mid/");
-            jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
-            attack       = sprites_with_prefix(gino_sprites, "Attacks/A/");
-            attack_miss  = sprites_with_prefix(gino_sprites, "Throw/Throw Attack/");
-            attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
-        }
-
-        textures.evilplant = LoadTexture("resources/sprites/evilplant.png");
-        {
-            using sprites.evilplant;
-            evilplant_sprites := parse_spriter_atlas("resources/sprites/evilplant.atlas");
-            idle = sprites_with_prefix(evilplant_sprites, "Idle/");
-            hit  = sprites_with_prefix(evilplant_sprites, "Hit/");
-        }
-
-        ok: bool;
-        //ok, song = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
-        ok, song = reaper.create_song_for_tempo(60);
-        assert(ok);
-        //bgm = LoadMusicStream("resources/music/Jivasifoki.mp3");
-        bgm = LoadMusicStream("resources/music/kick-snare-60.mp3");
-        update_bgm_volume();
-        SetMusicLoopCount(bgm, 0);
-        PlayMusicStream(bgm);
-
-        screen.texture = LoadRenderTexture(gameWidth, gameHeight);
-        screen.shader = LoadShader(null, null);
-
-        player.position = Vector2.{ 400, 280 };
-        player.speed = 0;
-        player.can_jump = false;
-
-        array_add(*envItems,
-            //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
-            EnvItem.{.{ 0, 400, 1000, 200 }, 1, GRAY },
-                   .{.{ 300, 200, 400, 10 }, 1, GRAY },
-                   .{.{ 250, 300, 100, 10 }, 1, GRAY },
-                   .{.{ 650, 300, 100, 10 }, 1, GRAY }
-        );
-
-        enemy: Enemy;
-        enemy.position.x = 400;
-        enemy.position.y = 197;
-        array_add(*enemies, enemy);
-        
-        {
-            e := array_add(*enemies);
-            e.position.x = 600;
-            e.position.y = 197;
-        }
-        
-        camera.target = player.position;
-        camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
-        camera.rotation = 0.0;
-        camera.zoom = DEFAULT_CAM_ZOOM;
-
-        bg.texture = LoadLiveTexture("resources/textures/space.png");
-        bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
-
-        test := create_entity(*world);
-        txt = add_component(test, Worldspace_Text);
+    // load textures and sprites
+    textures.gino = LoadTexture("resources/sprites/gino.png");
+    {
+        using sprites.player;
+        gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
+        idle         = sprites_with_prefix(gino_sprites, "Idle/");
+        run          = sprites_with_prefix(gino_sprites, "Run/");
+        jump_start   = sprites_with_prefix(gino_sprites, "Jump/start/");
+        jump_mid     = sprites_with_prefix(gino_sprites, "Jump/mid/");
+        jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
+        attack       = sprites_with_prefix(gino_sprites, "Attacks/A/");
+        attack_miss  = sprites_with_prefix(gino_sprites, "Throw/Throw Attack/");
+        attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
     }
 
-}
-
-set_shader_val :: (shader: LiveShader, name: string, val: $T) {
-    set_shader_val(shader.resource, name, val);
-}
-
-
-#program_export
-plugin_deinit :: (shutting_down: bool) -> *void {
-    using state;
-
-    if shutting_down {
-        UnloadTexture(bg.texture);
-        UnloadShader(bg.shader.resource);
-        UnloadMusicStream(bgm);
-
-        {
-            using sound;
-            Soloud_deinit(soloud);
-            Soloud_destroy(soloud);
-        }
-
-        return null;
+    textures.evilplant = LoadTexture("resources/sprites/evilplant.png");
+    {
+        using sprites.evilplant;
+        evilplant_sprites := parse_spriter_atlas("resources/sprites/evilplant.atlas");
+        idle = sprites_with_prefix(evilplant_sprites, "Idle/");
+        hit  = sprites_with_prefix(evilplant_sprites, "Hit/");
     }
 
-    heap_state := cast(*type_of(state))alloc(size_of(type_of(state)) * 2); // * 2 for adding extra things on the end
-    << heap_state = state;
-    return heap_state;
+    ok: bool;
+    //ok, song = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
+    ok, song = reaper.create_song_for_tempo(60);
+    assert(ok);
+    //bgm = LoadMusicStream("resources/music/Jivasifoki.mp3");
+    //bgm = LoadMusicStream("resources/music/kick-snare-60.mp3");
+    update_bgm_volume();
+    //SetMusicLoopCount(bgm, 0);
+    //PlayMusicStream(bgm);
+
+    screen.texture = LoadRenderTexture(gameWidth, gameHeight);
+    screen.shader = LoadShader(null, null);
+
+    player.position = Vector2.{ 400, 280 };
+    player.speed = 0;
+    player.can_jump = false;
+
+    array_add(*envItems,
+        //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
+        EnvItem.{.{ 0, 400, 1000, 200 }, 1, GRAY },
+                .{.{ 300, 200, 400, 10 }, 1, GRAY },
+                .{.{ 250, 300, 100, 10 }, 1, GRAY },
+                .{.{ 650, 300, 100, 10 }, 1, GRAY }
+    );
+
+    enemy: Enemy;
+    enemy.position.x = 400;
+    enemy.position.y = 197;
+    array_add(*enemies, enemy);
+    
+    {
+        e := array_add(*enemies);
+        e.position.x = 600;
+        e.position.y = 197;
+    }
+    
+    camera.target = player.position;
+    camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
+    camera.rotation = 0.0;
+    camera.zoom = DEFAULT_CAM_ZOOM;
+
+    bg.texture = LoadLiveTexture("resources/textures/space.png");
+    bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
+
+    test := create_entity(*world);
+    txt = add_component(test, Worldspace_Text);
+}
+
+
+on_host_shutdown :: () {
+    using state;
+    UnloadTexture(bg.texture);
+    UnloadShader(bg.shader.resource);
+
+    sound_deinit(*sound_state);
 }
 
 restart :: () {
@@ -426,9 +239,11 @@ restart :: () {
     camera.target = .{0, 0};
     player.position = .{400, 280};
 
-    // Reset the song back to the beginning for now.
-    StopMusicStream(bgm);
-    PlayMusicStream(bgm);
+    {
+        // Reset the song back to the beginning for now.
+        using sound_state;
+        Soloud_seek(soloud, bgm_voice, 0);
+    }
     beat_timer = 0;
 }
 
@@ -441,12 +256,14 @@ update_and_draw :: () {
     // update
     {
         screenlog.update(deltaTime);
-
-        UpdateMusicStream(bgm);
+        sound_update(*sound_state);
 
         {
             // update beat
-            beat_timer = GetMusicTimePlayed(bgm);
+            {
+                using sound_state;
+                beat_timer = Soloud_getStreamTime(soloud, bgm_voice);
+            }
             bgm_bpm:float = 122.069;
             beats_per_second := bgm_bpm * (1.0 / 60.0);
             found: bool;
@@ -486,7 +303,10 @@ update_and_draw :: () {
 
         now := GetTime();
         for * worldspace_texts
-            if now - it.time > 2 remove it;
+            if now - it.time > 2 {
+                free(it.message);
+                remove it;
+            }
 
         world_update(*world, deltaTime);
     }
@@ -547,18 +367,6 @@ update_and_draw :: () {
             screenlog.draw();
         }
     }
-}
-
-sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) ->
-    (rect: Rectangle, offset: Vector2, sprite_index: int)
-{
-    sprite_index := cast(int)(timer * fps);
-    while sprite_index >= spr.count sprite_index -= spr.count;
-    s := *spr[sprite_index];
-    offset := v2(s.offset.x, s.offset.y);
-    if flip_x
-        offset.x = cast(float)(-s.size.x - s.offset.x);
-    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y), offset, sprite_index;
 }
 
 ATTACK_FPS :: 13;
@@ -630,9 +438,9 @@ player_draw :: (using player: *Player) {
     if walking && last_walk_sprite_idx != idx {
         last_walk_sprite_idx = cast(s16)idx;
         if idx % 4 == 0 {
-            using state.sound.fx;
-            wav := ifx idx < 4 then footstep1 else footstep2;
-            Soloud_play(state.sound.soloud, wav, 0.1);
+            using state.sound_state;
+            wav := ifx idx < 4 then fx.footstep1 else fx.footstep2;
+            Soloud_play(soloud, wav, 0.1);
         }
     }
 
@@ -650,12 +458,11 @@ player_draw :: (using player: *Player) {
     // debug pos
     //w := 6;
     //DrawRectangleV(position - v2(w/2, w/2), make_Vector2(w, w), RED);
-
 }
 
 add_worldspace_text :: (message: string, pos: Vector2) {
     txt := array_add(*state.worldspace_texts);
-    txt.message = message;
+    txt.message = copy_string(message);
     txt.position = pos;
     txt.time = GetTime();
 }
@@ -773,29 +580,6 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
 
     // catch player falling off the universe
     if position.y > 1000 restart();
-}
-
-#if HOTLOADING_ENABLED {
-
-strip_dot_slash :: (path: string) -> string {
-    s := path;
-    if s.count >= 2 && s[0] == #char "." && s[1] == #char "/"
-        advance(*s, 2);
-    return s;
-}
-
-#program_export
-on_resource_change :: (using change: *Asset_Change) {
-    full_name_stripped := strip_dot_slash(change.full_name);
-
-    if extension == "png" {
-        TryReloadLiveTexturePath(full_name_stripped);
-    } else if extension == "fs" || extension == "vs" {
-
-        TryReloadLiveShaderPath(full_name_stripped);
-    }
-}
-
 }
 
 UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)

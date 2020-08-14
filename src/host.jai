@@ -11,6 +11,7 @@
 File :: #import "File";
 String :: #import "String";
 Debug :: #import "Debug";
+GWP :: #import "gwpasan";
 Plugin :: #import "plugin";
 Platform :: #import "platform";
 screenlog :: #import "screenlog";
@@ -89,6 +90,8 @@ Math :: #import "Math";
 
 main :: () {
     Debug.init();
+    GWP.init();
+    context.allocator = GWP.allocator;
 
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
@@ -149,6 +152,7 @@ main :: () {
             update_plugin_functions(*module);
             assert(update_and_draw != null);
 
+            reset_temporary_storage();
             plugin_init(old_state);
         }
 
