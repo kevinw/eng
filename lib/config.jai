@@ -30,7 +30,6 @@ parse_config_file :: (target: $T, config_filename: string) {
         return;
     }
 
-    // TODO: recurse into sub-structs with "." or something?
     target_tinfo := type_info(type_of(<< target));
 
     for line: *handler {

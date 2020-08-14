@@ -6,7 +6,10 @@
 #import "config";
 #import "Process";
 #import "System";
+#import "Sound_Player";
+#import "soloud";
 File :: #import "File";
+String :: #import "String";
 Debug :: #import "Debug";
 Plugin :: #import "plugin";
 Platform :: #import "platform";
@@ -23,7 +26,7 @@ ALWAYS_ON_TOP :: true;
 
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
-    if extension == "jai" && short_name == "game" {
+    if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
         arguments: [..]string;
         array_add(*arguments, "jai", "-x64", "first.jai");
 
@@ -134,10 +137,12 @@ main :: () {
         if frame_count % 4 == 0
             hotloader_process_change();
 
-        if frame_count % 2 == 0 && Plugin.should_reload(*module) {
+        force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
+
+        if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
             old_state := plugin_deinit(shutting_down = false);
 
-            if !Plugin.reload(*module) // TODO: this calls file_modtime for a second time and doesn't need to.
+            if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                 panic("couldn't reload module");
             assert(module.native_module != null);
 

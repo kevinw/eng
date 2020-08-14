@@ -43,7 +43,7 @@ get_nearest_marker :: (using song: Song, last_marker: *Marker, time: float64) ->
 
         return *bpm_marker;
     } else {
-        // TODO: use last_marker
+        // TODO: actually use last_marker
         if last_marker != null {
             assert(last_marker >= *markers[0]);
             assert(last_marker <= *markers[markers.count - 1]);

@@ -5,14 +5,15 @@
 wbml :: #import "wbml";
 screenlog :: #import "screenlog";
 reaper :: #import "reaper";
+#import "soloud";
 
 #import "entity";
+#load "editor.jai";
 
 HOTLOADING_ENABLED :: true;
 #if HOTLOADING_ENABLED {
     #import "Hotloader";
 }
-
 
 gameWidth :: 640;
 gameHeight :: 360;
@@ -135,11 +136,9 @@ UnloadTexture :: (texture: LiveTexture) {
     if texture._entry.count == 0 {
         UnloadTexture(texture._entry.resource);
         free(texture._entry.filename);
-        for * state.live.textures {
-            if texture._entry == it {
+        for * state.live.textures
+            if texture._entry == it
                 remove it;
-            }
-        }
     }
 }
 
@@ -195,6 +194,8 @@ Player :: struct {
 
     sprite_timer: float64;
     walk_timer: float64;
+
+    last_walk_sprite_idx: s16 = -1;
 }
 
 EnvItem :: struct {
@@ -204,6 +205,17 @@ EnvItem :: struct {
 }
 
 state: struct {
+    editor: *Editor;
+
+    sound: struct {
+        soloud: *Soloud;
+        fx: struct {
+            footstep1: *Wav;
+            footstep2: *Wav;
+        };
+    };
+
+
     live: struct {
         textures: [..]LiveTextureEntry;
         shaders:  [..]LiveShaderEntry;
@@ -288,6 +300,23 @@ plugin_init :: (old_value: *void) {
         free(old_state);
     } else {
         // actual init
+        {
+            using sound;
+            soloud =  Soloud_create();
+            Soloud_init(soloud, SOLOUD_CLIP_ROUNDOFF);
+
+            res: s32;
+
+            fx.footstep1 = Wav_create();
+            res = Wav_load(fx.footstep1, "resources/sfx/footsteps/wood1.wav");
+            assert(res == 0);
+
+            fx.footstep2 = Wav_create();
+            res = Wav_load(fx.footstep2, "resources/sfx/footsteps/wood2.wav");
+            assert(res == 0);
+        }
+
+        state.editor = New(Editor);
 
         // load textures and sprites
         textures.gino = LoadTexture("resources/sprites/gino.png");
@@ -375,6 +404,13 @@ plugin_deinit :: (shutting_down: bool) -> *void {
         UnloadTexture(bg.texture);
         UnloadShader(bg.shader.resource);
         UnloadMusicStream(bgm);
+
+        {
+            using sound;
+            Soloud_deinit(soloud);
+            Soloud_destroy(soloud);
+        }
+
         return null;
     }
 
@@ -513,14 +549,16 @@ update_and_draw :: () {
     }
 }
 
-sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) -> (rect: Rectangle, offset: Vector2) {
+sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) ->
+    (rect: Rectangle, offset: Vector2, sprite_index: int)
+{
     sprite_index := cast(int)(timer * fps);
     while sprite_index >= spr.count sprite_index -= spr.count;
     s := *spr[sprite_index];
     offset := v2(s.offset.x, s.offset.y);
     if flip_x
         offset.x = cast(float)(-s.size.x - s.offset.x);
-    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y), offset;
+    return rect(s.xy.x, s.xy.y, s.size.x, s.size.y), offset, sprite_index;
 }
 
 ATTACK_FPS :: 13;
@@ -541,6 +579,8 @@ player_draw :: (using player: *Player) {
     now := GetTime(); 
 
     squish:float = 1.0;
+
+    walking := false;
     
     {
         using state.sprites.player;
@@ -567,7 +607,10 @@ player_draw :: (using player: *Player) {
             fps = 18;
             spr = run;
             timer = walk_timer;
+
+            walking = true;
         } else {
+
             fps = 10;
             since_land := now - player.last_grounded_time;
             landing_animation_time := cast(float)state.sprites.player.jump_landing.count/fps;
@@ -582,7 +625,16 @@ player_draw :: (using player: *Player) {
     }
 
     flip_x := last_direction < 0;
-    sprite_rect, offset := sprite_get_rect(spr, timer, fps, last_direction < 0);
+    sprite_rect, offset, idx := sprite_get_rect(spr, timer, fps, last_direction < 0);
+
+    if walking && last_walk_sprite_idx != idx {
+        last_walk_sprite_idx = cast(s16)idx;
+        if idx % 4 == 0 {
+            using state.sound.fx;
+            wav := ifx idx < 4 then footstep1 else footstep2;
+            Soloud_play(state.sound.soloud, wav, 0.1);
+        }
+    }
 
     x_offset := 21 * (ifx flip_x then -1 else 1);
     dest_rect_pos := position - v2(x_offset, 38) + offset;

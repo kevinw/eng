@@ -1,7 +1,12 @@
 #import "Basic";
 #import "Compiler";
 
-module_search_paths := string.["../jai-raylib", "lib", "src"];
+module_search_paths := string.[
+    "../jai-raylib",
+    "../jai-soloud",
+    "lib",
+    "src"
+];
 
 build_plugin :: () {
     set_working_directory(#filepath);
@@ -67,6 +72,4 @@ build :: () {
     }
 }
 
-//#run build_plugin();
-//#run build_host();
 #run build();

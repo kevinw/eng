@@ -100,7 +100,7 @@ should_reload :: (plugin: *Module) -> bool {
     return true;
 }
 
-reload :: (plugin: *Module) -> bool {
+reload :: (plugin: *Module, force_reload := false) -> bool {
     if !plugin.native_module return false;
 
     file_time, ok := file_modtime(plugin.path_on_disk);
@@ -110,7 +110,7 @@ reload :: (plugin: *Module) -> bool {
         return false;
     }
 
-    if file_time == plugin.last_write_time
+    if !force_reload && file_time == plugin.last_write_time
         return false;
     
     plugin.last_write_time = file_time;
