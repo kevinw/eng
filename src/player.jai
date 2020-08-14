@@ -1,4 +1,3 @@
-
 Player :: struct {
     using entity: Entity;
 
@@ -24,24 +23,18 @@ Player :: struct {
     last_walk_sprite_idx: s16 = -1;
 }
 
-player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
-{
+player_update :: (state: *State, using player: *Player, envItems: []EnvItem, delta_time: float) {
     sprite_timer += delta_time;
 
-    horizontal_movement = 0;
     attacking := player_is_attacking(player);
 
-    // keyboard movement
-    if IsKeyDown(.KEY_LEFT) || IsKeyDown(.KEY_A)  horizontal_movement -= 1.0;
-    if IsKeyDown(.KEY_RIGHT) || IsKeyDown(.KEY_D) horizontal_movement += 1.0;
+    input_types := input.Input_Type.ALL;
+    if state.editor.play_mode == .Edit
+        input_types = ~input.Input_Type.KEYBOARD_WASD;
 
-    // gamepad movement
-    gamepad :: 0;
-    horizontal_movement += input.get_gamepad_stick(gamepad, .GAMEPAD_AXIS_LEFT_X, .GAMEPAD_AXIS_UNKNOWN).x;
-    horizontal_movement += input.get_gamepad_dpad(gamepad).x;
-
-    if horizontal_movement > 1  horizontal_movement = 1;
-    if horizontal_movement < -1 horizontal_movement = -1;
+    // Separate because in the platformer controls we don't treat up and down as
+    // movement that "steals" speed away from the X direction.
+    horizontal_movement = input.movement(input_types, .HORIZONTAL).x;
 
     if attacking && player.grounded
         horizontal_movement = 0;
@@ -51,8 +44,9 @@ player_update :: (using player: *Player, envItems: []EnvItem, delta_time: float)
         last_direction = cast(float)sign(horizontal_movement);
     walk_timer += delta_time * Math.abs(horizontal_movement);
 
+    gamepad :: 0;
     jump_button_this_frame := IsKeyDown(.KEY_SPACE) ||
-                              IsKeyDown(.KEY_W) ||
+                              (input_types & .KEYBOARD_WASD && IsKeyDown(.KEY_W)) ||
                               IsKeyDown(.KEY_UP) ||
 
                               IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
@@ -226,6 +220,7 @@ player_draw :: (using player: *Player) {
 
     DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
 
+    screenlog.world(position, "%", position);
     // debug pos
     //w := 6;
     //DrawRectangleV(position - v2(w/2, w/2), make_Vector2(w, w), RED);

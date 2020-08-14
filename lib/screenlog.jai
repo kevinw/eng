@@ -2,6 +2,11 @@
 #import "raylib";
 #import "toolbelt";
 
+//
+// TODO: consolidate the copy_strings in this file and use a version that 
+// appends the null byte, so that we don't need a further temp copy on the other end!
+//
+
 TIME_ON_SCREEN :: 2.0;
 
 Logger_State :: struct {
@@ -13,26 +18,36 @@ Logger_State :: struct {
 Entry :: struct {
     time: float64;
     message: string;
+
+    use_world_pos := false;
+    world_pos: Vector2;
 }
 
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
-    entry: Entry;
+    entry := array_add(*entries);
     entry.time = time;
     entry.message = copy_string(message);
-    array_add(*entries, entry);
 }
 
 sticky :: (message: string, args: ..Any) {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
-    entry: Entry;
-    entry.time = 0;
+    entry := array_add(*this_frame_entries);
     entry.message = copy_string(tprint(message, ..args));
-    array_add(*this_frame_entries, entry);
+}
+
+world :: (world_pos: Vector2, message: string, args: ..Any) {
+    assert(context.logger_data != null);
+    using cast(*Logger_State)context.logger_data;
+
+    entry := array_add(*this_frame_entries);
+    entry.use_world_pos = true;
+    entry.world_pos = world_pos;
+    entry.message = copy_string(tprint(message, ..args));
 }
 
 update :: (delta_time: float64) {
@@ -62,9 +77,23 @@ draw :: () {
     font_size = 15;
     y = 0;
     for * this_frame_entries {
+        if it.use_world_pos continue;
         DrawText(to_temp_c_string(it.message), x, y, font_size, WHITE);
         y += font_size;
         free(it.message);
     }
     array_reset(*this_frame_entries);
+}
+
+draw_world :: () {
+    assert(context.logger_data != null);
+    using cast(*Logger_State)context.logger_data;
+
+    font_size :s32 = 15;
+
+    for * this_frame_entries {
+        if !it.use_world_pos continue;
+        DrawText(to_temp_c_string(it.message), xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE);
+    }
+
 }

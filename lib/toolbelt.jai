@@ -174,3 +174,19 @@ sign :: inline (x: $T) -> int {
 
 v2 :: make_Vector2;
 rect :: make_Rectangle;
+
+rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
+    x := min(p1.x, p2.x);
+    y := min(p1.y, p2.y);
+
+    width := Math.abs(p2.x - p1.x);
+    height := Math.abs(p2.y - p1.y);
+
+    return rect(x, y, width, height);
+}
+
+get_mouse_world_pos :: (camera: Camera2D) -> Vector2 {
+    mouse_pos := GetMousePosition();
+    world_pos := GetScreenToWorld2D(mouse_pos, camera);
+    return world_pos;
+}

@@ -49,21 +49,48 @@ Play_Mode :: enum {
     Edit;
 }
 
+Vec2 :: Vector2;
+
 Editor :: struct {
     play_mode: Play_Mode;
+
+    drag_state: struct {
+        dragging: bool;
+        origin: Vec2;
+    };
 }
 
-editor_draw :: (using s: *State) {
-    if editor.play_mode == .Play return;
+editor_draw_world :: (state: *State) {
+    using state.editor;
+
+    if play_mode == .Play return;
     DrawText("EDITOR", 300, 300, 25, YELLOW);
+
+    if drag_state.dragging {
+        p1 := drag_state.origin;
+        p2 := get_mouse_world_pos(state.camera);
+        print("% %\n", p1, p2);
+        DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
+    }
 }
 
-editor_update :: (using s: *State, delta_time: float) {
-    if editor.play_mode == .Play return;
+editor_update :: (state: *State, delta_time: float) {
+    using state.editor;
+    if play_mode == .Play return;
 
     EDITOR_CAM_SPEED :: 4.0;
-    s.camera.target += input.movement() * EDITOR_CAM_SPEED * delta_time;
+    state.camera.target += input.movement(.KEYBOARD_WASD) * EDITOR_CAM_SPEED * delta_time;
 
+    if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+        drag_state.dragging = true;
+        drag_state.origin = get_mouse_world_pos(state.camera);
+    } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
+        drag_state.dragging = false;
+
+        p1 := drag_state.origin;
+        p2 := get_mouse_world_pos(state.camera);
+        rect := rect_from_points(p1, p2);
+    }
 }
 
 editor_toggle :: (using s: *State) {
@@ -77,9 +104,5 @@ editor_toggle :: (using s: *State) {
             print("error: unknown play_mode '%'\n", play_mode);
     }
 
-    print("play_mode %", play_mode);
+    print("play_mode %\n", play_mode);
 }
-
-#scope_file
-
-State :: type_of(state);

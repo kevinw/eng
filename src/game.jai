@@ -44,6 +44,8 @@ EnvItem :: struct {
     color: Color;
 }
 
+State :: type_of(state);
+
 state: struct {
     editor: *Editor;
 
@@ -260,8 +262,8 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
        
-        player_update(*player, envItems, deltaTime);
-        txt.position = player.position;
+        player_update(*state, *player, envItems, deltaTime);
+        if txt != null txt.position = player.position;
 
         for * enemies
             it.sprite_timer += deltaTime;
@@ -325,6 +327,9 @@ update_and_draw :: () {
 
                 player_draw(*player);
                 world_draw(*world);
+
+                editor_draw_world(*state);
+                screenlog.draw_world();
             }
 
             // Update beats
@@ -336,8 +341,6 @@ update_and_draw :: () {
                 color.w = cast(float32)alpha;
                 DrawText(tprint("%", nearest_marker.beat_type), 16, 10, 40, ColorFromNormalized(color));
             }
-
-            editor_draw(*state);
         }
 
         {
@@ -355,14 +358,12 @@ add_worldspace_text :: (message: string, pos: Vector2) {
     txt.time = GetTime();
 }
 
-UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
-{
+UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
     offset = make_Vector2(width/2, height/2);
     target = player.position;
 }
 
-UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
-{
+UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
     camera.target = player.position;
     camera.offset = make_Vector2(width/2, height/2);
 
@@ -387,8 +388,7 @@ UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []
     if min_val.y > 0 camera.offset.y = height/2 - min_val.y;
 }
 
-UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
-{
+UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
     minSpeed :: 30.0;
     minEffectLength :: 10.0;
     fractionSpeed :: 2.9;
@@ -409,8 +409,7 @@ even_out_state: struct {
     evenOutTarget: float;
 };
 
-UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
-{
+UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
     using even_out_state;
 
     evenOutSpeed :: 700;
@@ -442,8 +441,7 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: [
     }
 }
 
-UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int)
-{
+UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
     bbox :: Vector2.{ 0.2, 0.2 };
 
     bboxWorldMin := GetScreenToWorld2D(make_Vector2((1 - bbox.x)*0.5*width, (1 - bbox.y)*0.5*height ), << camera);
