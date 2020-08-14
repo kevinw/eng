@@ -68,8 +68,7 @@ editor_draw_world :: (state: *State) {
 
     if drag_state.dragging {
         p1 := drag_state.origin;
-        p2 := get_mouse_world_pos(state.camera);
-        print("% %\n", p1, p2);
+        p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
     }
 }
@@ -78,18 +77,28 @@ editor_update :: (state: *State, delta_time: float) {
     using state.editor;
     if play_mode == .Play return;
 
-    EDITOR_CAM_SPEED :: 4.0;
-    state.camera.target += input.movement(.KEYBOARD_WASD) * EDITOR_CAM_SPEED * delta_time;
+    editor_cam_speed := 200.0;
+    if IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)
+        editor_cam_speed *= 2;
+
+    state.camera.target += Vector2_Scale(v2(1, -1), input.movement(.KEYBOARD_WASD)) * editor_cam_speed * delta_time;
 
     if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
         drag_state.dragging = true;
-        drag_state.origin = get_mouse_world_pos(state.camera);
+        drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
         drag_state.dragging = false;
 
         p1 := drag_state.origin;
-        p2 := get_mouse_world_pos(state.camera);
+        p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         rect := rect_from_points(p1, p2);
+
+        block := array_add(*state.envItems);
+        block.rect = rect;
+        block.blocking = 1;
+        block.color = RED;
+        print("placed block #%\n", state.envItems.count);
+
     }
 }
 

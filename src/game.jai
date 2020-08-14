@@ -278,7 +278,8 @@ update_and_draw :: () {
             update_bgm_volume();
         }
 
-        cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
+        if state.editor.play_mode == .Play
+            cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
 
         now := GetTime();
         for * worldspace_texts
@@ -353,6 +354,7 @@ update_and_draw :: () {
 
 add_worldspace_text :: (message: string, pos: Vector2) {
     txt := array_add(*state.worldspace_texts);
+    print("allocating worldspace string with %\n", context.allocator);
     txt.message = copy_string(message);
     txt.position = pos;
     txt.time = GetTime();

@@ -15,7 +15,7 @@ to_temp_c_string :: (s: string) -> *u8 {
 
 set_shader_val :: (shader: Shader, name: string, val: $T) {
     location := GetShaderLocation(shader, to_temp_c_string(name));
-    if location == -1 return;
+    if location == -1 return; // TODO: should we warn here?
 
     uniform_type: ShaderUniformDataType;
     #if T == Vector2 || T == [2]float32
@@ -30,6 +30,13 @@ set_shader_val :: (shader: Shader, name: string, val: $T) {
         print("unknown type %", T);
 
     SetShaderValue(shader, location, *val, uniform_type);
+}
+
+Vector2_Scale :: inline (a: Vector2, b: Vector2) -> Vector2 {
+    v: Vector2 = ---;
+    v.x = a.x * b.x;
+    v.y = a.y * b.y;
+    return v;
 }
 
 Int2 :: struct {
@@ -166,7 +173,6 @@ sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) ->
     return rect(s.xy.x, s.xy.y, s.size.x, s.size.y), offset, sprite_index;
 }
 
-
 sign :: inline (x: $T) -> int {
     if x < cast(T)0 return -1;
     return 1;
@@ -185,8 +191,12 @@ rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
     return rect(x, y, width, height);
 }
 
-get_mouse_world_pos :: (camera: Camera2D) -> Vector2 {
+get_mouse_world_pos :: (camera: Camera2D, screen_texture: RenderTexture) -> Vector2 {
+    rt_multiplier := v2(cast(float)screen_texture.texture.width / GetScreenWidth(),
+                        cast(float)screen_texture.texture.height / GetScreenHeight());
+
     mouse_pos := GetMousePosition();
+    mouse_pos = v2(rt_multiplier.x * mouse_pos.x, rt_multiplier.y * mouse_pos.y);
     world_pos := GetScreenToWorld2D(mouse_pos, camera);
     return world_pos;
 }
