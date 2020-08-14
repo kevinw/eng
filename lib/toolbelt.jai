@@ -12,29 +12,6 @@ to_temp_c_string :: (s: string) -> *u8 {
     return result;
 }
 
-get_gamepad_dpad :: (gamepad: int) -> Vector2 {
-    result: Vector2;
-
-    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_LEFT)  result.x -= 1;
-    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_RIGHT) result.x += 1;
-
-    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_UP)    result.x += 1;
-    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_DOWN)  result.x -= 1;
-
-    return result;
-}
-
-get_gamepad_stick :: (gamepad: int, x_axis: GamepadAxis, y_axis: GamepadAxis, DEAD_ZONE := 0.17) -> Vector2 {
-    stick := make_Vector2(
-        GetGamepadAxisMovement(gamepad, x_axis),
-        GetGamepadAxisMovement(gamepad, y_axis));
-
-    if Math.abs(stick.x) < DEAD_ZONE stick.x = 0;
-    if Math.abs(stick.y) < DEAD_ZONE stick.y = 0;
-
-    return stick;
-}
-
 
 set_shader_val :: (shader: Shader, name: string, val: $T) {
     location := GetShaderLocation(shader, to_temp_c_string(name));
