@@ -7,7 +7,8 @@ screenlog :: #import "screenlog";
 reaper :: #import "reaper";
 input :: #import "input";
 
-#load "game_sound.jai";
+SOUND_ENABLED :: true;
+#load "game_sound_soloud.jai";
 #load "player.jai";
 
 #import "soloud";
@@ -62,11 +63,6 @@ state: struct {
         evilplant: Texture;
     };
     world: World;
-    worldspace_texts: [..]struct {
-        message: string;
-        position: Vector2;
-        time: float64;
-    };
     sprites: struct {
         player: struct {
             idle: []Sprite;
@@ -120,15 +116,18 @@ cameraUpdaters :: CameraFunc.[
 ];
 
 update_bgm_volume :: () {
-    using state.sound_state;
-    Soloud_setVolume(soloud, bgm_voice, ifx state.muted then 0.0 else 1.0);
-    //SetMusicVolume(bgm, ifx muted then 0 else 0.03);
+    #if SOUND_ENABLED {
+        using state.sound_state;
+        Soloud_setVolume(soloud, bgm_voice, ifx state.muted then 0.0 else 1.0);
+    }
 }
 
 on_host_init :: () {
     using state;
 
-    sound_init(*sound_state);
+    #if SOUND_ENABLED
+        sound_init(*sound_state);
+
     state.editor = New(Editor);
 
     // load textures and sprites
@@ -207,7 +206,9 @@ on_host_shutdown :: () {
     using state;
     UnloadTexture(bg.texture);
     UnloadShader(bg.shader.resource);
-    sound_deinit(*sound_state);
+
+    #if SOUND_ENABLED
+        sound_deinit(*sound_state);
 }
 
 restart :: () {
@@ -220,7 +221,9 @@ restart :: () {
     {
         // Reset the song back to the beginning for now.
         using sound_state;
-        Soloud_seek(soloud, bgm_voice, 0);
+
+        #if SOUND_ENABLED
+            Soloud_seek(soloud, bgm_voice, 0);
     }
     beat_timer = 0;
 }
@@ -243,7 +246,9 @@ update_and_draw :: () {
             // update beat
             {
                 using sound_state;
-                beat_timer = Soloud_getStreamTime(soloud, bgm_voice);
+
+                #if SOUND_ENABLED
+                    beat_timer = Soloud_getStreamTime(soloud, bgm_voice);
             }
             bgm_bpm:float = 122.069;
             beats_per_second := bgm_bpm * (1.0 / 60.0);
@@ -282,12 +287,6 @@ update_and_draw :: () {
             cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
 
         now := GetTime();
-        for * worldspace_texts
-            if now - it.time > 2 {
-                free(it.message);
-                remove it;
-            }
-
         world_update(*world, deltaTime);
     }
 
@@ -352,14 +351,6 @@ update_and_draw :: () {
     }
 }
 
-add_worldspace_text :: (message: string, pos: Vector2) {
-    txt := array_add(*state.worldspace_texts);
-    print("allocating worldspace string with %\n", context.allocator);
-    txt.message = copy_string(message);
-    txt.position = pos;
-    txt.time = GetTime();
-}
-
 UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
     offset = make_Vector2(width/2, height/2);
     target = player.position;
@@ -373,7 +364,7 @@ UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []
     minY:float = 1000;
     maxX:float = -1000;
     maxY:float = -1000;
-    
+
     for * envItems {
         minX = min(it.rect.x, minX);
         maxX = max(it.rect.x + it.rect.width, maxX);
@@ -383,7 +374,7 @@ UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []
     
     max_val := GetWorldToScreen2D(make_Vector2(maxX, maxY), << camera);
     min_val := GetWorldToScreen2D(make_Vector2(minX, minY), << camera);
-    
+
     if max_val.x < cast(float)width camera.offset.x = width - (max_val.x - width/2);
     if max_val.y < cast(float)height camera.offset.y = height - (max_val.y - height/2);
     if min_val.x > 0 camera.offset.x = width/2 - min_val.x;

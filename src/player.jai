@@ -67,13 +67,11 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
         attack_offset :: Vector2.{0, -20};
         if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
             logprint("player", "HIT attack");
-            add_worldspace_text("HIT", player.position + attack_offset);
             last_attack_time = now;
             attack_did_hit = true;
             sprite_timer = 0;
         } else {
             logprint("player", "MISS attack");
-            add_worldspace_text("MISS", player.position + attack_offset);
             last_attack_time = now;
             attack_did_hit = false;
             sprite_timer = 0;
@@ -84,14 +82,12 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     if !attacking && grounded && (now - jump_button_time) < 0.15 {
         beat_match_type := state.nearest_marker.beat_type == .Snare;
         if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
-            add_worldspace_text("HIT", player.position);
-            //logprint("player", "jump %", time_since_marker);
+            logprint("player", "jump %", time_since_marker);
             speed = -PLAYER_JUMP_SPD;
         } else {
-            add_worldspace_text("MISS", player.position);
             early_late := ifx time_since_marker > 0 then "late" else "early";
             if !beat_match_type early_late = "wrong beat";
-            //logprint("player", "MISS % jump %", early_late, time_since_marker);
+            logprint("player", "MISS % jump %", early_late, time_since_marker);
             speed = -PLAYER_JUMP_SPD * 0.25;
         }
 
@@ -205,7 +201,8 @@ player_draw :: (using player: *Player) {
         if idx % 4 == 0 {
             using state.sound_state;
             wav := ifx idx < 4 then fx.footstep1 else fx.footstep2;
-            Soloud_play(soloud, wav, 0.1);
+            #if SOUND_ENABLED
+                Soloud_play(soloud, wav, 0.1);
         }
     }
 

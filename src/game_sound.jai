@@ -1,48 +1,64 @@
-#import "soloud";
+#import "Sound_Player";
+#import "File";
+#import "Random";
 
-Voice_Handle :: u32; // TODO: this should probably be handled better by the soloud bindings
+load_audio_file :: (name: string) -> *Mixer_Sound_Data {
+    data : *Mixer_Sound_Data = null;
+
+    file_data, success := read_entire_file(name);
+    if !success return data;
+
+    data = New(Mixer_Sound_Data);
+    data.name = copy_string(name);
+    data.buffer = file_data;
+    data.type = Mixer_Sound_Data.Type.OGG_COMPRESSED;
+    return data;
+}
 
 Sound_State :: struct {
-    soloud: *Soloud;
-    fx: struct {
-        footstep1: *Wav;
-        footstep2: *Wav;
-    };
+    sound_player: *Sound_Player;
 
-    bgm: *WavStream;
-    bgm_voice: Voice_Handle;
+    fx: struct {
+        footstep1: *Mixer_Sound_Data;
+        footstep2: *Mixer_Sound_Data;
+    };
 };
 
 sound_init :: (using state: *Sound_State) {
-    soloud =  Soloud_create();
-    Soloud_init(soloud, SOLOUD_CLIP_ROUNDOFF);
-
-    res: s32;
-
-    fx.footstep1 = Wav_create();
-    res = Wav_load(fx.footstep1, "resources/sfx/footsteps/wood1.wav");
-    assert(res == 0);
-
-    fx.footstep2 = Wav_create();
-    res = Wav_load(fx.footstep2, "resources/sfx/footsteps/wood2.wav");
-    assert(res == 0);
-
-    bgm = WavStream_create();
-    res = WavStream_load(bgm, "resources/music/Jivasifoki.mp3");
-    WavStream_setLooping(bgm, xx true);
-    assert(res == 0);
-    // TODO delete
-
-    Soloud_set3dListenerUp(soloud, 0, 1, 0); // for a 2D game, we'll just use a basic unchanging up vector
-
-    bgm_voice = Soloud_play(soloud, bgm);
+    window := GetWindowHandle();
+    success := init(sound_player, window, true, true);
+    assert(success, "did not initialize sound player");
 }
 
 sound_deinit :: (using state: *Sound_State) {
-    Soloud_deinit(soloud);
-    Soloud_destroy(soloud);
 }
 
 sound_update :: (using state: *Sound_State) {
-    Soloud_update3dAudio(soloud);
+}
+
+//play_sound(game.arrow_sound, perturb=true, volume=0.2);
+
+/*
+        stream := play_sound(ambience, false);
+        stream.flags |= stream.REPEATING;
+        stream.user_volume_scale = 0.5;
+*/
+
+play_sound :: (using state: *Sound_State, data: *Mixer_Sound_Data, perturb: bool = true, volume := 0.7) -> *Sound_Stream {
+    stream := make_stream(sound_player, data);
+    assert(stream != null);
+
+    if stream {
+        stream.sound_data = data;
+        num_source_samples: s64 = data.nsamples_times_nchannels / data.nchannels;
+        stream.repeat_end_position = num_source_samples;
+        stream.user_volume_scale = volume;
+    }
+
+    if perturb && stream {
+        stream.user_volume_scale = random_get_within_range(volume, volume + 0.2);
+        stream.desired_rate = random_get_within_range(0.7, 1.22);
+    }
+    
+    return stream;
 }

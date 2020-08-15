@@ -2,12 +2,10 @@
 #import "raylib";
 #import "toolbelt";
 
-//
-// TODO: consolidate the copy_strings in this file and use a version that 
-// appends the null byte, so that we don't need a further temp copy on the other end!
-//
-
+#scope_file
 TIME_ON_SCREEN :: 2.0;
+MAX_COUNT :: 2000;
+#scope_module
 
 Logger_State :: struct {
     time: float64;
@@ -17,37 +15,40 @@ Logger_State :: struct {
 
 Entry :: struct {
     time: float64;
-    message: string;
+    message: *u8;
 
     use_world_pos := false;
     world_pos: Vector2;
 }
 
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
+    assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
     entry := array_add(*entries);
     entry.time = time;
-    entry.message = copy_string(message);
+    entry.message = to_c_string(message);
 }
 
 sticky :: (message: string, args: ..Any) {
+    assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
     entry := array_add(*this_frame_entries);
-    entry.message = copy_string(tprint(message, ..args));
+    entry.message = to_c_string(tprint(message, ..args));
 }
 
 world :: (world_pos: Vector2, message: string, args: ..Any) {
+    assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
     entry := array_add(*this_frame_entries);
     entry.use_world_pos = true;
     entry.world_pos = world_pos;
-    entry.message = copy_string(tprint(message, ..args));
+    entry.message = to_c_string(tprint(message, ..args));
 }
 
 update :: (delta_time: float64) {
@@ -69,7 +70,7 @@ draw :: () {
     y:s32 = 0;
     font_size:s32 = 30;
     for * entries {
-        DrawText(to_temp_c_string(it.message), 0, y, font_size, WHITE);
+        DrawText(it.message, 0, y, font_size, WHITE);
         y += font_size;
     }
 
@@ -78,10 +79,11 @@ draw :: () {
     y = 0;
     for * this_frame_entries {
         if it.use_world_pos continue;
-        DrawText(to_temp_c_string(it.message), x, y, font_size, WHITE);
+        DrawText(it.message, x, y, font_size, WHITE);
         y += font_size;
-        free(it.message);
     }
+
+    for this_frame_entries free(it.message);
     array_reset(*this_frame_entries);
 }
 
@@ -91,9 +93,8 @@ draw_world :: () {
 
     font_size :s32 = 15;
 
-    for * this_frame_entries {
-        if !it.use_world_pos continue;
-        DrawText(to_temp_c_string(it.message), xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE);
-    }
+    for * this_frame_entries
+        if it.use_world_pos
+            DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE);
 
 }
