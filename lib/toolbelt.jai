@@ -3,6 +3,7 @@
 #import "config";
 #import "String";
 #import "raylib";
+#import "raymath";
 Math :: #import "Math";
 
 to_temp_c_string :: (s: string) -> *u8 {
@@ -10,6 +11,10 @@ to_temp_c_string :: (s: string) -> *u8 {
     memcpy(result, s.data, s.count);
     result[s.count] = 0;
     return result;
+}
+
+draw_point :: (pt: Vector2, size: float, color: Color) {
+    DrawRectangleV(pt - v2(size/2.0, size/2.0), v2(size, size), RED);
 }
 
 

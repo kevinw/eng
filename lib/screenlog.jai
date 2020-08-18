@@ -21,10 +21,6 @@ Entry :: struct {
     world_pos: Vector2;
 }
 
-set_enabled :: (enabled: bool) {
-    screenlog_is_installed = enabled;
-}
-
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
@@ -36,8 +32,6 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
 }
 
 sticky :: (message: string, args: ..Any) {
-    if !screenlog_is_installed return;
-
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
@@ -47,8 +41,6 @@ sticky :: (message: string, args: ..Any) {
 }
 
 world :: (world_pos: Vector2, message: string, args: ..Any) {
-    if !screenlog_is_installed return;
-
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
@@ -62,8 +54,6 @@ world :: (world_pos: Vector2, message: string, args: ..Any) {
 }
 
 update :: (delta_time: float64) {
-    if !screenlog_is_installed return;
-
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
     time += delta_time;
@@ -76,8 +66,6 @@ update :: (delta_time: float64) {
 }
 
 draw :: () {
-    if !screenlog_is_installed return;
-
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
@@ -102,8 +90,6 @@ draw :: () {
 }
 
 draw_world :: () {
-    if !screenlog_is_installed return;
-
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
@@ -114,7 +100,3 @@ draw_world :: () {
             DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE);
 
 }
-
-#scope_file
-
-screenlog_is_installed := false;

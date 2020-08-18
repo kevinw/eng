@@ -107,6 +107,8 @@ state: struct {
     enemies: [..]Enemy;
 
     end_canary: u32; // = 0xBEEFBEEF;
+
+    debug_draw := false;
 };
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, items: []EnvItem, delta: float, w: int, h: int);
@@ -282,6 +284,10 @@ update_and_draw :: () {
         camera.zoom = clamp(camera.zoom + cast(float)GetMouseWheelMove() * 0.05, 0.25, 3.0);
         
         if IsKeyPressed(.KEY_R) restart();
+        if IsKeyPressed(.KEY_D) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)) {
+            debug_draw = !debug_draw;
+            logprint("debug", "debug_draw is now %\n", debug_draw);
+        }
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
         if IsKeyPressed(.KEY_F) ToggleFullscreen();
         if IsKeyPressed(.KEY_M) {

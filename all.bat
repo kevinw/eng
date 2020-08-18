@@ -1,1 +1,0 @@
-jai -x64 first.jai -- all && first.exe

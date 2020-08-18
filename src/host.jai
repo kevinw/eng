@@ -23,8 +23,8 @@ panic :: (msg: string) {
 
 WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
-ALWAYS_ON_TOP :: false;
-USE_SCREENLOG :: false;
+ALWAYS_ON_TOP :: true;
+USE_SCREENLOG :: true;
 
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
@@ -113,7 +113,6 @@ main :: () {
     defer CloseWindow();
 
     #if USE_SCREENLOG {
-        screenlog.set_enabled(true);
         context.logger_data = New(screenlog.Logger_State);
         context.logger = screenlog.context_func;
         defer free(context.logger_data);
@@ -157,7 +156,6 @@ main :: () {
         if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
             ctx := context;
             old_state := plugin_deinit(*ctx, shutting_down = false);
-            print("plugin_deinit returned pointer %\n", old_state);
 
             if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                 panic("couldn't reload module");
@@ -166,7 +164,6 @@ main :: () {
             update_plugin_functions(*module);
             assert(plugin_tick != null);
 
-            print("passing old_state % to plugin_init\n", old_state);
             plugin_init(*ctx, old_state);
         }
 

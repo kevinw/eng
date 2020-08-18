@@ -218,7 +218,7 @@ player_draw :: (using player: *Player) {
     DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
 
     screenlog.world(position, "%", position);
-    // debug pos
-    //w := 6;
-    //DrawRectangleV(position - v2(w/2, w/2), make_Vector2(w, w), RED);
+
+    if state.debug_draw
+        draw_point(position, 6, RED);
 }
