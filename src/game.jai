@@ -127,6 +127,7 @@ update_bgm_volume :: () {
 
 on_host_did_reload_game_dll :: () {
     set_default_font(*state.default_font);
+    logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
 on_host_init :: () {

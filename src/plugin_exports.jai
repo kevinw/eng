@@ -1,3 +1,5 @@
+#scope_file // everything in this file is "private" since we're only exporting symbols.
+
 #if HOTLOADING_ENABLED {
 
 #import "Hotloader";
@@ -58,3 +60,4 @@ plugin_tick :: (ctx: *Context) #c_call {
         update_and_draw();
     }
 }
+

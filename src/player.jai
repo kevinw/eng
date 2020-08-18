@@ -310,10 +310,11 @@ player_draw :: (using player: *Player) {
     //screenlog.world(position, "%", position);
 
     if state.debug_draw {
-        draw_point(position, 6, RED);
-        draw_rect_outline(player_rect(player), 2, RED);
+        debug_color :: RED;
+        draw_point(position, 6, debug_color);
+        draw_rect_outline(player_rect(player), 2, debug_color);
         if player_attack_hitbox(now, player)
-            draw_rect_outline(player_attack_rect(player), 2, RED);
+            draw_rect_outline(player_attack_rect(player), 2, debug_color);
     }
 }
 
