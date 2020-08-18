@@ -17,6 +17,9 @@ load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
     if COPY_TO_TEMP_PATH {
         temp_path = copy_string(tprint("bin\\temp\\temp_%.dll", plugin.count));
         plugin.count += 1;
+
+        if plugin.count > 5 plugin.count = 0; // a hacky way to rotate the DLLs we're writing to...
+
         // TODO: pdb rewriting stuff (I believe the path or the name of the DLL
         // is hardcoded in the pdb, so there is some stuff online we can use
         // that rewrites that bit here)

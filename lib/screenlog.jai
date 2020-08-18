@@ -2,6 +2,8 @@
 #import "raylib";
 #import "toolbelt";
 
+// TODO: logs should use the camera's zoom to maintain its size on screen
+
 #scope_file
 TIME_ON_SCREEN :: 2.0;
 MAX_COUNT :: 2000;
