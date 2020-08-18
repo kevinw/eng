@@ -1,3 +1,8 @@
+#scope_file
+ATTACK_FPS :: 13;
+DAMAGE_FPS :: 6;
+#scope_module
+
 Takes_Damage :: struct {
     // damage
     time: float64 = -999999;
@@ -205,9 +210,6 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     if position.y > 1000
         restart();
 }
-
-ATTACK_FPS :: 13;
-DAMAGE_FPS :: 6;
 
 player_is_attacking :: (now: float64, it: *Player) -> bool {
     return now - it.last_attack_time < cast(float)state.sprites.player.attack.count/ATTACK_FPS;

@@ -76,6 +76,8 @@ state: struct {
         evilplant: struct {
             idle: []Sprite;
             hit: []Sprite;
+            attack_left: []Sprite;
+            attack_right: []Sprite;
         };
     };
 
@@ -163,6 +165,8 @@ on_host_init :: () {
         evilplant_sprites := parse_spriter_atlas("resources/sprites/evilplant.atlas");
         idle = sprites_with_prefix(evilplant_sprites, "Idle/");
         hit  = sprites_with_prefix(evilplant_sprites, "Hit/");
+        attack_left = sprites_with_prefix(evilplant_sprites, "Attack_Left/");
+        attack_right = sprites_with_prefix(evilplant_sprites, "Attack_Right/");
     }
 
     ok: bool;
@@ -249,6 +253,7 @@ update_and_draw :: () {
     }
 
     deltaTime := GetFrameTime();
+    now := GetTime();
 
     if IsKeyPressed(.KEY_TAB)
         editor_toggle(*state);
@@ -336,7 +341,7 @@ update_and_draw :: () {
                 }
 
                 // draw enemies
-                for * enemies enemy_draw(it);
+                for * enemies enemy_draw(it, now);
 
                 player_draw(*player);
                 world_draw(*world);
