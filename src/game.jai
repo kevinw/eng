@@ -48,7 +48,9 @@ EnvItem :: struct {
 State :: type_of(state);
 
 state: struct {
-    editor: *Editor;
+    start_canary: u32;// = 0xBEEFBEEF;
+
+    editor: Editor;
 
     sound_state: Sound_State;
 
@@ -103,6 +105,8 @@ state: struct {
     };
 
     enemies: [..]Enemy;
+
+    end_canary: u32; // = 0xBEEFBEEF;
 };
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, items: []EnvItem, delta: float, w: int, h: int);
@@ -125,10 +129,11 @@ update_bgm_volume :: () {
 on_host_init :: () {
     using state;
 
+    start_canary = 0xBEEFBEEF;
+    end_canary =   0xDEADBEEF;
+
     #if SOUND_ENABLED
         sound_init(*sound_state);
-
-    state.editor = New(Editor);
 
     // load textures and sprites
     textures.gino = LoadTexture("resources/sprites/gino.png");
@@ -228,9 +233,10 @@ restart :: () {
     beat_timer = 0;
 }
 
-#program_export
 update_and_draw :: () {
     using state;
+    assert(start_canary == 0xBEEFBEEF);
+    assert(end_canary   == 0xDEADBEEF);
 
     deltaTime := GetFrameTime();
 
