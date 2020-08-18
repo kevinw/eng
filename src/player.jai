@@ -1,3 +1,14 @@
+Takes_Damage :: struct {
+    // damage
+    time: float64 = -999999;
+    delta: Vector2;
+}
+
+being_damaged :: (now: float64, damage: *Takes_Damage, damage_time: float) -> bool {
+    //screenlog.world(state.player.position, "% - d.t=% < d_=% ? %", now, damage.time, damage_time, now - damage.time < damage_time);
+    return now - damage.time < damage_time;
+}
+
 Player :: struct {
     using entity: Entity;
 
@@ -22,15 +33,7 @@ Player :: struct {
 
     last_walk_sprite_idx: s16 = -1;
 
-    // damage
-    last_damage_time: float64 = -999999;
-    last_damage_delta: Vector2;
-}
-
-player_reset :: (using it: *Player) {
-    position = Vector2.{ 400, 280 };
-    speed = Vector2.{ 0, 0 };
-    can_jump = false;
+    damage: Takes_Damage;
 }
 
 #scope_file
@@ -43,8 +46,14 @@ HORIZONTAL_DRAG :: 0.1;
 
 #scope_module
 
+player_reset :: (using it: *Player) {
+    position = Vector2.{ 400, 280 };
+    speed = Vector2.{ 0, 0 };
+    can_jump = false;
+}
+
 player_has_been_damaged :: (using player: *Player, time: float64) -> bool {
-    return time - last_damage_time < DAMAGE_TIME;
+    return time - damage.time < DAMAGE_TIME;
 }
 
 player_update :: (state: *State, using player: *Player, envItems: []EnvItem, delta_time: float) {
@@ -53,7 +62,7 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     is_being_knocked_back := player_has_been_damaged(player, now);
     sprite_timer += delta_time;
 
-    attacking := player_is_attacking(player);
+    attacking := player_is_attacking(now, player);
 
     input_types := input.Input_Type.ALL;
     if state.editor.play_mode == .Edit
@@ -164,24 +173,30 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     //
     // collision with enemies
     //
-    if !is_being_knocked_back {
+    attack_hitbox := player_attack_hitbox(now, player);
+    attack_hitbox_rect := player_attack_rect(player);
+
+    if !is_being_knocked_back || attack_hitbox {
         p_rect := player_rect(player);
         p_midpoint := midpoint(p_rect);
         for * state.enemies {
             e_rect := enemy_rect(it);
-            if CheckCollisionRecs(e_rect, p_rect) {
-
+            if !is_being_knocked_back && CheckCollisionRecs(e_rect, p_rect) && !being_damaged(now, *it.damage, enemy_damage_time(it)) {
                 // player hit
                 delta := midpoint(e_rect) - p_midpoint;
-                last_damage_time = now;
-                last_damage_delta = delta;
+                damage.time = now;
+                damage.delta = delta;
 
-                screenlog.world(p_midpoint, ifx delta.x > 0 then "DMG right" else "DMG left");
+                //screenlog.world(p_midpoint, ifx delta.x > 0 then "DMG right" else "DMG left");
 
                 speed.y = -PLAYER_JUMP_SPD * 0.45;
                 speed.x = DAMAGE_KNOCKBACK * cast(float)-sign(delta.x);
                 grounded = false;
                 can_jump = false;
+            } else if attack_hitbox && CheckCollisionRecs(e_rect, attack_hitbox_rect) {
+                //logprint("player", "hit enemy %", it);
+                delta := midpoint(e_rect) - p_midpoint;
+                enemy_was_hit_by_player(it, now, player, delta);
             }
         }
     }
@@ -194,8 +209,13 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
 ATTACK_FPS :: 13;
 DAMAGE_FPS :: 6;
 
-player_is_attacking :: (player: *Player) -> bool {
-    return (GetTime() - player.last_attack_time) < cast(float)state.sprites.player.attack.count/ATTACK_FPS;
+player_is_attacking :: (now: float64, it: *Player) -> bool {
+    return now - it.last_attack_time < cast(float)state.sprites.player.attack.count/ATTACK_FPS;
+}
+
+player_attack_hitbox :: (now: float64, it: *Player) -> bool {
+    time_since_attack := now - it.last_attack_time;
+    return time_since_attack < 0.43 && time_since_attack > 0.1;
 }
 
 player_draw :: (using player: *Player) {
@@ -203,7 +223,7 @@ player_draw :: (using player: *Player) {
     // same, except maybe for graphics-y interpolated things.
     now := GetTime(); 
 
-    attacking := player_is_attacking(player);
+    attacking := player_is_attacking(now, player);
     is_being_knocked_back := player_has_been_damaged(player, now);
 
     spr: []Sprite;
@@ -292,6 +312,8 @@ player_draw :: (using player: *Player) {
     if state.debug_draw {
         draw_point(position, 6, RED);
         draw_rect_outline(player_rect(player), 2, RED);
+        if player_attack_hitbox(now, player)
+            draw_rect_outline(player_attack_rect(player), 2, RED);
     }
 }
 
@@ -300,4 +322,9 @@ player_rect :: (using it: *Player) -> Rectangle {
     h := 30;
     outline_rect := rect(position.x - w/2, position.y - h, w, h);
     return outline_rect;
+}
+
+player_attack_rect :: (using it: *Player) -> Rectangle {
+    x_off := ifx it.last_direction < 0 then -33 else 4;
+    return rect(position.x + x_off, position.y - 25, 30, 20);
 }

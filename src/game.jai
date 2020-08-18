@@ -9,7 +9,9 @@ input :: #import "input";
 
 SOUND_ENABLED :: true;
 #load "game_sound_soloud.jai";
+
 #load "player.jai";
+#load "enemy.jai";
 
 #import "soloud";
 
@@ -32,11 +34,6 @@ Entity :: struct {
     position: Vector2;
 }
 
-Enemy :: struct {
-    using entity: Entity;
-    sprite_timer: float64;
-}
-
 EnvItem :: struct {
     rect: Rectangle;
     blocking: int;
@@ -47,6 +44,7 @@ State :: type_of(state);
 
 state: struct {
     start_canary: u32;// = 0xBEEFBEEF;
+    default_font: Font;
 
     editor: Editor;
 
@@ -127,8 +125,14 @@ update_bgm_volume :: () {
     }
 }
 
+on_host_did_reload_game_dll :: () {
+    set_default_font(*state.default_font);
+}
+
 on_host_init :: () {
     using state;
+
+    set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
 
     start_canary = 0xBEEFBEEF;
     end_canary =   0xDEADBEEF;
@@ -183,17 +187,15 @@ on_host_init :: () {
                 .{.{ 650, 300, 100, 10 }, 1, GRAY }
     );
 
-    enemy: Enemy;
-    enemy.position.x = 400;
-    enemy.position.y = 197;
-    array_add(*enemies, enemy);
-    
-    {
-        e := array_add(*enemies);
-        e.position.x = 600;
-        e.position.y = 197;
+    add_enemy_at :: (x: float, y: float) #expand {
+        e := array_add(*state.enemies);
+        e.position.x = x;
+        e.position.y = y;
     }
-    
+
+    add_enemy_at(400, 197);
+    add_enemy_at(600, 197);
+
     camera.target = player.position;
     camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
     camera.rotation = 0.0;
@@ -230,6 +232,7 @@ restart :: () {
         #if SOUND_ENABLED
             Soloud_seek(soloud, bgm_voice, 0);
     }
+
     beat_timer = 0;
 }
 
@@ -282,8 +285,7 @@ update_and_draw :: () {
         player_update(*state, *player, envItems, deltaTime);
         if txt != null txt.position = player.position;
 
-        for * enemies
-            it.sprite_timer += deltaTime;
+        enemy_update_all(deltaTime);
 
         camera.zoom = clamp(camera.zoom + cast(float)GetMouseWheelMove() * 0.05, 0.25, 3.0);
         
@@ -333,9 +335,7 @@ update_and_draw :: () {
                 }
 
                 // draw enemies
-                for * enemies {
-                    enemy_draw(it);
-                }
+                for * enemies enemy_draw(it);
 
                 player_draw(*player);
                 world_draw(*world);
@@ -351,7 +351,7 @@ update_and_draw :: () {
                 color := Vector4.{1, 1, 1, 1};
                 if time_since_marker < 0 color = Vector4.{0, 0, 0, 1};
                 color.w = cast(float32)alpha;
-                DrawText(tprint("%", nearest_marker.beat_type), 16, 10, 40, ColorFromNormalized(color));
+                draw_text(tprint("%", nearest_marker.beat_type), 16, 10, 40, ColorFromNormalized(color));
             }
         }
 
@@ -360,31 +360,6 @@ update_and_draw :: () {
             blit_render_texture_to_screen(screen.texture);
             screenlog.draw();
         }
-    }
-}
-
-enemy_rect :: (using it: *Enemy) -> Rectangle {
-    w:float = 17;
-    h:float = 35;
-    return rect_from_points(position + v2(-w*0.5, 0), position + v2(w*0.5, -h));
-}
-
-enemy_draw :: (using it: *Enemy) {
-    using state;
-
-    fps := 10;
-    sprite_rect, offset := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
-    
-    OFF := v2(32, 37);
-
-    dest_rect_pos := position - OFF + offset;
-    dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
-    DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
-
-    if debug_draw {
-        draw_point(position, 4, RED);
-        r := enemy_rect(it);
-        draw_rect_outline(r, 2, RED);
     }
 }
 

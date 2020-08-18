@@ -30,6 +30,7 @@ plugin_init :: (ctx: *Context, old_value: *void) #c_call {
             old_state := cast(*State)old_value;
             state = << old_state;
             free(old_value);
+            on_host_did_reload_game_dll();
         } else {
             on_host_init();
         }

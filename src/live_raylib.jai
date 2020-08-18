@@ -3,6 +3,8 @@ HOTLOADING_ENABLED :: true;
 #if HOTLOADING_ENABLED
     #import "Hotloader";
 
+#import "toolbelt";
+
 LiveTexture :: struct { using _entry: *LiveTextureEntry; }
 LiveShader  :: struct { using _entry: *LiveShaderEntry; }
 
@@ -132,15 +134,4 @@ _to_temp_c_string :: (s: string) -> *u8 {
     memcpy(result, s.data, s.count);
     result[s.count] = 0;
     return result;
-}
-
-constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
-    c_str: *u8;
-    #if is_constant(text) {
-        if text.data.count > 0 {
-            return text.data;
-        }
-    }
-
-    return _to_temp_c_string(text);
 }

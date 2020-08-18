@@ -1,3 +1,5 @@
+#placeholder state;
+
 #import "Basic";
 #import "Text_File_Handler";
 #import "config";
@@ -5,6 +7,15 @@
 #import "raylib";
 #import "raymath";
 Math :: #import "Math";
+
+constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
+    c_str: *u8;
+    #if is_constant(text)
+        if text.data.count > 0
+            return text.data;
+
+    return to_temp_c_string(text);
+}
 
 to_temp_c_string :: (s: string) -> *u8 {
     result : *u8 = talloc(s.count + 1);
@@ -26,6 +37,25 @@ draw_rect_outline :: inline (rect: Rectangle, thickness :s32 = 3, color := RED) 
 }
 
 normalize :: Vector2Normalize;
+
+default_font: *Font; // TODO: this is dumb, because when game.dll gets reloaded it needs to reset this pointer back to its new state's default_font value. I wonder if we can put the data segment somewhere manually?
+
+set_default_font :: (font_ptr: *Font) {
+    default_font = font_ptr;
+}
+
+set_default_font :: (font_ptr: *Font, filename: string) {
+    default_font = font_ptr;
+    print("loading font...");
+    now := GetTime();
+    <<default_font = LoadFontEx(constant_or_temp_cstring(filename), xx 40, xx 0, xx 200);
+    print("took %\n", GetTime() - now);
+}
+
+draw_text :: (msg: string, x: $X, y: $Y, size: $S, color := WHITE) {
+    msg_z := constant_or_temp_cstring(msg);
+    DrawTextEx(<<default_font, msg_z, make_Vector2(x, y), xx size, -2, color);
+}
 
 midpoint :: inline (rect: Rectangle) -> Vector2 {
     v: Vector2 = ---;
@@ -113,7 +143,6 @@ sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
     //print("sprites_with_prefix of % total w prefix '%': %\n", sprites.count, prefix, new_slice.count);
     return new_slice;
 }
-
 
 blit_render_texture_to_screen :: (rt: RenderTexture) {
     source_rect := make_Rectangle(0, 0, rt.texture.width, -rt.texture.height);
