@@ -30,6 +30,7 @@ sound_init :: (using state: *Sound_State) {
     bgm = WavStream_create();
     res = WavStream_load(bgm, "resources/music/Jivasifoki.mp3");
     WavStream_setLooping(bgm, xx true);
+    WavStream_setVolume(bgm, 0.1);
     assert(res == 0);
     // TODO delete
 

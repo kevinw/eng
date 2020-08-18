@@ -1,4 +1,5 @@
 HOTLOADING_ENABLED :: true;
+
 #if HOTLOADING_ENABLED
     #import "Hotloader";
 
@@ -142,27 +143,4 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
     }
 
     return _to_temp_c_string(text);
-}
-
-#if HOTLOADING_ENABLED {
-
-strip_dot_slash :: (path: string) -> string {
-    s := path;
-    if s.count >= 2 && s[0] == #char "." && s[1] == #char "/"
-        advance(*s, 2);
-    return s;
-}
-
-#program_export
-on_resource_change :: (using change: *Asset_Change) {
-    full_name_stripped := strip_dot_slash(change.full_name);
-
-    if extension == "png" {
-        TryReloadLiveTexturePath(full_name_stripped);
-    } else if extension == "fs" || extension == "vs" {
-
-        TryReloadLiveShaderPath(full_name_stripped);
-    }
-}
-
 }

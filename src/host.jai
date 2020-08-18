@@ -23,7 +23,8 @@ panic :: (msg: string) {
 
 WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
-ALWAYS_ON_TOP :: true;
+ALWAYS_ON_TOP :: false;
+USE_SCREENLOG :: false;
 
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
@@ -50,8 +51,10 @@ on_asset_change :: (using asset_change: *Asset_Change) {
     } else {
         // all other changes go to the plugin, which may want to live reload
         // textures, etc.
-        if on_resource_change != null
-            on_resource_change(asset_change);
+        if plugin_on_resource_change != null {
+            ctx := context;
+            plugin_on_resource_change(*ctx, asset_change);
+        }
     }
 }
 
@@ -61,19 +64,19 @@ host_settings: struct {
 };
 
 // plugin functions
-Update_And_Draw_Func    :: #type ();
-Plugin_Init_Func        :: #type (state: *void);
-Plugin_Deinit_Func      :: #type (shutting_down: bool) -> *void;
-On_Resource_Change_Func :: #type (change: *Asset_Change);
+Plugin_Init_Func        :: #type (ctx: *Context, old_value: *void) #c_call;
+Plugin_Deinit_Func      :: #type (ctx: *Context, shutting_down: bool) -> *void #c_call;
+Plugin_Tick_Func        :: #type (ctx: *Context) #c_call;
+Plugin_On_Resource_Change_Func :: #type (ctx: *Context, change: *Asset_Change) #c_call;
 
-update_and_draw:    Update_And_Draw_Func;
 plugin_init:        Plugin_Init_Func;
 plugin_deinit:      Plugin_Deinit_Func;
-on_resource_change: On_Resource_Change_Func;
+plugin_tick:        Plugin_Tick_Func;
+plugin_on_resource_change: Plugin_On_Resource_Change_Func;
 
 update_plugin_functions :: (module: *Plugin.Module) {
-    update_and_draw = cast(Update_And_Draw_Func)GetProcAddress(module.native_module, "update_and_draw");
-    if !update_and_draw panic("Could not load update_and_draw func");
+    plugin_tick = cast(Plugin_Tick_Func)GetProcAddress(module.native_module, "plugin_tick");
+    if !plugin_tick panic("Could not load plugin_tick func");
 
     plugin_init = cast(Plugin_Init_Func)GetProcAddress(module.native_module, "plugin_init");
     if !plugin_init panic("Could not load plugin_init func");
@@ -81,7 +84,7 @@ update_plugin_functions :: (module: *Plugin.Module) {
     plugin_deinit = cast(Plugin_Deinit_Func)GetProcAddress(module.native_module, "plugin_deinit");
     if !plugin_deinit panic("Could not load plugin_deinit func");
 
-    on_resource_change = cast(On_Resource_Change_Func)GetProcAddress(module.native_module, "on_resource_change");
+    plugin_on_resource_change = cast(Plugin_On_Resource_Change_Func)GetProcAddress(module.native_module, "plugin_on_resource_change");
     // ^optional
 }
 
@@ -109,9 +112,12 @@ main :: () {
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
-    context.logger_data = New(screenlog.Logger_State);
-    context.logger = screenlog.context_func;
-    defer free(context.logger_data);
+    #if USE_SCREENLOG {
+        screenlog.set_enabled(true);
+        context.logger_data = New(screenlog.Logger_State);
+        context.logger = screenlog.context_func;
+        defer free(context.logger_data);
+    }
 
     InitAudioDevice();
     defer CloseAudioDevice();
@@ -129,8 +135,14 @@ main :: () {
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
 
-    plugin_init(null);
-    defer plugin_deinit(shutting_down = true);
+
+    plugin_context := context;
+
+    plugin_init(*plugin_context, null);
+    defer {
+        ctx := context;
+        plugin_deinit(*ctx, shutting_down = true);
+    }
 
     SetTargetFPS(60);
     frame_count := 0;
@@ -143,20 +155,23 @@ main :: () {
         force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
 
         if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
-            old_state := plugin_deinit(shutting_down = false);
+            ctx := context;
+            old_state := plugin_deinit(*ctx, shutting_down = false);
+            print("plugin_deinit returned pointer %\n", old_state);
 
             if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                 panic("couldn't reload module");
             assert(module.native_module != null);
 
             update_plugin_functions(*module);
-            assert(update_and_draw != null);
+            assert(plugin_tick != null);
 
-            reset_temporary_storage();
-            plugin_init(old_state);
+            print("passing old_state % to plugin_init\n", old_state);
+            plugin_init(*ctx, old_state);
         }
 
-        update_and_draw();
+        ctx := context;
+        plugin_tick(*ctx);
         reset_temporary_storage();
     }
 

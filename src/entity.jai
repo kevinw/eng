@@ -21,7 +21,7 @@ Worldspace_Text :: struct {
     }
 
     draw :: (using this: *Worldspace_Text) {
-        DrawText(message, xx position.x, xx position.y, 12, RED);
+        //DrawText(message, xx position.x, xx position.y, 12, RED);
     }
 };
 

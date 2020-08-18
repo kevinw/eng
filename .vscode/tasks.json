@@ -13,7 +13,9 @@
             "command": "c:/jai/bin/jai.exe",
             "args": [
                 "-no_color",
-                "first.jai"
+                "first.jai",
+                "--",
+                "check"
             ],
             "presentation": {
                 "echo": false,

@@ -8,7 +8,7 @@ module_search_paths := string.[
     "src"
 ];
 
-build_plugin :: () {
+build_plugin :: (check := false) {
     set_working_directory(#filepath);
 
     opts := get_build_options();
@@ -22,6 +22,7 @@ build_plugin :: () {
 
         array_add(*opts.modules_search_path_array, ..module_search_paths);
         opts.output_type = .DYNAMIC_LIBRARY;
+        if check opts.output_path = CHECK_PATH;
         opts.output_executable_name = "game";
         set_build_options(opts, w);
         add_build_file("src/game.jai", w);
@@ -35,7 +36,7 @@ build_plugin :: () {
     }
 };
 
-build_host :: () {
+build_host :: (check := false) {
     set_working_directory(#filepath);
 
     opts := get_build_options();
@@ -49,6 +50,7 @@ build_host :: () {
 
         array_add(*opts.modules_search_path_array, ..module_search_paths);
         opts.output_type = .EXECUTABLE;
+        if check opts.output_path = CHECK_PATH;
         set_build_options(opts, w);
         add_build_file("src/host.jai", w);
 
@@ -60,16 +62,30 @@ build_host :: () {
     }
 };
 
+CHECK_PATH :: "check/";
+
 build :: () {
     args := compiler_get_command_line_arguments();
-    if args.count > 0 && args[0] == "all" {
-        build_host();
-        build_plugin();
-    } else if args.count > 0 && args[0] == "host" {
-        build_host();
-    } else {
-        build_plugin();
+    if args.count > 0 {
+        if args[0] == {
+            case "all";
+                build_host();
+                build_plugin();
+            case "host";
+                build_host();
+            case "check";
+                build_host(check=true);
+                build_plugin(check=true);
+            case;
+                print("error: unknown argument '%'", args[0]);
+                exit(1);
+        }
+
+        return; // done.
     }
+
+    // else...just build game.dll
+    build_plugin();
 }
 
 #run build();
