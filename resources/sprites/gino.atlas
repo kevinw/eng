@@ -277,6 +277,34 @@ Death/death05
   orig: 64, 64
   offset: 6, 2
   index: -1
+Damage/death01
+  rotate: false
+  xy: 28, 622
+  size: 25, 35
+  orig: 64, 64
+  offset: 10, 2
+  index: -1
+Damage/death02
+  rotate: false
+  xy: 1, 655
+  size: 25, 34
+  orig: 64, 64
+  offset: 11, 2
+  index: -1
+Damage/death03
+  rotate: false
+  xy: 62, 578
+  size: 26, 32
+  orig: 64, 64
+  offset: 12, 2
+  index: -1
+Damage/death04
+  rotate: false
+  xy: 91, 544
+  size: 27, 28
+  orig: 64, 64
+  offset: 12, 2
+  index: -1
 Hit/hit01
   rotate: false
   xy: 53, 731

@@ -1,7 +1,7 @@
 Player :: struct {
     using entity: Entity;
 
-    speed: float;
+    speed: Vector2;
     can_jump: bool;
     grounded: bool;
 
@@ -21,9 +21,36 @@ Player :: struct {
     walk_timer: float64;
 
     last_walk_sprite_idx: s16 = -1;
+
+    // damage
+    last_damage_time: float64 = -999999;
+    last_damage_delta: Vector2;
+}
+
+player_reset :: (using it: *Player) {
+    position = Vector2.{ 400, 280 };
+    speed = Vector2.{ 0, 0 };
+    can_jump = false;
+}
+
+#scope_file
+
+PLAYER_JUMP_SPD :: 350;
+DAMAGE_KNOCKBACK :: 250;
+PLAYER_HOR_SPD :: 220;
+DAMAGE_TIME :: 0.9;
+HORIZONTAL_DRAG :: 0.1;
+
+#scope_module
+
+player_has_been_damaged :: (using player: *Player, time: float64) -> bool {
+    return time - last_damage_time < DAMAGE_TIME;
 }
 
 player_update :: (state: *State, using player: *Player, envItems: []EnvItem, delta_time: float) {
+    now := GetTime();
+
+    is_being_knocked_back := player_has_been_damaged(player, now);
     sprite_timer += delta_time;
 
     attacking := player_is_attacking(player);
@@ -36,7 +63,7 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     // movement that "steals" speed away from the X direction.
     horizontal_movement = input.movement(input_types, .HORIZONTAL).x;
 
-    if attacking && player.grounded
+    if (attacking && player.grounded) || is_being_knocked_back
         horizontal_movement = 0;
 
     position.x += horizontal_movement * PLAYER_HOR_SPD * delta_time;
@@ -45,55 +72,52 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     walk_timer += delta_time * Math.abs(horizontal_movement);
 
     gamepad :: 0;
-    jump_button_this_frame := IsKeyDown(.KEY_SPACE) ||
-                              (input_types & .KEYBOARD_WASD && IsKeyDown(.KEY_W)) ||
-                              IsKeyDown(.KEY_UP) ||
 
-                              IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
-    
+    a_jump_input_is_present := IsKeyDown(.KEY_SPACE) ||
+        (input_types & .KEYBOARD_WASD && IsKeyDown(.KEY_W)) ||
+        IsKeyDown(.KEY_UP) ||
+        IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
 
-    now := GetTime();
+    jump_button_this_frame := !is_being_knocked_back && a_jump_input_is_present;
     if jump_button_this_frame && !jump_button_last_frame
         jump_button_time = now;
-
     jump_button_last_frame = jump_button_this_frame;
 
     time_since_marker := state.beat_timer - state.nearest_marker.time;
-
     allow_all_beats := true;
 
-    // ATTACK
-    if !attacking && (IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
-        attack_offset :: Vector2.{0, -20};
-        if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
-            logprint("player", "HIT attack");
-            last_attack_time = now;
-            attack_did_hit = true;
-            sprite_timer = 0;
-        } else {
-            logprint("player", "MISS attack");
-            last_attack_time = now;
-            attack_did_hit = false;
-            sprite_timer = 0;
-        }
-    }
-
-    // JUMP
-    if !attacking && grounded && (now - jump_button_time) < 0.15 {
-        beat_match_type := state.nearest_marker.beat_type == .Snare;
-        if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
-            logprint("player", "jump %", time_since_marker);
-            speed = -PLAYER_JUMP_SPD;
-        } else {
-            early_late := ifx time_since_marker > 0 then "late" else "early";
-            if !beat_match_type early_late = "wrong beat";
-            logprint("player", "MISS % jump %", early_late, time_since_marker);
-            speed = -PLAYER_JUMP_SPD * 0.25;
+    if !is_being_knocked_back {
+        // ATTACK
+        if (IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+            attack_offset :: Vector2.{0, -20};
+            if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
+                last_attack_time = now;
+                attack_did_hit = true;
+                sprite_timer = 0;
+            } else {
+                last_attack_time = now;
+                attack_did_hit = false;
+                sprite_timer = 0;
+            }
         }
 
-        grounded = false;
-        can_jump = false;
-        last_jump_time = now;
+        // JUMP
+        if !attacking && grounded && (now - jump_button_time) < 0.15 {
+            beat_match_type := state.nearest_marker.beat_type == .Snare;
+            if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
+                logprint("player", "jump %", time_since_marker);
+                speed.y = -PLAYER_JUMP_SPD;
+            } else {
+                early_late := ifx time_since_marker > 0 then "late" else "early";
+                if !beat_match_type early_late = "wrong beat";
+                logprint("player", "MISS % jump %", early_late, time_since_marker);
+                speed.y = -PLAYER_JUMP_SPD * 0.25;
+            }
+
+            grounded = false;
+            can_jump = false;
+            last_jump_time = now;
+        }
     }
 
     hitObstacle := false;
@@ -103,10 +127,10 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
         p := *position;
         if it.blocking &&
            it.rect.x <= p.x && it.rect.x + it.rect.width >= p.x &&
-           it.rect.y >= p.y && it.rect.y < p.y + speed * delta_time
+           it.rect.y >= p.y && it.rect.y < p.y + speed.y * delta_time
         {
             hitObstacle = true;
-            speed = 0.0;
+            speed.y = 0.0;
             p.y = it.rect.y;
             if !grounded 
                 last_grounded_time = now;
@@ -115,37 +139,76 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
     }
 
     // GRAVITY
+    if speed.x != 0 {
+        if !grounded position.x += speed.x * delta_time;
+        if Math.abs(speed.x) > 0 {
+            // TODO: some kind of lerp here
+            s := sign(speed.x);
+            speed.x += -s * delta_time * 400;
+            if s != sign(speed.x)
+                speed.x = 0;
+        }
+    }
+
     if !hitObstacle {
-        position.y += speed * delta_time;
+        position.y += speed.y * delta_time;
         drag := G * delta_time;
-        if speed < 0 && jump_button_this_frame
+        if speed.y < 0 && jump_button_this_frame
             drag = Math.pow(drag * JUMP_FLOAT, JUMP_FLOAT_POW);
-        speed += drag;
+        speed.y += drag;
         can_jump = false;
     } else {
         can_jump = true;
     }
 
+    //
+    // collision with enemies
+    //
+    if !is_being_knocked_back {
+        p_rect := player_rect(player);
+        p_midpoint := midpoint(p_rect);
+        for * state.enemies {
+            e_rect := enemy_rect(it);
+            if CheckCollisionRecs(e_rect, p_rect) {
+
+                // player hit
+                delta := midpoint(e_rect) - p_midpoint;
+                last_damage_time = now;
+                last_damage_delta = delta;
+
+                screenlog.world(p_midpoint, ifx delta.x > 0 then "DMG right" else "DMG left");
+
+                speed.y = -PLAYER_JUMP_SPD * 0.45;
+                speed.x = DAMAGE_KNOCKBACK * cast(float)-sign(delta.x);
+                grounded = false;
+                can_jump = false;
+            }
+        }
+    }
+
     // catch player falling off the universe
-    if position.y > 1000 restart();
+    if position.y > 1000
+        restart();
 }
 
 ATTACK_FPS :: 13;
+DAMAGE_FPS :: 6;
 
 player_is_attacking :: (player: *Player) -> bool {
     return (GetTime() - player.last_attack_time) < cast(float)state.sprites.player.attack.count/ATTACK_FPS;
 }
 
 player_draw :: (using player: *Player) {
+    // TODO: Should this be an argument? Probably. I think we want "now" to stay the
+    // same, except maybe for graphics-y interpolated things.
+    now := GetTime(); 
+
     attacking := player_is_attacking(player);
+    is_being_knocked_back := player_has_been_damaged(player, now);
 
     spr: []Sprite;
     fps: int;
     timer: float64 = sprite_timer;
-
-    // Should this be an argument? Probably. I think we want "now" to stay the
-    // same, except maybe for graphics-y interpolated things.
-    now := GetTime(); 
 
     squish:float = 1.0;
 
@@ -153,7 +216,10 @@ player_draw :: (using player: *Player) {
     
     {
         using state.sprites.player;
-        if !grounded {
+        if is_being_knocked_back {
+            spr = damaged;
+            fps = DAMAGE_FPS;
+        } else if !grounded {
             if attacking {
                 spr = attack_air;
                 fps = ATTACK_FPS;
@@ -215,10 +281,23 @@ player_draw :: (using player: *Player) {
     dest_rect.height *= squish;
     dest_rect.y += squish_offset;
 
-    DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
+    color := WHITE;
+    if is_being_knocked_back
+        color = Color.{255, 100, 100, 255};
 
-    screenlog.world(position, "%", position);
+    DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
-    if state.debug_draw
+    //screenlog.world(position, "%", position);
+
+    if state.debug_draw {
         draw_point(position, 6, RED);
+        draw_rect_outline(player_rect(player), 2, RED);
+    }
+}
+
+player_rect :: (using it: *Player) -> Rectangle {
+    w := 18;
+    h := 30;
+    outline_rect := rect(position.x - w/2, position.y - h, w, h);
+    return outline_rect;
 }

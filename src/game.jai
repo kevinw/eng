@@ -22,8 +22,6 @@ SOUND_ENABLED :: true;
 gameWidth :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
-PLAYER_JUMP_SPD :: 350;
-PLAYER_HOR_SPD :: 220;
 G :: 1150;
 JUMP_FLOAT :: 0.39;
 JUMP_FLOAT_POW :: 1.1;
@@ -75,6 +73,7 @@ state: struct {
             attack: []Sprite;
             attack_miss: []Sprite;
             attack_air: []Sprite;
+            damaged: []Sprite;
         };
         evilplant: struct {
             idle: []Sprite;
@@ -150,6 +149,7 @@ on_host_init :: () {
         attack       = sprites_with_prefix(gino_sprites, "Attacks/A/");
         attack_miss  = sprites_with_prefix(gino_sprites, "Throw/Throw Attack/");
         attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
+        damaged      = sprites_with_prefix(gino_sprites, "Damage/");
     }
 
     textures.evilplant = LoadTexture("resources/sprites/evilplant.png");
@@ -173,9 +173,7 @@ on_host_init :: () {
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
 
-    player.position = Vector2.{ 400, 280 };
-    player.speed = 0;
-    player.can_jump = false;
+    player_reset(*player);
 
     array_add(*envItems,
         //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
@@ -237,8 +235,14 @@ restart :: () {
 
 update_and_draw :: () {
     using state;
-    assert(start_canary == 0xBEEFBEEF);
-    assert(end_canary   == 0xDEADBEEF);
+
+    #if HOTLOADING_ENABLED {
+        assert(start_canary == 0xBEEFBEEF);
+        if end_canary != 0xDEADBEEF {
+            logprint("gamestruct", "warning: State struct changed size\n");
+            end_canary = 0xDEADBEEF;
+        }
+    }
 
     deltaTime := GetFrameTime();
 
@@ -330,11 +334,7 @@ update_and_draw :: () {
 
                 // draw enemies
                 for * enemies {
-                    fps := 10;
-                    sprite_rect, offset := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
-                    dest_rect_pos := it.position - v2(10, 37) + offset;
-                    dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
-                    DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
+                    enemy_draw(it);
                 }
 
                 player_draw(*player);
@@ -360,6 +360,31 @@ update_and_draw :: () {
             blit_render_texture_to_screen(screen.texture);
             screenlog.draw();
         }
+    }
+}
+
+enemy_rect :: (using it: *Enemy) -> Rectangle {
+    w:float = 17;
+    h:float = 35;
+    return rect_from_points(position + v2(-w*0.5, 0), position + v2(w*0.5, -h));
+}
+
+enemy_draw :: (using it: *Enemy) {
+    using state;
+
+    fps := 10;
+    sprite_rect, offset := sprite_get_rect(sprites.evilplant.idle, it.sprite_timer, fps);
+    
+    OFF := v2(32, 37);
+
+    dest_rect_pos := position - OFF + offset;
+    dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
+    DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, WHITE);
+
+    if debug_draw {
+        draw_point(position, 4, RED);
+        r := enemy_rect(it);
+        draw_rect_outline(r, 2, RED);
     }
 }
 
@@ -439,7 +464,7 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: [
             }
         }
     } else {
-        if player.can_jump && (player.speed == 0) && (player.position.y != camera.target.y) {
+        if player.can_jump && (player.speed.y == 0) && (player.position.y != camera.target.y) {
             eveningOut = 1;
             evenOutTarget = player.position.y;
         }

@@ -13,10 +13,26 @@ to_temp_c_string :: (s: string) -> *u8 {
     return result;
 }
 
-draw_point :: (pt: Vector2, size: float, color: Color) {
+draw_point :: inline (pt: Vector2, size: float, color: Color) {
     DrawRectangleV(pt - v2(size/2.0, size/2.0), v2(size, size), RED);
 }
 
+draw_rect_outline :: inline (a: Vector2, b: Vector2, thickness :s32 = 3, color := RED) {
+    draw_rect_outline(rect_from_points(a, b), thickness, color);
+}
+
+draw_rect_outline :: inline (rect: Rectangle, thickness :s32 = 3, color := RED) {
+    DrawRectangleLinesEx(rect, thickness, color);
+}
+
+normalize :: Vector2Normalize;
+
+midpoint :: inline (rect: Rectangle) -> Vector2 {
+    v: Vector2 = ---;
+    v.x = rect.x + rect.width * 0.5;
+    v.y = rect.y + rect.height * 0.5;
+    return v;
+}
 
 set_shader_val :: (shader: Shader, name: string, val: $T) {
     location := GetShaderLocation(shader, to_temp_c_string(name));
