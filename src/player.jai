@@ -23,8 +23,8 @@ Takes_Damage :: struct {
 
     health: float = 100;
 
-    damage_func: On_Damage_Func;
     damage_time: float = 1;
+    damage_func: On_Damage_Func;
 }
 
 being_damaged :: (damage: *Takes_Damage) -> bool {
@@ -32,12 +32,12 @@ being_damaged :: (damage: *Takes_Damage) -> bool {
 }
 
 try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
-    now := GetTime();
-
     if !being_damaged(it) {
+        print("calling take_damage %\n", it);
         take_damage(it, delta);
         return true;
     }
+
 
     return false;
 }
@@ -46,11 +46,13 @@ take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
     amount := 1.0;
 
     health -= amount;
-    time = GetTime();
+    time = Time.now;
     delta = in_delta;
 
-    if damage_func != null
+    if damage_func != null {
+        print("calling damage_func %\n", it);
         damage_func(it);
+    }
 }
 
 Player :: struct {
@@ -167,7 +169,7 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
     // COLLISION
     for * envItems {
         p := *position;
-        if it.blocking &&
+        if it.collision & .PLATFORM &&
            it.rect.x <= p.x && it.rect.x + it.rect.width >= p.x &&
            it.rect.y >= p.y && it.rect.y < p.y + speed.y * Time.delta_time
         {
@@ -226,6 +228,7 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
                 can_jump = false;
             } else if attack_hitbox && CheckCollisionRecs(e_rect, attack_hitbox_rect) {
                 //logprint("player", "hit enemy %", it);
+
                 delta := midpoint(e_rect) - p_midpoint;
                 enemy_was_hit_by_player(it, player, delta);
             }

@@ -64,13 +64,20 @@ editor_draw_world :: (state: *State) {
     using state.editor;
 
     if play_mode == .Play return;
-    DrawText("EDITOR", 300, 300, 25, YELLOW);
 
     if drag_state.dragging {
         p1 := drag_state.origin;
         p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
     }
+}
+
+editor_draw :: (state: *State) {
+    if state.editor.play_mode == .Play return;
+
+    color := YELLOW;
+    color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
+    DrawText("editing", 275, 330, 20, color);
 }
 
 editor_update :: (state: *State) {
@@ -95,7 +102,7 @@ editor_update :: (state: *State) {
 
         block := array_add(*state.envItems);
         block.rect = rect;
-        block.blocking = 1;
+        block.collision = .PLATFORM;
         block.color = RED;
         print("placed block #%\n", state.envItems.count);
 

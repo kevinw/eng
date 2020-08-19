@@ -15,6 +15,7 @@ Enemy :: struct {
         health = 1,
         damage_time = 0.9,
         damage_func = (it: *Takes_Damage) -> bool {
+            print("in enemy damage func\n");
             if it.health == 0 {
                 enemy := get_parent_struct(Enemy, it);
                 enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
@@ -35,6 +36,9 @@ Enemy :: struct {
 }
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
+    print("enemy_was_hit_by_player2 % % %\n", it, player, delta);
+    //print("enemy damage func at %\n", it.damage.damage_func);
+
     if try_take_damage(*damage, delta) {
         last_attack_time = -99999;
         attack_cooldown = ATTACK_COOLDOWN;

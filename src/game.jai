@@ -34,9 +34,14 @@ Entity :: struct {
     position: Vector2;
 }
 
+Collision_Type :: enum u8 {
+    NONE     :: 0;
+    PLATFORM :: 1;
+}
+
 EnvItem :: struct {
     rect: Rectangle;
-    blocking: int;
+    collision: Collision_Type;
     color: Color;
 }
 
@@ -186,10 +191,10 @@ on_host_init :: () {
 
     array_add(*envItems,
         //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
-        EnvItem.{.{ 0, 400, 1000, 200 }, 1, GRAY },
-                .{.{ 300, 200, 400, 10 }, 1, GRAY },
-                .{.{ 250, 300, 100, 10 }, 1, GRAY },
-                .{.{ 650, 300, 100, 10 }, 1, GRAY }
+        EnvItem.{.{ 0, 400, 1000, 200 },  .PLATFORM, GRAY },
+                .{.{ 300, 200, 400, 10 }, .PLATFORM, GRAY },
+                .{.{ 250, 300, 100, 10 }, .PLATFORM, GRAY },
+                .{.{ 650, 300, 100, 10 }, .PLATFORM, GRAY }
     );
 
     add_enemy_at :: (x: float, y: float) #expand {
@@ -310,7 +315,6 @@ update_and_draw :: () {
         if state.editor.play_mode == .Play
             cameraUpdaters[cameraOption](*camera, *player, envItems, Time.delta_time, gameWidth, gameHeight);
 
-        now := GetTime();
         world_update(*world, Time.delta_time);
     }
 
@@ -349,6 +353,7 @@ update_and_draw :: () {
                 editor_draw_world(*state);
                 screenlog.draw_world();
             }
+            editor_draw(*state);
 
             // Update beats
             if nearest_marker != null {
