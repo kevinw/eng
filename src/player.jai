@@ -3,15 +3,44 @@ ATTACK_FPS :: 13;
 DAMAGE_FPS :: 6;
 #scope_module
 
+On_Damage_Func :: #type (takes_damage: *Takes_Damage) -> bool;
+
 Takes_Damage :: struct {
     // damage
     time: float64 = -999999;
     delta: Vector2;
+
+    health: float = 100;
+
+    damage_func: On_Damage_Func;
+    damage_time: float = 1;
 }
 
-being_damaged :: (now: float64, damage: *Takes_Damage, damage_time: float) -> bool {
-    //screenlog.world(state.player.position, "% - d.t=% < d_=% ? %", now, damage.time, damage_time, now - damage.time < damage_time);
-    return now - damage.time < damage_time;
+being_damaged :: (damage: *Takes_Damage) -> bool {
+    now := GetTime();
+    return now - damage.time < damage.damage_time;
+}
+
+try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
+    now := GetTime();
+
+    if !being_damaged(it) {
+        take_damage(it, delta);
+        return true;
+    }
+
+    return false;
+}
+
+take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
+    amount := 1.0;
+
+    health -= amount;
+    time = GetTime();
+    delta = in_delta;
+
+    if damage_func != null
+        damage_func(it);
 }
 
 Player :: struct {
@@ -39,9 +68,15 @@ Player :: struct {
     last_walk_sprite_idx: s16 = -1;
 
     damage: Takes_Damage;
+    damage.damage_func = player_was_damaged;
 }
 
 #scope_file
+
+player_was_damaged :: (damage: *Takes_Damage) -> bool {
+    print("player was damaged %\n", damage.health);
+    return false;
+}
 
 PLAYER_JUMP_SPD :: 350;
 DAMAGE_KNOCKBACK :: 250;
@@ -186,12 +221,10 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
         p_midpoint := midpoint(p_rect);
         for * state.enemies {
             e_rect := enemy_rect(it);
-            if !is_being_knocked_back && CheckCollisionRecs(e_rect, p_rect) && !being_damaged(now, *it.damage, enemy_damage_time(it)) {
+            if !is_being_knocked_back && CheckCollisionRecs(e_rect, p_rect) && !being_damaged(*it.damage) {
                 // player hit
                 delta := midpoint(e_rect) - p_midpoint;
-                damage.time = now;
-                damage.delta = delta;
-
+                take_damage(*damage, delta);
                 //screenlog.world(p_midpoint, ifx delta.x > 0 then "DMG right" else "DMG left");
 
                 speed.y = -PLAYER_JUMP_SPD * 0.45;

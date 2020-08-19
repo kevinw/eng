@@ -250,3 +250,54 @@ get_mouse_world_pos :: (camera: Camera2D, screen_texture: RenderTexture) -> Vect
     world_pos := GetScreenToWorld2D(mouse_pos, camera);
     return world_pos;
 }
+
+get_parent_struct :: (parent_ptr: **$P, child_ptr: *$C) {
+    child_ti := type_info(C);
+
+    ti := type_info(P);
+    assert(ti.type == .STRUCT, tprint("%", <<ti));
+    ti_struct := cast(*Type_Info_Struct)ti;
+
+    offset: s64 = -1;
+    found := false;
+    for * ti_struct.members {
+        if it.type == child_ti {
+            assert(!found, "more than one of this type found");
+            found = true;
+            offset = it.offset_in_bytes;
+        }
+    }
+
+    assert(offset != -1, "no child pointer found");
+    <<parent_ptr = cast(*P)((cast(*void)child_ptr) - offset);
+}
+
+test_parent_struct :: () {
+    Parent :: struct {
+        thing: int;
+        child: Child;
+    }
+
+    Child :: struct {
+        val: int;
+    }
+
+    p: Parent;
+    p.thing = 30;
+    p.child.val = 42;
+
+    //p2: *Parent;
+    child_ptr := *p.child;
+
+    print("hello\n");
+
+    p2: *Parent;
+    get_parent_struct(*p2, child_ptr);
+
+    print("parent:  %\n", *p);
+    print("parent2: %\n", p2);
+    assert(*p == p2);
+    print("done!\n");
+
+
+}

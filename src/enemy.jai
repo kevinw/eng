@@ -2,6 +2,7 @@
 DAMAGE_TIME :: 0.9;
 ATTACK_FPS :: 13;
 ATTACK_COOLDOWN :: 1.2;
+DYING_FPS :: 3;
 #scope_module
 
 Enemy :: struct {
@@ -11,21 +12,31 @@ Enemy :: struct {
     last_trigger_check: float64;
 
     damage: Takes_Damage;
+    damage.health = 1;
+    damage.damage_time = DAMAGE_TIME;
+    damage.damage_func = (it: *Takes_Damage) -> bool {
+        print("enemy was damaged %\n", it.health);
+        if it.health == 0 {
+            enemy: *Enemy;
+            get_parent_struct(*enemy, it);
+            enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
+            enemy.sprite_timer = 0;
+        }
+        return false;
+    };
 
     last_attack_time: float64;
     last_attack_direction_right: bool;
+
+    dying_timer: float;
 
     attack_cooldown: float;
 
     padding: [30-8-8-4]u8;
 }
 
-
 enemy_was_hit_by_player :: (using it: *Enemy, now: float64, player: *Player, delta: Vector2) {
-    if !being_damaged(now, *damage, DAMAGE_TIME) {
-        damage.time = now;
-        damage.delta = delta;
-
+    if try_take_damage(*damage, delta) {
         last_attack_time = -99999;
         attack_cooldown = ATTACK_COOLDOWN;
     }
@@ -64,7 +75,10 @@ enemy_draw :: (using it: *Enemy, now: float64) {
     fps := 10;
 
     spr := sprites.evilplant.idle;
-    if enemy_is_attacking(now, it) {
+    if dying_timer > 0 {
+        spr = sprites.evilplant.hit;
+        fps = DYING_FPS;
+    } else if enemy_is_attacking(now, it) {
         if last_attack_direction_right
             spr = sprites.evilplant.attack_right;
         else
@@ -79,7 +93,7 @@ enemy_draw :: (using it: *Enemy, now: float64) {
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
 
     color := WHITE;
-    if being_damaged(now, *damage, DAMAGE_TIME) {
+    if being_damaged(*damage) {
         color = ColorFromNormalized(Vector4.{1, .5, .5, 1});
     }
     DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
@@ -88,7 +102,6 @@ enemy_draw :: (using it: *Enemy, now: float64) {
         draw_point(position, 4, RED);
         r := enemy_rect(it);
         draw_rect_outline(r, 2, RED);
-
         draw_rect_outline(enemy_trigger_rect(it), 2, RED);
     }
 }
@@ -101,6 +114,13 @@ enemy_update_all :: (delta_time: float) {
 
     for * state.enemies {
         using it;
+        if dying_timer > 0 {
+            dying_timer -= delta_time;
+            if dying_timer <= 0 {
+                remove it;
+                continue;
+            }
+        }
         sprite_timer += delta_time;
         attack_cooldown -= delta_time;
 
