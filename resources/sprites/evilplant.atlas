@@ -121,21 +121,21 @@ Hit/hit01
   xy: 87, 1
   size: 32, 44
   orig: 64, 64
-  offset: 15, 0
+  offset: 15, -2
   index: -1
 Hit/hit02
   rotate: false
   xy: 1, 95
   size: 36, 45
   orig: 64, 64
-  offset: 14, 0
+  offset: 14, -3
   index: -1
 Hit/hit03
   rotate: false
   xy: 1, 1
   size: 40, 47
   orig: 64, 64
-  offset: 12, 0
+  offset: 12, -5
   index: -1
 Idle/idle01
   rotate: false
