@@ -33,8 +33,9 @@ load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
     }
 
     // load dll
-    print("LOADING %...\n", temp_path);
+    print("LOADING %...", temp_path);
     new_dll := LoadLibraryA(to_c_string(temp_path));
+    print("ok.\n");
     if !new_dll {
         print("could not load library %\n", name);
         return false;

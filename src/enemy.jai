@@ -5,6 +5,15 @@ ATTACK_CHOMP_TIME :: 0.295;
 DYING_FPS :: 3;
 #scope_module
 
+enemy_was_damaged :: (using it: *Takes_Damage) -> bool {
+    if it.health == 0 {
+        enemy := get_parent_struct(Enemy, it);
+        enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
+        enemy.sprite_timer = 0;
+    }
+    return false;
+}
+
 Enemy :: struct {
     using entity: Entity;
 
@@ -14,15 +23,8 @@ Enemy :: struct {
     damage := Takes_Damage.{
         health = 1,
         damage_time = 0.9,
-        damage_func = (it: *Takes_Damage) -> bool {
-            print("in enemy damage func\n");
-            if it.health == 0 {
-                enemy := get_parent_struct(Enemy, it);
-                enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
-                enemy.sprite_timer = 0;
-            }
-            return false;
-        }
+        //damage_func = enemy_was_damaged,
+        damage_func_type = .Enemy,
     };
 
     last_attack_time: float64;

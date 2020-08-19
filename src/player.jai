@@ -16,6 +16,19 @@ player_was_damaged :: (damage: *Takes_Damage) -> bool {
 
 On_Damage_Func :: #type (takes_damage: *Takes_Damage) -> bool;
 
+patch_function_pointers :: () {
+    /*
+    this assumes that functions will be linked in the same order
+    
+    offset = NEW_DLL_BASE - OLD_DLL_BASE
+
+    for all objects we care about
+        for member in type
+            if member is a function pointer
+                func_ptr += add the offset
+    */
+}
+
 Takes_Damage :: struct {
     // damage
     time: float64 = -999999;
@@ -24,7 +37,20 @@ Takes_Damage :: struct {
     health: float = 100;
 
     damage_time: float = 1;
-    damage_func: On_Damage_Func;
+
+    damage_func_type: enum {
+        Player;
+        Enemy;
+    };
+    //damage_func: On_Damage_Func;
+}
+
+invoke_damage_func :: (it: *Takes_Damage) {
+    if it.damage_func_type == {
+        case .Player; player_was_damaged(it);
+        case .Enemy;  enemy_was_damaged(it);
+        case; assert(false, "unhandled damage case");
+    }
 }
 
 being_damaged :: (damage: *Takes_Damage) -> bool {
@@ -49,10 +75,7 @@ take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
     time = Time.now;
     delta = in_delta;
 
-    if damage_func != null {
-        print("calling damage_func %\n", it);
-        damage_func(it);
-    }
+    invoke_damage_func(it);
 }
 
 Player :: struct {
@@ -79,8 +102,10 @@ Player :: struct {
 
     last_walk_sprite_idx: s16 = -1;
 
-    damage: Takes_Damage;
-    damage.damage_func = player_was_damaged;
+    damage := Takes_Damage.{
+        damage_func_type = .Player,
+    };
+    //damage.damage_func = player_was_damaged;
 }
 
 player_reset :: (using it: *Player) {
