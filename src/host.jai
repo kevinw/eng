@@ -152,6 +152,11 @@ main_game :: () {
     while !WindowShouldClose() {
         frame_count += 1;
 
+        if IsKeyPressed(.KEY_MINUS) {
+            top := Platform.toggle(GetWindowHandle());
+            logprint("host", ifx top then "window always on top" else "window not topmost");
+        }
+
         if frame_count % 4 == 0
             hotloader_process_change();
 

@@ -154,12 +154,12 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem, del
         if !attacking && grounded && (now - jump_button_time) < 0.15 {
             beat_match_type := state.nearest_marker.beat_type == .Snare;
             if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
-                logprint("player", "jump %", time_since_marker);
+                //logprint("player", "jump %", time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD;
             } else {
                 early_late := ifx time_since_marker > 0 then "late" else "early";
                 if !beat_match_type early_late = "wrong beat";
-                logprint("player", "MISS % jump %", early_late, time_since_marker);
+                //logprint("player", "MISS % jump %", early_late, time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD * 0.25;
             }
 
@@ -323,7 +323,7 @@ player_draw :: (using player: *Player) {
             using state.sound_state;
             wav := ifx idx < 4 then fx.footstep1 else fx.footstep2;
             #if SOUND_ENABLED
-                Soloud_play(soloud, wav, 0.1);
+                Soloud_play(soloud, wav, 0.5);
         }
     }
 

@@ -1,7 +1,7 @@
 #scope_file
-DAMAGE_TIME :: 0.9;
 ATTACK_FPS :: 13;
 ATTACK_COOLDOWN :: 1.2;
+ATTACK_CHOMP_TIME :: 0.295;
 DYING_FPS :: 3;
 #scope_module
 
@@ -9,18 +9,19 @@ Enemy :: struct {
     using entity: Entity;
 
     sprite_timer: float64;
-    last_trigger_check: float64;
+    last_sprite_timer: float64;
 
-    damage: Takes_Damage;
-    damage.health = 1;
-    damage.damage_time = DAMAGE_TIME;
-    damage.damage_func = (it: *Takes_Damage) -> bool {
-        if it.health == 0 {
-            enemy := get_parent_struct(Enemy, it);
-            enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
-            enemy.sprite_timer = 0;
+    damage := Takes_Damage.{
+        health = 1,
+        damage_time = 0.9,
+        damage_func = (it: *Takes_Damage) -> bool {
+            if it.health == 0 {
+                enemy := get_parent_struct(Enemy, it);
+                enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
+                enemy.sprite_timer = 0;
+            }
+            return false;
         }
-        return false;
     };
 
     last_attack_time: float64;
@@ -39,8 +40,6 @@ enemy_was_hit_by_player :: (using it: *Enemy, now: float64, player: *Player, del
         attack_cooldown = ATTACK_COOLDOWN;
     }
 }
-
-enemy_damage_time :: (using it: *Enemy) -> float { return DAMAGE_TIME; }
 
 enemy_rect :: (using it: *Enemy) -> Rectangle {
     now := GetTime();
@@ -120,21 +119,26 @@ enemy_update_all :: (delta_time: float) {
             }
         }
         sprite_timer += delta_time;
+        if enemy_is_attacking(now, it)
+            if last_sprite_timer < ATTACK_CHOMP_TIME && sprite_timer > ATTACK_CHOMP_TIME
+                Soloud_play(state.sound_state.soloud, state.sound_state.fx.chomp);
+        last_sprite_timer = sprite_timer;
         attack_cooldown -= delta_time;
 
         if attack_cooldown > 0 continue;
 
         e_rect := enemy_trigger_rect(it);
-        if !CheckCollisionRecs(p_rect, e_rect) continue;
+        if CheckCollisionRecs(p_rect, e_rect) {
+            // ENEMY ATTACKING!
+            attack_cooldown = ATTACK_COOLDOWN;
 
-        attack_cooldown = ATTACK_COOLDOWN;
+            e_midpoint := midpoint(e_rect);
+            delta := e_midpoint - player_midpoint;
 
-        e_midpoint := midpoint(e_rect);
-        delta := e_midpoint - player_midpoint;
-
-        last_attack_time = now;
-        last_attack_direction_right = delta.x < 0;
-        sprite_timer = 0;
+            last_attack_time = now;
+            last_attack_direction_right = delta.x < 0;
+            sprite_timer = 0;
+        }
 
     }
 }
