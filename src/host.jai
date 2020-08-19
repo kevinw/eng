@@ -92,6 +92,10 @@ wbml :: #import "wbml";
 Math :: #import "Math";
 
 main :: () {
+    main_game();
+}
+
+main_game :: () {
     Debug.init();
     GWP.init();
     context.allocator = GWP.allocator;

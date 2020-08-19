@@ -15,10 +15,8 @@ Enemy :: struct {
     damage.health = 1;
     damage.damage_time = DAMAGE_TIME;
     damage.damage_func = (it: *Takes_Damage) -> bool {
-        print("enemy was damaged %\n", it.health);
         if it.health == 0 {
-            enemy: *Enemy;
-            get_parent_struct(*enemy, it);
+            enemy := get_parent_struct(Enemy, it);
             enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
             enemy.sprite_timer = 0;
         }

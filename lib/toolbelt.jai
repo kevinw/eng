@@ -251,30 +251,35 @@ get_mouse_world_pos :: (camera: Camera2D, screen_texture: RenderTexture) -> Vect
     return world_pos;
 }
 
-get_parent_struct :: (parent_ptr: **$P, child_ptr: *$C) {
-    child_ti := type_info(C);
+get_parent_struct :: ($P: Type, child_ptr: *$C) -> *P {
+    // Given parent struct P which embeds a child struct C once directly, and a
+    // pointer to the child struct, returns a pointer to the parent.
 
-    ti := type_info(P);
-    assert(ti.type == .STRUCT, tprint("%", <<ti));
-    ti_struct := cast(*Type_Info_Struct)ti;
+    offset :: #run get_offset(P, type_info(C));
+    return cast(*P)((cast(*void)child_ptr) - offset);
 
-    offset: s64 = -1;
-    found := false;
-    for * ti_struct.members {
-        if it.type == child_ti {
-            assert(!found, "more than one of this type found");
-            found = true;
-            offset = it.offset_in_bytes;
+    get_offset :: ($P: Type, child_ti: *Type_Info) -> s64 {
+        ti := type_info(P);
+        assert(ti.type == .STRUCT, tprint("%", <<ti));
+        ti_struct := cast(*Type_Info_Struct)ti;
+
+        offset: s64 = -1;
+        found := false;
+        for * ti_struct.members {
+            if it.type == child_ti {
+                assert(!found, "more than one of this type found");
+                found = true;
+                offset = it.offset_in_bytes;
+            }
         }
+        assert(offset != -1, "no child pointer found");
+        return offset;
     }
-
-    assert(offset != -1, "no child pointer found");
-    <<parent_ptr = cast(*P)((cast(*void)child_ptr) - offset);
 }
 
 test_parent_struct :: () {
     Parent :: struct {
-        thing: int;
+        some_data: int;
         child: Child;
     }
 
@@ -283,21 +288,11 @@ test_parent_struct :: () {
     }
 
     p: Parent;
-    p.thing = 30;
+    p.some_data = 30;
     p.child.val = 42;
 
-    //p2: *Parent;
     child_ptr := *p.child;
+    parent_ptr := get_parent_struct(Parent, child_ptr);
 
-    print("hello\n");
-
-    p2: *Parent;
-    get_parent_struct(*p2, child_ptr);
-
-    print("parent:  %\n", *p);
-    print("parent2: %\n", p2);
-    assert(*p == p2);
-    print("done!\n");
-
-
+    assert(*p == parent_ptr);
 }
