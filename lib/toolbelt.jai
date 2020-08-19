@@ -296,3 +296,8 @@ test_parent_struct :: () {
 
     assert(*p == parent_ptr);
 }
+
+Time: struct {
+    now: float64;
+    delta_time: float;
+};

@@ -252,16 +252,16 @@ update_and_draw :: () {
         }
     }
 
-    deltaTime := GetFrameTime();
-    now := GetTime();
+    Time.delta_time = GetFrameTime();
+    Time.now = GetTime();
 
     if IsKeyPressed(.KEY_TAB)
         editor_toggle(*state);
 
     // update
     {
-        editor_update(*state, deltaTime);
-        screenlog.update(deltaTime);
+        editor_update(*state);
+        screenlog.update(Time.delta_time);
         sound_update(*sound_state);
         {
             // update beat
@@ -277,7 +277,7 @@ update_and_draw :: () {
             nearest_marker = reaper.get_nearest_marker(song, null, beat_timer);
         }
 
-        bg.timer += deltaTime * 0.2;
+        bg.timer += Time.delta_time * 0.2;
 
         set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
         set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
@@ -288,10 +288,10 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
        
-        player_update(*state, *player, envItems, deltaTime);
+        player_update(*state, *player, envItems);
         if txt != null txt.position = player.position;
 
-        enemy_update_all(deltaTime);
+        enemy_update_all();
 
         camera.zoom = clamp(camera.zoom + cast(float)GetMouseWheelMove() * 0.05, 0.25, 3.0);
         
@@ -308,10 +308,10 @@ update_and_draw :: () {
         }
 
         if state.editor.play_mode == .Play
-            cameraUpdaters[cameraOption](*camera, *player, envItems, deltaTime, gameWidth, gameHeight);
+            cameraUpdaters[cameraOption](*camera, *player, envItems, Time.delta_time, gameWidth, gameHeight);
 
         now := GetTime();
-        world_update(*world, deltaTime);
+        world_update(*world, Time.delta_time);
     }
 
     {
@@ -341,7 +341,7 @@ update_and_draw :: () {
                 }
 
                 // draw enemies
-                for * enemies enemy_draw(it, now);
+                for * enemies enemy_draw(it);
 
                 player_draw(*player);
                 world_draw(*world);
