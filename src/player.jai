@@ -7,10 +7,7 @@ PLAYER_HOR_SPD :: 220;
 DAMAGE_TIME :: 0.9;
 HORIZONTAL_DRAG :: 0.1;
 
-player_was_damaged :: (damage: *Takes_Damage) -> bool {
-    print("player was damaged %\n", damage.health);
-    return false;
-}
+player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
 
 #scope_module
 

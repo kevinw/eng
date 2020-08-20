@@ -3,6 +3,15 @@
 #import "Basic";
 #scope_module
 
+SetWindowBorderless :: (native_handle: *void, borderless: bool) {
+    if borderless SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+    else SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+}
+
+IsWindowBorderless :: (native_handle: *void) -> bool {
+    return !(GetWindowLongW(native_handle, GWL_STYLE) & WS_OVERLAPPEDWINDOW);
+}
+
 GetWindowSize :: (native_handle: *void) -> (w: s32, h: s32) {
     #if OS == .WINDOWS {
         win_rect: RECT;

@@ -12,7 +12,9 @@ platform :: #import "platform";
 window_rect: Rectangle;
 
 ToggleFakeFullscreen :: () {
-    print("toggle FAKE fullscreen\n");
+    WINDOW_WIDTH :: 1200;
+    WINDOW_HEIGHT :: 675;
+
     // raylib only does exclusive fullscreen, so here's a windowed fullscreen
     // implementation.
     monitor := 0;
@@ -22,12 +24,19 @@ ToggleFakeFullscreen :: () {
     pos := GetWindowPosition();
     w, h := platform.GetWindowSize(GetWindowHandle());
 
-    if pos.x == 0 && pos.y == 0 {
+    if platform.IsWindowBorderless(GetWindowHandle()) {
+        platform.SetWindowBorderless(GetWindowHandle(), false);
+        if window_rect.x <= 0 window_rect.x = 50;
+        if window_rect.y <= 0 window_rect.y = 50;
+        if window_rect.width == 0 window_rect.width = WINDOW_WIDTH;
+        if window_rect.height == 0 window_rect.height = WINDOW_HEIGHT;
+
+
         SetWindowPosition(xx window_rect.x, xx window_rect.y);
         SetWindowSize(xx window_rect.width, xx window_rect.height);
     } else {
+        platform.SetWindowBorderless(GetWindowHandle(), true);
         window_rect = make_Rectangle(pos.x, pos.y, w, h);
-        print("saving %\n", window_rect);
 
         SetWindowPosition(0, 0);
         SetWindowSize(monitor_w, monitor_h);

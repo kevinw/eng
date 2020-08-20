@@ -13,7 +13,7 @@ String :: #import "String";
 Debug :: #import "Debug";
 GWP :: #import "gwpasan";
 Plugin :: #import "plugin";
-Platform :: #import "platform";
+platform :: #import "platform";
 screenlog :: #import "screenlog";
 
 panic :: (msg: string) {
@@ -126,7 +126,7 @@ main_game :: () {
     defer CloseAudioDevice();
 
     #if ALWAYS_ON_TOP
-        Platform.SetWindowAlwaysOnTop(GetWindowHandle());
+        platform.SetWindowAlwaysOnTop(GetWindowHandle());
 
     hotloader_init(".", _DEBUG_LOGGING=false);
     hotloader_register_callback(on_asset_change);
@@ -153,7 +153,7 @@ main_game :: () {
         frame_count += 1;
 
         if IsKeyPressed(.KEY_MINUS) {
-            top := Platform.toggle(GetWindowHandle());
+            top := platform.toggle(GetWindowHandle());
             logprint("host", ifx top then "window always on top" else "window not topmost");
         }
 
@@ -181,7 +181,7 @@ main_game :: () {
         reset_temporary_storage();
     }
 
-    if !IsWindowFullscreen() {
+    if !IsWindowFullscreen() && !platform.IsWindowBorderless(GetWindowHandle()) {
         builder: String_Builder;
         defer free_buffers(*builder);
 
