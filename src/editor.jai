@@ -41,7 +41,7 @@ place a prefab
 #scope_file
 
 wbml :: #import "wbml";
-input :: #import "input";
+inp :: #import "inp";
 File :: #import "File";
 #import "Random";
 
@@ -98,11 +98,11 @@ editor_update :: (state: *State) {
     Time := *state.Time;
     if play_mode == .Play return;
 
-    editor_cam_speed := 200.0;
+    editor_cam_speed := 250.0;
     if IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)
         editor_cam_speed *= 2;
 
-    state.camera.target += Vector2_Scale(v2(1, -1), input.movement(.KEYBOARD_WASD)) * editor_cam_speed * Time.delta_time;
+    state.camera.target += Vector2_Scale(v2(1, -1), inp.movement(.KEYBOARD_WASD)) * editor_cam_speed * Time.delta_time;
 
     if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
         drag_state.dragging = true;

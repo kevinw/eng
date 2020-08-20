@@ -56,14 +56,10 @@ being_damaged :: (damage: *Takes_Damage) -> bool {
 }
 
 try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
-    if !being_damaged(it) {
-        print("calling take_damage %\n", it);
-        take_damage(it, delta);
-        return true;
-    }
+    if being_damaged(it) return false;
 
-
-    return false;
+    take_damage(it, delta);
+    return true;
 }
 
 take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
@@ -126,13 +122,13 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
 
     attacking := player_is_attacking(player);
 
-    input_types := input.Input_Type.ALL;
+    input_types := inp.Input_Type.ALL;
     if state.editor.play_mode == .Edit
-        input_types = ~input.Input_Type.KEYBOARD_WASD;
+        input_types = ~inp.Input_Type.KEYBOARD_WASD;
 
     // Separate because in the platformer controls we don't treat up and down as
     // movement that "steals" speed away from the X direction.
-    horizontal_movement = input.movement(input_types, .HORIZONTAL).x;
+    horizontal_movement = inp.movement(input_types, .HORIZONTAL).x;
 
     if (attacking && player.grounded) || is_being_knocked_back
         horizontal_movement = 0;

@@ -12,6 +12,8 @@ platform :: #import "platform";
 window_rect: Rectangle;
 
 ToggleFakeFullscreen :: () {
+    handle := GetWindowHandle();
+
     WINDOW_WIDTH :: 1200;
     WINDOW_HEIGHT :: 675;
 
@@ -22,10 +24,10 @@ ToggleFakeFullscreen :: () {
     monitor_h := GetMonitorHeight(0);
 
     pos := GetWindowPosition();
-    w, h := platform.GetWindowSize(GetWindowHandle());
+    w, h := platform.GetWindowSize(handle);
 
-    if platform.IsWindowBorderless(GetWindowHandle()) {
-        platform.SetWindowBorderless(GetWindowHandle(), false);
+    if platform.IsWindowBorderless(handle) {
+        platform.SetWindowBorderless(handle, false);
         if window_rect.x <= 0 window_rect.x = 50;
         if window_rect.y <= 0 window_rect.y = 50;
         if window_rect.width == 0 window_rect.width = WINDOW_WIDTH;
@@ -35,11 +37,19 @@ ToggleFakeFullscreen :: () {
         SetWindowPosition(xx window_rect.x, xx window_rect.y);
         SetWindowSize(xx window_rect.width, xx window_rect.height);
     } else {
-        platform.SetWindowBorderless(GetWindowHandle(), true);
+        platform.SetWindowBorderless(handle, true);
         window_rect = make_Rectangle(pos.x, pos.y, w, h);
+        
+        {
+            // TODO: SetWindowSize sets the wrong size!!
+            #import "Windows";
+            w := GetSystemMetrics(SM_CXSCREEN);
+            h := GetSystemMetrics(SM_CYSCREEN);
+            SetWindowPos(handle, HWND_TOP, 0, 0, w, h, SWP_FRAMECHANGED);
+        }
 
-        SetWindowPosition(0, 0);
-        SetWindowSize(monitor_w, monitor_h);
+        //SetWindowSize(monitor_w, monitor_h);
+        //SetWindowPosition(0, 0);
     }
 
 

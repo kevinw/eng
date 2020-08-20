@@ -5,7 +5,7 @@
 wbml :: #import "wbml";
 screenlog :: #import "screenlog";
 reaper :: #import "reaper";
-input :: #import "input";
+inp :: #import "inp";
 
 SOUND_ENABLED :: true;
 #load "game_sound_soloud.jai";

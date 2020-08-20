@@ -26,6 +26,10 @@ WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
 USE_SCREENLOG :: true;
 
+cmdline_args: struct {
+    skip_topmost_window := false;
+};
+
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
@@ -106,7 +110,20 @@ main_game :: () {
         return;
     }
 
-    SetTraceLogLevel(.LOG_WARNING);
+    {
+        args := get_command_line_arguments();
+        defer array_free(args);
+
+        for args {
+            using cmdline_args;
+            if it == "--no-topmost" {
+                print("skipping topmost window\n");
+                skip_topmost_window = true;
+            }
+        }
+    }
+
+    SetTraceLogLevel(.LOG_WARNING); // raylib
 
     parse_config_file(*host_settings, tprint("%/%", exe_path, "game.cfg"));
     win_x:= host_settings.window_pos_x;
@@ -126,7 +143,8 @@ main_game :: () {
     defer CloseAudioDevice();
 
     #if ALWAYS_ON_TOP
-        platform.SetWindowAlwaysOnTop(GetWindowHandle());
+        if !cmdline_args.skip_topmost_window
+            platform.SetWindowAlwaysOnTop(GetWindowHandle());
 
     hotloader_init(".", _DEBUG_LOGGING=false);
     hotloader_register_callback(on_asset_change);

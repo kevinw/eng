@@ -34,7 +34,7 @@ Enemy :: struct {
 
     attack_cooldown: float;
 
-    padding: [30-8-8-4]u8;
+    padding: [30]u8;
 }
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
