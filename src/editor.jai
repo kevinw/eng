@@ -40,7 +40,10 @@ place a prefab
 
 #scope_file
 
+wbml :: #import "wbml";
 input :: #import "input";
+File :: #import "File";
+#import "Random";
 
 #scope_module
 
@@ -58,6 +61,8 @@ Editor :: struct {
         dragging: bool;
         origin: Vec2;
     };
+
+    selected: [..]*Object;
 }
 
 editor_draw_world :: (state: *State) {
@@ -69,6 +74,12 @@ editor_draw_world :: (state: *State) {
         p1 := drag_state.origin;
         p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
+    }
+
+    if selected.count > 0 {
+        for selected {
+            DrawRectangleLinesEx(it.rect, 2, WHITE);
+        }
     }
 }
 
@@ -100,13 +111,77 @@ editor_update :: (state: *State) {
         p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         rect := rect_from_points(p1, p2);
 
-        block := array_add(*state.envItems);
+        block := array_add(*state.scene.envItems);
         block.rect = rect;
         block.collision = .PLATFORM;
         block.color = RED;
-        print("placed block #%\n", state.envItems.count);
-
+        block.color.b = cast(u8)random_get_within_range(100, 255);
+        print("placed block #%\n", state.scene.envItems.count);
     }
+
+    took_action := false;
+
+    ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
+    shift_down := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
+
+    if IsMouseButtonPressed(.MOUSE_RIGHT_BUTTON) {
+        world_mouse_pos := get_mouse_world_pos(state.camera, state.screen.texture);
+        for * state.scene.envItems {
+            if overlaps(it.rect, world_mouse_pos) {
+                if ctrl_down
+                    toggle_selection(it);
+                else
+                    set_selected(it);
+                
+                took_action = true;
+            }
+        }
+
+        if !took_action clear_selection();
+    }
+
+    if IsKeyPressed(.KEY_DELETE) {
+        for selected {
+            for * scene_obj: state.scene.envItems
+                if it == scene_obj
+                    remove scene_obj;
+        }
+        clear_selection();
+    }
+
+    if IsKeyPressed(.KEY_ONE) {
+        if shift_down save_scene("1");
+        else {
+            clear_selection();
+            load_scene("1");
+        }
+    }
+}
+
+clear_selection :: () {
+    using state.editor;
+    array_reset(*selected);
+}
+
+set_selected :: (obj: *Object) {
+    using state.editor;
+
+    array_reset(*selected);
+    array_add(*selected, obj);
+}
+
+toggle_selection :: (obj: *Object) -> bool {
+    using state.editor;
+
+    for selected {
+        if it == obj {
+            remove it;
+            return false;
+        }
+    }
+
+    array_add(*selected, obj);
+    return true;
 }
 
 editor_toggle :: (using s: *State) {
@@ -119,6 +194,29 @@ editor_toggle :: (using s: *State) {
         case;
             print("error: unknown play_mode '%'\n", play_mode);
     }
+}
 
-    print("play_mode %\n", play_mode);
+#scope_file 
+
+load_scene :: (name: string) {
+    filename := tprint("%.wbml", name);
+
+    str, ok := File.read_entire_file(filename);
+    if !ok {
+        logprint("error", "could not read '%' - load failed", filename);
+        return;
+    }
+
+    wbml.deserialize(str, *state.scene);
+
+    logprint("editor", "loaded %", filename);
+}
+
+save_scene :: (name: string) {
+    filename := tprint("%.wbml", name);
+
+    str := wbml.serialize(*state.scene);
+    File.write_entire_file(filename, str);
+
+    logprint("editor", "saved %", filename);
 }

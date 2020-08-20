@@ -7,6 +7,38 @@
 #import "raylib";
 #import "raymath";
 Math :: #import "Math";
+platform :: #import "platform";
+
+window_rect: Rectangle;
+
+ToggleFakeFullscreen :: () {
+    print("toggle FAKE fullscreen\n");
+    // raylib only does exclusive fullscreen, so here's a windowed fullscreen
+    // implementation.
+    monitor := 0;
+    monitor_w := GetMonitorWidth(0);
+    monitor_h := GetMonitorHeight(0);
+
+    pos := GetWindowPosition();
+    w, h := platform.GetWindowSize(GetWindowHandle());
+
+    if pos.x == 0 && pos.y == 0 {
+        SetWindowPosition(xx window_rect.x, xx window_rect.y);
+        SetWindowSize(xx window_rect.width, xx window_rect.height);
+    } else {
+        window_rect = make_Rectangle(pos.x, pos.y, w, h);
+        print("saving %\n", window_rect);
+
+        SetWindowPosition(0, 0);
+        SetWindowSize(monitor_w, monitor_h);
+    }
+
+
+}
+
+overlaps :: inline (point: Vector2, rect: Rectangle) -> bool #symmetric {
+    return CheckCollisionPointRec(point, rect);
+}
 
 constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
     c_str: *u8;

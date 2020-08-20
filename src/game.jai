@@ -30,19 +30,32 @@ JUMP_FLOAT_POW :: 1.1;
 GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
 
-Entity :: struct {
-    position: Vector2;
-}
-
 Collision_Type :: enum u8 {
     NONE     :: 0;
     PLATFORM :: 1;
 }
 
-EnvItem :: struct {
+
+Object :: struct {
     rect: Rectangle;
+}
+
+Entity :: struct {
+    position: Vector2;
+}
+
+EnvItem :: struct {
+    using obj: Object;
     collision: Collision_Type;
     color: Color;
+}
+
+envitem :: inline (x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> EnvItem {
+    item: EnvItem;
+    item.rect = make_Rectangle(x, y, width, height);
+    item.collision = collision;
+    item.color = color;
+    return item;
 }
 
 State :: type_of(state);
@@ -92,7 +105,9 @@ state: struct {
     beat_timer: float64;
 
     player: Player;
-    envItems: [..]EnvItem;
+    scene: struct {
+        envItems: [..]EnvItem;
+    };
     camera: Camera2D;
 
     cameraOption: int = 2;
@@ -189,12 +204,11 @@ on_host_init :: () {
 
     player_reset(*player);
 
-    array_add(*envItems,
-        //EnvItem.{.{ 0, 0, 1000, 400 },   0, LIGHTGRAY },
-        EnvItem.{.{ 0, 400, 1000, 200 },  .PLATFORM, GRAY },
-                .{.{ 300, 200, 400, 10 }, .PLATFORM, GRAY },
-                .{.{ 250, 300, 100, 10 }, .PLATFORM, GRAY },
-                .{.{ 650, 300, 100, 10 }, .PLATFORM, GRAY }
+    array_add(*scene.envItems,
+        envitem(0, 400, 1000, 200, .PLATFORM, GRAY),
+        envitem(300, 200, 400, 10, .PLATFORM, GRAY),
+        envitem(250, 300, 100, 10, .PLATFORM, GRAY),
+        envitem(650, 300, 100, 10, .PLATFORM, GRAY)
     );
 
     add_enemy_at :: (x: float, y: float) #expand {
@@ -293,27 +307,36 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
        
-        player_update(*state, *player, envItems);
+        player_update(*state, *player, scene.envItems);
         if txt != null txt.position = player.position;
 
         enemy_update_all();
 
         camera.zoom = clamp(camera.zoom + cast(float)GetMouseWheelMove() * 0.05, 0.25, 3.0);
+
+        shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
         
-        if IsKeyPressed(.KEY_R) restart();
-        if IsKeyPressed(.KEY_D) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)) {
+        if IsKeyPressed(.KEY_R) && !shift restart();
+        if IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
             logprint("debug", "debug_draw is now %\n", debug_draw);
         }
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
-        if IsKeyPressed(.KEY_F) ToggleFullscreen();
+        if IsKeyPressed(.KEY_F) {
+            USE_REAL_FULLSCREEN :: false;
+            if USE_REAL_FULLSCREEN {
+                ToggleFullscreen();
+            } else {
+                ToggleFakeFullscreen();
+            }
+        }
         if IsKeyPressed(.KEY_M) {
             muted = !muted;
             update_bgm_volume();
         }
 
         if state.editor.play_mode == .Play
-            cameraUpdaters[cameraOption](*camera, *player, envItems, Time.delta_time, gameWidth, gameHeight);
+            cameraUpdaters[cameraOption](*camera, *player, scene.envItems, Time.delta_time, gameWidth, gameHeight);
 
         world_update(*world, Time.delta_time);
     }
@@ -337,7 +360,7 @@ update_and_draw :: () {
                 PushMode2D(camera);
 
                 // draw world
-                for * envItems {
+                for * scene.envItems {
                     color := it.color;
                     color2 := color;
                     color2.r -= 100; color2.g -= 100; color2.b -= 100;
