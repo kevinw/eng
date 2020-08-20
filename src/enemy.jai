@@ -38,9 +38,6 @@ Enemy :: struct {
 }
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
-    //print("enemy_was_hit_by_player2 % % %\n", it, player, delta);
-    //print("enemy damage func at %\n", it.damage.damage_func);
-
     if try_take_damage(*damage, delta) {
         last_attack_time = -99999;
         attack_cooldown = ATTACK_COOLDOWN;
@@ -52,7 +49,7 @@ enemy_rect :: (using it: *Enemy) -> Rectangle {
 
     since_attack := Time.now - last_attack_time;
 
-    if since_attack > 0.38 && since_attack < 0.7 { // when attacking, enemy rect changes
+    if since_attack > 0.38 && since_attack < 0.60 { // when attacking, enemy rect changes
         w:float = 40;
         if !last_attack_direction_right w *= -1;
         return rect_from_points(position + v2(w, 0), position + v2(0, -35));
