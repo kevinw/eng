@@ -62,6 +62,11 @@ State :: type_of(state);
 
 state: struct {
     start_canary: u32;// = 0xBEEFBEEF;
+    Time: struct {
+        now: float64;
+        unscaled_now: float64;
+        delta_time: float;
+    };
     default_font: Font;
     global_time_scale:float = 1.0;
 
@@ -272,7 +277,7 @@ change_global_time_scale :: (delta: float) {
     if Sloppy_Math.values_are_close(global_time_scale, 1.0)
         global_time_scale = 1;
 
-    logprint("time", "time scale %", global_time_scale);
+    logprint("=time_scale", "time scale %", global_time_scale);
 }
 
 update_and_draw :: () {

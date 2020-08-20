@@ -86,6 +86,8 @@ editor_draw_world :: (state: *State) {
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
 
+    using state;
+
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
     DrawText("editing", 275, 330, 20, color);
@@ -93,6 +95,7 @@ editor_draw :: (state: *State) {
 
 editor_update :: (state: *State) {
     using state.editor;
+    Time := *state.Time;
     if play_mode == .Play return;
 
     editor_cam_speed := 200.0;

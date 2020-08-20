@@ -65,6 +65,16 @@ to_temp_c_string :: (s: string) -> *u8 {
     return result;
 }
 
+// copy a string and make sure the last byte is null
+copy_string_z :: (s: string) -> string {
+    r: string;
+    r.count = s.count + 1;
+    r.data = cast(*u8) alloc(r.count);  // Add 1 for the zero.
+    memcpy(r.data, s.data, s.count);
+    r.data[s.count] = 0;
+    return r;
+}
+
 draw_point :: inline (pt: Vector2, size: float, color: Color) {
     DrawRectangleV(pt - v2(size/2.0, size/2.0), v2(size, size), RED);
 }
@@ -337,9 +347,3 @@ test_parent_struct :: () {
 
     assert(*p == parent_ptr);
 }
-
-Time: struct {
-    now: float64;
-    unscaled_now: float64;
-    delta_time: float;
-};

@@ -51,6 +51,7 @@ invoke_damage_func :: (it: *Takes_Damage) {
 }
 
 being_damaged :: (damage: *Takes_Damage) -> bool {
+    using state;
     return Time.now - damage.time < damage.damage_time;
 }
 
@@ -66,6 +67,8 @@ try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
 }
 
 take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
+    using state;
+
     amount := 1.0;
 
     health -= amount;
@@ -112,10 +115,12 @@ player_reset :: (using it: *Player) {
 }
 
 player_has_been_damaged :: (using player: *Player) -> bool {
-    return Time.now - damage.time < DAMAGE_TIME;
+    return state.Time.now - damage.time < DAMAGE_TIME;
 }
 
 player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
+    Time := *state.Time;
+
     is_being_knocked_back := player_has_been_damaged(player);
     sprite_timer += Time.delta_time;
 
@@ -263,15 +268,20 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
 }
 
 player_is_attacking :: (it: *Player) -> bool {
+    using state;
+
     return Time.now - it.last_attack_time < cast(float)state.sprites.player.attack.count/ATTACK_FPS;
 }
 
 player_attack_hitbox :: (it: *Player) -> bool {
+    using state;
     time_since_attack := Time.now - it.last_attack_time;
     return time_since_attack < 0.43 && time_since_attack > 0.1;
 }
 
 player_draw :: (using player: *Player) {
+    Time := *state.Time;
+
     attacking := player_is_attacking(player);
     is_being_knocked_back := player_has_been_damaged(player);
 
@@ -320,7 +330,7 @@ player_draw :: (using player: *Player) {
             landing_animation_time := cast(float)state.sprites.player.jump_landing.count/fps;
             if since_land < landing_animation_time {
                 spr = jump_landing;
-                N:float : 0.6;
+                N:float : 0.8;
                 squish = N + (1.0 - N) * cast(float)(since_land / landing_animation_time);
             } else {
                 spr = idle;

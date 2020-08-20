@@ -2,7 +2,7 @@
 ATTACK_FPS :: 13;
 ATTACK_COOLDOWN :: 1.2;
 ATTACK_CHOMP_TIME :: 0.295;
-DYING_FPS :: 3;
+DYING_FPS :: 9;
 #scope_module
 
 enemy_was_damaged :: (using it: *Takes_Damage) -> bool {
@@ -38,7 +38,7 @@ Enemy :: struct {
 }
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
-    print("enemy_was_hit_by_player2 % % %\n", it, player, delta);
+    //print("enemy_was_hit_by_player2 % % %\n", it, player, delta);
     //print("enemy damage func at %\n", it.damage.damage_func);
 
     if try_take_damage(*damage, delta) {
@@ -48,6 +48,8 @@ enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
 }
 
 enemy_rect :: (using it: *Enemy) -> Rectangle {
+    using state;
+
     since_attack := Time.now - last_attack_time;
 
     if since_attack > 0.38 && since_attack < 0.7 { // when attacking, enemy rect changes
@@ -68,6 +70,8 @@ enemy_trigger_rect :: (using it: *Enemy) -> Rectangle {
 }
 
 enemy_is_attacking :: (using it: *Enemy) -> bool {
+    using state;
+
     return Time.now - last_attack_time < cast(float)state.sprites.evilplant.attack_left.count/ATTACK_FPS;
 }
 
@@ -109,6 +113,8 @@ enemy_draw :: (using it: *Enemy) {
 }
 
 enemy_update_all :: () {
+    using state;
+
     p_rect := player_rect(*state.player);
     player_midpoint := midpoint(p_rect);
 

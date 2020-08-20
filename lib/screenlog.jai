@@ -7,6 +7,22 @@
 #scope_file
 TIME_ON_SCREEN :: 2.0;
 MAX_COUNT :: 2000;
+
+
+free_entry :: (using entry: *Entry) {
+    free(message);
+    free(ident);
+}
+
+Entry :: struct {
+    time: float64;
+    message: string;
+    ident: string;
+
+    use_world_pos := false;
+    world_pos: Vector2;
+}
+
 #scope_module
 
 Logger_State :: struct {
@@ -15,22 +31,31 @@ Logger_State :: struct {
     this_frame_entries: [..]Entry;
 }
 
-Entry :: struct {
-    time: float64;
-    message: *u8;
-
-    use_world_pos := false;
-    world_pos: Vector2;
-}
-
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
-    entry := array_add(*entries);
+    new_ident := copy_string_z(ident);
+    new_message := copy_string_z(message);
+
+    entry: *Entry;
+    if new_ident.count > 1 && new_ident[0] == #char "=" {
+        for * entries {
+            if it.ident == new_ident {
+                entry = it;
+                free_entry(entry);
+                break;
+            }
+        }
+    }
+
+    if entry == null
+        entry = array_add(*entries);
+
     entry.time = time;
-    entry.message = to_c_string(message);
+    entry.ident = new_ident;
+    entry.message = new_message;
 }
 
 sticky :: (message: string, args: ..Any) {
@@ -39,7 +64,7 @@ sticky :: (message: string, args: ..Any) {
     using cast(*Logger_State)context.logger_data;
 
     entry := array_add(*this_frame_entries);
-    entry.message = to_c_string(tprint(message, ..args));
+    entry.message = copy_string_z(tprint(message, ..args));
 }
 
 world :: (world_pos: Vector2, message: string, args: ..Any) {
@@ -52,7 +77,7 @@ world :: (world_pos: Vector2, message: string, args: ..Any) {
     entry := array_add(*this_frame_entries);
     entry.use_world_pos = true;
     entry.world_pos = world_pos;
-    entry.message = to_c_string(tprint(message, ..args));
+    entry.message = copy_string_z(tprint(message, ..args));
 }
 
 update :: (delta_time: float64) {
@@ -61,7 +86,7 @@ update :: (delta_time: float64) {
     time += delta_time;
     for * entries {
         if time - it.time > TIME_ON_SCREEN {
-            free(it.message);
+            free_entry(it);
             remove it;
         }
     }
@@ -87,7 +112,7 @@ draw :: () {
         y += font_size;
     }
 
-    for this_frame_entries free(it.message);
+    for * this_frame_entries free_entry(it);
     array_reset(*this_frame_entries);
 }
 
