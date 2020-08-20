@@ -63,6 +63,7 @@ State :: type_of(state);
 state: struct {
     start_canary: u32;// = 0xBEEFBEEF;
     default_font: Font;
+    global_time_scale:float = 1.0;
 
     editor: Editor;
 
@@ -260,6 +261,20 @@ restart :: () {
     beat_timer = 0;
 }
 
+Sloppy_Math :: #import "Sloppy_Math";
+
+change_global_time_scale :: (delta: float) {
+    using state;
+
+    STEP :: 0.2;
+
+    global_time_scale = clamp(global_time_scale + delta * STEP, 0.1, 4.0);
+    if Sloppy_Math.values_are_close(global_time_scale, 1.0)
+        global_time_scale = 1;
+
+    logprint("time", "time scale %", global_time_scale);
+}
+
 update_and_draw :: () {
     using state;
 
@@ -271,8 +286,12 @@ update_and_draw :: () {
         }
     }
 
-    Time.delta_time = GetFrameTime();
-    Time.now = GetTime();
+    absolute_delta_time := GetFrameTime();
+
+    Time.delta_time = global_time_scale * absolute_delta_time;
+    Time.now += Time.delta_time;
+    Time.unscaled_now = GetTime();
+
 
     if IsKeyPressed(.KEY_TAB)
         editor_toggle(*state);
@@ -317,6 +336,8 @@ update_and_draw :: () {
         shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
         
         if IsKeyPressed(.KEY_R) && !shift restart();
+        if IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
+        if IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
         if IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
             logprint("debug", "debug_draw is now %\n", debug_draw);

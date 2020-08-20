@@ -340,5 +340,6 @@ test_parent_struct :: () {
 
 Time: struct {
     now: float64;
+    unscaled_now: float64;
     delta_time: float;
 };
