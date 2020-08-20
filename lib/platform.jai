@@ -1,8 +1,15 @@
 #scope_file
-#if OS == .WINDOWS
-    #import "Windows";
+#if OS == .WINDOWS #import "Windows";
 #import "Basic";
 #scope_module
+
+GetWindowSize :: (native_handle: *void) -> (w: s32, h: s32) {
+    #if OS == .WINDOWS {
+        win_rect: RECT;
+        GetClientRect(native_handle, *win_rect);
+        return win_rect.right - win_rect.left, win_rect.bottom - win_rect.top;
+    }
+}
 
 SetWindowAlwaysOnTop :: (native_handle: *void, top := true) {
     #if OS == .WINDOWS {
