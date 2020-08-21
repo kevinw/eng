@@ -84,9 +84,7 @@ editor_draw_world :: (state: *State) {
             DrawRectangleLinesEx(it.rect, 2, WHITE);
         }
     } else if drag_state.dragging {
-        p1 := drag_state.origin;
-        p2 := get_mouse_world_pos(state.camera, state.screen.texture);
-        DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
+        DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, RED);
     }
 
     if hover != null {
