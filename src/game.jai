@@ -1,5 +1,6 @@
 #import "Basic";
 #import "raylib";
+#import "raygui";
 #import "raymath";
 #import "toolbelt";
 wbml :: #import "wbml";
@@ -79,7 +80,7 @@ state: struct {
         shaders:  [..]LiveShaderEntry;
     };
     txt: *Worldspace_Text;
-    muted := false;
+    muted := true;
     textures: struct {
         gino: Texture;
         evilplant: Texture;
@@ -236,6 +237,14 @@ on_host_init :: () {
 
     test := create_entity(*world);
     txt = add_component(test, Worldspace_Text);
+
+    my_obj := create_entity(*world);
+    my_sprite := add_component(my_obj, SpriteRenderer);
+    my_sprite.entity.transform.position = Vector3.{380, 380, 0};
+    my_sprite.entity.transform.scale = Vector3.{300, 200, 1};
+    my_sprite.sprite = state.sprites.evilplant.idle;
+    my_sprite.texture = state.textures.evilplant;
+
 }
 
 
@@ -345,7 +354,7 @@ update_and_draw :: () {
         if IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
         if IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
-            logprint("debug", "debug_draw is now %\n", debug_draw);
+            logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
         }
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
         if IsKeyPressed(.KEY_F) {
@@ -411,13 +420,15 @@ update_and_draw :: () {
                 color := Vector4.{1, 1, 1, 1};
                 if time_since_marker < 0 color = Vector4.{0, 0, 0, 1};
                 color.w = cast(float32)alpha;
-                draw_text(tprint("%", nearest_marker.beat_type), 16, 10, 40, ColorFromNormalized(color));
+                draw_text(tprint("%", nearest_marker.beat_type), 596, 5, 20, ColorFromNormalized(color));
             }
         }
 
         {
             PushShaderMode(screen.shader);
             blit_render_texture_to_screen(screen.texture);
+
+            editor_draw_ui();
             screenlog.draw();
         }
     }

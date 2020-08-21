@@ -27,7 +27,8 @@ ALWAYS_ON_TOP :: true;
 USE_SCREENLOG :: true;
 
 cmdline_args: struct {
-    skip_topmost_window := false;
+    topmost_window := true;
+    live_reload := true;
 };
 
 on_asset_change :: (using asset_change: *Asset_Change) {
@@ -115,17 +116,22 @@ main_game :: () {
         defer array_free(args);
 
         for args {
-            using cmdline_args;
-            if it == "--no-topmost" {
-                print("skipping topmost window\n");
-                skip_topmost_window = true;
+            if it == {
+                case "--no-topmost";
+                    print("skipping topmost window\n");
+                    cmdline_args.topmost_window = false;
+                case "--no-live-reload";
+                    print("no live reload\n");
+                    cmdline_args.live_reload = false;
             }
         }
     }
 
     SetTraceLogLevel(.LOG_WARNING); // raylib
 
-    parse_config_file(*host_settings, tprint("%/%", exe_path, "game.cfg"));
+    host_config_name :: "setup.cfg";
+
+    parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
 
@@ -143,15 +149,17 @@ main_game :: () {
     defer CloseAudioDevice();
 
     #if ALWAYS_ON_TOP
-        if !cmdline_args.skip_topmost_window
+        if cmdline_args.topmost_window
             platform.SetWindowAlwaysOnTop(GetWindowHandle());
 
-    hotloader_init(".", _DEBUG_LOGGING=false);
-    hotloader_register_callback(on_asset_change);
-    defer hotloader_shutdown();
+    if cmdline_args.live_reload {
+        hotloader_init(".", _DEBUG_LOGGING=false);
+        hotloader_register_callback(on_asset_change);
+    }
+    defer if cmdline_args.live_reload hotloader_shutdown();
 
     module: Plugin.Module;
-    if !Plugin.load(*module, "game.dll")
+    if !Plugin.load(*module, "game.dll", COPY_TO_TEMP_PATH = cmdline_args.live_reload)
         panic("Could not load game.dll\n");
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
@@ -175,23 +183,25 @@ main_game :: () {
             logprint("host", ifx top then "window always on top" else "window not topmost");
         }
 
-        if frame_count % 4 == 0
-            hotloader_process_change();
+        if cmdline_args.live_reload {
+            if frame_count % 4 == 0
+                hotloader_process_change();
 
-        force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
+            force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
 
-        if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
-            ctx := context;
-            old_state := plugin_deinit(*ctx, shutting_down = false);
+            if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
+                ctx := context;
+                old_state := plugin_deinit(*ctx, shutting_down = false);
 
-            if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
-                panic("couldn't reload module");
-            assert(module.native_module != null);
+                if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
+                    panic("couldn't reload module");
+                assert(module.native_module != null);
 
-            update_plugin_functions(*module);
-            assert(plugin_tick != null);
+                update_plugin_functions(*module);
+                assert(plugin_tick != null);
 
-            plugin_init(*ctx, old_state);
+                plugin_init(*ctx, old_state);
+            }
         }
 
         ctx := context;
@@ -210,6 +220,6 @@ main_game :: () {
 
         output := builder_to_string(*builder);
         defer free(output);
-        File.write_entire_file("game.cfg", output);
+        File.write_entire_file(host_config_name, output);
     }
 }

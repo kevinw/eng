@@ -155,7 +155,7 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
 
     if !is_being_knocked_back {
         // ATTACK
-        if (IsKeyDown(.KEY_E) || IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+        if (IsKeyPressed(.KEY_E) || IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
             attack_offset :: Vector2.{0, -20};
             if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
                 last_attack_time = Time.now;
@@ -370,6 +370,8 @@ player_draw :: (using player: *Player) {
         draw_rect_outline(player_rect(player), 2, debug_color);
         if player_attack_hitbox(player)
             draw_rect_outline(player_attack_rect(player), 2, debug_color);
+        
+        screenlog.world(position, "(%, %)", cast(int)position.x, cast(int)position.y);
     }
 }
 

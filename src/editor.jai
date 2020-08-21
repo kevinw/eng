@@ -54,6 +54,11 @@ Play_Mode :: enum {
 
 Vec2 :: Vector2;
 
+Selected_Object :: struct {
+    using obj: *Object;
+    original_pos: Vector2;
+}
+
 Editor :: struct {
     play_mode: Play_Mode;
 
@@ -62,7 +67,9 @@ Editor :: struct {
         origin: Vec2;
     };
 
-    selected: [..]*Object;
+    selected: [..]Selected_Object;
+
+    world_mouse_pos: Vector2;
 }
 
 editor_draw_world :: (state: *State) {
@@ -70,17 +77,16 @@ editor_draw_world :: (state: *State) {
 
     if play_mode == .Play return;
 
-    if drag_state.dragging {
+    if selected.count > 0 {
+        for selected {
+            DrawRectangleLinesEx(it.rect, 2, WHITE);
+        }
+    } else if drag_state.dragging {
         p1 := drag_state.origin;
         p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
     }
 
-    if selected.count > 0 {
-        for selected {
-            DrawRectangleLinesEx(it.rect, 2, WHITE);
-        }
-    }
 }
 
 editor_draw :: (state: *State) {
@@ -104,31 +110,12 @@ editor_update :: (state: *State) {
 
     state.camera.target += Vector2_Scale(v2(1, -1), inp.movement(.KEYBOARD_WASD)) * editor_cam_speed * Time.delta_time;
 
-    if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
-        drag_state.dragging = true;
-        drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
-    } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
-        drag_state.dragging = false;
-
-        p1 := drag_state.origin;
-        p2 := get_mouse_world_pos(state.camera, state.screen.texture);
-        rect := rect_from_points(p1, p2);
-
-        block := array_add(*state.scene.envItems);
-        block.rect = rect;
-        block.collision = .PLATFORM;
-        block.color = RED;
-        block.color.b = cast(u8)random_get_within_range(100, 255);
-        print("placed block #%\n", state.scene.envItems.count);
-    }
-
     took_action := false;
-
     ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
     shift_down := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
 
-    if IsMouseButtonPressed(.MOUSE_RIGHT_BUTTON) {
-        world_mouse_pos := get_mouse_world_pos(state.camera, state.screen.texture);
+    world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
+    if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
         for * state.scene.envItems {
             if overlaps(it.rect, world_mouse_pos) {
                 if ctrl_down
@@ -140,13 +127,45 @@ editor_update :: (state: *State) {
             }
         }
 
-        if !took_action clear_selection();
+        if !took_action
+            clear_selection();
+
+        drag_state.dragging = true;
+        drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
+
+        if took_action
+            for * selected
+                it.original_pos = it.rect.position;
+
+    } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) && selected.count == 0 {
+        drag_state.dragging = false;
+
+        p1 := drag_state.origin;
+        p2 := get_mouse_world_pos(state.camera, state.screen.texture);
+        rect := rect_from_points(p1, p2);
+
+        if rect.width > 5 || rect.height > 5 {
+            block := array_add(*state.scene.envItems);
+            block.rect = rect;
+            block.collision = .PLATFORM;
+            block.color = RED;
+            block.color.b = cast(u8)random_get_within_range(100, 255);
+            print("placed block #%\n", state.scene.envItems.count);
+        }
+    } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
+        new_pos := get_mouse_world_pos(state.camera, state.screen.texture);
+        delta := new_pos - drag_state.origin;
+        for selected {
+            new_obj_pos := it.original_pos + delta;
+            it.obj.rect.x = new_obj_pos.x;
+            it.obj.rect.y = new_obj_pos.y;
+        }
     }
 
     if IsKeyPressed(.KEY_DELETE) {
         for selected {
             for * scene_obj: state.scene.envItems
-                if it == scene_obj
+                if it.obj == scene_obj
                     remove scene_obj;
         }
         clear_selection();
@@ -170,20 +189,24 @@ set_selected :: (obj: *Object) {
     using state.editor;
 
     array_reset(*selected);
-    array_add(*selected, obj);
+
+    selected_obj := array_add(*selected);
+    selected_obj.obj = obj;
 }
 
 toggle_selection :: (obj: *Object) -> bool {
     using state.editor;
 
     for selected {
-        if it == obj {
+        if it.obj == obj {
             remove it;
             return false;
         }
     }
 
-    array_add(*selected, obj);
+    selected_obj := array_add(*selected);
+    selected_obj.obj = obj;
+
     return true;
 }
 
@@ -197,6 +220,17 @@ editor_toggle :: (using s: *State) {
         case;
             print("error: unknown play_mode '%'\n", play_mode);
     }
+}
+
+editor_draw_ui :: () {
+    using state.editor;
+    if play_mode == .Play return;
+
+    if GuiButton(rect(40, GetScreenHeight() - 100, 100, 60), "Hello") {
+        print("hello %\n");
+    }
+
+    DrawText(tprint("% %", cast(int)world_mouse_pos.x, cast(int)world_mouse_pos.y), 0, 0, 0, BLUE);
 }
 
 #scope_file 
