@@ -1,6 +1,12 @@
 #import "Basic";
 #import "raylib";
 
+
+#load "components/sprite_renderer.jai";
+#load "components/box_collider.jai";
+#load "components/rect_renderer.jai";
+
+
 // goals
 
 // be able to sketch an entity real fast without making a new file; so ideally it could just start
@@ -9,23 +15,11 @@
 
 // some inspiration maybe: https://github.com/skypjack/entt/wiki/Crash-Course:-entity-component-system
 
-Worldspace_Text :: struct {
-    using component: Component;
-
-    message: string = "Foobar";
-    position: Vector2 = .{42, 42};
-    time: float64;
-};
-
-update :: (using it: *Worldspace_Text) {
-    //position.y -= delta_time;
-}
-
-draw :: (using it: *Worldspace_Text) {
-    //DrawText(message, xx position.x, xx position.y, 12, RED);
-}
-
-#load "components/sprite_renderer.jai";
+all_component_types :: Type.[
+    SpriteRenderer,
+    BoxCollider,
+    RectRenderer,
+];
 
 Component :: struct {
     entity: *Entity;
@@ -49,14 +43,16 @@ Entity :: struct {
     flags: Flags;
 }
 
-entity_rect :: (entity: *Entity) -> Rectangle {
+entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
     if entity.flags & .Has_Component_Rect {
         for * entity.components {
             if it.type == type_info(SpriteRenderer) {
-                spr := cast(*SpriteRenderer)it;
+                spr := cast(*SpriteRenderer)it.value_pointer;
+                assert(spr.canary == 42);
                 ok, rect := get_entity_rect(spr);
                 if ok return rect;
             }
+            if verbose logprint("=foo", "nope % %",<<it.type); 
         }
     }
 
@@ -65,19 +61,32 @@ entity_rect :: (entity: *Entity) -> Rectangle {
     return make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
-all_component_types :: Type.[
-    Worldspace_Text,
-    SpriteRenderer,
-];
-
 get_component_buckets :: () -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
 
     for all_component_types {
-        print_to_builder(*sb, "_%: [..]%;\n", it, it);
+        print_to_builder(*sb, "_%: [..]BucketEntry(%);\n", it, it);
     }
     
+    return builder_to_string(*sb);
+}
+
+BucketEntry :: struct(T: Type) {
+    using value: T;
+    dead: bool;
+}
+
+bucket_chooser :: () -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    for all_component_types {
+        print_to_builder(*sb, "#if component_type == % bucket = *entity._world._%;\n", it, it);
+    }
+
+    print_to_builder(*sb, "assert(bucket != null);\n");
+
     return builder_to_string(*sb);
 }
 
@@ -88,12 +97,10 @@ World :: struct {
 };
 
 world_update :: (world: *World, delta_time: float) {
-    for * world._Worldspace_Text update(it);
     for * world._SpriteRenderer update(it);
 }
 
 world_draw :: (world: *World) {
-    for * world._Worldspace_Text draw(it);
     for * world._SpriteRenderer  draw(it);
 }
 
@@ -105,17 +112,33 @@ create_entity :: (world: *World) -> *Entity {
     return e;
 }
 
+destroy_entity :: (world: *World, entity: *Entity) {
+    assert(world != null);
+    assert(entity != null);
+
+
+    //array_unordered_remove_by_value(*world.entities, entity);
+
+    for * entity.components {
+        /*
+        component_type := it.type;
+
+        bucket: *[..]BucketEntry(*void);
+        #insert #run bucket_chooser();
+
+        assert(it.value_pointer >= bucket.data && it.value_pointer <= bucket.data + bucket.count);
+        */
+        print("TODO: mark component slot as free\n");
+    }
+}
+
 add_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     assert(entity != null, "entity cannot be null");
     assert(entity._world != null, "entity has a null *World");
 
-    bucket: *[..]component_type;
+    bucket: *[..]BucketEntry(component_type);
 
-    #if component_type == Worldspace_Text {
-        bucket = *entity._world._Worldspace_Text;
-    } else if component_type == SpriteRenderer {
-        bucket = *entity._world._SpriteRenderer;
-    }
+    #insert #run bucket_chooser();
 
     MAX :: 100;
     if bucket.allocated == 0
@@ -125,21 +148,13 @@ add_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     assert(bucket.count <= MAX, "TODO: implement a freelist and a generation index thing");
 
     c := cast(*component_type)bucket_entry;
-    array_add(*entity.components, c);
+
+    any: Any;
+    any.value_pointer = c;
+    any.type = type_info(component_type);
+
+    array_add(*entity.components, any);
     c.entity = entity;
 
     return c;
 }
-
-
-/*
-main :: () {
-    e: Entity;
-
-    //c := array_add(*all.one);
-    c := add_component(e, Worldspace_Text);
-
-    assert(c != null);
-    print("c: %\n", <<c);
-}
-*/

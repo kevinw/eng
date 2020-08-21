@@ -36,6 +36,10 @@ timers are key:
 
 edit a prefab
 place a prefab
+
+
+idea: animate the changes from a prefab to the current instance to show the difference
+use the animation to "go back" to the prefab when you zoom in on it
 */
 
 #scope_file
@@ -122,8 +126,8 @@ editor_update :: (state: *State) {
         world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
 
         hover = null;
-        for * state.scene.envItems {
-            if overlaps(entity_rect(it), world_mouse_pos) {
+        for * state.world.entities {
+            if overlaps(entity_rect(it, true), world_mouse_pos) {
                 hover = it;
             }
         }
@@ -150,30 +154,31 @@ editor_update :: (state: *State) {
 
         rect := rect_from_points(drag_state.origin, world_mouse_pos);
         if rect.width > 5 || rect.height > 5 {
-            block := array_add(*state.scene.envItems);
-            block.position.xy = rect.position;
-            block.scale.xy = rect.size;
-            block.collision = .PLATFORM;
-            block.color = RED;
-            block.color.b = cast(u8)random_get_within_range(100, 255);
-            print("placed block #%\n", state.scene.envItems.count);
+            color := RED;
+            color.b = cast(u8)random_get_within_range(100, 255);
+
+            block := envitem(
+                *state.world,
+                rect.position.x,
+                rect.position.y,
+                rect.size.x,
+                rect.size.y,
+                .PLATFORM,
+                color
+            );
         }
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
         delta := world_mouse_pos - drag_state.origin;
-        for selected {
-            new_obj_pos := it.original_pos + delta;
-            it.obj.position.x = new_obj_pos.x;
-            it.obj.position.y = new_obj_pos.y;
-        }
+        for selected
+            it.obj.position.xy = it.original_pos + delta;
     }
 
     if IsKeyPressed(.KEY_DELETE) {
         for selected {
             if hover == it.obj
                 hover = null;
-            for * scene_obj: state.scene.envItems
-                if it.obj == scene_obj
-                    remove scene_obj;
+
+            print("TODO: delete entity\n");
         }
         clear_selection();
     }

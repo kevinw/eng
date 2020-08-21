@@ -114,7 +114,7 @@ player_has_been_damaged :: (using player: *Player) -> bool {
     return state.Time.now - damage.time < DAMAGE_TIME;
 }
 
-player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
+player_update :: (state: *State, using player: *Player) {
     Time := *state.Time;
 
     is_being_knocked_back := player_has_been_damaged(player);
@@ -190,9 +190,9 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
     hitObstacle := false;
 
     // COLLISION
-    for * envItems {
+    for * state.world._BoxCollider {
         p := *position;
-        rect := entity_rect(it);
+        rect := entity_rect(it.entity);
         if it.collision & .PLATFORM &&
            rect.x <= p.x && rect.x + rect.width >= p.x &&
            rect.y >= p.y && rect.y < p.y + speed.y * Time.delta_time

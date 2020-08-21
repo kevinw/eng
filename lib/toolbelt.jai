@@ -275,6 +275,9 @@ parse_spriter_atlas :: (filename: string) -> []Sprite {
 sprite_get_rect :: (spr: []Sprite, timer: float64, fps: int, flip_x := false) ->
     (rect: Rectangle, offset: Vector2, sprite_index: int)
 {
+    assert(spr.data != null && spr.count > 0);
+    assert(spr.count < 500);
+
     sprite_index := cast(int)(timer * fps);
     while sprite_index >= spr.count sprite_index -= spr.count;
     s := *spr[sprite_index];

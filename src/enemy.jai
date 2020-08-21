@@ -27,7 +27,7 @@ Enemy :: struct {
         damage_func_type = .Enemy,
     };
 
-    last_attack_time: float64;
+    last_attack_time: float64 = -9999;
     last_attack_direction_right: bool;
 
     dying_timer: float;

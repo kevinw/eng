@@ -31,25 +31,19 @@ JUMP_FLOAT_POW :: 1.1;
 GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
 
-Collision_Type :: enum_flags u8 {
-    NONE     :: 0;
-    PLATFORM :: 1;
-}
+envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> *Entity {
+    e := create_entity(world);
 
+    e.position.xy = v2(x, y);
+    e.scale = make_Vector3(width, height, 1);
 
-EnvItem :: struct {
-    using entity: Entity;
-    collision: Collision_Type;
-    color: Color;
-}
+    box := add_component(e, BoxCollider);
+    box.collision = .PLATFORM;
 
-envitem :: inline (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> EnvItem {
-    item: EnvItem;
-    item.position.xy = v2(x, y);
-    item.scale = make_Vector3(width, height, 1);
-    item.collision = collision;
-    item.color = color;
-    return item;
+    renderer := add_component(e, RectRenderer);
+    renderer.color = color;
+
+    return e;
 }
 
 State :: type_of(state);
@@ -104,12 +98,10 @@ state: struct {
     beat_timer: float64;
 
     player: Player;
-    scene: struct {
-        envItems: [..]EnvItem;
-    };
+    scene: struct {};
     camera: Camera2D;
 
-    cameraOption: int = 2;
+    cameraOption: int = 1;
 
     bg: struct {
         timer: float64;
@@ -129,11 +121,10 @@ state: struct {
     debug_draw := false;
 };
 
-CameraFunc :: #type (camera: *Camera2D, player: *Player, items: []EnvItem, delta: float, w: int, h: int);
+CameraFunc :: #type (camera: *Camera2D, player: *Player, delta: float, w: int, h: int);
 
 cameraUpdaters :: CameraFunc.[
     UpdateCameraCenter,
-    UpdateCameraCenterInsideMap,
     UpdateCameraCenterSmoothFollow,
     UpdateCameraEvenOutOnLanding,
     UpdateCameraPlayerBoundsPush
@@ -222,18 +213,16 @@ on_host_init :: () {
 
     my_obj := create_entity(*world);
     my_sprite := add_component(my_obj, SpriteRenderer);
+    on_enable(my_sprite);
     my_sprite.entity.transform.position = Vector3.{380, 380, 0};
     my_sprite.entity.transform.scale = Vector3.{300, 200, 1};
     my_sprite.sprite = state.sprites.evilplant.idle;
     my_sprite.texture = state.textures.evilplant;
 
-    array_add(*scene.envItems,
-        envitem(*world, 0, 400, 1000, 200, .PLATFORM, GRAY),
-        envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY),
-        envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY),
-        envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY)
-    );
-
+    envitem(*world, 0, 400, 1000, 200, .PLATFORM, GRAY);
+    envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
+    envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
+    envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY);
 }
 
 
@@ -329,7 +318,7 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
        
-        player_update(*state, *player, scene.envItems);
+        player_update(*state, *player);
 
         enemy_update_all();
 
@@ -363,7 +352,7 @@ update_and_draw :: () {
         }
 
         if state.editor.play_mode == .Play
-            cameraUpdaters[cameraOption](*camera, *player, scene.envItems, Time.delta_time, gameWidth, gameHeight);
+            cameraUpdaters[cameraOption](*camera, *player, Time.delta_time, gameWidth, gameHeight);
 
         world_update(*world, Time.delta_time);
     }
@@ -387,11 +376,11 @@ update_and_draw :: () {
                 PushMode2D(camera);
 
                 // draw world
-                for * scene.envItems {
-                    color := it.color;
-                    color2 := color;
+                for * world._RectRenderer {
+                    if it.dead continue;
+                    color2 := it.color;
                     color2.r -= 100; color2.g -= 100; color2.b -= 100;
-                    DrawRectangleGradientEx(entity_rect(it), color, color2, color2, color);
+                    DrawRectangleGradientEx(entity_rect(it.entity), it.color, color2, color2, it.color);
                 }
 
                 // draw enemies
@@ -426,38 +415,12 @@ update_and_draw :: () {
     }
 }
 
-UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
+UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
     offset = make_Vector2(width/2, height/2);
     target = player.position;
 }
 
-UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
-    camera.target = player.position.xy;
-    camera.offset = make_Vector2(width/2, height/2);
-
-    minX:float = 1000;
-    minY:float = 1000;
-    maxX:float = -1000;
-    maxY:float = -1000;
-
-    for * envItems {
-        rect := entity_rect(it);
-        minX = min(rect.x, minX);
-        maxX = max(rect.x + rect.width, maxX);
-        minY = min(rect.y, minY);
-        maxY = max(rect.y + rect.height, maxY);
-    }
-    
-    max_val := GetWorldToScreen2D(make_Vector2(maxX, maxY), << camera);
-    min_val := GetWorldToScreen2D(make_Vector2(minX, minY), << camera);
-
-    if max_val.x < cast(float)width camera.offset.x = width - (max_val.x - width/2);
-    if max_val.y < cast(float)height camera.offset.y = height - (max_val.y - height/2);
-    if min_val.x > 0 camera.offset.x = width/2 - min_val.x;
-    if min_val.y > 0 camera.offset.y = height/2 - min_val.y;
-}
-
-UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
+UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
     minSpeed :: 30.0;
     minEffectLength :: 10.0;
     fractionSpeed :: 2.9;
@@ -480,7 +443,7 @@ even_out_state: struct {
     evenOutTarget: float;
 };
 
-UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
+UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
     using even_out_state;
 
     evenOutSpeed :: 700;
@@ -512,7 +475,7 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, envItems: [
     }
 }
 
-UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
+UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
     bbox :: Vector2.{ 0.2, 0.2 };
 
     bboxWorldMin := GetScreenToWorld2D(make_Vector2((1 - bbox.x)*0.5*width, (1 - bbox.y)*0.5*height ), << camera);
