@@ -373,4 +373,33 @@ test_round :: () {
     assert(round(-1) == -1, tprint("%", round(-1)));
 }
 
+// TODO: not sure if 'Latch' is the right name for this thing.
+Latch :: struct(T: Type) {
+    using current: T;
+    last: T;
+
+    Value_Type :: T;
+}
+
+difference :: (using latch: $L) -> L.Value_Type {
+    return current - last;
+}
+
+set_if_different :: (using latch: *Latch, val: $T) -> (different: bool, last_value: T) {
+    if last != val {
+        last_val := last;
+        last = current;
+        current = val;
+        return true, last_val;
+    }
+
+    return false, last;
+}
+
+Maybe :: struct(T: Type) {
+    using value: T;
+    has_value: bool;
+}
+
+
 //#run test_round();

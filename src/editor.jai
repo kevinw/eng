@@ -68,8 +68,10 @@ Editor :: struct {
     };
 
     selected: [..]Selected_Object;
+    hover: *Object;
 
     world_mouse_pos: Vector2;
+    mouse_pos: Latch(Vector2);
 }
 
 editor_draw_world :: (state: *State) {
@@ -85,6 +87,10 @@ editor_draw_world :: (state: *State) {
         p1 := drag_state.origin;
         p2 := get_mouse_world_pos(state.camera, state.screen.texture);
         DrawRectangleLinesEx(rect_from_points(p1, p2), 3, RED);
+    }
+
+    if hover != null {
+        DrawRectangleLinesEx(hover.rect, 1, Color.{200, 200, 255, 128});
     }
 
 }
@@ -113,22 +119,26 @@ editor_update :: (state: *State) {
     took_action := false;
     ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
     shift_down := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
+    
+    if set_if_different(*mouse_pos, GetMousePosition()) {
+        world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
 
-    world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
-    if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+        hover = null;
         for * state.scene.envItems {
             if overlaps(it.rect, world_mouse_pos) {
-                if ctrl_down
-                    toggle_selection(it);
-                else
-                    set_selected(it);
-                
-                took_action = true;
+                hover = it;
             }
         }
+    }
 
-        if !took_action
-            clear_selection();
+    if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+        if hover != null {
+            if ctrl_down toggle_selection(hover);
+            else set_selected(hover);
+            took_action = true;
+        }
+
+        if !took_action clear_selection();
 
         drag_state.dragging = true;
         drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
@@ -140,10 +150,7 @@ editor_update :: (state: *State) {
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) && selected.count == 0 {
         drag_state.dragging = false;
 
-        p1 := drag_state.origin;
-        p2 := get_mouse_world_pos(state.camera, state.screen.texture);
-        rect := rect_from_points(p1, p2);
-
+        rect := rect_from_points(drag_state.origin, world_mouse_pos);
         if rect.width > 5 || rect.height > 5 {
             block := array_add(*state.scene.envItems);
             block.rect = rect;
@@ -153,8 +160,7 @@ editor_update :: (state: *State) {
             print("placed block #%\n", state.scene.envItems.count);
         }
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
-        new_pos := get_mouse_world_pos(state.camera, state.screen.texture);
-        delta := new_pos - drag_state.origin;
+        delta := world_mouse_pos - drag_state.origin;
         for selected {
             new_obj_pos := it.original_pos + delta;
             it.obj.rect.x = new_obj_pos.x;
@@ -164,6 +170,8 @@ editor_update :: (state: *State) {
 
     if IsKeyPressed(.KEY_DELETE) {
         for selected {
+            if hover == it.obj
+                hover = null;
             for * scene_obj: state.scene.envItems
                 if it.obj == scene_obj
                     remove scene_obj;
