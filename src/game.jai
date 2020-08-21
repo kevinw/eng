@@ -31,29 +31,22 @@ JUMP_FLOAT_POW :: 1.1;
 GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
 
-Collision_Type :: enum u8 {
+Collision_Type :: enum_flags u8 {
     NONE     :: 0;
     PLATFORM :: 1;
 }
 
 
-Object :: struct {
-    rect: Rectangle;
-}
-
-Entity :: struct {
-    position: Vector2;
-}
-
 EnvItem :: struct {
-    using obj: Object;
+    using entity: Entity;
     collision: Collision_Type;
     color: Color;
 }
 
-envitem :: inline (x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> EnvItem {
+envitem :: inline (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> EnvItem {
     item: EnvItem;
-    item.rect = make_Rectangle(x, y, width, height);
+    item.position.xy = v2(x, y);
+    item.scale = make_Vector3(width, height, 1);
     item.collision = collision;
     item.color = color;
     return item;
@@ -79,7 +72,6 @@ state: struct {
         textures: [..]LiveTextureEntry;
         shaders:  [..]LiveShaderEntry;
     };
-    txt: *Worldspace_Text;
     muted := true;
     textures: struct {
         gino: Texture;
@@ -211,13 +203,6 @@ on_host_init :: () {
 
     player_reset(*player);
 
-    array_add(*scene.envItems,
-        envitem(0, 400, 1000, 200, .PLATFORM, GRAY),
-        envitem(300, 200, 400, 10, .PLATFORM, GRAY),
-        envitem(250, 300, 100, 10, .PLATFORM, GRAY),
-        envitem(650, 300, 100, 10, .PLATFORM, GRAY)
-    );
-
     add_enemy_at :: (x: float, y: float) #expand {
         e := array_add(*state.enemies);
         e.position.x = x;
@@ -235,15 +220,19 @@ on_host_init :: () {
     bg.texture = LoadLiveTexture("resources/textures/space.png");
     bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
 
-    test := create_entity(*world);
-    txt = add_component(test, Worldspace_Text);
-
     my_obj := create_entity(*world);
     my_sprite := add_component(my_obj, SpriteRenderer);
     my_sprite.entity.transform.position = Vector3.{380, 380, 0};
     my_sprite.entity.transform.scale = Vector3.{300, 200, 1};
     my_sprite.sprite = state.sprites.evilplant.idle;
     my_sprite.texture = state.textures.evilplant;
+
+    array_add(*scene.envItems,
+        envitem(*world, 0, 400, 1000, 200, .PLATFORM, GRAY),
+        envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY),
+        envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY),
+        envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY)
+    );
 
 }
 
@@ -262,7 +251,7 @@ restart :: () {
 
     camera.zoom = DEFAULT_CAM_ZOOM;
     camera.target = .{0, 0};
-    player.position = .{400, 280};
+    player.position = .{400, 280, 0};
 
     {
         // Reset the song back to the beginning for now.
@@ -341,7 +330,6 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedY", 8.0);
        
         player_update(*state, *player, scene.envItems);
-        if txt != null txt.position = player.position;
 
         enemy_update_all();
 
@@ -403,7 +391,7 @@ update_and_draw :: () {
                     color := it.color;
                     color2 := color;
                     color2.r -= 100; color2.g -= 100; color2.b -= 100;
-                    DrawRectangleGradientEx(it.rect, color, color2, color2, color);
+                    DrawRectangleGradientEx(entity_rect(it), color, color2, color2, color);
                 }
 
                 // draw enemies
@@ -444,7 +432,7 @@ UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, envItems: []Env
 }
 
 UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []EnvItem, delta: float, width: int, height: int) {
-    camera.target = player.position;
+    camera.target = player.position.xy;
     camera.offset = make_Vector2(width/2, height/2);
 
     minX:float = 1000;
@@ -453,10 +441,11 @@ UpdateCameraCenterInsideMap :: (camera: *Camera2D, player: *Player, envItems: []
     maxY:float = -1000;
 
     for * envItems {
-        minX = min(it.rect.x, minX);
-        maxX = max(it.rect.x + it.rect.width, maxX);
-        minY = min(it.rect.y, minY);
-        maxY = max(it.rect.y + it.rect.height, maxY);
+        rect := entity_rect(it);
+        minX = min(rect.x, minX);
+        maxX = max(rect.x + rect.width, maxX);
+        minY = min(rect.y, minY);
+        maxY = max(rect.y + rect.height, maxY);
     }
     
     max_val := GetWorldToScreen2D(make_Vector2(maxX, maxY), << camera);

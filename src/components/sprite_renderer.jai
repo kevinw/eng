@@ -12,6 +12,20 @@ SpriteRenderer :: struct {
     texture: Texture;
 }
 
+on_enable :: (using it: SpriteRenderer) {
+    entity.flags |= .Has_Component_Rect;
+}
+
+get_entity_rect :: (using it: *SpriteRenderer) -> (bool, Rectangle) {
+    if sprite.count > 0 {
+        pos := it.entity.transform.position.xy;
+        r := sprite_get_rect(sprite, 0, 0);
+        return true, make_Rectangle(pos.x, pos.y, r.width, r.height);
+    }
+
+    return false, .{};
+}
+
 update :: (using it: *SpriteRenderer) {
     using it.entity;
     last_timer = timer;

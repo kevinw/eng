@@ -38,10 +38,31 @@ Transform :: struct {
 }
 
 Entity :: struct {
-    transform: Transform;
-    components: [..]Any;
+    Flags :: enum_flags u16 {
+        None               :: (0 << 0);
+        Has_Component_Rect :: (1 << 0);
+    }
 
-    world: *World;
+    using transform: Transform;
+    components: [..]Any;
+    _world: *World;
+    flags: Flags;
+}
+
+entity_rect :: (entity: *Entity) -> Rectangle {
+    if entity.flags & .Has_Component_Rect {
+        for * entity.components {
+            if it.type == type_info(SpriteRenderer) {
+                spr := cast(*SpriteRenderer)it;
+                ok, rect := get_entity_rect(spr);
+                if ok return rect;
+            }
+        }
+    }
+
+    pos := entity.position.xy;
+    sz := entity.scale.xy;
+    return make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
 all_component_types :: Type.[
@@ -80,20 +101,20 @@ create_entity :: (world: *World) -> *Entity {
     assert(world != null);
 
     e := array_add(*world.entities);
-    e.world = world;
+    e._world = world;
     return e;
 }
 
 add_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     assert(entity != null, "entity cannot be null");
-    assert(entity.world != null, "entity has a null *World");
+    assert(entity._world != null, "entity has a null *World");
 
     bucket: *[..]component_type;
 
     #if component_type == Worldspace_Text {
-        bucket = *entity.world._Worldspace_Text;
+        bucket = *entity._world._Worldspace_Text;
     } else if component_type == SpriteRenderer {
-        bucket = *entity.world._SpriteRenderer;
+        bucket = *entity._world._SpriteRenderer;
     }
 
     MAX :: 100;

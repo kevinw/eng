@@ -105,7 +105,7 @@ Player :: struct {
 }
 
 player_reset :: (using it: *Player) {
-    position = Vector2.{ 400, 280 };
+    position.xy = Vector2.{ 400, 280 };
     speed = Vector2.{ 0, 0 };
     can_jump = false;
 }
@@ -192,13 +192,14 @@ player_update :: (state: *State, using player: *Player, envItems: []EnvItem) {
     // COLLISION
     for * envItems {
         p := *position;
+        rect := entity_rect(it);
         if it.collision & .PLATFORM &&
-           it.rect.x <= p.x && it.rect.x + it.rect.width >= p.x &&
-           it.rect.y >= p.y && it.rect.y < p.y + speed.y * Time.delta_time
+           rect.x <= p.x && rect.x + rect.width >= p.x &&
+           rect.y >= p.y && rect.y < p.y + speed.y * Time.delta_time
         {
             hitObstacle = true;
             speed.y = 0.0;
-            p.y = it.rect.y;
+            p.y = rect.y;
             if !grounded 
                 last_grounded_time = Time.now;
             grounded = true;

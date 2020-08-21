@@ -55,7 +55,7 @@ Play_Mode :: enum {
 Vec2 :: Vector2;
 
 Selected_Object :: struct {
-    using obj: *Object;
+    using obj: *Entity;
     original_pos: Vector2;
 }
 
@@ -68,7 +68,7 @@ Editor :: struct {
     };
 
     selected: [..]Selected_Object;
-    hover: *Object;
+    hover: *Entity;
 
     world_mouse_pos: Vector2;
     mouse_pos: Latch(Vector2);
@@ -81,14 +81,14 @@ editor_draw_world :: (state: *State) {
 
     if selected.count > 0 {
         for selected {
-            DrawRectangleLinesEx(it.rect, 2, WHITE);
+            DrawRectangleLinesEx(entity_rect(it.obj), 2, WHITE);
         }
     } else if drag_state.dragging {
         DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, RED);
     }
 
     if hover != null {
-        DrawRectangleLinesEx(hover.rect, 1, Color.{200, 200, 255, 128});
+        DrawRectangleLinesEx(entity_rect(hover), 1, Color.{200, 200, 255, 128});
     }
 
 }
@@ -123,7 +123,7 @@ editor_update :: (state: *State) {
 
         hover = null;
         for * state.scene.envItems {
-            if overlaps(it.rect, world_mouse_pos) {
+            if overlaps(entity_rect(it), world_mouse_pos) {
                 hover = it;
             }
         }
@@ -143,7 +143,7 @@ editor_update :: (state: *State) {
 
         if took_action
             for * selected
-                it.original_pos = it.rect.position;
+                it.original_pos = it.position;
 
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) && selected.count == 0 {
         drag_state.dragging = false;
@@ -151,7 +151,8 @@ editor_update :: (state: *State) {
         rect := rect_from_points(drag_state.origin, world_mouse_pos);
         if rect.width > 5 || rect.height > 5 {
             block := array_add(*state.scene.envItems);
-            block.rect = rect;
+            block.position.xy = rect.position;
+            block.scale.xy = rect.size;
             block.collision = .PLATFORM;
             block.color = RED;
             block.color.b = cast(u8)random_get_within_range(100, 255);
@@ -161,8 +162,8 @@ editor_update :: (state: *State) {
         delta := world_mouse_pos - drag_state.origin;
         for selected {
             new_obj_pos := it.original_pos + delta;
-            it.obj.rect.x = new_obj_pos.x;
-            it.obj.rect.y = new_obj_pos.y;
+            it.obj.position.x = new_obj_pos.x;
+            it.obj.position.y = new_obj_pos.y;
         }
     }
 
@@ -191,7 +192,7 @@ clear_selection :: () {
     array_reset(*selected);
 }
 
-set_selected :: (obj: *Object) {
+set_selected :: (obj: *Entity) {
     using state.editor;
 
     array_reset(*selected);
@@ -200,7 +201,7 @@ set_selected :: (obj: *Object) {
     selected_obj.obj = obj;
 }
 
-toggle_selection :: (obj: *Object) -> bool {
+toggle_selection :: (obj: *Entity) -> bool {
     using state.editor;
 
     for selected {
