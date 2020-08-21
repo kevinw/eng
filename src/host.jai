@@ -15,6 +15,7 @@ GWP :: #import "gwpasan";
 Plugin :: #import "plugin";
 platform :: #import "platform";
 screenlog :: #import "screenlog";
+assets :: #import "assets";
 
 panic :: (msg: string) {
     write_string(msg);
@@ -134,6 +135,9 @@ main_game :: () {
     parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
+
+    assets.start_thread();
+    defer assets.stop_thread();
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "");
     SetWindowPosition(win_x, win_y);
