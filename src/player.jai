@@ -326,7 +326,7 @@ player_draw :: (using player: *Player) {
             landing_animation_time := cast(float)state.sprites.player.jump_landing.count/fps;
             if since_land < landing_animation_time {
                 spr = jump_landing;
-                N:float : 0.8;
+                N:float : 0.82;
                 squish = N + (1.0 - N) * cast(float)(since_land / landing_animation_time);
             } else {
                 spr = idle;
@@ -359,6 +359,11 @@ player_draw :: (using player: *Player) {
     color := WHITE;
     if is_being_knocked_back
         color = Color.{255, 100, 100, 255};
+
+    //dest_rect.x = round(dest_rect.x);
+    //dest_rect.y = round(dest_rect.y);
+    //dest_rect.width = round(dest_rect.width);
+    //dest_rect.height = round(dest_rect.height);
 
     DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
 

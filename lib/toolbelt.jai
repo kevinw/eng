@@ -357,3 +357,20 @@ test_parent_struct :: () {
 
     assert(*p == parent_ptr);
 }
+
+
+
+round :: (f: float) -> float {
+    frac_part := Math.fmod(f, 1);
+    res := cast(float)cast(int)f;
+    if frac_part >= 0.5 res += 1;
+    return res;
+}
+
+test_round :: () {
+    assert(round(4.2) == 4, tprint("%", round(4.2)));
+    assert(round(4.6) == 5, tprint("%", round(4.6)));
+    assert(round(-1) == -1, tprint("%", round(-1)));
+}
+
+//#run test_round();

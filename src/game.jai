@@ -345,7 +345,11 @@ update_and_draw :: () {
 
         enemy_update_all();
 
-        camera.zoom = clamp(camera.zoom + cast(float)GetMouseWheelMove() * 0.05, 0.25, 3.0);
+        wheel := GetMouseWheelMove();
+        if wheel != 0 {
+            camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
+            logprint("=camera zoom", "camera zoom %", camera.zoom);
+        }
 
         shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
         
@@ -477,6 +481,8 @@ UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, envItems:
     {
         speed := max(fractionSpeed*length, minSpeed);
         camera.target = Vector2Add(camera.target, Vector2Scale(diff, speed*delta/length));
+        //camera.target.x = round(camera.target.x);
+        //camera.target.y = round(camera.target.y);
     }
 }
 

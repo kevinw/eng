@@ -394,7 +394,7 @@ Jump/landing/jump_landing
   xy: 1, 812
   size: 23, 34
   orig: 64, 64
-  offset: 10, 2
+  offset: 10, 5
   index: -1
 Jump/mid/jump_mid01
   rotate: false
