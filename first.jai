@@ -3,6 +3,7 @@
 
 module_search_paths := string.[
     "../jai-raylib",
+    "../raygui/src",
     "../jai-soloud",
     "lib",
     "src"
