@@ -352,35 +352,35 @@ Idle/idle04
   xy: 81, 653
   size: 24, 37
   orig: 64, 64
-  offset: 10, 2
+  offset: 10, 3
   index: -1
 Idle/idle05
   rotate: false
   xy: 26, 737
   size: 23, 37
   orig: 64, 64
-  offset: 10, 2
+  offset: 10, 3
   index: -1
 Idle/idle06
   rotate: false
   xy: 1, 773
   size: 23, 37
   orig: 64, 64
-  offset: 10, 2
+  offset: 10, 3
   index: -1
 Idle/idle07
   rotate: false
   xy: 78, 732
   size: 23, 37
   orig: 64, 64
-  offset: 10, 2
+  offset: 10, 3
   index: -1
 Idle/idle08
   rotate: false
   xy: 103, 737
   size: 23, 37
   orig: 64, 64
-  offset: 10, 2
+  offset: 10, 3
   index: -1
 Idle/idle09
   rotate: false
