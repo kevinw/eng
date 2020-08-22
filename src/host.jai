@@ -94,11 +94,12 @@ update_plugin_functions :: (module: *Plugin.Module) {
     // ^optional
 }
 
-wbml :: #import "wbml";
 Math :: #import "Math";
 
 main :: () {
     main_game();
+    //wbml :: #import "wbml";
+    //wbml.run_tests();
 }
 
 main_game :: () {
@@ -168,9 +169,7 @@ main_game :: () {
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
 
-
     plugin_context := context;
-
     plugin_init(*plugin_context, null);
     defer {
         ctx := context;
@@ -188,8 +187,7 @@ main_game :: () {
         }
 
         if cmdline_args.live_reload {
-            if frame_count % 4 == 0
-                hotloader_process_change();
+            if frame_count % 4 == 0 hotloader_process_change();
 
             force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
 

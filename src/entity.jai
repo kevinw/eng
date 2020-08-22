@@ -1,11 +1,10 @@
 #import "Basic";
 #import "raylib";
 
-
+// TODO: generate these imports
 #load "components/sprite_renderer.jai";
 #load "components/box_collider.jai";
 #load "components/rect_renderer.jai";
-
 
 // goals
 
@@ -151,7 +150,7 @@ add_component :: (entity: *Entity, $component_type: Type) -> *component_type {
 
     any: Any;
     any.value_pointer = c;
-    any.type = type_info(component_type);
+    any.type = type_info(component_type); // TODO: compiler generated Sum_Type thing
 
     array_add(*entity.components, any);
     c.entity = entity;
