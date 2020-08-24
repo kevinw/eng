@@ -53,7 +53,7 @@ State :: type_of(state);
 state: struct {
     start_canary: u32; @noui // = 0xBEEFBEEF;
     ui: UI_State;
-    ui_open: bool;
+    ui_open: bool = true;
     Time: struct {
         now: float64;
         unscaled_now: float64;
@@ -280,13 +280,15 @@ change_global_time_scale :: (delta: float) {
 }
 
 update_and_draw :: () {
+    using state;
+
     ImGui_ProcessRaylibEvents(*state.ui);
     ImGui_Impl_NewFrame(*state.ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
     {
-        inspect("foo", *state);
+        ImGui.Begin("state", *ui_open);
+        inspect("state", *state);
+        ImGui.End();
     }
-
-    using state;
 
     #if HOTLOADING_ENABLED {
         assert(start_canary == 0xBEEFBEEF);
