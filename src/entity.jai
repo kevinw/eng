@@ -51,7 +51,6 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
                 ok, rect := get_entity_rect(spr);
                 if ok return rect;
             }
-            if verbose logprint("=foo", "nope % %",<<it.type); 
         }
     }
 

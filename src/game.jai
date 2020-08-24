@@ -22,6 +22,8 @@ SOUND_ENABLED :: true;
 #load "live_raylib.jai";
 #load "plugin_exports.jai";
 
+#load "../lib/imgui_inspector.jai";
+
 gameWidth :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
@@ -49,7 +51,9 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 State :: type_of(state);
 
 state: struct {
-    start_canary: u32;// = 0xBEEFBEEF;
+    start_canary: u32; @noui // = 0xBEEFBEEF;
+    ui: UI_State;
+    ui_open: bool;
     Time: struct {
         now: float64;
         unscaled_now: float64;
@@ -116,7 +120,7 @@ state: struct {
 
     enemies: [..]Enemy;
 
-    end_canary: u32; // = 0xBEEFBEEF;
+    end_canary: u32; @noui // = 0xBEEFBEEF;
 
     debug_draw := false;
 };
@@ -139,11 +143,18 @@ update_bgm_volume :: () {
 
 on_host_did_reload_game_dll :: () {
     set_default_font(*state.default_font);
+
+    ImGui_Impl_InvalidateDeviceObjects(*state.ui);
+    ImGui_Impl_Init(*state.ui, GetWindowHandle());
+
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
 on_host_init :: () {
     using state;
+
+    ImGui_Impl_CreateContext(*ui);
+    ImGui_Impl_Init(*ui, GetWindowHandle());
 
     set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
 
@@ -233,6 +244,7 @@ on_host_shutdown :: () {
 
     #if SOUND_ENABLED
         sound_deinit(*sound_state);
+    ImGui_ImplSdl_Shutdown(*ui);
 }
 
 restart :: () {
@@ -268,6 +280,12 @@ change_global_time_scale :: (delta: float) {
 }
 
 update_and_draw :: () {
+    ImGui_ProcessRaylibEvents(*state.ui);
+    ImGui_Impl_NewFrame(*state.ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
+    {
+        inspect("foo", *state);
+    }
+
     using state;
 
     #if HOTLOADING_ENABLED {
@@ -412,6 +430,13 @@ update_and_draw :: () {
             editor_draw_ui();
             screenlog.draw();
         }
+        rlglDraw();
+        ImGui.Render();
+
+        // TODO: @Speed the EndDrawing implied by PushDrawing is calling
+        // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary
+        // for us to be able to overlay IMGUI onto raylib
+        // https://github.com/raysan5/raylib/issues/1216
     }
 }
 
