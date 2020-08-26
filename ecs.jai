@@ -7,19 +7,6 @@ Component :: struct {
     entity: Entity_Handle;
 }
 
-Vec3 :: struct {
-    x: float;
-    y: float;
-    z: float;
-}
-
-Vec4 :: struct {
-    x: float;
-    y: float;
-    z: float;
-    w: float;
-}
-
 Component_Entry :: struct {
     component_type_bit: Component_Bits;
     handle: Handle_Type;
@@ -111,24 +98,6 @@ add_component :: (world: *World, e: Entity_Handle, $Component_Type: Type) -> *Co
 
 // Components
 
-Transform :: struct {
-    using component: Component;
-    pos: Vec3;
-    scale: Vec3 = .{1, 1, 1};
-    rotation: Vec4;
-} @Component
-
-Velocity :: struct {
-    using component: Component;
-    vel: Vec3;
-} @Component
-
-update :: (velocity: Velocity, transform: *Transform) {
-    transform.pos.x += velocity.vel.x;
-    transform.pos.y += velocity.vel.y;
-    transform.pos.z += velocity.vel.z;
-} @Updater
-
 /*
 for velocity component in velocity array
     if not alive continue
@@ -138,13 +107,6 @@ for velocity component in velocity array
 */
 
 /////
-
-// TODO: generate from @Component notes
-
-Components :: Type.[
-    Transform,
-    Velocity,
-];
 
 Component_Storage :: struct {
     #insert #run get_component_storage_code_string();
@@ -266,6 +228,45 @@ init_world :: (world: *World) {
 
 #scope_module
 #import "Basic";
+
+Vec3 :: struct {
+    x: float;
+    y: float;
+    z: float;
+}
+
+Vec4 :: struct {
+    x: float;
+    y: float;
+    z: float;
+    w: float;
+}
+
+Transform :: struct {
+    using component: Component;
+    pos: Vec3;
+    scale: Vec3 = .{1, 1, 1};
+    rotation: Vec4;
+} @Component
+
+Velocity :: struct {
+    using component: Component;
+    vel: Vec3;
+} @Component
+
+// TODO: generate from @Component notes
+
+Components :: Type.[
+    Transform,
+    Velocity,
+];
+
+update :: (velocity: Velocity, transform: *Transform) {
+    transform.pos.x += velocity.vel.x;
+    transform.pos.y += velocity.vel.y;
+    transform.pos.z += velocity.vel.z;
+} @Updater
+
 
 main :: () {
     print("running ecs...\n");
