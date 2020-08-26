@@ -1,11 +1,18 @@
 #import "Windows";
 
+/*
+
+The point of this data structure is to have a bucket of things with pointers that never move,
+for which you can add and remove elements in O(1).
+
+We use virtual memory to reserve enough address space for some maximum value.
+
+A freelist in the empty slots keeps adding and removing fast.
+*/
+
 Handle_Type :: struct {
-    // TODO: would like this to be inside the Array_With_Holes
-    // struct for Handle type-safety. But a compiler bug is in the way
-    // currently.
     id: u32;
-    generation: u32;
+    generation: s32;
 };
 
 Array_With_Holes :: struct(Value: Type, Max_Bytes_N: int = 4000) {
@@ -17,28 +24,34 @@ Array_With_Holes :: struct(Value: Type, Max_Bytes_N: int = 4000) {
             value: Value;
             next: u32;       // offset from beginning of array
         }
-        generation: u32;
+        generation: s32;
     }
 
+    count: u32; // not the actual count of active items; it's the count of
+                // allocated space for the following field 'items'. we can
+                // consider maintaining a separate "active_count" or something
+                // if we need it...
+
     items: *Slot;
-    count: u32;
 }
 
-
-
-init_array_with_holes :: (arr: *$A) {
+init_array_with_holes :: (arr: *$A/Array_With_Holes) {
     arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
     assert(arr.items != null);
 }
 
-allocate_slot :: (arr: *$A) -> A.Handle {
+allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
+    assert(arr.items != null);;
+
     slot := arr.items[0].next;
     arr.items[0].next = arr.items[slot].next;
     if slot != 0 {
         handle: A.Handle;
         handle.id = slot;
+        assert(arr.items[slot].generation <= 0);
+        arr.items[slot].generation *= -1;
         handle.generation = arr.items[slot].generation;
-        return handle;
+        return handle, *arr.items[slot].value;
     }
 
     // If it was zero, the freelist is empty.
@@ -47,30 +60,70 @@ allocate_slot :: (arr: *$A) -> A.Handle {
 
     handle: A.Handle;
     handle.id = cast(u32)arr.count;  // here we intentionally don't subtract one, to account for the freelist slot at 0
+    assert(arr.items[arr.count].generation <= 0);
+    arr.items[arr.count].generation *= -1;
     handle.generation = arr.items[arr.count].generation;
-    return handle;
+    return handle, *arr.items[arr.count].value;
 }
 
 delete_item :: (arr: *$A, handle: A.Handle) {
     arr.items[handle.id].generation += 1; // advance this slot to the next generation
+    arr.items[handle.id].generation *= -1;
 
     // Add to the freelist, which is stored in slot 0.
     arr.items[handle.id].next = arr.items[0].next;
     arr.items[0].next = handle.id;
 }
 
-add_item :: (arr: *$A, value: A.Value_Type) -> A.Handle {
+add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
     slot := allocate_slot(arr);
     arr.items[slot.id].value = value;
     return slot;
 }
 
-set :: inline (arr: *$A, handle: A.Handle, value: A.Value_Type) {
+get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
+    slot := arr.items[handle.id];
+    if slot.generation == handle.generation
+        return true, slot.value;
+    
+    return false, .{};
+}
+
+get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
+    slot := *arr.items[handle.id];
+    if slot.generation == handle.generation
+        return *slot.value;
+    return null;
+}
+
+set :: inline (arr: *$A/Array_With_Holes, handle: A.Handle, value: A.Value_Type) {
     arr.items[handle.id].value = value;
 }
 
+for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
+    #assert(!reverse);
 
-main :: () {
+    index := 0;
+    n := 1; // start at one to ignore the first freelist hole
+    while n <= arr.count {
+        slot := arr.items[n];
+        n += 1;
+
+        if slot.generation < 0 continue; // dead
+
+        #if pointer `it := *slot.value;
+        else `it := slot.value;
+
+        `it_index := index;
+        #insert body;
+        index += 1;
+    }
+
+}
+
+#scope_file
+
+test_array_with_holes :: () {
     print("array with holes\n");
 
     my_arr: Array_With_Holes(int);
@@ -90,12 +143,15 @@ main :: () {
     assert(my_arr.count == 5);
     delete_item(*my_arr, slot3);
 
+    // a newly added item should go into the hole leftover by the 
+
     slot4 := add_item(*my_arr, 99);
     assert(slot3.id == slot4.id, "expected these to be equal: % and %", slot3.id, slot4.id);
     assert(slot3.generation != slot4.generation, "but these to be unequal: % and %", slot3.generation, slot4.generation);
 
     print("OK!\n");
 
+    // TODO: test for_expansion
 }
 
 #scope_file
