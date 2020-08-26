@@ -293,6 +293,9 @@ sign :: inline (x: $T) -> int {
 }
 
 v2 :: make_Vector2;
+v3 :: (x: float, y: float, z: float) -> Vector3 { return make_Vector3(x, y, z); }
+v3 :: (xy: Vector2, z: float) -> Vector3 { return make_Vector3(xy.x, xy.y, z); }
+
 rect :: make_Rectangle;
 
 rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
