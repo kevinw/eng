@@ -349,7 +349,7 @@ player_draw :: (using player: *Player) {
     }
 
     x_offset := 21 * (ifx flip_x then -1 else 1);
-    dest_rect_pos := position - v2(x_offset, 38) + offset;
+    dest_rect_pos := position.xy - v2(x_offset, 38) + offset;
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
     sprite_rect.width *= ifx flip_x then -1 else 1;
 
@@ -372,12 +372,12 @@ player_draw :: (using player: *Player) {
 
     if state.debug_draw {
         debug_color :: RED;
-        draw_point(position, 6, debug_color);
+        draw_point(position.xy, 6, debug_color);
         draw_rect_outline(player_rect(player), 2, debug_color);
         if player_attack_hitbox(player)
             draw_rect_outline(player_attack_rect(player), 2, debug_color);
         
-        screenlog.world(position, "(%, %)", cast(int)position.x, cast(int)position.y);
+        screenlog.world(position.xy, "(%, %)", cast(int)position.x, cast(int)position.y);
     }
 }
 

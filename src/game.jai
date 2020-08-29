@@ -214,7 +214,7 @@ on_host_init :: () {
     add_enemy_at(400, 197);
     add_enemy_at(600, 197);
 
-    camera.target = player.position;
+    camera.target = player.position.xy;
     camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
     camera.rotation = 0.0;
     camera.zoom = DEFAULT_CAM_ZOOM;
@@ -444,7 +444,7 @@ update_and_draw :: () {
 
 UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
     offset = make_Vector2(width/2, height/2);
-    target = player.position;
+    target = player.position.xy;
 }
 
 UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
@@ -453,7 +453,7 @@ UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: fl
     fractionSpeed :: 2.9;
     
     camera.offset = make_Vector2(width/2, height/2);
-    diff := player.position - camera.target;
+    diff := player.position.xy - camera.target;
     length := Vector2Length(diff);
     
     if length > minEffectLength

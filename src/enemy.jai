@@ -52,18 +52,18 @@ enemy_rect :: (using it: *Enemy) -> Rectangle {
     if since_attack > 0.38 && since_attack < 0.60 { // when attacking, enemy rect changes
         w:float = 40;
         if !last_attack_direction_right w *= -1;
-        return rect_from_points(position + v2(w, 0), position + v2(0, -35));
+        return rect_from_points(position.xy + v2(w, 0), position.xy + v2(0, -35));
     }
 
     w:float = 17;
     h:float = 35;
-    return rect_from_points(position + v2(-w*0.5, 0), position + v2(w*0.5, -h));
+    return rect_from_points(position.xy + v2(-w*0.5, 0), position.xy + v2(w*0.5, -h));
 }
 
 enemy_trigger_rect :: (using it: *Enemy) -> Rectangle {
     w:float: 90;
     h:float = 25;
-    return rect_from_points(position + v2(-w*0.5, 0), position + v2(w*0.5, -h));
+    return rect_from_points(position.xy + v2(-w*0.5, 0), position.xy + v2(w*0.5, -h));
 }
 
 enemy_is_attacking :: (using it: *Enemy) -> bool {
@@ -91,7 +91,7 @@ enemy_draw :: (using it: *Enemy) {
     
     OFF := v2(32, 37);
 
-    dest_rect_pos := position - OFF + offset;
+    dest_rect_pos := position.xy - OFF + offset;
 
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
 
@@ -102,7 +102,7 @@ enemy_draw :: (using it: *Enemy) {
     DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     if debug_draw {
-        draw_point(position, 4, RED);
+        draw_point(position.xy, 4, RED);
         r := enemy_rect(it);
         draw_rect_outline(r, 2, RED);
         draw_rect_outline(enemy_trigger_rect(it), 2, RED);

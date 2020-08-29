@@ -147,7 +147,7 @@ editor_update :: (state: *State) {
 
         if took_action
             for * selected
-                it.original_pos = it.position;
+                it.original_pos = it.position.xy;
 
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) && selected.count == 0 {
         drag_state.dragging = false;
