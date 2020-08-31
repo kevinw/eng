@@ -145,8 +145,42 @@ blend_normal :: (dest: *Color, src: Color, opacity: u8) {
     r, g, b, a: s32;
 
     if dest.a == 0 {
-        
+        r = src.r;
+        g = src.g;
+        b = src.b;
+        a = src.a;
+    } else if src.a == 0 {
+        r = dest.r;
+        g = dest.g;
+        b = dest.b;
+        a = dest.a;
+    } else {
+        // TODO: this is all hacked together from wikipedia and very inefficient
+        // and probably wrong.
+        src_a:float = cast(float)src.a / 255.0 * (cast(float)opacity / 255.0);
+        dest_a:float = cast(float)dest.a / 255.0;
+
+        a_f:float = src_a + dest_a * (1.0 - src_a);
+
+        r = cast(s16)((src.r * src_a + dest.r * dest_a * (1 - src_a)) / a_f);
+        g = cast(s16)((src.g * src_a + dest.g * dest_a * (1 - src_a)) / a_f);
+        b = cast(s16)((src.b * src_a + dest.b * dest_a * (1 - src_a)) / a_f);
+
+        a = cast(s16)(a_f * 255);
     }
+
+    if a == 0 {
+        r = 0;
+        g = 0;
+        b = 0;
+    }
+
+    dest.r = cast(u8)r;
+    dest.g = cast(u8)g;
+    dest.b = cast(u8)b;
+    dest.a = cast(u8)a;
+
+    //print("rgba: % % % %\n", r, g, b, a);
 }
 
 // Apply a cel's pixels to the frame, using its layer's blendmode and alpha.
@@ -178,9 +212,9 @@ bytes_to_pixels :: (bytes: []u8, pixels: []Color, mode: Color_Mode, palette: []C
             p := 0;
             b := 0;
             while p < len {
-                pixels[p].r = cast(u8)(bytes[b + 0] * bytes[b + 3] / 255.0);
-                pixels[p].g = cast(u8)(bytes[b + 1] * bytes[b + 3] / 255.0);
-                pixels[p].b = cast(u8)(bytes[b + 2] * bytes[b + 3] / 255.0);
+                pixels[p].r = cast(u8)(cast(float)bytes[b + 0] * bytes[b + 3] / 255.0);
+                pixels[p].g = cast(u8)(cast(float)bytes[b + 1] * bytes[b + 3] / 255.0);
+                pixels[p].b = cast(u8)(cast(float)bytes[b + 2] * bytes[b + 3] / 255.0);
                 pixels[p].a = bytes[b + 3];
                 p += 1;
                 b += 4;
@@ -189,7 +223,7 @@ bytes_to_pixels :: (bytes: []u8, pixels: []Color, mode: Color_Mode, palette: []C
             p := 0;
             b := 0;
             while p < len {
-                pixels[p].r = cast(u8)(bytes[b + 0] * bytes[b + 1] / 255.0);
+                pixels[p].r = cast(u8)(cast(float)bytes[b + 0] * bytes[b + 1] / 255.0);
                 pixels[p].g = pixels[p].r;
                 pixels[p].b = pixels[p].r;
                 pixels[p].a = bytes[b + 1];
@@ -269,10 +303,13 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
         assert(num_chunks > 0);
 
         frame := *((<<raw_frames)[frame_i]);
-        frame.width = cast(int)header.width;
-        frame.height = cast(int)header.height;
-        frame.pixels = NewArray(header.width * header.height, Color);
-        frame.duration_ms = frame_header.duration_ms;
+        {
+            using frame;
+            width       = cast(int)header.width;
+            height      = cast(int)header.height;
+            pixels      = NewArray(header.width * header.height, Color);
+            duration_ms = frame_header.duration_ms;
+        }
 
         for _: 0..num_chunks-1 {
             chunk_start := buf.offset;
@@ -333,8 +370,6 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
                         read(b, [7]u8); // future padding
                     }
 
-                    print("cel %\n", cel);
-
                     if cel_type == .Raw || cel_type == .Compressed {
                         cel.width  = read_WORD(b);
                         cel.height = read_WORD(b);
@@ -364,6 +399,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
                         cel.pixels = NewArray(cel.width * cel.height, Color);
                         bytes_to_pixels(bytes, cel.pixels, header.bits_per_pixel, palette);
                         cel_to_frame(frame, *cel, *layers[cel.layer_index]);
+                        //print("stamped cel with layer % on frame %\n", layers[cel.layer_index].name, frame_i);
                     } else {
                         assert(false, tprint("unsupported cel type %", cel_type));
                     }
@@ -476,5 +512,3 @@ uncompress :: (compressed_bytes: []u8, dest: []u8) -> bool {
     assert(dest_len == cast(u64)asked_for_len);
     return ret_code == .OK;
 }
-
-
