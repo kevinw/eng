@@ -24,6 +24,9 @@ SOUND_ENABLED :: true;
 
 #load "../lib/imgui_inspector.jai";
 
+#import "Aseprite_Loader";
+
+
 gameWidth :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
