@@ -408,4 +408,25 @@ Maybe :: struct(T: Type) {
 }
 
 
+print_field_offsets :: ($type: Type) {
+    // useful for checking if a struct's field match a serialized format
+
+    ti := type_info(type);
+    assert(ti.type == .STRUCT);
+    ti_struct := cast(*Type_Info_Struct)ti;
+
+    print("%:\n", type);
+    for * ti_struct.members {
+        field_size := -1;
+        if it_index < ti_struct.members.count - 1 {
+            next := *ti_struct.members[it_index + 1];
+            field_size = next.offset_in_bytes - it.offset_in_bytes;
+        }
+
+        tabs := ifx it.name.count > 6 then "\t" else "\t\t";
+        print("  % (%): % %\n", it.name, field_size, tabs, it.offset_in_bytes);
+    }
+}
+
+
 //#run test_round();

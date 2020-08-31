@@ -24,8 +24,6 @@ SOUND_ENABLED :: true;
 
 #load "../lib/imgui_inspector.jai";
 
-#import "Aseprite_Loader";
-
 
 gameWidth :: 640;
 gameHeight :: 360;
@@ -166,7 +164,7 @@ on_host_init :: () {
 
     #if SOUND_ENABLED
         sound_init(*sound_state);
-
+    
     // load textures and sprites
     textures.gino = LoadTexture("resources/sprites/gino.png");
     {
