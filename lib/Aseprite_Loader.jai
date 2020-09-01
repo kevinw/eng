@@ -8,6 +8,8 @@
 // paletted aseprite images.
 //
 
+// TODO: cleanup memory management
+
 Special_Layer_Names :: struct {
     _pivot :: "_pivot";
 }
@@ -251,10 +253,25 @@ bytes_to_pixels :: (bytes: []u8, pixels: []Color, mode: Color_Mode, palette: []C
 
 }
 
+Tag :: struct {
+    Loop_Type :: enum u8 {
+        Forward   :: 0;
+        Reverse   :: 1;
+        Ping_Pong :: 2;
+    }
+
+    from_frame: u16;
+    to_frame:   u16;
+    loop_type:  Loop_Type;
+    color:      Color;
+    name:       string;
+}
+
 Sprite_Info :: struct {
     ok: bool;
     pivot_x: s16 = -1;
     pivot_y: s16 = -1;
+    tags: [..]Tag;
 }
 
 load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
@@ -416,6 +433,24 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                         print("read icc profile: %\n", profile_data);
                     }
                     // TODO: actually handle and do something with the color profile here.
+                case .FRAME_TAGS;
+                    n_tags := read_WORD(b);
+                    read(b, [8]u8);
+                    for it_index: 0..n_tags - 1 {
+                        tag := array_add(*info.tags);
+                        using tag;
+
+                        from_frame     = read_WORD(b);
+                        to_frame       = read_WORD(b);
+                        loop_type      = read(b, Tag.Loop_Type);
+                        read(b, [8]u8); // future
+                        color.r        = read_BYTE(b);
+                        color.g        = read_BYTE(b);
+                        color.b        = read_BYTE(b);
+                        read_BYTE(b);   // extra byte (zero)
+                        name           = read_string(b);
+                    }
+
                 case .CEL;
                     cel: Cel;
                     cel_type: Cel_Type;

@@ -63,33 +63,56 @@ SpriteAnim :: struct {
 
     frames: [..]Frame;
     total_duration_secs: float;
+
+    Tag :: struct {
+        name: string;
+        frames: []Frame; @Weak
+        tag_duration_secs: float;
+    }
+
+    tags: [..]Tag;
 }
 
-get_rect :: (using sprite_anim: *SpriteAnim, timer: float64) -> (Rectangle, LiveTexture, int) {
+get_frame :: (using sprite_anim: *SpriteAnim, timer: float64, tag_name := "") -> (bool, SpriteAnim.Frame) {
     assert(total_duration_secs > 0);
-    timer_mod := Math.fmod(timer, total_duration_secs);
+
+    frames_to_iterate:[]Frame = frames;
+
+    duration := total_duration_secs;
+
+    if tag_name.count > 0 {
+        found := false;
+        for * tags if it.name == tag_name {
+            frames_to_iterate = it.frames;
+            duration = it.tag_duration_secs;
+            found = true;
+        }
+
+        if !found logprint("=spriteanim", "no tag named '%'", tag_name);
+    }
+
+    timer_mod := Math.fmod(timer, duration);
 
     t := 0.0;
-    for * frames {
+    for * frames_to_iterate {
         t += it.duration_secs;
-        if t > timer_mod {
-            return it.rect, it.texture, it_index;
-        }
+        if t > timer_mod
+            return true, << it;
     }
 
     assert(false, "couldn't get a spriteanim rect");
-    return .{}, 0, -1;
+    return false, .{};
 }
 
-draw_sprite_anim :: (using sprite_anim: *SpriteAnim, time: float64, pos: Vector2) {
+draw_sprite_anim :: (using sprite_anim: *SpriteAnim, time: float64, pos: Vector2, tag_name := "") {
     assert(sprite_anim != null);
     assert(frames.count > 0);
     assert(frames.count < MAX_FRAME_COUNT);
-
-    src_rect, texture, frame_index := get_rect(sprite_anim, time);
-    dest_rect := rect(pos.x, pos.y, src_rect.width, src_rect.height);
-    logprint("=sprite_debug", "tex: %", texture._entry.id);
-    DrawTexturePro(texture, src_rect, dest_rect, sprite_anim.frames[frame_index].offset);
+    ok, frame := get_frame(sprite_anim, time, tag_name);
+    if ok {
+        dest_rect := rect(pos.x, pos.y, frame.rect.width, frame.rect.height);
+        DrawTexturePro(frame.texture, frame.rect, dest_rect, frame.offset);
+    }
 }
 
 from_ase :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
@@ -137,13 +160,26 @@ from_ase :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
 
     for imgs
         sprite_anim.frames[it_index].texture = live_tex;
+    
+    for sprite_info.tags {
+        entry := array_add(*sprite_anim.tags);
+        entry.name = copy_string(it.name);
+
+        // TODO: make or find a subslice function 
+        entry.frames.count = it.to_frame - it.from_frame + 1;
+        entry.frames.data = sprite_anim.frames.data + it.from_frame;
+
+        for * tag_frame: entry.frames
+            entry.tag_duration_secs += tag_frame.duration_secs;
+    }
 
     return true;
 }
 
 state: struct {
     start_canary: u32; @noui // = 0xBEEFBEEF;
-    test_anim: SpriteAnim;
+    blob: SpriteAnim;
+
     ui: UI_State;
     ui_open: bool = true;
     Time: struct {
@@ -249,7 +285,7 @@ on_host_init :: () {
     ImGui_Impl_CreateContext(*ui);
     ImGui_Impl_Init(*ui, GetWindowHandle());
 
-    from_ase(*test_anim, "resources/sprites/numbers.ase");
+    from_ase(*blob,      "resources/sprites/blob.aseprite");
 
     set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
 
@@ -504,7 +540,7 @@ update_and_draw :: () {
                 for * enemies enemy_draw(it);
 
                 player_draw(*player);
-                draw_sprite_anim(*test_anim, player.sprite_timer, player.position.xy);
+                draw_sprite_anim(*blob, player.sprite_timer, player.position.xy, tag_name = "die");
                 world_draw(*world);
 
                 editor_draw_world(*state);
