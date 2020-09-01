@@ -360,6 +360,26 @@ get_mouse_world_pos :: (camera: Camera2D, screen_texture: RenderTexture) -> Vect
     return world_pos;
 }
 
+get_field_value :: (parent_struct: *$T, $field_name: string, $Field_Type: Type, loc := #caller_location) -> Field_Type {
+    // TODO: with better metaprogramming, the caller wouldn't have to specify the Field_Type
+
+    offset :: #run (() -> int {
+        ti := type_info(T);
+        assert(ti.type == .STRUCT);
+        ti_struct := cast(*Type_Info_Struct)ti;
+        field := get_field(ti_struct, field_name);
+        if field == null {
+            #import "Compiler";
+            compiler_error(tprint("Error: no field named '%' in %", field_name, T));
+        }
+        return field.offset_in_bytes;
+    }());
+
+    assert(parent_struct != null);
+    base_ptr := cast(*u8)parent_struct;
+    return <<cast(*Field_Type)(base_ptr + offset);
+}
+
 get_parent_struct :: ($P: Type, child_ptr: *$C) -> *P {
     // Given parent struct P which embeds a child struct C once directly, and a
     // pointer to the child struct, returns a pointer to the parent.

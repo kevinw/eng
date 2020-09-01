@@ -6,11 +6,14 @@ DYING_FPS :: 9;
 #scope_module
 
 enemy_was_damaged :: (using it: *Takes_Damage) -> bool {
+    play_sfx("whack");
+
     if it.health == 0 {
         enemy := get_parent_struct(Enemy, it);
         enemy.dying_timer = cast(float)state.sprites.evilplant.hit.count/DYING_FPS;
         enemy.sprite_timer = 0;
     }
+
     return false;
 }
 

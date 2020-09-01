@@ -166,6 +166,7 @@ player_update :: (state: *State, using player: *Player) {
                 attack_did_hit = false;
                 sprite_timer = 0;
             }
+            play_sfx("sword_swing");
         }
 
         // JUMP
@@ -344,7 +345,7 @@ player_draw :: (using player: *Player) {
             using state.sound_state;
             wav := ifx idx < 4 then fx.footstep1 else fx.footstep2;
             #if SOUND_ENABLED
-                Soloud_play(soloud, wav, 0.5);
+                Soloud_play(soloud, wav, 0.9);
         }
     }
 
