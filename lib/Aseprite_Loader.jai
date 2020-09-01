@@ -4,8 +4,7 @@
 // thanks ASE docs: https://github.com/aseprite/aseprite/blob/master/docs/ase-file-specs.md
 // and NoelFB's gist:  https://gist.github.com/NoelFB/778d190e5d17f1b86ebf39325346fcc5
 //
-// note: this will currently always create RGBA textures, even for grayscale or
-// paletted aseprite images.
+// note this will create RGBA textures even for grayscale or paletted aseprite images.
 //
 
 // TODO: cleanup memory management
@@ -250,7 +249,6 @@ bytes_to_pixels :: (bytes: []u8, pixels: []Color, mode: Color_Mode, palette: []C
             for p: 0..len - 1
                 pixels[p] = palette[p];
     }
-
 }
 
 Tag :: struct {
@@ -289,7 +287,6 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
 
     b := *buf;
 
-    // Header
     header: Header;
     {
         using header;
@@ -337,12 +334,8 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
         }
     }
 
-    // TODO: can frames have different sizes?
-
     palette: [256]Color;
     layers: [..]Layer;
-    last_layer: *Layer;
-    last_cel: *Cel;
 
     for frame_i: 0..header.num_frames-1 {
         #assert(size_of(Frame_Header) == 16);
@@ -375,7 +368,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
             chunk_end := chunk_start + cast(int)chunk_size;
             if chunk_type == {
                 case .LAYER;
-                    last_layer = array_add(*layers);
+                    last_layer := array_add(*layers);
                     {
                         using last_layer;
                         flags       = read(b, Layer.Flags);
@@ -392,26 +385,21 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                     num_packets := read_or_panic(*buf, u16);
                     for _: 0..num_packets-1 {
                         num_entries_to_skip := read_or_panic(*buf, u8);
-                        //print("num_entries_to_skip %\n", num_entries_to_skip);
                         num_colors := read_or_panic(*buf, u8);
                         num_colors_int :int = cast(int)num_colors;
                         if num_colors == 0 num_colors_int = 256;
-                        //print("num colors %\n", num_colors_int);
                         for _: 0..num_colors_int-1 {
                             color_r := read_BYTE(b);
                             color_g := read_BYTE(b);
                             color_b := read_BYTE(b);
-                            //print("% % %\n", r, g, b);
                         }
                     }
                 case .PALETTE;
                     palette := read_or_panic(*buf, Palette);
                     for _: 0..palette.num_entries-1 {
                         entry := read_or_panic(*buf, Palette_Entry);
-                        //print("entry %\n", entry);
                         if entry.flags & 1 != 0 {
                             entry_name := read_string(*buf);
-                            //print("  entry name: %\n", entry_name);
                         }
                     }
                 case .COLOR_PROFILE;
@@ -426,7 +414,6 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                     profile_type := read(b, Color_Profile_Type);
                     flags        := read(b, Color_Profile_Flags);
                     gamma        := read(b, float);
-                    print("% % %\n", profile_type, flags, gamma);
                     read(b, [8]u8); // future
                     if profile_type == .Embedded_ICC_Profile {
                         profile_data := read_string(b, u32);
@@ -514,8 +501,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                         assert(false, tprint("unsupported cel type %", cel_type));
                     }
                     
-                    last_cel = array_add(*frame.cels);
-                    << last_cel = cel;
+                    array_add(*frame.cels, cel);
                 case;
                     assert(false, tprint("TODO: implement chunk type %", chunk_type));
                     print("ignored chunk type %\n", chunk_type);
@@ -555,8 +541,6 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
             info.pivot_x = cast(s16)(cast(float)(min_pt[0] + max_pt[0]) / 2.0);
             info.pivot_y = cast(s16)(cast(float)(min_pt[1] + max_pt[1]) / 2.0);
         }
-
-        print("calculated pivot from % points: % %\n", total, info.pivot_x, info.pivot_y);
     }
 
     info.ok = true;
@@ -569,19 +553,6 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
 File :: #import "File";
 
 miniz :: #import "miniz";
-
-print_hex_bytes :: (data: []u8) {
-    count := 0;
-    for data {
-        print("% ", formatInt(it, base=16, minimum_digits=2));
-        count += 1;
-        if count >= 8 {
-            count = 0;
-            print("\n");
-        }
-    }
-    print("\n");
-}
 
 read_or_panic :: inline (buf: *Buffer, $T: Type) -> T {
     val, ok := read(buf, T);
@@ -639,11 +610,6 @@ read_DWORD :: #bake_arguments read_or_panic(T = u32);
 read_WORD  :: #bake_arguments read_or_panic(T = u16);
 read_SHORT :: #bake_arguments read_or_panic(T = s16);
 read_BYTE  :: #bake_arguments read_or_panic(T = u8);
-
-err_print_return :: (s: string, msg: ..Any) -> bool {
-    print(s, ..msg);
-    return false;
-}
 
 uncompress :: (compressed_bytes: []u8, dest: []u8) -> bool {
     // we assume dest has exactly enough space for the uncompresesd data here.

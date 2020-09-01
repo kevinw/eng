@@ -15,11 +15,7 @@ strip_dot_slash :: (path: string) -> string {
 plugin_on_resource_change :: (ctx: *Context, using change: *Asset_Change) #c_call {
     push_context << ctx {
         full_name_stripped := strip_dot_slash(full_name);
-        if extension == "png" {
-            TryReloadLiveTexturePath(full_name_stripped);
-        } else if extension == "fs" || extension == "vs" {
-            TryReloadLiveShaderPath(full_name_stripped);
-        }
+        try_reload_live_resource(full_name_stripped, extension);
     }
 }
 

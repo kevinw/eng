@@ -10,7 +10,7 @@ Asset_Pipeline :: struct {
 }
 
 asset_thread_proc :: (thread: *Thread) -> s64 {
-    print("in asset thread!\n");
+    //print("in asset thread!\n");
     count := 0;
     while true {
         Windows.Sleep(1000);

@@ -151,6 +151,10 @@ set_default_font :: (font_ptr: *Font, filename: string) {
     print("took %\n", GetTime() - now);
 }
 
+draw_texture :: (tex: Texture2D, source_rect: Rectangle, dest_rect: Rectangle, origin: Vector2 = .{0, 0}, rotation: float = 0, tint:Color = WHITE) {
+    DrawTexturePro(tex, source_rect, dest_rect, origin, rotation, tint);
+}
+
 draw_text :: (msg: string, x: $X, y: $Y, size: $S, color := WHITE) {
     msg_z := constant_or_temp_cstring(msg);
     DrawTextEx(<<default_font, msg_z, make_Vector2(x, y), xx size, -2, color);
@@ -464,6 +468,20 @@ print_field_offsets :: ($type: Type) {
         tabs := ifx it.name.count > 6 then "\t" else "\t\t";
         print("  % (%): % %\n", it.name, field_size, tabs, it.offset_in_bytes);
     }
+}
+
+
+print_hex_bytes :: (data: []u8) {
+    count := 0;
+    for data {
+        print("% ", formatInt(it, base=16, minimum_digits=2));
+        count += 1;
+        if count >= 8 {
+            count = 0;
+            print("\n");
+        }
+    }
+    print("\n");
 }
 
 

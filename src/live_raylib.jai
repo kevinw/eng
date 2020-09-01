@@ -7,17 +7,52 @@ HOTLOADING_ENABLED :: true;
 
 LiveTexture :: struct { using _entry: *LiveTextureEntry; }
 LiveShader  :: struct { using _entry: *LiveShaderEntry; }
+LiveSprite  :: struct { using _entry: *LiveSpriteEntry; }
+
+try_reload_live_resource :: (full_name_stripped: string, extension: string) {
+    did_reload := false;
+    if extension == {
+        case "png"; #through;
+        case "jpg"; #through;
+        case "jpeg";
+            did_reload = TryReloadLiveTexturePath(full_name_stripped);
+        case "fs"; #through;
+        case "vs";
+            did_reload = TryReloadLiveShaderPath(full_name_stripped);
+        case "aseprite"; #through;
+        case "ase";
+            did_reload = TryReloadLiveSprite(full_name_stripped);
+        case;
+            // do nothing
+    }
+
+    if did_reload
+        logprint("live", "reloaded %", full_name_stripped);
+}
+
+LiveEntry :: struct {
+    count: u16;
+}
+
+LiveSpriteEntry :: struct {
+    using _live_entry: LiveEntry;
+    filename: string;
+    using sprite: SpriteAnim;
+}
 
 LiveTextureEntry :: struct {
-    count: u16;
+    using _live_entry: LiveEntry;
+
     filename: string;
     using resource: Texture;
 }
 
 LiveShaderEntry :: struct {
-    count: u16;
+    using live_entry: LiveEntry;
+
     vs_filename: string;
     fs_filename: string;
+
     using resource: Shader;
 }
 
@@ -35,6 +70,30 @@ LoadLiveTexture :: (filename: string, raylib_texture: Texture) -> LiveTexture {
 
     obj: LiveTexture;
     obj._entry = new_entry;
+    return obj;
+}
+
+LoadLiveSprite :: (filename: string) -> LiveSprite {
+    assert(filename.count > 0);
+
+    obj: LiveSprite;
+
+    for * state.live.sprites {
+        if it.filename == filename {
+            obj._entry = it;
+            break;
+        }
+    }
+
+    if obj._entry == null {
+        new_entry := array_add(*state.live.sprites);
+        new_entry.filename = copy_string(filename);
+        ok := load_from_aseprite(*new_entry.sprite, filename);
+        assert(ok);
+        obj._entry = new_entry;
+    }
+
+    obj._entry.count += 1;
     return obj;
 }
 
@@ -143,6 +202,23 @@ TryReloadLiveTexturePath :: (filename: string) -> bool {
     return found;
 }
 
+TryReloadLiveSprite :: (filename: string) -> bool {
+    found := false;
+    for * state.live.sprites {
+        if it.filename != filename continue;
+
+        new_sprite: SpriteAnim;
+        ok := load_from_aseprite(*new_sprite, it.filename);
+        if ok {
+            deinit(*it.sprite);
+            it.sprite = new_sprite;
+            found = true;
+        } else {
+            logprint("live", "error reloading sprite '%'", filename);
+        }
+    }
+    return found;
+}
 
 _to_temp_c_string :: (s: string) -> *u8 {
     if s.count == 0 return null;

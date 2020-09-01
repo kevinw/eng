@@ -49,20 +49,15 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     return e;
 }
 
-State :: type_of(state);
-
 SpriteAnim :: struct {
     MAX_FRAME_COUNT :: 500;
 
     Frame :: struct {
-        texture: LiveTexture;
+        texture: Texture;
         rect: Rectangle;
         offset: Vector2;
         duration_secs: float;
     }
-
-    frames: [..]Frame;
-    total_duration_secs: float;
 
     Tag :: struct {
         name: string;
@@ -70,7 +65,15 @@ SpriteAnim :: struct {
         tag_duration_secs: float;
     }
 
+    frames: [..]Frame;
+    total_duration_secs: float;
     tags: [..]Tag;
+}
+
+deinit :: (using sprite_anim: *SpriteAnim) {
+    array_free(frames);
+    for tags free(it.name);
+    array_free(tags);
 }
 
 get_frame :: (using sprite_anim: *SpriteAnim, timer: float64, tag_name := "") -> (bool, SpriteAnim.Frame) {
@@ -111,11 +114,11 @@ draw_sprite_anim :: (using sprite_anim: *SpriteAnim, time: float64, pos: Vector2
     ok, frame := get_frame(sprite_anim, time, tag_name);
     if ok {
         dest_rect := rect(pos.x, pos.y, frame.rect.width, frame.rect.height);
-        DrawTexturePro(frame.texture, frame.rect, dest_rect, frame.offset);
+        draw_texture(frame.texture, frame.rect, dest_rect, frame.offset);
     }
 }
 
-from_ase :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
+load_from_aseprite :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
     assert(sprite_anim.frames.count == 0);
 
     Aseprite_Loader :: #import "Aseprite_Loader";
@@ -156,18 +159,17 @@ from_ase :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
     }
 
     tex := LoadTextureFromImage(atlas_img);
-    live_tex := LoadLiveTexture(filename, tex);
 
     for imgs
-        sprite_anim.frames[it_index].texture = live_tex;
+        sprite_anim.frames[it_index].texture = tex;
     
     for sprite_info.tags {
         entry := array_add(*sprite_anim.tags);
         entry.name = copy_string(it.name);
 
         // TODO: make or find a subslice function 
-        entry.frames.count = it.to_frame - it.from_frame + 1;
         entry.frames.data = sprite_anim.frames.data + it.from_frame;
+        entry.frames.count = it.to_frame - it.from_frame + 1;
 
         for * tag_frame: entry.frames
             entry.tag_duration_secs += tag_frame.duration_secs;
@@ -176,9 +178,11 @@ from_ase :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
     return true;
 }
 
+State :: type_of(state);
+
 state: struct {
     start_canary: u32; @noui // = 0xBEEFBEEF;
-    blob: SpriteAnim;
+    blob: LiveSprite;
 
     ui: UI_State;
     ui_open: bool = true;
@@ -197,6 +201,7 @@ state: struct {
     live: struct {
         textures: [..]LiveTextureEntry;
         shaders:  [..]LiveShaderEntry;
+        sprites:  [..]LiveSpriteEntry;
     };
     muted := true;
     textures: struct {
@@ -285,7 +290,7 @@ on_host_init :: () {
     ImGui_Impl_CreateContext(*ui);
     ImGui_Impl_Init(*ui, GetWindowHandle());
 
-    from_ase(*blob,      "resources/sprites/blob.aseprite");
+    blob = LoadLiveSprite("resources/sprites/blob.aseprite");
 
     set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
 
@@ -540,7 +545,7 @@ update_and_draw :: () {
                 for * enemies enemy_draw(it);
 
                 player_draw(*player);
-                draw_sprite_anim(*blob, player.sprite_timer, player.position.xy, tag_name = "die");
+                draw_sprite_anim(blob._entry, player.sprite_timer, player.position.xy, tag_name = "die");
                 world_draw(*world);
 
                 editor_draw_world(*state);
