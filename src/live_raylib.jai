@@ -8,7 +8,6 @@ HOTLOADING_ENABLED :: true;
 LiveTexture :: struct { using _entry: *LiveTextureEntry; }
 LiveShader  :: struct { using _entry: *LiveShaderEntry; }
 
-
 LiveTextureEntry :: struct {
     count: u16;
     filename: string;
@@ -24,6 +23,19 @@ LiveShaderEntry :: struct {
 
 set_shader_val :: (shader: LiveShader, name: string, val: $T) {
     set_shader_val(shader.resource, name, val);
+}
+
+LoadLiveTexture :: (filename: string, raylib_texture: Texture) -> LiveTexture {
+    // create a new live entry for a texture loaded elsewhere (through aseprite for example)
+
+    new_entry := array_add(*state.live.textures);
+    new_entry.filename = copy_string(filename);
+    new_entry.resource = raylib_texture;
+    new_entry.count = 1;
+
+    obj: LiveTexture;
+    obj._entry = new_entry;
+    return obj;
 }
 
 LoadLiveTexture :: (filename: string) -> LiveTexture {
@@ -83,6 +95,10 @@ LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
 
 DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: Color) {
     DrawTexture(texture._entry.resource, posX, posY, tint);
+}
+
+DrawTexturePro :: (texture: LiveTexture, src_rect: Rectangle, dest_rect: Rectangle, offset: Vector2 = .{0, 0}, rotation:float = 0, color := WHITE) {
+    DrawTexturePro(texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
 UnloadTexture :: (texture: LiveTexture) {

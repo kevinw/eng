@@ -51,8 +51,99 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 
 State :: type_of(state);
 
+SpriteAnim :: struct {
+    MAX_FRAME_COUNT :: 500;
+
+    Frame :: struct {
+        texture: LiveTexture;
+        rect: Rectangle;
+        offset: Vector2;
+        duration_secs: float;
+    }
+
+    frames: [..]Frame;
+    total_duration_secs: float;
+}
+
+get_rect :: (using sprite_anim: *SpriteAnim, timer: float64) -> (Rectangle, LiveTexture, int) {
+    assert(total_duration_secs > 0);
+    timer_mod := Math.fmod(timer, total_duration_secs);
+
+    t := 0.0;
+    for * frames {
+        t += it.duration_secs;
+        if t > timer_mod {
+            return it.rect, it.texture, it_index;
+        }
+    }
+
+    assert(false, "couldn't get a spriteanim rect");
+    return .{}, 0, -1;
+}
+
+draw_sprite_anim :: (using sprite_anim: *SpriteAnim, time: float64, pos: Vector2) {
+    assert(sprite_anim != null);
+    assert(frames.count > 0);
+    assert(frames.count < MAX_FRAME_COUNT);
+
+    src_rect, texture, frame_index := get_rect(sprite_anim, time);
+    dest_rect := rect(pos.x, pos.y, src_rect.width, src_rect.height);
+    logprint("=sprite_debug", "tex: %", texture._entry.id);
+    DrawTexturePro(texture, src_rect, dest_rect, sprite_anim.frames[frame_index].offset);
+}
+
+from_ase :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
+    assert(sprite_anim.frames.count == 0);
+
+    Aseprite_Loader :: #import "Aseprite_Loader";
+    imgs: []Aseprite_Loader.Frame;
+    sprite_info := Aseprite_Loader.load(filename, *imgs);
+    if !sprite_info.ok return false;
+
+    total_width:s32 = 0;
+    total_height:s32 = 0;
+    for imgs {
+        total_width += it.width;
+        total_height = max(total_height, it.height);
+    }
+
+    atlas_img := GenImageColor(total_width, total_height, Color.{0, 0, 0, 0});
+    print("generating atlas (% x %) for '%'\n", total_width, total_height, filename);
+    
+    dest_rect: Rectangle;
+    for imgs {
+        src_img := LoadImageEx(cast(*Color)it.pixels.data, it.width, it.height);
+        defer UnloadImage(src_img);
+
+        src_rect := make_Rectangle(0, 0, it.width, it.height);
+        dest_rect.width = cast(float)it.width;
+        dest_rect.height = cast(float)it.height;
+        ImageDraw(*atlas_img, src_img, src_rect, dest_rect, WHITE);
+
+        frame := array_add(*sprite_anim.frames);
+        frame.rect = dest_rect;
+        frame.duration_secs = cast(float)it.duration_ms / 1000.0;
+        if sprite_info.pivot_x != -1
+            frame.offset.x = cast(float)sprite_info.pivot_x;
+        if sprite_info.pivot_y != -1
+            frame.offset.y = cast(float)sprite_info.pivot_y;
+        sprite_anim.total_duration_secs += frame.duration_secs;
+
+        dest_rect.x += dest_rect.width;
+    }
+
+    tex := LoadTextureFromImage(atlas_img);
+    live_tex := LoadLiveTexture(filename, tex);
+
+    for imgs
+        sprite_anim.frames[it_index].texture = live_tex;
+
+    return true;
+}
+
 state: struct {
     start_canary: u32; @noui // = 0xBEEFBEEF;
+    test_anim: SpriteAnim;
     ui: UI_State;
     ui_open: bool = true;
     Time: struct {
@@ -78,6 +169,7 @@ state: struct {
     };
     world: World;
     sprites: struct {
+        test_ase: SpriteAnim;
         player: struct {
             idle: []Sprite;
             run: []Sprite;
@@ -156,6 +248,8 @@ on_host_init :: () {
 
     ImGui_Impl_CreateContext(*ui);
     ImGui_Impl_Init(*ui, GetWindowHandle());
+
+    from_ase(*test_anim, "resources/sprites/numbers.ase");
 
     set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
 
@@ -384,17 +478,19 @@ update_and_draw :: () {
         {
             PushTextureMode(screen.texture);
 
-            {
+            if 1 {
                 // draw background
                 PushShaderMode(bg.shader.resource);
                 DrawTexture(bg.texture, 0, 0, WHITE);
                 DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
                 DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
                 DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
+            } else {
+                ClearBackground(BLACK);
             }
             {
                 // draw foreground
-                PushMode2D(camera);
+                push_mode_2D(camera);
 
                 // draw world
                 for * world._RectRenderer {
@@ -408,6 +504,7 @@ update_and_draw :: () {
                 for * enemies enemy_draw(it);
 
                 player_draw(*player);
+                draw_sprite_anim(*test_anim, player.sprite_timer, player.position.xy);
                 world_draw(*world);
 
                 editor_draw_world(*state);

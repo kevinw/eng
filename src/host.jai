@@ -97,27 +97,6 @@ update_plugin_functions :: (module: *Plugin.Module) {
 Math :: #import "Math";
 
 main :: () {
-    Aseprite_Loader :: #import "Aseprite_Loader";
-
-    imgs: []Aseprite_Loader.Frame;
-    //ase_ok := Aseprite_Loader.load("resources/sprites/onebyone.aseprite", *imgs);
-    //ase_ok := Aseprite_Loader.load("resources/sprites/twobytwo.aseprite", *imgs);
-    ase_ok := Aseprite_Loader.load("resources/sprites/numbers.ase", *imgs);
-    assert(ase_ok);
-
-    //#import "stb_image_write";
-    //for imgs {
-        //res := stbi_write_png(temp_c_string(tprint("temp_%.png", it_index)), cast(s32)it.width, cast(s32)it.height, 4, it.pixels.data, cast(s32)(it.width * 4));
-        //assert(res != 0);
-    //}
-
-    //main_game();
-    
-    //wbml :: #import "wbml";
-    //wbml.run_tests();
-}
-
-main_game :: () {
     Debug.init();
     GWP.init();
     context.allocator = GWP.allocator;

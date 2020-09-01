@@ -8,6 +8,9 @@
 // paletted aseprite images.
 //
 
+Special_Layer_Names :: struct {
+    _pivot :: "_pivot";
+}
 
 Color_Mode :: enum u16 { // color depth (bits per pixel)
     Indexed   :: 8;
@@ -67,7 +70,17 @@ Layer_Type :: enum u16 {
 }
 
 Layer :: struct {
-    flags: u16;
+    Flags :: enum u16 {
+        Visible             :: 1;
+        Editable            :: 2;
+        Lock_Movement       :: 4;
+        Background          :: 8;
+        Prefer_Linked_Cells :: 16;
+        Group_Collapsed     :: 32;
+        Reference_Layer     :: 64;
+    }
+
+    flags: Flags;
     type: Layer_Type;
     child_level: u16;
     blend_mode: u16;
@@ -129,8 +142,8 @@ Color :: struct {
 }
 
 Frame :: struct {
-    width: int;
-    height: int;
+    width: s32;
+    height: s32;
     pixels: []Color; // rgba
 
     duration_ms: u16;
@@ -238,9 +251,20 @@ bytes_to_pixels :: (bytes: []u8, pixels: []Color, mode: Color_Mode, palette: []C
 
 }
 
-load :: (filename: string, raw_frames: *[]Frame) -> bool {
+Sprite_Info :: struct {
+    ok: bool;
+    pivot_x: s16 = -1;
+    pivot_y: s16 = -1;
+}
+
+load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
+    info: Sprite_Info;
+
     bytes, ok := File.read_entire_file(filename);
-    if !ok return err_print_return("cannot read", filename);
+    if !ok {
+        print("cannot read: %\n", filename);
+        return info;
+    }
 
     buf: Buffer;
     buf.bytes = cast([]u8)bytes;
@@ -255,7 +279,10 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
 
         size = read_DWORD(b); // file size
         magic_number = read_WORD(b);
-        if magic_number != 0xA5E0 return err_print_return("invalid ASE Header magic number");
+        if magic_number != 0xA5E0 {
+            print("invalid ASE Header magic number");
+            return info;
+        }
         num_frames     = read_WORD(b);
         width          = read_WORD(b);
         height         = read_WORD(b);
@@ -264,11 +291,11 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
         speed          = read_WORD(b); // deprecated
         pad_1          = read_DWORD(b);
         pad_2          = read_DWORD(b);
-        transparent_color_index = read(b, u8);
+        transparent_color_index = read_BYTE(b);
         read(b, [3]u8); // ignore
         num_colors     = read_WORD(b);
-        pixel_width    = read(b, u8);
-        pixel_height   = read(b, u8);
+        pixel_width    = read_BYTE(b);
+        pixel_height   = read_BYTE(b);
         grid_x_pos     = read_SHORT(b);
         grid_y_pos     = read_SHORT(b);
         grid_width     = read_WORD(b);
@@ -282,7 +309,16 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
     assert(bytes_per_pixel == 4 || bytes_per_pixel == 2 || bytes_per_pixel == 1);
     assert(bytes_per_pixel == 4, "TODO: implement other bpp");
 
-    <<raw_frames = NewArray(header.num_frames, Frame);
+    (<<raw_frames) = NewArray(header.num_frames, Frame);
+
+    // We keep a fake Frame around to stamp cels in the '_pivot' layer to.
+    pivot_frame: *Frame; 
+    defer {
+        if pivot_frame != null {
+            deinit_Frame(pivot_frame);
+            free(pivot_frame);
+        }
+    }
 
     // TODO: can frames have different sizes?
 
@@ -295,8 +331,15 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
         #assert(size_of(Frame_Header) == 16);
         frame_header, frame_header_ok := read(*buf, Frame_Header);
 
-        if !frame_header_ok return err_print_return("not enough bytes for frame header");
-        if frame_header.magic_number != 0xF1FA return err_print_return("Frame_Header invalid magic number, got %\n", frame_header.magic_number);
+        if !frame_header_ok {
+            print("not enough bytes for frame header\n");
+            return info;
+        }
+
+        if frame_header.magic_number != 0xF1FA {
+            print("Frame_Header invalid magic number, got %\n", frame_header.magic_number);
+            return info;
+        }
 
         num_chunks := frame_header.num_chunks;
         if num_chunks == 0 num_chunks = cast(u32)frame_header.num_chunks_old;
@@ -304,11 +347,8 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
 
         frame := *((<<raw_frames)[frame_i]);
         {
-            using frame;
-            width       = cast(int)header.width;
-            height      = cast(int)header.height;
-            pixels      = NewArray(header.width * header.height, Color);
-            duration_ms = frame_header.duration_ms;
+            init_Frame(frame, header.width, header.height);
+            frame.duration_ms = frame_header.duration_ms;
         }
 
         for _: 0..num_chunks-1 {
@@ -321,7 +361,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
                     last_layer = array_add(*layers);
                     {
                         using last_layer;
-                        flags       = read_WORD(b);
+                        flags       = read(b, Layer.Flags);
                         type        = read(b, Layer_Type);
                         child_level = read_WORD(b);
                         read_WORD(b); // unused width
@@ -351,15 +391,34 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
                     palette := read_or_panic(*buf, Palette);
                     for _: 0..palette.num_entries-1 {
                         entry := read_or_panic(*buf, Palette_Entry);
-                        tprint("entry %\n", entry);
+                        //print("entry %\n", entry);
                         if entry.flags & 1 != 0 {
                             entry_name := read_string(*buf);
-                            print("  entry name: %\n", entry_name);
+                            //print("  entry name: %\n", entry_name);
                         }
                     }
+                case .COLOR_PROFILE;
+                    Color_Profile_Type :: enum u16 {
+                        No_Color_Profile     :: 0;
+                        sRGB                 :: 1;
+                        Embedded_ICC_Profile :: 2;
+                    }
+                    Color_Profile_Flags :: enum_flags u16 {
+                        Special_Fixed_Gamma :: 1;
+                    }
+                    profile_type := read(b, Color_Profile_Type);
+                    flags        := read(b, Color_Profile_Flags);
+                    gamma        := read(b, float);
+                    print("% % %\n", profile_type, flags, gamma);
+                    read(b, [8]u8); // future
+                    if profile_type == .Embedded_ICC_Profile {
+                        profile_data := read_string(b, u32);
+                        print("read icc profile: %\n", profile_data);
+                    }
+                    // TODO: actually handle and do something with the color profile here.
                 case .CEL;
-                    cel_type: Cel_Type;
                     cel: Cel;
+                    cel_type: Cel_Type;
                     {
                         using cel;
                         layer_index = read_WORD(b);
@@ -391,15 +450,31 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
                             buf.offset += num_compressed_bytes;
 
                             ok := uncompress(compressed, bytes);
-                            if !ok return err_print_return("error uncompressing cel data");
+                            if !ok {
+                                print("error uncompressing cel data\n");
+                                return info;
+                            }
                         } else {
                             assert(false);
                         }
 
                         cel.pixels = NewArray(cel.width * cel.height, Color);
                         bytes_to_pixels(bytes, cel.pixels, header.bits_per_pixel, palette);
-                        cel_to_frame(frame, *cel, *layers[cel.layer_index]);
-                        //print("stamped cel with layer % on frame %\n", layers[cel.layer_index].name, frame_i);
+
+                        // TODO: @Speed don't allocate and call bytes_to_pixels for
+                        // invisible or ignored layers.
+
+                        cel_layer := *layers[cel.layer_index];
+                        if cel_layer.name == Special_Layer_Names._pivot {
+                            if pivot_frame == null {
+                                // Lazily create the pivot frame only if we need to.
+                                pivot_frame = New(Frame);
+                                init_Frame(pivot_frame, header.width, header.height);
+                            }
+                            cel_to_frame(pivot_frame, *cel, cel_layer);
+                        } else if cel_layer.flags & .Visible {
+                            cel_to_frame(frame, *cel, cel_layer);
+                        }
                     } else {
                         assert(false, tprint("unsupported cel type %", cel_type));
                     }
@@ -418,7 +493,39 @@ load :: (filename: string, raw_frames: *[]Frame) -> bool {
         }
     }
 
-    return true;
+    // If we had a "_pivot" layer, find the middle point of all its pixels
+    // and save that as the sprite's "pivot". (passed as 'offset' in raylib).
+    if pivot_frame != null {
+        c := 0;
+        total := 0;
+        min_pt: [2]s32 = .[9999999, 9999999];
+        max_pt: [2]s32 = .[0, 0];
+        for y: 0..pivot_frame.height-1 {
+            for x: 0..pivot_frame.width-1 {
+                color := pivot_frame.pixels[c];
+                c += 1;
+
+                if color.a > 0 {
+                    total += 1;
+                    min_pt[0] = min(min_pt[0], x);
+                    min_pt[1] = min(min_pt[1], y);
+
+                    max_pt[0] = max(max_pt[0], x);
+                    max_pt[1] = max(max_pt[1], y);
+                }
+            }
+        }
+
+        if total > 0 {
+            info.pivot_x = cast(s16)(cast(float)(min_pt[0] + max_pt[0]) / 2.0);
+            info.pivot_y = cast(s16)(cast(float)(min_pt[1] + max_pt[1]) / 2.0);
+        }
+
+        print("calculated pivot from % points: % %\n", total, info.pivot_x, info.pivot_y);
+    }
+
+    info.ok = true;
+    return info;
 }
 
 #scope_file
@@ -460,8 +567,8 @@ read_bytes :: (buf: *Buffer, num_bytes: int) -> []u8 {
     return slice;
 }
 
-read_string :: (buf: *Buffer) -> string {
-    length := cast(int)read_or_panic(buf, u16);
+read_string :: (buf: *Buffer, $count_type := u16) -> string {
+    length := cast(int)read_or_panic(buf, count_type);
     assert(length < 1000, "string of length more than 'sane' value 1000");
 
     s: string;
@@ -511,4 +618,16 @@ uncompress :: (compressed_bytes: []u8, dest: []u8) -> bool {
     ret_code := miniz.uncompress(dest.data, *dest_len, compressed_bytes.data, cast(u64)compressed_bytes.count);
     assert(dest_len == cast(u64)asked_for_len);
     return ret_code == .OK;
+}
+
+init_Frame :: (frame: *Frame, width: s32, height: s32) {
+    assert(width > 0 && height > 0);
+    assert(width < 10000 && height < 10000);
+    frame.width = width;
+    frame.height = height;
+    frame.pixels = NewArray(width * height, Color);
+}
+
+deinit_Frame :: (frame: *Frame) {
+    array_free(frame.pixels);
 }

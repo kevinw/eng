@@ -11,6 +11,44 @@ platform :: #import "platform";
 
 window_rect: Rectangle;
 
+push_mode_2D :: (camera: Camera2D) #expand {
+    begin_mode_2D(camera);
+    `defer EndMode2D();
+}
+
+begin_mode_2D :: (camera: Camera2D) {
+    rlglDraw();                         // Draw Buffers (Only OpenGL 3+ and ES2)
+    rlLoadIdentity();                   // Reset current matrix (modelview)
+    floats := MatrixToFloatV(get_cam_matrix_2D(camera));
+    rlMultMatrixf(floats.v.data);
+}
+
+get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
+    // The camera in world-space is set by
+    //   1. Move it to target
+    //   2. Rotate by -rotation and scale by (1/zoom)
+    //      When setting higher scale, it's more intuitive for the world to become bigger (= camera become smaller),
+    //      not for the camera getting bigger, hence the invert. Same deal with rotation.
+    //   3. Move it by (-offset);
+    //      Offset defines target transform relative to screen, but since we're effectively "moving" screen (camera)
+    //      we need to do it into opposite direction (inverse transform)
+
+    // Having camera transform in world-space, inverse of it gives the modelview transform.
+    // Since (A*B*C)' = C'*B'*A', the modelview is
+    //   1. Move to offset
+    //   2. Rotate and Scale
+    //   3. Move by -target
+    DEG2RAD :: 3.141592 / 180.0;
+
+    matOrigin := MatrixTranslate(-camera.target.x, -camera.target.y, 0.0);
+    matRotation := MatrixRotate(Vector3.{ 0.0, 0.0, 1.0 }, camera.rotation*DEG2RAD);
+    matScale := MatrixScale(camera.zoom, camera.zoom, 1.0);
+    matTranslation := MatrixTranslate(camera.offset.x, camera.offset.y, 0.0);
+
+    return MatrixMultiply(MatrixMultiply(matOrigin, MatrixMultiply(matScale, matRotation)), matTranslation);
+}
+
+
 ToggleFakeFullscreen :: () {
     handle := GetWindowHandle();
 
@@ -362,7 +400,7 @@ test_parent_struct :: () {
     parent_ptr := get_parent_struct(Parent, child_ptr);
 
     assert(*p == parent_ptr);
-}
+} @test
 
 
 
