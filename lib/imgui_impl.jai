@@ -9,9 +9,7 @@
 Clipboard :: #import "Clipboard";
 Input :: #import "Input";
 
-#scope_file
-
-_ui_state: struct {
+UI_State :: struct {
     ctx: *ImGui.Context;
 
     Time: float64 = 0.0;
@@ -30,10 +28,6 @@ _ui_state: struct {
     VaoHandle: GLuint = 0;
     ElementsHandle: GLuint = 0;
 };
-
-#scope_export
-
-UI_State :: type_of(_ui_state);
 
 _render_ui_state: *UI_State;
 
