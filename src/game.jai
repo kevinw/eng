@@ -3,6 +3,7 @@
 #import "raygui";
 #import "raymath";
 #import "toolbelt";
+Math :: #import "Math";
 wbml :: #import "wbml";
 screenlog :: #import "screenlog";
 reaper :: #import "reaper";
@@ -134,7 +135,7 @@ load_from_aseprite :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
     }
 
     atlas_img := GenImageColor(total_width, total_height, Color.{0, 0, 0, 0});
-    print("generating atlas (% x %) for '%'\n", total_width, total_height, filename);
+    print_time("generating atlas (% x %) for '%'", total_width, total_height, filename);
     
     dest_rect: Rectangle;
     for imgs {
@@ -441,7 +442,7 @@ update_and_draw :: () {
     Time.unscaled_now = GetTime();
 
 
-    if IsKeyPressed(.KEY_TAB)
+    if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
         editor_toggle(*state);
 
     // update
@@ -494,7 +495,7 @@ update_and_draw :: () {
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
         }
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
-        if IsKeyPressed(.KEY_F) {
+        if IsKeyPressed(.KEY_F) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
             USE_REAL_FULLSCREEN :: false;
             if USE_REAL_FULLSCREEN {
                 ToggleFullscreen();
