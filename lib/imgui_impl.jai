@@ -200,11 +200,21 @@ ImGui_Impl_ProcessEvent :: (using ui_state: *UI_State, event: Input.Event) -> bo
 }
 
 ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
-    // Build texture atlas
     io := ImGui.GetIO();
-    pixels: *u8;
+    assert(io != null);
+    assert(io.Fonts != null);
+
+    if io.Fonts.TexID != null
+        return false;
+
+    // Build texture atlas
+    pixels: *u8 = null;
     width, height: s32;
+    assert(io.Fonts != null);
     io.Fonts.GetTexDataAsAlpha8(io.Fonts, *pixels, *width, *height);
+    assert(pixels != null);
+    assert(width > 0);
+    assert(height > 0);
     //io.Fonts.GetTexDataAsRGBA32(io.Fonts, *pixels, *width, *height);
 
     // Upload texture to graphics system
@@ -338,6 +348,8 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     assert(ctx != null, "must call create context");
     ImGui.SetCurrentContext(ctx);
 
+    print("imgui version %\n", to_string(ImGui.GetVersion()));
+
     using Input.Key_Code;
     io := ImGui.GetIO();
     io.KeyMap[ImGui.Key.Tab] = xx TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
@@ -371,6 +383,8 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
 
     // TODO: Cursors
 
+    ImGui_Impl_CreateDeviceObjects(ui_state);
+
     return true;
 }
 
@@ -383,9 +397,6 @@ ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, displa
     using ui_state;
 
     _render_ui_state = ui_state; // TODO
-
-    if !FontTexture
-        ImGui_Impl_CreateDeviceObjects(ui_state);
 
     io := ImGui.GetIO();
 
