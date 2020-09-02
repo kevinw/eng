@@ -30,11 +30,14 @@ get_gamepad_stick :: (gamepad: int, x_axis: GamepadAxis, y_axis: GamepadAxis, DE
     return stick;
 }
 
-Input_Type :: enum u16 {
-    KEYBOARD_WASD   :: 1 << 0;
-    KEYBOARD_ARROWS :: 1 << 1;
-    GAMEPAD         :: 1 << 2;
-    ALL             :: 0xffff;
+Input_Type :: enum_flags u16 {
+    KEYBOARD_WASD       :: 1 << 0;
+    KEYBOARD_ARROWS     :: 1 << 1;
+    GAMEPAD_LEFT_STICK  :: 1 << 2;
+    GAMEPAD_RIGHT_STICK :: 1 << 3;
+    GAMEPAD_DPAD        :: 1 << 4;
+    GAMEPAD             :: GAMEPAD_LEFT_STICK | GAMEPAD_DPAD;
+    ALL                 :: 0xffff;
 }
 
 Axes :: enum u16 {
@@ -69,15 +72,16 @@ movement :: (input_types := Input_Type.ALL, axes := Axes.BOTH) -> Vector2 {
         }
     }
 
-    if input_types & .GAMEPAD {
-        gamepad :: 0; // the gamepad index
+    gamepad :: 0; // the gamepad index
 
-        // gamepad stick
+    if input_types & .GAMEPAD_LEFT_STICK
         move += get_gamepad_stick(gamepad, .GAMEPAD_AXIS_LEFT_X, .GAMEPAD_AXIS_LEFT_Y);
+    
+    if input_types & .GAMEPAD_RIGHT_STICK
+        move += get_gamepad_stick(gamepad, .GAMEPAD_AXIS_RIGHT_X, .GAMEPAD_AXIS_RIGHT_Y);
 
-        // gamepad dpad
+    if input_types & .GAMEPAD_DPAD
         move += get_gamepad_dpad(gamepad);
-    }
 
     if move.x != 0 || move.y != 0
         move = Vector2Normalize(move);

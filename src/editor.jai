@@ -44,6 +44,7 @@ use the animation to "go back" to the prefab when you zoom in on it
 
 #scope_file
 
+Math :: #import "Math";
 wbml :: #import "wbml";
 inp :: #import "inp";
 File :: #import "File";
@@ -116,7 +117,12 @@ editor_update :: (state: *State) {
     if IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)
         editor_cam_speed *= 2;
 
-    state.camera.target += Vector2_Scale(v2(1, -1), inp.movement(.KEYBOARD_WASD)) * editor_cam_speed * Time.delta_time;
+    cam_movement := inp.movement(inp.Input_Type.KEYBOARD_WASD);
+    cam_movement += Vector2_Scale(v2(1, -1), inp.movement(inp.Input_Type.GAMEPAD_RIGHT_STICK));
+    if cam_movement.x != 0 || cam_movement.y != 0
+        cam_movement = normalize(cam_movement);
+
+    state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * Time.delta_time;
 
     took_action := false;
     ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
@@ -153,7 +159,7 @@ editor_update :: (state: *State) {
         drag_state.dragging = false;
 
         rect := rect_from_points(drag_state.origin, world_mouse_pos);
-        if rect.width > 5 || rect.height > 5 {
+        if rect.width > 5 && rect.height > 5 {
             color := RED;
             color.b = cast(u8)random_get_within_range(100, 255);
 
