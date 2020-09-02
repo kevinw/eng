@@ -33,12 +33,16 @@ is_window_active :: inline (native_handle: *void) -> bool {
 }
 
 set_window_borderless :: (native_handle: *void, borderless: bool) {
-    if borderless SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_POPUP);
-    else SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+    #if OS == .WINDOWS {
+        if borderless SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+        else SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+    }
 }
 
 is_window_borderless :: (native_handle: *void) -> bool {
-    return !(GetWindowLongW(native_handle, GWL_STYLE) & WS_OVERLAPPEDWINDOW);
+    #if OS == .WINDOWS
+        return !(GetWindowLongW(native_handle, GWL_STYLE) & WS_OVERLAPPEDWINDOW);
+    return false;
 }
 
 get_window_size :: (native_handle: *void) -> (w: s32, h: s32) {
@@ -63,8 +67,7 @@ is_window_always_on_top :: inline (native_handle: *void) -> bool {
 }
 
 toggle_always_on_top :: (native_handle: *void) -> bool {
-    top := is_window_always_on_top(native_handle);
-    new_val := !top;
+    new_val := !is_window_always_on_top(native_handle);
     set_window_always_on_top(native_handle, new_val);
     return new_val;
 }
