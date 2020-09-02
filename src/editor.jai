@@ -238,10 +238,6 @@ editor_draw_ui :: () {
     using state.editor;
     if play_mode == .Play return;
 
-    if GuiButton(rect(40, GetScreenHeight() - 100, 100, 60), "Hello") {
-        print("hello %\n");
-    }
-
     DrawText(tprint("% %", cast(int)world_mouse_pos.x, cast(int)world_mouse_pos.y), 0, 0, 0, BLUE);
 }
 

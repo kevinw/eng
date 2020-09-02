@@ -143,12 +143,21 @@ set_default_font :: (font_ptr: *Font) {
     default_font = font_ptr;
 }
 
+print_time :: (msg: string, args: ..Any) #expand {
+    // Measure the time from now until the end of the current scope,
+    // printing a message now and then, showing the time it took to
+    // get there.
+
+    s := ifx args.count > 0 tprint(msg, ..args) else msg;
+    print("%...\n", s);
+    `__print_time_now := GetTime();
+    `defer print("% took %\n", s, GetTime() - __print_time_now);
+}
+
 set_default_font :: (font_ptr: *Font, filename: string) {
     default_font = font_ptr;
-    print("loading font...");
-    now := GetTime();
+    print_time("loading font");
     <<default_font = LoadFontEx(constant_or_temp_cstring(filename), xx 40, xx 0, xx 200);
-    print("took %\n", GetTime() - now);
 }
 
 draw_texture :: (tex: Texture2D, source_rect: Rectangle, dest_rect: Rectangle, origin: Vector2 = .{0, 0}, rotation: float = 0, tint:Color = WHITE) {
@@ -504,5 +513,65 @@ print_hex_bytes :: (data: []u8) {
     print("\n");
 }
 
+
+print_locals :: (code: Code) #expand {
+    generate_print_statements :: (code: Code) -> Code {
+        root, expressions := compiler_get_nodes(code);
+
+        // Collect all the idents.
+        idents: [..]string;
+        for expressions
+            if it.kind == .IDENT
+                array_add(*idents, (cast(*Code_Ident)it).name);
+
+        // For each one, make a print statement.
+        statements := NewArray(idents.count, *Code_Node);
+        for idents {
+            proc_call := New(Code_Procedure_Call);
+            proc_call.kind = .PROCEDURE_CALL;
+            proc_call.procedure_expression = New_Ident("print");
+
+            arguments_unsorted: [..]Code_Argument;
+            array_add(*arguments_unsorted,
+                make_Code_Argument(make_string_literal(tprint("%: %%\n", it))),
+                make_Code_Argument(New_Ident(it, Code_Ident.HAS_SCOPE_MODIFIER))
+            );
+            proc_call.arguments_unsorted = arguments_unsorted;
+
+            arguments_sorted: [..]*Code_Node;
+            for arguments_unsorted
+                array_add(*arguments_sorted, it.expression);
+            proc_call.arguments_sorted = arguments_sorted;
+
+            statements[it_index] = proc_call;
+        }
+
+        block := New(Code_Block);
+        block.kind = .BLOCK;
+        block.parent = null;
+        block.statements = statements;
+        block.block_type = Code_Block.Block_Type.IMPERATIVE;
+
+        return compiler_get_code(block);
+    }
+
+    #insert_internal #run generate_print_statements(code);
+}
+
+
+make_Code_Argument :: (expression: *Code_Node, name: *Code_Ident = null) -> Code_Argument {
+    arg: Code_Argument;
+    arg.expression = expression;
+    arg.name = name;
+    return arg;
+}
+
+New_Ident :: (name: string, flags: u32 = 0) -> *Code_Ident {
+    ident := New(Code_Ident);
+    ident.kind = .IDENT;
+    ident.name = name;
+    ident.flags = flags;
+    return ident;
+}
 
 //#run test_round();
