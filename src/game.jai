@@ -277,11 +277,11 @@ update_bgm_volume :: () {
 }
 
 on_host_did_reload_game_dll :: () {
-    set_default_font(*state.default_font);
+    using state;
 
-    ImGui_Impl_InvalidateDeviceObjects(*state.ui);
-    ImGui_Impl_Init(*state.ui, GetWindowHandle());
+    set_default_font(*default_font);
 
+    ImGui_Impl_Init(*ui, GetWindowHandle());
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 

@@ -149,7 +149,7 @@ main :: () {
 
     #if ALWAYS_ON_TOP
         if cmdline_args.topmost_window
-            platform.SetWindowAlwaysOnTop(GetWindowHandle());
+            platform.set_window_always_on_top(GetWindowHandle());
 
     if cmdline_args.live_reload {
         hotloader_init(".", _DEBUG_LOGGING=false);
@@ -170,13 +170,26 @@ main :: () {
         plugin_deinit(*ctx, shutting_down = true);
     }
 
+    native_window_handle := GetWindowHandle();
+    window_was_active := platform.is_window_active(native_window_handle);
+
     SetTargetFPS(60);
     frame_count := 0;
     while !WindowShouldClose() {
         frame_count += 1;
 
+        // Set the window to be a little transparent when it's not in focus, if we're always on top.
+        {
+            win_active := platform.is_window_active(native_window_handle);
+            if !win_active && window_was_active && platform.is_window_always_on_top(native_window_handle)
+                platform.set_window_opacity(native_window_handle, 0.63);
+            else if win_active && !window_was_active
+                platform.set_window_opacity(native_window_handle, 1.0);
+            window_was_active = win_active;
+        }
+
         if IsKeyPressed(.KEY_ZERO) {
-            top := platform.toggle(GetWindowHandle());
+            top := platform.toggle_always_on_top(native_window_handle);
             logprint("host", ifx top then "window always on top" else "window not topmost");
         }
 
@@ -205,14 +218,13 @@ main :: () {
         reset_temporary_storage();
     }
 
-    if !IsWindowFullscreen() && !platform.IsWindowBorderless(GetWindowHandle()) {
+    if !IsWindowFullscreen() && !platform.is_window_borderless(native_window_handle) {
         builder: String_Builder;
         defer free_buffers(*builder);
 
         append(*builder, "[1]\n\n");
         pos := GetWindowPosition();
-        print_to_builder(*builder, "window_pos_x %\n", cast(s32)pos.x);
-        print_to_builder(*builder, "window_pos_y %\n", cast(s32)pos.y);
+        print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\n", cast(s32)pos.x, cast(s32)pos.y);
 
         output := builder_to_string(*builder);
         defer free(output);
