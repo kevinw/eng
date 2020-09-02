@@ -1,14 +1,5 @@
 #placeholder state;
 
-#import "Basic";
-#import "Text_File_Handler";
-#import "config";
-#import "String";
-#import "raylib";
-#import "raymath";
-Math :: #import "Math";
-platform :: #import "platform";
-
 window_rect: Rectangle;
 
 push_mode_2D :: (camera: Camera2D) #expand {
@@ -149,9 +140,9 @@ print_time :: (msg: string, args: ..Any) #expand {
     // get there.
 
     s := ifx args.count > 0 tprint(msg, ..args) else msg;
-    print("%...\n", s);
+    print("%...", s);
     `__print_time_now := GetTime();
-    `defer print("% took %\n", s, GetTime() - __print_time_now);
+    `defer print("took %\n", GetTime() - __print_time_now);
 }
 
 set_default_font :: (font_ptr: *Font, filename: string) {
@@ -575,3 +566,15 @@ New_Ident :: (name: string, flags: u32 = 0) -> *Code_Ident {
 }
 
 //#run test_round();
+
+#scope_file
+
+#import "Basic";
+#import "Text_File_Handler";
+#import "config";
+#import "String";
+#import "raylib";
+#import "raymath";
+#import "Compiler";
+Math :: #import "Math";
+platform :: #import "platform";
