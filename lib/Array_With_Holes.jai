@@ -41,47 +41,67 @@ init_array_with_holes :: (arr: *$A/Array_With_Holes) {
 }
 
 allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
-    assert(arr.items != null);;
+    assert(arr.items != null);
 
-    slot := arr.items[0].next;
-    arr.items[0].next = arr.items[slot].next;
-    if slot != 0 {
-        handle: A.Handle;
-        handle.id = slot;
-        assert(arr.items[slot].generation <= 0);
-        arr.items[slot].generation *= -1;
-        handle.generation = arr.items[slot].generation;
-        return handle, *arr.items[slot].value;
+    slot_index := arr.items[0].next;
+    arr.items[0].next = arr.items[slot_index].next;
+    if slot_index != 0 {
+        assert(arr.items[slot_index].generation <= 0);
+        arr.items[slot_index].generation *= -1;
+    } else {
+        // If it was zero, the freelist is empty.
+        arr.count += 1;
+        assert(size_of(A.Slot) * arr.count < A.Max_Bytes);
+        slot_index = cast(u32)arr.count;  // here we intentionally don't subtract one, to account for the freelist slot at 0
+        assert(arr.items[slot_index].generation == 0);
     }
 
-    // If it was zero, the freelist is empty.
-    arr.count += 1;
-    assert(size_of(A.Slot) * arr.count < A.Max_Bytes);
+    arr.items[slot_index].generation += 1;
+    assert(arr.items[slot_index].generation > 0);
 
     handle: A.Handle;
-    handle.id = cast(u32)arr.count;  // here we intentionally don't subtract one, to account for the freelist slot at 0
-    assert(arr.items[arr.count].generation <= 0);
-    arr.items[arr.count].generation *= -1;
-    handle.generation = arr.items[arr.count].generation;
-    return handle, *arr.items[arr.count].value;
+    handle.id = slot_index;
+    handle.generation = arr.items[slot_index].generation;
+
+    memory := *arr.items[slot_index].value;
+    Construct(memory, A.Value_Type);
+
+    return handle, memory;
 }
 
-delete_item :: (arr: *$A, handle: A.Handle) {
-    arr.items[handle.id].generation += 1; // advance this slot to the next generation
-    arr.items[handle.id].generation *= -1;
+delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
+    assert(handle.id > 0, "delete_item(handle=%)", handle);
+    assert(handle.id <= arr.count);
+    assert(handle.generation > 0);
+
+    slot := *arr.items[handle.id];
+    assert(slot.generation > 0, tprint("generation was % in slot % (handle expected gen %)", slot.generation, handle.id, slot.generation));
+
+    // If it's already been deleted and we have a stale handle, just return
+    // false.
+    if handle.generation != slot.generation
+        return false;
+
+    slot.generation *= -1;
+    assert(slot.generation < 0);
 
     // Add to the freelist, which is stored in slot 0.
     arr.items[handle.id].next = arr.items[0].next;
     arr.items[0].next = handle.id;
+
+    return true;
 }
 
 add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
-    slot := allocate_slot(arr);
-    arr.items[slot.id].value = value;
-    return slot;
+    handle := allocate_slot(arr);
+    arr.items[handle.id].value = value;
+    return handle;
 }
 
 get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
+    assert(handle.id > 0);
+    assert(handle.generation > 0);
+
     slot := arr.items[handle.id];
     if slot.generation == handle.generation
         return true, slot.value;
@@ -90,6 +110,9 @@ get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type
 }
 
 get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
+    assert(handle.id > 0);
+    assert(handle.generation > 0);
+
     slot := *arr.items[handle.id];
     if slot.generation == handle.generation
         return *slot.value;
@@ -106,13 +129,17 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
     index := 0;
     n := 1; // start at one to ignore the first freelist hole
     while n <= arr.count {
-        slot := arr.items[n];
+        slot := *arr.items[n];
         n += 1;
 
         if slot.generation < 0 continue; // dead
 
-        #if pointer `it := *slot.value;
-        else `it := slot.value;
+        #if pointer {
+            `it := *slot.value;
+        }
+        else {
+            `it := slot.value;
+        }
 
         `it_index := index;
         #insert body;

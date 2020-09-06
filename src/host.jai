@@ -124,6 +124,7 @@ main :: () {
     }
 
     SetTraceLogLevel(.LOG_WARNING); // raylib
+    //SetTraceLogLevel(.LOG_ALL); // raylib
 
     host_config_name :: "setup.cfg";
 

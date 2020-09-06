@@ -7,3 +7,6 @@ BoxCollider :: struct {
     using component: Component;
     collision: Collision_Type;
 }
+
+on_enable :: (using it: *BoxCollider, parent_entity: *Entity) {
+}

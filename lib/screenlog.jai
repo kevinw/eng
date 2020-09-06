@@ -36,6 +36,9 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
+    if ident.count == 0 || ident[0] != #char "="
+        print("%: %\n", ident, message);
+
     new_ident := copy_string_z(ident);
     new_message := copy_string_z(message);
 

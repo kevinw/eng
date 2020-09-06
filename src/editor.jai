@@ -42,16 +42,6 @@ idea: animate the changes from a prefab to the current instance to show the diff
 use the animation to "go back" to the prefab when you zoom in on it
 */
 
-#scope_file
-
-Math :: #import "Math";
-wbml :: #import "wbml";
-inp :: #import "inp";
-File :: #import "File";
-#import "Random";
-
-#scope_module
-
 Play_Mode :: enum {
     Play;
     Edit;
@@ -106,6 +96,12 @@ editor_draw :: (state: *State) {
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
     DrawText("editing", 275, 330, 20, color);
+
+    #if IMGUI_ENABLED {
+        ImGui.Begin("state", *ui_open);
+        inspect("state", *state);
+        ImGui.End();
+    }
 }
 
 editor_update :: (state: *State) {
@@ -271,3 +267,11 @@ save_scene :: (name: string) {
 
     logprint("editor", "saved %", filename);
 }
+
+#scope_file
+Math :: #import "Math";
+wbml :: #import "wbml";
+inp :: #import "inp";
+File :: #import "File";
+#import "Random";
+#import "Array_With_Holes";

@@ -3,6 +3,7 @@
 #import "raygui";
 #import "raymath";
 #import "toolbelt";
+#import "Sprite_Anim";
 Math :: #import "Math";
 wbml :: #import "wbml";
 screenlog :: #import "screenlog";
@@ -10,6 +11,8 @@ reaper :: #import "reaper";
 inp :: #import "inp";
 
 SOUND_ENABLED :: true;
+HOTLOADING_ENABLED :: true;
+
 #load "game_sound_soloud.jai";
 
 #load "player.jai";
@@ -20,11 +23,14 @@ SOUND_ENABLED :: true;
 #import "entity";
 #load "editor.jai";
 
-#load "live_raylib.jai";
+#import "live_raylib";
+#import "Live_Types";
 #load "plugin_exports.jai";
 
 #load "../lib/imgui_inspector.jai";
 
+
+IMGUI_ENABLED :: false;
 
 gameWidth :: 640;
 gameHeight :: 360;
@@ -36,147 +42,19 @@ GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
 
 envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> *Entity {
-    e := create_entity(world);
+    entity, entity_handle := create_entity(world);
+    assert(entity != null);
 
-    e.position.xy = v2(x, y);
-    e.scale = make_Vector3(width, height, 1);
+    entity.position.xy = v2(x, y);
+    entity.scale = make_Vector3(width, height, 1);
 
-    box := add_component(e, BoxCollider);
+    box := add_component(entity_handle, BoxCollider);
     box.collision = .PLATFORM;
 
-    renderer := add_component(e, RectRenderer);
+    renderer := add_component(entity_handle, RectRenderer);
     renderer.color = color;
 
-    return e;
-}
-
-SpriteAnim :: struct {
-    MAX_FRAME_COUNT :: 500;
-
-    Frame :: struct {
-        texture: Texture;
-        rect: Rectangle;
-        offset: Vector2;
-        duration_secs: float;
-    }
-
-    Tag :: struct {
-        name: string;
-        frames: []Frame; @Weak
-        tag_duration_secs: float;
-    }
-
-    frames: [..]Frame;
-    total_duration_secs: float;
-    tags: [..]Tag;
-}
-
-deinit :: (using sprite_anim: *SpriteAnim) {
-    array_free(frames);
-    for tags free(it.name);
-    array_free(tags);
-}
-
-get_frame :: (using sprite_anim: *SpriteAnim, timer: float64, tag_name := "") -> (bool, SpriteAnim.Frame) {
-    assert(total_duration_secs > 0);
-
-    frames_to_iterate:[]Frame = frames;
-
-    duration := total_duration_secs;
-
-    if tag_name.count > 0 {
-        found := false;
-        for * tags if it.name == tag_name {
-            frames_to_iterate = it.frames;
-            duration = it.tag_duration_secs;
-            found = true;
-        }
-
-        if !found logprint("=spriteanim", "no tag named '%'", tag_name);
-    }
-
-    timer_mod := Math.fmod(timer, duration);
-
-    t := 0.0;
-    for * frames_to_iterate {
-        t += it.duration_secs;
-        if t > timer_mod
-            return true, << it;
-    }
-
-    assert(false, "couldn't get a spriteanim rect");
-    return false, .{};
-}
-
-draw_sprite_anim :: (using sprite_anim: *SpriteAnim, time: float64, pos: Vector2, tag_name := "") {
-    assert(sprite_anim != null);
-    assert(frames.count > 0);
-    assert(frames.count < MAX_FRAME_COUNT);
-    ok, frame := get_frame(sprite_anim, time, tag_name);
-    if ok {
-        dest_rect := rect(pos.x, pos.y, frame.rect.width, frame.rect.height);
-        draw_texture(frame.texture, frame.rect, dest_rect, frame.offset);
-    }
-}
-
-load_from_aseprite :: (sprite_anim: *SpriteAnim, filename: string) -> bool {
-    assert(sprite_anim.frames.count == 0);
-
-    Aseprite_Loader :: #import "Aseprite_Loader";
-    imgs: []Aseprite_Loader.Frame;
-    sprite_info := Aseprite_Loader.load(filename, *imgs);
-    if !sprite_info.ok return false;
-
-    total_width:s32 = 0;
-    total_height:s32 = 0;
-    for imgs {
-        total_width += it.width;
-        total_height = max(total_height, it.height);
-    }
-
-    atlas_img := GenImageColor(total_width, total_height, Color.{0, 0, 0, 0});
-    print_time("generating atlas (% x %) for '%'", total_width, total_height, filename);
-    
-    dest_rect: Rectangle;
-    for imgs {
-        src_img := LoadImageEx(cast(*Color)it.pixels.data, it.width, it.height);
-        defer UnloadImage(src_img);
-
-        src_rect := make_Rectangle(0, 0, it.width, it.height);
-        dest_rect.width = cast(float)it.width;
-        dest_rect.height = cast(float)it.height;
-        ImageDraw(*atlas_img, src_img, src_rect, dest_rect, WHITE);
-
-        frame := array_add(*sprite_anim.frames);
-        frame.rect = dest_rect;
-        frame.duration_secs = cast(float)it.duration_ms / 1000.0;
-        if sprite_info.pivot_x != -1
-            frame.offset.x = cast(float)sprite_info.pivot_x;
-        if sprite_info.pivot_y != -1
-            frame.offset.y = cast(float)sprite_info.pivot_y;
-        sprite_anim.total_duration_secs += frame.duration_secs;
-
-        dest_rect.x += dest_rect.width;
-    }
-
-    tex := LoadTextureFromImage(atlas_img);
-
-    for imgs
-        sprite_anim.frames[it_index].texture = tex;
-    
-    for sprite_info.tags {
-        entry := array_add(*sprite_anim.tags);
-        entry.name = copy_string(it.name);
-
-        // TODO: make or find a subslice function 
-        entry.frames.data = sprite_anim.frames.data + it.from_frame;
-        entry.frames.count = it.to_frame - it.from_frame + 1;
-
-        for * tag_frame: entry.frames
-            entry.tag_duration_secs += tag_frame.duration_secs;
-    }
-
-    return true;
+    return entity;
 }
 
 State :: type_of(state);
@@ -195,15 +73,13 @@ state: struct {
     default_font: Font;
     global_time_scale:float = 1.0;
 
+    // TODO: this is a kind of weird inversion of control. other files we import
+    // provide the structs that we use here. is that badly designed, or using a
+    // jai feature in a way that is actually fine?
     editor: Editor;
-
     sound_state: Sound_State;
+    live: Live_Asset_Database;
 
-    live: struct {
-        textures: [..]LiveTextureEntry;
-        shaders:  [..]LiveShaderEntry;
-        sprites:  [..]LiveSpriteEntry;
-    };
     muted := true;
     textures: struct {
         gino: Texture;
@@ -211,7 +87,7 @@ state: struct {
     };
     world: World;
     sprites: struct {
-        test_ase: SpriteAnim;
+        test_ase: Sprite_Anim;
         player: struct {
             idle: []Sprite;
             run: []Sprite;
@@ -281,15 +157,20 @@ on_host_did_reload_game_dll :: () {
 
     set_default_font(*default_font);
 
-    ImGui_Impl_Init(*ui, GetWindowHandle());
+    #if IMGUI_ENABLED
+        ImGui_Impl_Init(*ui, GetWindowHandle());
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
 on_host_init :: () {
     using state;
 
-    ImGui_Impl_CreateContext(*ui);
-    ImGui_Impl_Init(*ui, GetWindowHandle());
+    init_world(*world);
+
+    #if IMGUI_ENABLED {
+        ImGui_Impl_CreateContext(*ui);
+        ImGui_Impl_Init(*ui, GetWindowHandle());
+    }
 
     blob = LoadLiveSprite("resources/sprites/blob.aseprite");
 
@@ -359,11 +240,11 @@ on_host_init :: () {
     bg.texture = LoadLiveTexture("resources/textures/space.png");
     bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
 
-    my_obj := create_entity(*world);
-    my_sprite := add_component(my_obj, SpriteRenderer);
-    on_enable(my_sprite);
-    my_sprite.entity.transform.position = Vector3.{380, 380, 0};
-    my_sprite.entity.transform.scale = Vector3.{300, 200, 1};
+    my_obj, my_obj_handle := create_entity(*world);
+    my_obj.transform.position = Vector3.{380, 380, 0};
+    my_obj.transform.scale = Vector3.{300, 200, 1};
+
+    my_sprite := add_component(my_obj_handle, SpriteRenderer);
     my_sprite.sprite = state.sprites.evilplant.idle;
     my_sprite.texture = state.textures.evilplant;
 
@@ -376,12 +257,13 @@ on_host_init :: () {
 
 on_host_shutdown :: () {
     using state;
-    UnloadTexture(bg.texture);
+    UnloadLiveTexture(bg.texture);
     UnloadShader(bg.shader.resource);
 
     #if SOUND_ENABLED
         sound_deinit(*sound_state);
-    ImGui_ImplSdl_Shutdown(*ui);
+    #if IMGUI_ENABLED
+        ImGui_ImplSdl_Shutdown(*ui);
 }
 
 restart :: () {
@@ -419,12 +301,9 @@ change_global_time_scale :: (delta: float) {
 update_and_draw :: () {
     using state;
 
-    ImGui_ProcessRaylibEvents(*state.ui);
-    ImGui_Impl_NewFrame(*state.ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
-    {
-        ImGui.Begin("state", *ui_open);
-        inspect("state", *state);
-        ImGui.End();
+    #if IMGUI_ENABLED {
+        ImGui_ProcessRaylibEvents(*state.ui);
+        ImGui_Impl_NewFrame(*state.ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
     }
 
     #if HOTLOADING_ENABLED {
@@ -536,7 +415,6 @@ update_and_draw :: () {
 
                 // draw world
                 for * world._RectRenderer {
-                    if it.dead continue;
                     color2 := it.color;
                     color2.r -= 100; color2.g -= 100; color2.b -= 100;
                     DrawRectangleGradientEx(entity_rect(it.entity), it.color, color2, color2, it.color);
@@ -546,7 +424,7 @@ update_and_draw :: () {
                 for * enemies enemy_draw(it);
 
                 player_draw(*player);
-                draw_sprite_anim(blob._entry, player.sprite_timer, player.position.xy, tag_name = "die");
+                //draw(blob._entry, player.sprite_timer, player.position.xy, tag_name = "die");
                 world_draw(*world);
 
                 editor_draw_world(*state);
@@ -573,7 +451,7 @@ update_and_draw :: () {
             screenlog.draw();
         }
         rlglDraw();
-        ImGui.Render();
+        #if IMGUI_ENABLED ImGui.Render();
 
         // TODO: @Speed the EndDrawing implied by PushDrawing is calling
         // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary

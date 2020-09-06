@@ -13,8 +13,8 @@ player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
 
 On_Damage_Func :: #type (takes_damage: *Takes_Damage) -> bool;
 
-patch_function_pointers :: () {
     /*
+patch_function_pointers :: () {
     this assumes that functions will be linked in the same order
     
     offset = NEW_DLL_BASE - OLD_DLL_BASE
@@ -23,8 +23,8 @@ patch_function_pointers :: () {
         for member in type
             if member is a function pointer
                 func_ptr += add the offset
-    */
 }
+    */
 
 Takes_Damage :: struct {
     // damage
@@ -150,14 +150,14 @@ player_update :: (state: *State, using player: *Player) {
         jump_button_time = Time.now;
     jump_button_last_frame = jump_button_this_frame;
 
-    time_since_marker := state.beat_timer - state.nearest_marker.time;
+    time_since_marker := ifx state.nearest_marker then state.beat_timer - state.nearest_marker.time else 0;
     allow_all_beats := true;
 
     if !is_being_knocked_back {
         // ATTACK
         if (IsKeyPressed(.KEY_E) || IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
             attack_offset :: Vector2.{0, -20};
-            if allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick) {
+            if state.nearest_marker && (allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick)) {
                 last_attack_time = Time.now;
                 attack_did_hit = true;
                 sprite_timer = 0;
@@ -171,7 +171,7 @@ player_update :: (state: *State, using player: *Player) {
 
         // JUMP
         if !attacking && grounded && (Time.now - jump_button_time) < 0.15 {
-            beat_match_type := state.nearest_marker.beat_type == .Snare;
+            beat_match_type := state.nearest_marker && state.nearest_marker.beat_type == .Snare;
             if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
                 //logprint("player", "jump %", time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD;
@@ -191,6 +191,7 @@ player_update :: (state: *State, using player: *Player) {
     hitObstacle := false;
 
     // COLLISION
+    any_ground := false;
     for * state.world._BoxCollider {
         p := *position;
         rect := entity_rect(it.entity);
@@ -201,10 +202,18 @@ player_update :: (state: *State, using player: *Player) {
             hitObstacle = true;
             speed.y = 0.0;
             p.y = rect.y;
-            if !grounded 
+            if !grounded {
                 last_grounded_time = Time.now;
+                // landed
+                //logprint("land", "landed");
+                spawn_prefab("player_dust", position);
+            }
             grounded = true;
+            any_ground = true;
         }
+    }
+    if !any_ground {
+        //logprint("player", "fell");
     }
 
     // GRAVITY

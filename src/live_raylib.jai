@@ -1,13 +1,6 @@
-HOTLOADING_ENABLED :: true;
+#placeholder state;
 
-#if HOTLOADING_ENABLED
-    #import "Hotloader";
-
-#import "toolbelt";
-
-LiveTexture :: struct { using _entry: *LiveTextureEntry; }
-LiveShader  :: struct { using _entry: *LiveShaderEntry; }
-LiveSprite  :: struct { using _entry: *LiveSpriteEntry; }
+#import "Live_Types";
 
 try_reload_live_resource :: (full_name_stripped: string, extension: string) {
     did_reload := false;
@@ -30,31 +23,14 @@ try_reload_live_resource :: (full_name_stripped: string, extension: string) {
         logprint("live", "reloaded %", full_name_stripped);
 }
 
-LiveEntry :: struct {
-    count: u16;
+
+get_path_for_asset :: (sprite_anim: *Sprite_Anim) -> string {
+    for * state.live.sprites
+        if *it.sprite == sprite_anim
+            return it.filename;
+    return "";
 }
 
-LiveSpriteEntry :: struct {
-    using _live_entry: LiveEntry;
-    filename: string;
-    using sprite: SpriteAnim;
-}
-
-LiveTextureEntry :: struct {
-    using _live_entry: LiveEntry;
-
-    filename: string;
-    using resource: Texture;
-}
-
-LiveShaderEntry :: struct {
-    using live_entry: LiveEntry;
-
-    vs_filename: string;
-    fs_filename: string;
-
-    using resource: Shader;
-}
 
 set_shader_val :: (shader: LiveShader, name: string, val: $T) {
     set_shader_val(shader.resource, name, val);
@@ -73,10 +49,11 @@ LoadLiveTexture :: (filename: string, raylib_texture: Texture) -> LiveTexture {
     return obj;
 }
 
-LoadLiveSprite :: (filename: string) -> LiveSprite {
+LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
     assert(filename.count > 0);
 
     obj: LiveSprite;
+    was_new := false;
 
     for * state.live.sprites {
         if it.filename == filename {
@@ -86,6 +63,7 @@ LoadLiveSprite :: (filename: string) -> LiveSprite {
     }
 
     if obj._entry == null {
+        was_new = true;
         new_entry := array_add(*state.live.sprites);
         new_entry.filename = copy_string(filename);
         ok := load_from_aseprite(*new_entry.sprite, filename);
@@ -94,7 +72,7 @@ LoadLiveSprite :: (filename: string) -> LiveSprite {
     }
 
     obj._entry.count += 1;
-    return obj;
+    return obj, was_new;
 }
 
 LoadLiveTexture :: (filename: string) -> LiveTexture {
@@ -160,7 +138,7 @@ DrawTexturePro :: (texture: LiveTexture, src_rect: Rectangle, dest_rect: Rectang
     DrawTexturePro(texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
-UnloadTexture :: (texture: LiveTexture) {
+UnloadLiveTexture :: (texture: LiveTexture) {
     texture._entry.count -= 1;
     if texture._entry.count == 0 {
         UnloadTexture(texture._entry.resource);
@@ -207,7 +185,7 @@ TryReloadLiveSprite :: (filename: string) -> bool {
     for * state.live.sprites {
         if it.filename != filename continue;
 
-        new_sprite: SpriteAnim;
+        new_sprite: Sprite_Anim;
         ok := load_from_aseprite(*new_sprite, it.filename);
         if ok {
             deinit(*it.sprite);
@@ -227,3 +205,9 @@ _to_temp_c_string :: (s: string) -> *u8 {
     result[s.count] = 0;
     return result;
 }
+
+#scope_file
+#import "toolbelt";
+#import "raylib";
+#import "Basic";
+#import "Sprite_Anim";

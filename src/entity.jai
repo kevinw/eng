@@ -1,6 +1,3 @@
-#import "Basic";
-#import "raylib";
-
 // TODO: generate these imports
 #load "components/sprite_renderer.jai";
 #load "components/box_collider.jai";
@@ -20,8 +17,25 @@ all_component_types :: Type.[
     RectRenderer,
 ];
 
+get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
+    entity := get_item_ptr(*state.world.entities, entity_handle);
+    return entity != null, entity;
+
+}
+
+get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
+    if name == {
+        case "SpriteRenderer"; return type_info(SpriteRenderer);
+        case "BoxCollider";    return type_info(BoxCollider);
+        case "RectRenderer";   return type_info(RectRenderer);
+        case;
+            assert(false, tprint("cannot get component type info for '%'", name));
+            return null;
+    }
+}
+
 Component :: struct {
-    entity: *Entity;
+    entity: Entity_Handle;
 }
 
 Transform :: struct {
@@ -37,20 +51,53 @@ Entity :: struct {
     }
 
     using transform: Transform;
-    components: [..]Any;
     _world: *World;
     flags: Flags;
+
+    Component_Entry :: struct {
+        component_handle: Handle_Type;
+        type: *Type_Info_Struct;         // TODO: ...Sum_Type?
+    }
+
+    components: [..]Component_Entry; // TODO: Small_Array
+}
+
+get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
+    assert(entity != null);
+    ti_struct := cast(*Type_Info_Struct)type_info(component_type);
+    for * entity.components {
+        if it.type == ti_struct {
+            sibling_handle := it.component_handle;
+
+            bucket: *Array_With_Holes(component_type);
+            #insert #run bucket_chooser();
+
+            assert(bucket != null);
+            sibling_ptr := get_item_ptr(bucket, sibling_handle);
+            if sibling_ptr != null
+                return sibling_ptr;
+        }
+    }
+
+    return null;
+}
+
+entity_rect :: (entity_handle: Entity_Handle) -> Rectangle {
+    ok, entity := get_entity(entity_handle);
+
+    if ok
+        return entity_rect(entity);
+    else
+        return .{};
 }
 
 entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
     if entity.flags & .Has_Component_Rect {
-        for * entity.components {
-            if it.type == type_info(SpriteRenderer) {
-                spr := cast(*SpriteRenderer)it.value_pointer;
-                assert(spr.canary == 42);
-                ok, rect := get_entity_rect(spr);
-                if ok return rect;
-            }
+        spr := get_component(entity, SpriteRenderer);
+        if spr != null {
+            assert(spr.canary == 42);
+            ok, rect := get_entity_rect(spr);
+            if ok return rect;
         }
     }
 
@@ -60,99 +107,252 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
 }
 
 get_component_buckets :: () -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
-
-    for all_component_types {
-        print_to_builder(*sb, "_%: [..]BucketEntry(%);\n", it, it);
-    }
-    
-    return builder_to_string(*sb);
-}
-
-BucketEntry :: struct(T: Type) {
-    using value: T;
-    dead: bool;
+    return buf_string((sb: *String_Builder) {
+        for all_component_types
+            print_to_builder(sb, "_%: Array_With_Holes(%);\n", it, it);
+    });
 }
 
 bucket_chooser :: () -> string {
+    return buf_string((sb: *String_Builder) {
+        for all_component_types
+            print_to_builder(sb, "#if component_type == % bucket = *state.world._%;\n", it, it);
+    });
+}
+
+runtime_bucket_chooser :: (inner_code_string: string) -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
 
     for all_component_types {
-        print_to_builder(*sb, "#if component_type == % bucket = *entity._world._%;\n", it, it);
+        print_to_builder(*sb, "if component_ti == type_info(%) {\n", it);
+        print_to_builder(*sb, "    bucket := *state.world._%;\n", it);
+        print_to_builder(*sb, "    %\n", inner_code_string);
+        print_to_builder(*sb, "}\n");
     }
-
-    print_to_builder(*sb, "assert(bucket != null);\n");
 
     return builder_to_string(*sb);
 }
 
-World :: struct {
-    entities: [..]Entity;
+_return_component_array_add :: () -> string {
+    return buf_string((sb: *String_Builder) {
+        for all_component_types {
+            maybe_else := ifx it_index > 0 then "else " else "";
+            print_to_builder(sb, "%if component_ti == type_info(%) {\n", maybe_else, it);
+            print_to_builder(sb, "    ptr: *%;\n", it);
+            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*state.world._%);\n", it);
+            print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
+            print_to_builder(sb, "    on_enable(ptr, entity);\n", it);
+            print_to_builder(sb, "    c = ptr;\n", it);
+            print_to_builder(sb, "}\n", it);
+        }
+    });
+}
 
+buf_string :: (f: (sb: *String_Builder)) -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    f(*sb);
+
+    return builder_to_string(*sb);
+}
+
+Entity_Handle :: Handle_Type;
+
+World :: struct {
+    entities: Array_With_Holes(Entity);
     #insert #run get_component_buckets();
 };
 
+init_world :: (world: *World) {
+    init_array_with_holes(*world.entities);
+    #insert #run(() -> string {
+        return buf_string((sb: *String_Builder) {
+            for all_component_types {
+                print_to_builder(sb, "init_array_with_holes(*state.world._%);\n", it);
+            }
+        });
+    }());
+}
+
 world_update :: (world: *World, delta_time: float) {
-    for * world._SpriteRenderer update(it);
+    for * world._SpriteRenderer
+        update(it);
 }
 
 world_draw :: (world: *World) {
-    for * world._SpriteRenderer  draw(it);
-}
+    for * world._SpriteRenderer {
+        // TODO: here we need to pass the transform as well.
+        // perhaps we note functions like draw which require
+        // multiple entities, and store relative pointers to them somewhere?
+        //
+        // research the concept of systems. this is really about
+        // desigining a database and might be overkill for now.
+        ok, entity := get_entity(it.entity);
+        assert(ok);
 
-create_entity :: (world: *World) -> *Entity {
-    assert(world != null);
-
-    e := array_add(*world.entities);
-    e._world = world;
-    return e;
-}
-
-destroy_entity :: (world: *World, entity: *Entity) {
-    assert(world != null);
-    assert(entity != null);
-
-
-    //array_unordered_remove_by_value(*world.entities, entity);
-
-    for * entity.components {
-        /*
-        component_type := it.type;
-
-        bucket: *[..]BucketEntry(*void);
-        #insert #run bucket_chooser();
-
-        assert(it.value_pointer >= bucket.data && it.value_pointer <= bucket.data + bucket.count);
-        */
-        print("TODO: mark component slot as free\n");
+        draw(it, *entity.transform);
     }
 }
 
-add_component :: (entity: *Entity, $component_type: Type) -> *component_type {
-    assert(entity != null, "entity cannot be null");
-    assert(entity._world != null, "entity has a null *World");
+create_entity :: (world: *World, name: string = "", id: s32 = -1) -> *Entity, Entity_Handle {
+    assert(world != null);
 
-    bucket: *[..]BucketEntry(component_type);
+    handle, e := allocate_slot(*world.entities);
+    e._world = world;
 
+    //print("create_entity -> %\n", e);
+    return e, handle;
+}
+
+destroy_entity :: (e: Entity_Handle) {
+    other_e := e;
+    assert(other_e.id == e.id);
+
+    entity := get_item_ptr(*state.world.entities, e);
+    assert(other_e.id == e.id);
+    for entity.components {
+        component_ti := it.type;
+        component_handle := it.component_handle;
+        {
+            #insert #run runtime_bucket_chooser(#string END
+                assert(other_e.id == e.id);
+                did_delete := delete_item(bucket, component_handle);
+
+                //assert(other_e.id == e.id); // TODO: @CompilerBug
+
+                // The above line fails.
+                // It does nothing with the argument e to this function, so it
+                // appears to be a codegen bug.
+
+                assert(did_delete);
+            END);
+        }
+    }
+
+    delete_item(*state.world.entities, other_e);
+}
+
+add_or_get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
+    return add_component(entity_handle, component_ti);
+}
+
+add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
+    ok, entity := get_entity(entity_handle);
+    assert(ok);
+
+    c: *Component;
+    component_type_info: *Type_Info_Struct;
+    component_handle: Handle_Type;
+
+    #insert #run _return_component_array_add();
+    assert(component_type_info != null);
+    assert(component_handle.id != 0);
+
+    entry := array_add(*entity.components);
+    entry.type = component_type_info;
+    entry.component_handle = component_handle;
+
+    assert(c != null);
+    c.entity = entity_handle;
+    return c;
+}
+
+add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
+    bucket: *Array_With_Holes(component_type);
     #insert #run bucket_chooser();
 
-    MAX :: 100;
-    if bucket.allocated == 0
-        array_reserve(bucket, MAX);
+    component_handle, component_ptr := allocate_slot(bucket);
+    c := cast(*component_type)component_ptr;
 
-    bucket_entry := array_add(bucket);
-    assert(bucket.count <= MAX, "TODO: implement a freelist and a generation index thing");
+    ok, entity := get_entity(entity_handle);
+    assert(ok);
 
-    c := cast(*component_type)bucket_entry;
+    entry := array_add(*entity.components);
+    entry.type = type_info(component_type);
+    entry.component_handle = component_handle;
 
-    any: Any;
-    any.value_pointer = c;
-    any.type = type_info(component_type); // TODO: compiler generated Sum_Type thing
-
-    array_add(*entity.components, any);
-    c.entity = entity;
+    c.entity = entity_handle;
+    on_enable(c, entity);
 
     return c;
 }
+
+spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
+    filename := tprint("prefabs/%.wbml", name);
+
+    entity_file_text, ok := File.read_entire_file(filename);
+    if !ok {
+        logprint("error", "no prefab at %", filename);
+        return null;
+    }
+    defer free(entity_file_text);
+
+    // entity id
+    lexer := laas.make_lexer(entity_file_text);
+    entity_id_token, ok2 := laas.expect(*lexer, .Number);
+    assert(ok2, "did not find an entity id");
+    entity_id := cast(s32)string_to_int(entity_id_token.text);
+
+    // entity name
+    name_token, name_ok := laas.expect(*lexer, .Identifier);
+    assert(name_ok);
+    entity_name := copy_string(name_token.text);
+
+    // make the entitty
+
+    // nocheckin - need to actually use the entity_id paramenter here.
+    entity, entity_handle := create_entity(*state.world, entity_name, entity_id);
+    entity.transform.position = world_pos;
+
+    // load the component data
+    while true {
+        while laas.is_token(*lexer, .New_Line) laas.eat(*lexer);
+        component_name_ident, component_name_ok := laas.expect(*lexer, .Identifier);
+        if !component_name_ok break;
+
+        nl, nl_ok := laas.expect(*lexer, .New_Line);
+        assert(nl_ok);
+
+        ti := get_component_ti_from_name(component_name_ident.text);
+        comp := add_or_get_component(entity_handle, ti);
+
+        value := wbml.parse_value(*lexer);
+        assert(value != null);
+        defer wbml.delete_node(value);
+
+        for value._object.fields {
+            assert(it.value != null);
+
+            if it.name == "sprite_anim" {
+                asset_path := tprint("resources/sprites/%.aseprite", it.value._string.value);
+                print("loading sprite asset %\n", asset_path);
+
+                field := get_field(ti, "sprite_anim");
+                assert(field != null);
+                live_sprite_ptr := cast(*LiveSprite)(cast(*u8)comp + field.offset_in_bytes);
+
+                was_new: bool;
+                <<live_sprite_ptr, was_new = LoadLiveSprite(asset_path);
+            }
+        }
+
+        wbml.write_value(value, comp, ti);
+    }
+
+    return entity;
+}
+
+#scope_file
+
+#import "Basic";
+#import "raylib";
+
+File :: #import "File";
+wbml :: #import "wbml";
+laas :: #import "laas";
+
+#import "live_raylib";
+
+#import "Array_With_Holes";

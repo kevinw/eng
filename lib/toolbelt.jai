@@ -41,13 +41,14 @@ get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
 
 
 ToggleFakeFullscreen :: () {
+    // raylib only does exclusive fullscreen, so here's a windowed fullscreen
+    // implementation.
+    
     handle := GetWindowHandle();
 
     WINDOW_WIDTH :: 1200;
     WINDOW_HEIGHT :: 675;
 
-    // raylib only does exclusive fullscreen, so here's a windowed fullscreen
-    // implementation.
     monitor := 0;
     monitor_w := GetMonitorWidth(0);
     monitor_h := GetMonitorHeight(0);
@@ -57,6 +58,7 @@ ToggleFakeFullscreen :: () {
 
     if platform.is_window_borderless(handle) {
         platform.set_window_borderless(handle, false);
+        platform.set_window_always_on_top(handle, true);
         if window_rect.x <= 0 window_rect.x = 50;
         if window_rect.y <= 0 window_rect.y = 50;
         if window_rect.width == 0 window_rect.width = WINDOW_WIDTH;
@@ -68,6 +70,7 @@ ToggleFakeFullscreen :: () {
     } else {
         platform.set_window_borderless(handle, true);
         window_rect = make_Rectangle(pos.x, pos.y, w, h);
+        platform.set_window_always_on_top(handle, false);
         
         {
             // TODO: SetWindowSize sets the wrong size!!
