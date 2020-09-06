@@ -413,16 +413,13 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
 						for node._array.elements
 							write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
 			}
-        case .INTEGER;
-            Reflection.set_value_from_string(any, node.source_str);
-        case .FLOAT;
-            Reflection.set_value_from_string(any, node.source_str);
         case .STRING;
-			assert(node.type == .String);
-            temp := tprint("\"%\"", node._string.value);
-            Reflection.set_value_from_string(any, temp); // TODO: XXX nono no
+			// how to manage allocation? overwriting?
+			<<cast(*string)ptr = copy_string(node._string.value);
         case .BOOL;
 			<<cast(*bool)ptr = node._bool.value;
+        case .INTEGER; #through;
+        case .FLOAT;   #through;
 		case .ENUM;
 			Reflection.set_value_from_string(any, node.source_str);
         case;
