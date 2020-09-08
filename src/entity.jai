@@ -56,17 +56,20 @@ Entity :: struct {
 
     Component_Entry :: struct {
         component_handle: Handle_Type;
-        type: *Type_Info_Struct;         // TODO: ...Sum_Type?
+        type_name: string; // TODO. maybe a bit?
     }
 
     components: [..]Component_Entry; // TODO: Small_Array
 }
 
 get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
+    #assert(type_info(component_type).type == .STRUCT);
+
     assert(entity != null);
+
     ti_struct := cast(*Type_Info_Struct)type_info(component_type);
     for * entity.components {
-        if it.type == ti_struct {
+        if it.type_name == ti_struct.name {
             sibling_handle := it.component_handle;
 
             bucket: *Array_With_Holes(component_type);
@@ -138,7 +141,7 @@ _return_component_array_add :: () -> string {
     return buf_string((sb: *String_Builder) {
         for all_component_types {
             maybe_else := ifx it_index > 0 then "else " else "";
-            print_to_builder(sb, "%if component_ti == type_info(%) {\n", maybe_else, it);
+            print_to_builder(sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
             print_to_builder(sb, "    ptr: *%;\n", it);
             print_to_builder(sb, "    component_handle, ptr = allocate_slot(*state.world._%);\n", it);
             print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
@@ -163,6 +166,12 @@ Entity_Handle :: Handle_Type;
 World :: struct {
     entities: Array_With_Holes(Entity);
     #insert #run get_component_buckets();
+
+    prefab_cache: Prefab_Cache;
+
+    deinit :: (using world: *World) {
+        Prefab_Cache.deinit(*prefab_cache);
+    }
 };
 
 init_world :: (world: *World) {
@@ -213,7 +222,7 @@ destroy_entity :: (e: Entity_Handle) {
     entity := get_item_ptr(*state.world.entities, e);
     assert(other_e.id == e.id);
     for entity.components {
-        component_ti := it.type;
+        component_ti := get_component_ti_from_name(it.type_name);
         component_handle := it.component_handle;
         {
             #insert #run runtime_bucket_chooser(#string END
@@ -251,7 +260,7 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct)
     assert(component_handle.id != 0);
 
     entry := array_add(*entity.components);
-    entry.type = component_type_info;
+    entry.type_name = component_type_info.name;
     entry.component_handle = component_handle;
 
     assert(c != null);
@@ -270,7 +279,7 @@ add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *compo
     assert(ok);
 
     entry := array_add(*entity.components);
-    entry.type = type_info(component_type);
+    entry.type_name = (cast(*Type_Info_Struct)type_info(component_type)).name;
     entry.component_handle = component_handle;
 
     c.entity = entity_handle;
@@ -279,8 +288,37 @@ add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *compo
     return c;
 }
 
-spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
-    filename := tprint("prefabs/%.wbml", name);
+Prefab_Cache :: struct {
+    Entry :: struct {
+        // key
+        filename: string; @owned
+
+        // value
+        entity_name: string; @owned
+        entity_id: s32;
+
+        components: [..]struct {
+            component_type_name: string; @owned
+            object_node: *wbml.Node; @owned
+        };
+    }
+
+    entries: [..]Entry;
+
+    deinit :: (using self: *Prefab_Cache) { // TODO: autogen this function from @owned
+        for entries {
+            for it.components {
+                free(it.component_type_name);
+                wbml.delete_node(it.object_node);
+            }
+        }
+    }
+}
+
+get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
+    for * state.world.prefab_cache.entries
+        if it.filename == filename
+            return it;
 
     entity_file_text, ok := File.read_entire_file(filename);
     if !ok {
@@ -288,6 +326,7 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
         return null;
     }
     defer free(entity_file_text);
+    print("read % bytes from '%'", entity_file_text.count, filename);
 
     // entity id
     lexer := laas.make_lexer(entity_file_text);
@@ -300,11 +339,10 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
     assert(name_ok);
     entity_name := copy_string(name_token.text);
 
-    // make the entitty
-
-    // nocheckin - need to actually use the entity_id paramenter here.
-    entity, entity_handle := create_entity(*state.world, entity_name, entity_id);
-    entity.transform.position = world_pos;
+    cache_entry: Prefab_Cache.Entry;
+    cache_entry.filename = copy_string(filename);
+    cache_entry.entity_name = entity_name;
+    cache_entry.entity_id   = entity_id;
 
     // load the component data
     while true {
@@ -313,23 +351,48 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
         if !component_name_ok break;
 
         nl, nl_ok := laas.expect(*lexer, .New_Line);
-        assert(nl_ok);
+        assert(nl_ok, "expected a newline after the component name '%'", component_name_ident.text);
 
         ti := get_component_ti_from_name(component_name_ident.text);
-        comp := add_or_get_component(entity_handle, ti);
+
+        component_cache_entry := array_add(*cache_entry.components);
+        component_cache_entry.component_type_name = copy_string(ti.name);
 
         value := wbml.parse_value(*lexer);
-        assert(value != null);
-        defer wbml.delete_node(value);
+        assert(value != null, "could not parse value as wbml");
+        assert(value.type == .Object);
+        component_cache_entry.object_node = value;
+    }
 
-        for value._object.fields {
+    ptr := array_add(*state.world.prefab_cache.entries);
+    <<ptr = cache_entry;
+    return ptr;
+}
+
+spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
+    filename := tprint("prefabs/%.wbml", name);
+    prefab_cache_entry := get_prefab_cache_entry(filename);
+
+    // make the entitty
+    // nocheckin - need to actually use the entity_id paramenter here.
+    entity, entity_handle := create_entity(*state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
+    entity.transform.position = world_pos;
+
+    for prefab_cache_entry.components {
+        component_type_name := it.component_type_name;
+        component_ti := get_component_ti_from_name(component_type_name);
+        comp := add_or_get_component(entity_handle, component_ti);
+
+        // here we use the runtime type info to dynamically poke bits into the
+        // struct, which we don't know the layout of at compile time.
+        // TODO: (or do we??? in a non-development build???)
+        for it.object_node._object.fields {
             assert(it.value != null);
 
             if it.name == "sprite_anim" {
                 asset_path := tprint("resources/sprites/%.aseprite", it.value._string.value);
-                print("loading sprite asset %\n", asset_path);
 
-                field := get_field(ti, "sprite_anim");
+                field := get_field(component_ti, "sprite_anim");
                 assert(field != null);
                 live_sprite_ptr := cast(*LiveSprite)(cast(*u8)comp + field.offset_in_bytes);
 
@@ -338,7 +401,7 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
             }
         }
 
-        wbml.write_value(value, comp, ti);
+        wbml.write_value(it.object_node, comp, component_ti);
     }
 
     return entity;

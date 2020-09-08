@@ -257,6 +257,9 @@ on_host_init :: () {
 
 on_host_shutdown :: () {
     using state;
+
+    World.deinit(*world);
+
     UnloadLiveTexture(bg.texture);
     UnloadShader(bg.shader.resource);
 
