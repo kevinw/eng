@@ -38,10 +38,15 @@ Array_With_Holes :: struct(Value: Type, Max_Bytes_N: int = 4000) {
 init_array_with_holes :: (arr: *$A/Array_With_Holes) {
     arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
     assert(arr.items != null);
+    arr.items[0].generation = SENTINEL_GENERATION;
+
 }
+
+SENTINEL_GENERATION  :: 999999;
 
 allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
     assert(arr.items != null);
+    assert(arr.items[0].generation == SENTINEL_GENERATION);
 
     slot_index := arr.items[0].next;
     arr.items[0].next = arr.items[slot_index].next;
@@ -70,6 +75,9 @@ allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
 }
 
 delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
+    assert(arr.items != null);
+    assert(arr.items[0].generation == SENTINEL_GENERATION);
+
     assert(handle.id > 0, "delete_item(handle=%)", handle);
     assert(handle.id <= arr.count);
     assert(handle.generation > 0);
@@ -99,6 +107,9 @@ add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
 }
 
 get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
+    assert(arr.items != null);
+    assert(arr.items[0].generation == SENTINEL_GENERATION);
+
     assert(handle.id > 0);
     assert(handle.generation > 0);
 
@@ -110,6 +121,8 @@ get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type
 }
 
 get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
+    assert(arr.items != null);
+    assert(arr.items[0].generation == SENTINEL_GENERATION);
     assert(handle.id > 0);
     assert(handle.generation > 0);
 
@@ -120,10 +133,16 @@ get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
 }
 
 set :: inline (arr: *$A/Array_With_Holes, handle: A.Handle, value: A.Value_Type) {
+    assert(arr.items != null);
+    assert(arr.items[0].generation == SENTINEL_GENERATION);
+
     arr.items[handle.id].value = value;
 }
 
 for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
+    assert(arr.items != null);
+    assert(arr.items[0].generation == SENTINEL_GENERATION);
+
     #assert(!reverse);
 
     index := 0;
