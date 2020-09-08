@@ -31,6 +31,18 @@ Logger_State :: struct {
     this_frame_entries: [..]Entry;
 }
 
+world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
+    assert(context.logger_data != null);
+    using cast(*Logger_State)context.logger_data;
+
+    entry := array_add(*entries);
+    entry.time = time_to_show;
+    entry.ident = copy_string_z("msg from world func");
+    entry.message = copy_string_z(message);
+    entry.use_world_pos = true;
+    entry.world_pos = pos.xy;
+}
+
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
@@ -56,7 +68,7 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     if entry == null
         entry = array_add(*entries);
 
-    entry.time = time;
+    entry.time = TIME_ON_SCREEN;
     entry.ident = new_ident;
     entry.message = new_message;
 }
@@ -88,7 +100,8 @@ update :: (delta_time: float64) {
     using cast(*Logger_State)context.logger_data;
     time += delta_time;
     for * entries {
-        if time - it.time > TIME_ON_SCREEN {
+        it.time -= delta_time;
+        if it.time < 0 {
             free_entry(it);
             remove it;
         }
@@ -123,10 +136,13 @@ draw_world :: () {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
-    font_size :s32 = 15;
+    font_size :: 15;
 
-    for * this_frame_entries
-        if it.use_world_pos
-            DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE);
+    draw :: #code { DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE); };
 
+    for * this_frame_entries if it.use_world_pos
+        #insert_internal draw;
+            
+    for * entries if it.use_world_pos
+        #insert_internal draw;
 }

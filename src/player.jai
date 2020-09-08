@@ -80,6 +80,7 @@ Player :: struct {
     speed: Vector2;
     can_jump: bool;
     grounded: bool;
+    jump_count: u8;
 
     jump_button_time: float64;
     jump_button_last_frame: bool;
@@ -146,12 +147,11 @@ player_update :: (state: *State, using player: *Player) {
         IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
 
     jump_button_this_frame := !is_being_knocked_back && a_jump_input_is_present;
-    if jump_button_this_frame && !jump_button_last_frame
-        jump_button_time = Time.now;
+    jump_button_pressed_this_frame := jump_button_this_frame && !jump_button_last_frame;
     jump_button_last_frame = jump_button_this_frame;
 
     time_since_marker := ifx state.nearest_marker then state.beat_timer - state.nearest_marker.time else 0;
-    allow_all_beats := true;
+    allow_all_beats := false;
 
     if !is_being_knocked_back {
         // ATTACK
@@ -170,16 +170,21 @@ player_update :: (state: *State, using player: *Player) {
         }
 
         // JUMP
-        if !attacking && grounded && (Time.now - jump_button_time) < 0.15 {
-            beat_match_type := state.nearest_marker && state.nearest_marker.beat_type == .Snare;
-            if allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type) {
-                //logprint("player", "jump %", time_since_marker);
+        if !attacking && jump_button_pressed_this_frame {
+            beat_match_type := state.nearest_marker; // && state.nearest_marker.beat_type == .Snare;
+            matched_beat := allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type);
+            if matched_beat && jump_count < 2 {
+                if !grounded
+                    screenlog.world(position, "double jump!");
+                logprint("player", "jump % count=%", time_since_marker, jump_count);
                 speed.y = -PLAYER_JUMP_SPD;
-            } else {
+                jump_count += 1;
+            } else if grounded {
                 early_late := ifx time_since_marker > 0 then "late" else "early";
                 if !beat_match_type early_late = "wrong beat";
-                //logprint("player", "MISS % jump %", early_late, time_since_marker);
+                logprint("player", "MISS % jump %", early_late, time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD * 0.25;
+                jump_count = 0;
             }
 
             grounded = false;
@@ -210,6 +215,7 @@ player_update :: (state: *State, using player: *Player) {
             }
             grounded = true;
             any_ground = true;
+            jump_count = 0;
         }
     }
     if !any_ground {
