@@ -1,4 +1,9 @@
+
+#scope_module
+#import "Basic";
 #import "soloud";
+#import "toolbelt";
+#scope_export
 
 Voice_Handle :: u32; // TODO: this should probably be an actual type in the Soloud bindings
 
@@ -17,9 +22,14 @@ Sound_State :: struct {
     bgm_voice: Voice_Handle;
 };
 
+play_sound :: (wav: *Wav, volume := 1.0) {
+    Soloud_play(context.state.sound_state.soloud, wav, volume);
+
+}
+
 play_sfx :: ($name: string) {
-    wav := get_field_value(*state.sound_state.fx, name, *Wav);
-    Soloud_play(state.sound_state.soloud, wav);
+    wav := get_field_value(*context.state.sound_state.fx, name, *Wav);
+    Soloud_play(context.state.sound_state.soloud, wav);
 }
 
 sound_init :: (using state: *Sound_State) {
@@ -52,8 +62,7 @@ sound_deinit :: (using state: *Sound_State) {
 }
 
 sound_update :: (using state: *Sound_State) {
-    #if SOUND_ENABLED
-        Soloud_update3dAudio(soloud);
+    Soloud_update3dAudio(soloud);
 }
 
 #scope_file

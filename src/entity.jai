@@ -2,6 +2,7 @@
 #load "components/sprite_renderer.jai";
 #load "components/box_collider.jai";
 #load "components/rect_renderer.jai";
+#load "components/enemy.jai";
 
 // goals
 
@@ -15,10 +16,11 @@ all_component_types :: Type.[
     SpriteRenderer,
     BoxCollider,
     RectRenderer,
+    Enemy,
 ];
 
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
-    entity := get_item_ptr(*state.world.entities, entity_handle);
+    entity := get_item_ptr(*context.state.world.entities, entity_handle);
     return entity != null, entity;
 }
 
@@ -26,7 +28,9 @@ get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
     #insert #run foreach_component_type(#string END
         if name == "<type>" return type_info(<type>);
     END);
+
     assert(false, tprint("no component named %", name));
+    return null;
 }
 
 Component :: struct {
@@ -73,7 +77,7 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
             assert(bucket != null);
             sibling_ptr := get_item_ptr(bucket, sibling_handle);
             if sibling_ptr != null
-                return sibling_ptr;
+            return sibling_ptr;
         }
     }
 
@@ -84,9 +88,9 @@ entity_rect :: (entity_handle: Entity_Handle) -> Rectangle {
     ok, entity := get_entity(entity_handle);
 
     if ok
-        return entity_rect(entity);
+    return entity_rect(entity);
     else
-        return .{};
+    return .{};
 }
 
 entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
@@ -107,14 +111,14 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
 get_component_buckets :: () -> string {
     return buf_string((sb: *String_Builder) {
         for all_component_types
-            print_to_builder(sb, "_%: Array_With_Holes(%);\n", it, it);
+        print_to_builder(sb, "_%: Array_With_Holes(%);\n", it, it);
     });
 }
 
 bucket_chooser :: () -> string {
     return buf_string((sb: *String_Builder) {
         for all_component_types
-            print_to_builder(sb, "#if component_type == % bucket = *state.world._%;\n", it, it);
+        print_to_builder(sb, "#if component_type == % bucket = *context.state.world._%;\n", it, it);
     });
 }
 
@@ -136,7 +140,7 @@ runtime_bucket_chooser :: (inner_code_string: string) -> string {
 
     for all_component_types {
         print_to_builder(*sb, "if component_ti == type_info(%) {\n", it);
-        print_to_builder(*sb, "    bucket := *state.world._%;\n", it);
+        print_to_builder(*sb, "    bucket := *context.state.world._%;\n", it);
         print_to_builder(*sb, "    %\n", inner_code_string);
         print_to_builder(*sb, "}\n");
     }
@@ -150,7 +154,7 @@ _return_component_array_add :: () -> string {
             maybe_else := ifx it_index > 0 then "else " else "";
             print_to_builder(sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
             print_to_builder(sb, "    ptr: *%;\n", it);
-            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*state.world._%);\n", it);
+            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%);\n", it);
             print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
             print_to_builder(sb, "    on_enable(ptr, entity);\n", it);
             print_to_builder(sb, "    c = ptr;\n", it);
@@ -186,18 +190,24 @@ init_world :: (world: *World) {
     #insert #run(() -> string {
         return buf_string((sb: *String_Builder) {
             for all_component_types {
-                print_to_builder(sb, "init_array_with_holes(*state.world._%);\n", it);
+                print_to_builder(sb, "init_array_with_holes(*context.state.world._%);\n", it);
             }
         });
     }());
 }
 
 world_update :: (world: *World, delta_time: float) {
-    for * world._SpriteRenderer
-        update(it);
+    for * world._SpriteRenderer update(it);
+    enemy_update_all();
 }
 
 world_draw :: (world: *World) {
+    for * world._RectRenderer {
+        color2 := it.color;
+        color2.r -= 100; color2.g -= 100; color2.b -= 100;
+        DrawRectangleGradientEx(entity_rect(it.entity), it.color, color2, color2, it.color);
+    }
+
     for * world._SpriteRenderer {
         // TODO: here we need to pass the transform as well.
         // perhaps we note functions like draw which require
@@ -207,7 +217,12 @@ world_draw :: (world: *World) {
         // desigining a database and might be overkill for now.
         ok, entity := get_entity(it.entity);
         assert(ok);
+        draw(it, *entity.transform);
+    }
 
+    for * world._Enemy {
+        ok, entity := get_entity(it.entity);
+        assert(ok);
         draw(it, *entity.transform);
     }
 }
@@ -226,10 +241,11 @@ destroy_entity :: (e: Entity_Handle) {
     other_e := e;
     assert(other_e.id == e.id);
 
-    entity := get_item_ptr(*state.world.entities, e);
+    entity := get_item_ptr(*context.state.world.entities, e);
     assert(other_e.id == e.id);
     for entity.components {
         component_ti := get_component_ti_from_name(it.type_name);
+        free(it.type_name);
         component_handle := it.component_handle;
         {
             #insert #run runtime_bucket_chooser(#string END
@@ -246,8 +262,8 @@ destroy_entity :: (e: Entity_Handle) {
             END);
         }
     }
-
-    delete_item(*state.world.entities, other_e);
+    array_reset(*entity.components);
+    delete_item(*context.state.world.entities, other_e);
 }
 
 add_or_get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
@@ -267,7 +283,7 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct)
     assert(component_handle.id != 0);
 
     entry := array_add(*entity.components);
-    entry.type_name = component_type_info.name;
+    entry.type_name = copy_string(component_type_info.name);
     entry.component_handle = component_handle;
 
     assert(c != null);
@@ -286,7 +302,7 @@ add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *compo
     assert(ok);
 
     entry := array_add(*entity.components);
-    entry.type_name = (cast(*Type_Info_Struct)type_info(component_type)).name;
+    entry.type_name = copy_string((cast(*Type_Info_Struct)type_info(component_type)).name); // @Leak
     entry.component_handle = component_handle;
 
     c.entity = entity_handle;
@@ -323,7 +339,7 @@ Prefab_Cache :: struct {
 }
 
 get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
-    for * state.world.prefab_cache.entries
+    for * context.state.world.prefab_cache.entries
         if it.filename == filename
             return it;
 
@@ -371,7 +387,7 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
         component_cache_entry.object_node = value;
     }
 
-    ptr := array_add(*state.world.prefab_cache.entries);
+    ptr := array_add(*context.state.world.prefab_cache.entries);
     <<ptr = cache_entry;
     return ptr;
 }
@@ -382,7 +398,8 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
 
     // make the entitty
     // TODO: need to actually use the entity_id paramenter here, or get rid of it.
-    entity, entity_handle := create_entity(*state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
+
+    entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
     entity.transform.position = world_pos;
 
     for prefab_cache_entry.components {

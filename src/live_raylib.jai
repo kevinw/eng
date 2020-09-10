@@ -1,5 +1,3 @@
-#placeholder state;
-
 #import "Live_Types";
 
 try_reload_live_resource :: (full_name_stripped: string, extension: string) {
@@ -25,7 +23,9 @@ try_reload_live_resource :: (full_name_stripped: string, extension: string) {
 
 
 get_path_for_asset :: (sprite_anim: *Sprite_Anim) -> string {
-    for * state.live.sprites
+    using context.state;
+
+    for * live.sprites
         if *it.sprite == sprite_anim
             return it.filename;
     return "";
@@ -39,7 +39,7 @@ set_shader_val :: (shader: LiveShader, name: string, val: $T) {
 LoadLiveTexture :: (filename: string, raylib_texture: Texture) -> LiveTexture {
     // create a new live entry for a texture loaded elsewhere (through aseprite for example)
 
-    new_entry := array_add(*state.live.textures);
+    new_entry := array_add(*context.state.live.textures);
     new_entry.filename = copy_string(filename);
     new_entry.resource = raylib_texture;
     new_entry.count = 1;
@@ -55,7 +55,7 @@ LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
     obj: LiveSprite;
     was_new := false;
 
-    for * state.live.sprites {
+    for * context.state.live.sprites {
         if it.filename == filename {
             obj._entry = it;
             break;
@@ -64,7 +64,7 @@ LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
 
     if obj._entry == null {
         was_new = true;
-        new_entry := array_add(*state.live.sprites);
+        new_entry := array_add(*context.state.live.sprites);
         new_entry.filename = copy_string(filename);
         ok := load_from_aseprite(*new_entry.sprite, filename);
         assert(ok);
@@ -77,10 +77,10 @@ LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
 
 LoadLiveTexture :: (filename: string) -> LiveTexture {
     assert(filename.count > 0);
-    using state;
+    using context.state;
 
     obj: LiveTexture;
-    for * state.live.textures {
+    for * context.state.live.textures {
         if it.filename == filename {
             obj._entry = it;
             break;
@@ -88,9 +88,9 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
     }
 
     if obj._entry == null {
-        old_pointer := state.live.textures.data;
-        new_entry := array_add(*state.live.textures);
-        assert(old_pointer == null || state.live.textures.data == old_pointer, "moved!?");
+        old_pointer := context.state.live.textures.data;
+        new_entry := array_add(*context.state.live.textures);
+        assert(old_pointer == null || context.state.live.textures.data == old_pointer, "moved!?");
         new_entry.filename = copy_string(filename);
         new_entry.resource = LoadTexture(constant_or_temp_cstring(filename));
         obj._entry = new_entry;
@@ -102,10 +102,10 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
 
 
 LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
-    using state;
+    using context.state;
 
     obj: LiveShader;
-    for * state.live.shaders {
+    for * context.state.live.shaders {
         if it.vs_filename == vs_filename && it.fs_filename == fs_filename {
             obj._entry = it;
             break;
@@ -113,9 +113,9 @@ LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
     }
 
     if obj._entry == null {
-        old_pointer := state.live.shaders.data;
-        new_entry := array_add(*state.live.shaders);
-        assert(old_pointer == null || state.live.shaders.data == old_pointer, "moved!?");
+        old_pointer := context.state.live.shaders.data;
+        new_entry := array_add(*context.state.live.shaders);
+        assert(old_pointer == null || context.state.live.shaders.data == old_pointer, "moved!?");
         new_entry.vs_filename = copy_string(vs_filename);
         new_entry.fs_filename = copy_string(fs_filename);
 
@@ -143,7 +143,7 @@ UnloadLiveTexture :: (texture: LiveTexture) {
     if texture._entry.count == 0 {
         UnloadTexture(texture._entry.resource);
         free(texture._entry.filename);
-        for * state.live.textures
+        for * context.state.live.textures
             if texture._entry == it
                 remove it;
     }
@@ -152,7 +152,7 @@ UnloadLiveTexture :: (texture: LiveTexture) {
 TryReloadLiveShaderPath :: (filename: string) -> bool {
     found := false;
 
-    for * state.live.shaders {
+    for * context.state.live.shaders {
         if it.vs_filename == filename || it.fs_filename == filename {
             UnloadShader(it.resource);
             it.resource = LoadShader(
@@ -169,7 +169,7 @@ TryReloadLiveShaderPath :: (filename: string) -> bool {
 TryReloadLiveTexturePath :: (filename: string) -> bool {
     found := false;
 
-    for * state.live.textures {
+    for * context.state.live.textures {
         if it.filename == filename {
             UnloadTexture(it.resource);
             it.resource = LoadTexture(_to_temp_c_string(it.filename));
@@ -182,7 +182,7 @@ TryReloadLiveTexturePath :: (filename: string) -> bool {
 
 TryReloadLiveSprite :: (filename: string) -> bool {
     found := false;
-    for * state.live.sprites {
+    for * context.state.live.sprites {
         if it.filename != filename continue;
 
         new_sprite: Sprite_Anim;

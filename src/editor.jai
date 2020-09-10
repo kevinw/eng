@@ -70,7 +70,7 @@ Editor :: struct {
 }
 
 editor_draw_world :: (state: *State) {
-    using state.editor;
+    using context.state.editor;
 
     if play_mode == .Play return;
 
@@ -91,7 +91,7 @@ editor_draw_world :: (state: *State) {
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
 
-    using state;
+    using context.state;
 
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
@@ -105,7 +105,7 @@ editor_draw :: (state: *State) {
 }
 
 editor_update :: (state: *State) {
-    using state.editor;
+    using context.state.editor;
     Time := *state.Time;
     if play_mode == .Play return;
 
@@ -195,12 +195,12 @@ editor_update :: (state: *State) {
 }
 
 clear_selection :: () {
-    using state.editor;
+    using context.state.editor;
     array_reset(*selected);
 }
 
 set_selected :: (obj: *Entity) {
-    using state.editor;
+    using context.state.editor;
 
     array_reset(*selected);
 
@@ -209,7 +209,7 @@ set_selected :: (obj: *Entity) {
 }
 
 toggle_selection :: (obj: *Entity) -> bool {
-    using state.editor;
+    using context.state.editor;
 
     for selected {
         if it.obj == obj {
@@ -237,7 +237,7 @@ editor_toggle :: (using s: *State) {
 }
 
 editor_draw_ui :: () {
-    using state.editor;
+    using context.state.editor;
     if play_mode == .Play return;
 
     DrawText(tprint("% %", cast(int)world_mouse_pos.x, cast(int)world_mouse_pos.y), 0, 0, 0, BLUE);
@@ -254,7 +254,7 @@ load_scene :: (name: string) {
         return;
     }
 
-    wbml.deserialize(str, *state.scene);
+    wbml.deserialize(str, *context.state.scene);
 
     logprint("editor", "loaded %", filename);
 }
@@ -262,7 +262,7 @@ load_scene :: (name: string) {
 save_scene :: (name: string) {
     filename := tprint("%.wbml", name);
 
-    str := wbml.serialize(*state.scene);
+    str := wbml.serialize(*context.state.scene);
     File.write_entire_file(filename, str);
 
     logprint("editor", "saved %", filename);

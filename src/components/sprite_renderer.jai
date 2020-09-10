@@ -1,5 +1,3 @@
-#placeholder state; // TODO: don't
-
 SpriteRenderer :: struct {
     using component: Component;
 
@@ -50,7 +48,7 @@ update :: (using it: *SpriteRenderer) {
     assert(canary == 42);
 
     last_timer = timer;
-    timer += state.Time.delta_time;
+    timer += context.state.Time.delta_time;
 
     if has_value(sprite_anim) {
         ok: bool;

@@ -68,8 +68,7 @@ on_asset_change :: (using asset_change: *Asset_Change) {
         // all other changes go to the plugin, which may want to live reload
         // textures, etc.
         if plugin_on_resource_change != null {
-            ctx := context;
-            plugin_on_resource_change(*ctx, asset_change);
+            plugin_on_resource_change(*plugin_context, asset_change);
         }
     }
 }
@@ -105,6 +104,8 @@ update_plugin_functions :: (module: *Plugin.Module) {
 }
 
 Math :: #import "Math";
+
+plugin_context: Context;
 
 main :: () {
     Debug.init();
@@ -174,11 +175,10 @@ main :: () {
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
 
-    plugin_context := context;
+    plugin_context = context;
     plugin_init(*plugin_context, null);
     defer {
-        ctx := context;
-        plugin_deinit(*ctx, shutting_down = true);
+        plugin_deinit(*plugin_context, shutting_down = true);
     }
 
     native_window_handle := GetWindowHandle();
@@ -210,8 +210,7 @@ main :: () {
             force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
 
             if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
-                ctx := context;
-                old_state := plugin_deinit(*ctx, shutting_down = false);
+                old_state := plugin_deinit(*plugin_context, shutting_down = false);
 
                 if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                     panic("couldn't reload module");
@@ -220,12 +219,11 @@ main :: () {
                 update_plugin_functions(*module);
                 assert(plugin_tick != null);
 
-                plugin_init(*ctx, old_state);
+                plugin_init(*plugin_context, old_state);
             }
         }
 
-        ctx := context;
-        plugin_tick(*ctx, host_state);
+        plugin_tick(*plugin_context, host_state);
         reset_temporary_storage();
     }
 

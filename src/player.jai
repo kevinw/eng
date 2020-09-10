@@ -1,4 +1,5 @@
 #scope_file
+
 ATTACK_FPS :: 13;
 DAMAGE_FPS :: 6;
 PLAYER_JUMP_SPD :: 350;
@@ -6,10 +7,23 @@ DAMAGE_KNOCKBACK :: 250;
 PLAYER_HOR_SPD :: 220;
 DAMAGE_TIME :: 0.9;
 HORIZONTAL_DRAG :: 0.1;
+G :: 1150;
+JUMP_FLOAT :: 0.39;
+JUMP_FLOAT_POW :: 1.1;
 
 player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
+#import "raylib";
+#import "entity";
+#import "toolbelt";
+inp :: #import "inp";
+Math :: #import "Math";
+#import "raymath";
+#import "Array_With_Holes";
+#import "game_sound_soloud";
+#import "Basic";
+screenlog :: #import "screenlog";
+#scope_export
 
-#scope_module
 
 On_Damage_Func :: #type (takes_damage: *Takes_Damage) -> bool;
 
@@ -51,7 +65,8 @@ invoke_damage_func :: (it: *Takes_Damage) {
 }
 
 being_damaged :: (damage: *Takes_Damage) -> bool {
-    using state;
+    using context.state;
+
     return Time.now - damage.time < damage.damage_time;
 }
 
@@ -63,7 +78,7 @@ try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
 }
 
 take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
-    using state;
+    using context.state;
 
     amount := 1.0;
 
@@ -110,11 +125,11 @@ player_reset :: (using it: *Player) {
 }
 
 player_has_been_damaged :: (using player: *Player) -> bool {
-    return state.Time.now - damage.time < DAMAGE_TIME;
+    return context.state.Time.now - damage.time < DAMAGE_TIME;
 }
 
-player_update :: (state: *State, using player: *Player) {
-    Time := *state.Time;
+player_update :: (using player: *Player) {
+    Time := *context.state.Time;
 
     is_being_knocked_back := player_has_been_damaged(player);
     sprite_timer += Time.delta_time;
@@ -122,7 +137,7 @@ player_update :: (state: *State, using player: *Player) {
     attacking := player_is_attacking(player);
 
     input_types := inp.Input_Type.ALL;
-    if state.editor.play_mode == .Edit
+    if context.state.editor.play_mode == .Edit
         input_types = ~inp.Input_Type.KEYBOARD_WASD;
 
     // Separate because in the platformer controls we don't treat up and down as
@@ -148,7 +163,9 @@ player_update :: (state: *State, using player: *Player) {
     jump_button_pressed_this_frame := jump_button_this_frame && !jump_button_last_frame;
     jump_button_last_frame = jump_button_this_frame;
 
-    time_since_marker := ifx state.nearest_marker then state.beat_timer - state.nearest_marker.time else 0;
+    state := context.state;
+
+    time_since_marker := ifx context.state.nearest_marker then state.beat_timer - state.nearest_marker.time else 0;
     allow_all_beats := false;
 
     if !is_being_knocked_back {
@@ -260,8 +277,12 @@ player_update :: (state: *State, using player: *Player) {
     if !is_being_knocked_back || attack_hitbox {
         p_rect := player_rect(player);
         p_midpoint := midpoint(p_rect);
-        for * state.enemies {
-            e_rect := enemy_rect(it);
+        for * state.world._Enemy {
+            ok, entity := get_entity(it.entity);
+            assert(ok);
+
+            e_transform := *entity.transform;
+            e_rect := enemy_rect(it, e_transform);
             if !is_being_knocked_back && CheckCollisionRecs(e_rect, p_rect) && !being_damaged(*it.damage) {
                 // player hit
                 delta := midpoint(e_rect) - p_midpoint;
@@ -282,22 +303,23 @@ player_update :: (state: *State, using player: *Player) {
 
     // catch player falling off the universe
     if position.y > 1000
-        restart();
+        context.state.restart();
 }
 
 player_is_attacking :: (it: *Player) -> bool {
-    using state;
+    using context.state;
 
-    return Time.now - it.last_attack_time < cast(float)state.sprites.player.attack.count/ATTACK_FPS;
+    return Time.now - it.last_attack_time < cast(float)context.state.sprites.player.attack.count/ATTACK_FPS;
 }
 
 player_attack_hitbox :: (it: *Player) -> bool {
-    using state;
+    using context.state;
     time_since_attack := Time.now - it.last_attack_time;
     return time_since_attack < 0.43 && time_since_attack > 0.1;
 }
 
 player_draw :: (using player: *Player) {
+    state := context.state;
     Time := *state.Time;
 
     attacking := player_is_attacking(player);
@@ -364,8 +386,7 @@ player_draw :: (using player: *Player) {
         if idx % 4 == 0 {
             using state.sound_state;
             wav := ifx idx < 4 then fx.footstep1 else fx.footstep2;
-            #if SOUND_ENABLED
-                Soloud_play(soloud, wav, 0.9);
+            play_sound(wav, 0.9);
         }
     }
 

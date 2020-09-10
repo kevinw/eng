@@ -13,10 +13,9 @@ inp :: #import "inp";
 SOUND_ENABLED :: true;
 HOTLOADING_ENABLED :: true;
 
-#load "game_sound_soloud.jai";
+#import "game_sound_soloud";
 
-#load "player.jai";
-#load "enemy.jai";
+#import "player";
 
 #import "soloud";
 
@@ -35,9 +34,6 @@ IMGUI_ENABLED :: false;
 gameWidth :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
-G :: 1150;
-JUMP_FLOAT :: 0.39;
-JUMP_FLOAT_POW :: 1.1;
 GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
 
@@ -57,9 +53,12 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     return entity;
 }
 
-State :: type_of(state);
 
-state: struct {
+#add_context state: *State;
+
+State :: struct {
+    restart: ();
+
     start_canary: u32; @noui // = 0xBEEFBEEF;
     blob: LiveSprite;
 
@@ -129,8 +128,6 @@ state: struct {
         texture: RenderTexture;
     };
 
-    enemies: [..]Enemy;
-
     end_canary: u32; @noui // = 0xBEEFBEEF;
 
     debug_draw := false;
@@ -146,15 +143,17 @@ cameraUpdaters :: CameraFunc.[
 ];
 
 update_bgm_volume :: () {
-    #if SOUND_ENABLED {
-        using state.sound_state;
-        Soloud_setVolume(soloud, bgm_voice, ifx state.muted then 0.0 else 1.0);
-    }
+    using context.state.sound_state;
+    Soloud_setVolume(soloud, bgm_voice, ifx context.state.muted then 0.0 else 1.0);
+}
+
+set_context_funcs :: () {
+    context.state.restart = restart;
 }
 
 on_host_did_reload_game_dll :: () {
-    using state;
-
+    using context.state;
+    set_context_funcs();
     set_default_font(*default_font);
 
     #if IMGUI_ENABLED
@@ -163,8 +162,9 @@ on_host_did_reload_game_dll :: () {
 }
 
 on_host_init :: () {
-    using state;
+    using context.state;
 
+    set_context_funcs();
     init_world(*world);
 
     #if IMGUI_ENABLED {
@@ -223,14 +223,8 @@ on_host_init :: () {
 
     player_reset(*player);
 
-    add_enemy_at :: (x: float, y: float) #expand {
-        e := array_add(*state.enemies);
-        e.position.x = x;
-        e.position.y = y;
-    }
-
-    add_enemy_at(400, 197);
-    add_enemy_at(600, 197);
+    spawn_prefab("plant_chomper", v3(400, 197, 0));
+    spawn_prefab("plant_chomper", v3(600, 197, 0));
 
     camera.target = player.position.xy;
     camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
@@ -245,10 +239,10 @@ on_host_init :: () {
     my_obj.transform.scale = Vector3.{300, 200, 1};
 
     my_sprite := add_component(my_obj_handle, SpriteRenderer);
-    my_sprite.sprite = state.sprites.evilplant.idle;
-    my_sprite.texture = state.textures.evilplant;
+    my_sprite.sprite = sprites.evilplant.idle;
+    my_sprite.texture = textures.evilplant;
 
-    envitem(*world, 0, 400, 1000, 200, .PLATFORM, GRAY);
+    envitem(*world, 0,   400, 1000, 200, .PLATFORM, GRAY);
     envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
     envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
     envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY);
@@ -263,7 +257,7 @@ on_host_init :: () {
 
 
 on_host_shutdown :: () {
-    using state;
+    using context.state;
 
     World.deinit(*world);
 
@@ -277,7 +271,7 @@ on_host_shutdown :: () {
 }
 
 restart :: () {
-    using state;
+    using context.state;
 
     camera.zoom = DEFAULT_CAM_ZOOM;
     camera.target = .{0, 0};
@@ -297,7 +291,7 @@ restart :: () {
 Sloppy_Math :: #import "Sloppy_Math";
 
 change_global_time_scale :: (delta: float) {
-    using state;
+    using context.state;
 
     STEP :: 0.2;
 
@@ -309,7 +303,7 @@ change_global_time_scale :: (delta: float) {
 }
 
 update_and_draw :: () {
-    using state;
+    using context.state;
 
     #if IMGUI_ENABLED {
         ImGui_ProcessRaylibEvents(*state.ui);
@@ -332,11 +326,11 @@ update_and_draw :: () {
 
 
     if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
-        editor_toggle(*state);
+        editor_toggle(context.state);
 
     // update
     {
-        editor_update(*state);
+        editor_update(context.state);
         screenlog.update(Time.delta_time);
         sound_update(*sound_state);
         {
@@ -364,9 +358,7 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
        
-        player_update(*state, *player);
-
-        enemy_update_all();
+        player_update(*player);
 
         wheel := GetMouseWheelMove();
         if wheel != 0 {
@@ -397,7 +389,7 @@ update_and_draw :: () {
             update_bgm_volume();
         }
 
-        if state.editor.play_mode == .Play
+        if context.state.editor.play_mode == .Play
             cameraUpdaters[cameraOption](*camera, *player, Time.delta_time, gameWidth, gameHeight);
 
         world_update(*world, Time.delta_time);
@@ -423,28 +415,17 @@ update_and_draw :: () {
                 // draw foreground
                 push_mode_2D(camera);
 
-                // draw world
-                for * world._RectRenderer {
-                    color2 := it.color;
-                    color2.r -= 100; color2.g -= 100; color2.b -= 100;
-                    DrawRectangleGradientEx(entity_rect(it.entity), it.color, color2, color2, it.color);
-                }
-
-                // draw enemies
-                for * enemies enemy_draw(it);
-
                 player_draw(*player);
-                //draw(blob._entry, player.sprite_timer, player.position.xy, tag_name = "die");
                 world_draw(*world);
 
-                editor_draw_world(*state);
+                editor_draw_world(context.state);
                 screenlog.draw_world();
             }
-            editor_draw(*state);
+            editor_draw(context.state);
 
             // Update beats
             if nearest_marker != null {
-                time_since_marker := beat_timer - state.nearest_marker.time;
+                time_since_marker := beat_timer - context.state.nearest_marker.time;
                 alpha := max(cast(float64)0.0, 1.0 - Math.abs(time_since_marker));
                 color := Vector4.{1, 1, 1, 1};
                 if time_since_marker < 0 color = Vector4.{0, 0, 0, 1};

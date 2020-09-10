@@ -1,5 +1,3 @@
-#placeholder state;
-
 window_rect: Rectangle;
 
 push_mode_2D :: (camera: Camera2D) #expand {
@@ -39,6 +37,10 @@ get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
     return MatrixMultiply(MatrixMultiply(matOrigin, MatrixMultiply(matScale, matRotation)), matTranslation);
 }
 
+sin_min_max :: (val: float, min: float, max: float) -> float {
+    sin01 := (Math.sin(val) * 0.5) + 1.0;
+    return min + sin01 * (max - min);
+}
 
 ToggleFakeFullscreen :: () {
     // raylib only does exclusive fullscreen, so here's a windowed fullscreen
