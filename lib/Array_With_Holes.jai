@@ -1,7 +1,6 @@
 #import "Windows";
 
 /*
-
 The point of this data structure is to have a bucket of things with pointers that never move,
 for which you can add and remove elements in O(1).
 
@@ -36,6 +35,7 @@ Array_With_Holes :: struct(Value: Type) {
 }
 
 init_array_with_holes :: (arr: *$A/Array_With_Holes) {
+    assert(arr.items == null, "Array_With_Holes was already initialized");
     arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
     assert(arr.items != null);
     arr.items[0].generation = SENTINEL_GENERATION;
@@ -44,7 +44,7 @@ init_array_with_holes :: (arr: *$A/Array_With_Holes) {
 SENTINEL_GENERATION  :: 999999;
 
 allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
-    assert(arr.items != null);
+    assert(arr.items != null, "Array_With_Holes was not initialized");
     assert(arr.items[0].generation == SENTINEL_GENERATION);
 
     slot_index := arr.items[0].next;
@@ -77,7 +77,7 @@ allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
 }
 
 delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
-    assert(arr.items != null);
+    assert(arr.items != null, "Array_With_Holes was not initialized");
     assert(arr.items[0].generation == SENTINEL_GENERATION);
 
     assert(handle.id > 0, "delete_item(handle=%)", handle);
@@ -103,13 +103,15 @@ delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
 }
 
 add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
+    assert(arr.items != null, "Array_With_Holes was not initialized");
+
     handle := allocate_slot(arr);
     arr.items[handle.id].value = value;
     return handle;
 }
 
 get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
-    assert(arr.items != null);
+    assert(arr.items != null, "Array_With_Holes was not initialized");
     assert(arr.items[0].generation == SENTINEL_GENERATION);
 
     assert(handle.id > 0);
@@ -123,7 +125,7 @@ get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type
 }
 
 get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
-    assert(arr.items != null);
+    assert(arr.items != null, "Array_With_Holes was not initialized");
     assert(arr.items[0].generation == SENTINEL_GENERATION);
     assert(handle.id > 0);
     assert(handle.generation > 0);
