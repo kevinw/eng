@@ -374,7 +374,7 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
     prefab_cache_entry := get_prefab_cache_entry(filename);
 
     // make the entitty
-    // nocheckin - need to actually use the entity_id paramenter here.
+    // TODO: need to actually use the entity_id paramenter here, or get rid of it.
     entity, entity_handle := create_entity(*state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
     entity.transform.position = world_pos;
 
