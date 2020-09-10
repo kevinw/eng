@@ -78,7 +78,6 @@ Player :: struct {
     using entity: Entity;
 
     speed: Vector2;
-    can_jump: bool;
     grounded: bool;
     jump_count: u8;
 
@@ -108,7 +107,6 @@ Player :: struct {
 player_reset :: (using it: *Player) {
     position.xy = Vector2.{ 400, 280 };
     speed = Vector2.{ 0, 0 };
-    can_jump = false;
 }
 
 player_has_been_damaged :: (using player: *Player) -> bool {
@@ -173,56 +171,66 @@ player_update :: (state: *State, using player: *Player) {
         if !attacking && jump_button_pressed_this_frame {
             beat_match_type := state.nearest_marker; // && state.nearest_marker.beat_type == .Snare;
             matched_beat := allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type);
+            spawn_prefab("player_dust_small", position);
             if matched_beat && jump_count < 2 {
                 if !grounded
                     screenlog.world(position, "double jump!");
-                logprint("player", "jump % count=%", time_since_marker, jump_count);
+                //logprint("player", "jump % count=%", time_since_marker, jump_count);
                 speed.y = -PLAYER_JUMP_SPD;
                 jump_count += 1;
             } else if grounded {
                 early_late := ifx time_since_marker > 0 then "late" else "early";
                 if !beat_match_type early_late = "wrong beat";
-                logprint("player", "MISS % jump %", early_late, time_since_marker);
+                //logprint("player", "MISS % jump %", early_late, time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD * 0.25;
                 jump_count = 0;
             }
 
             grounded = false;
-            can_jump = false;
             last_jump_time = Time.now;
         }
     }
 
     hitObstacle := false;
+    any_ground_at_feet := false;
+    ground_scan_rect := player_ground_scan_rect(player);
 
     // COLLISION
-    any_ground := false;
+    p := *position;
     for * state.world._BoxCollider {
-        p := *position;
         rect := entity_rect(it.entity);
-        if it.collision & .PLATFORM &&
-           rect.x <= p.x && rect.x + rect.width >= p.x &&
-           rect.y >= p.y && rect.y < p.y + speed.y * Time.delta_time
+        if it.collision & .PLATFORM && (
+            (rect.x <= p.x && rect.x + rect.width >= p.x &&
+             rect.y >= p.y && rect.y < p.y + speed.y * Time.delta_time))
         {
             hitObstacle = true;
             speed.y = 0.0;
             p.y = rect.y;
             if !grounded {
-                last_grounded_time = Time.now;
-                // landed
-                //logprint("land", "landed");
-                spawn_prefab("player_dust", position);
+                if Time.now - last_grounded_time > 0.2 {
+                    // landed
+                    last_grounded_time = Time.now;
+                    //logprint("land", "landed");
+                    spawn_prefab("player_dust", position);
+                    play_sfx("landing");
+                }
             }
+
+            //logprint("player", "grounded");
             grounded = true;
-            any_ground = true;
             jump_count = 0;
         }
-    }
-    if !any_ground {
-        //logprint("player", "fell");
+
+        if !any_ground_at_feet && CheckCollisionRecs(ground_scan_rect, rect)
+            any_ground_at_feet = true;
     }
 
-    // GRAVITY
+    if grounded && !any_ground_at_feet {
+        grounded = false;
+        //logprint("player", "fell");
+        jump_count = 1;
+    }
+
     if speed.x != 0 {
         if !grounded position.x += speed.x * Time.delta_time;
         if Math.abs(speed.x) > 0 {
@@ -234,15 +242,13 @@ player_update :: (state: *State, using player: *Player) {
         }
     }
 
+    // GRAVITY
     if !hitObstacle {
         position.y += speed.y * Time.delta_time;
         drag := G * Time.delta_time;
         if speed.y < 0 && jump_button_this_frame
             drag = Math.pow(drag * JUMP_FLOAT, JUMP_FLOAT_POW);
         speed.y += drag;
-        can_jump = false;
-    } else {
-        can_jump = true;
     }
 
     //
@@ -265,7 +271,6 @@ player_update :: (state: *State, using player: *Player) {
                 speed.y = -PLAYER_JUMP_SPD * 0.45;
                 speed.x = DAMAGE_KNOCKBACK * cast(float)-sign(delta.x);
                 grounded = false;
-                can_jump = false;
             } else if attack_hitbox && CheckCollisionRecs(e_rect, attack_hitbox_rect) {
                 //logprint("player", "hit enemy %", it);
 
@@ -393,8 +398,15 @@ player_draw :: (using player: *Player) {
         if player_attack_hitbox(player)
             draw_rect_outline(player_attack_rect(player), 2, debug_color);
         
+        draw_rect_outline(player_ground_scan_rect(player), 1, Color.{0, 255, 0, 255});
+        
         screenlog.world(position.xy, "(%, %)", cast(int)position.x, cast(int)position.y);
     }
+}
+
+player_ground_scan_rect :: (using it: *Player) -> Rectangle {
+    W :: 15;
+    return rect(position.x - W/2, position.y, W, 4);
 }
 
 player_rect :: (using it: *Player) -> Rectangle {

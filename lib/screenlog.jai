@@ -26,7 +26,7 @@ Entry :: struct {
 #scope_module
 
 Logger_State :: struct {
-    time: float64;
+    //time: float64;
     entries: [..]Entry;
     this_frame_entries: [..]Entry;
 }
@@ -98,7 +98,7 @@ world :: (world_pos: Vector2, message: string, args: ..Any) {
 update :: (delta_time: float64) {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
-    time += delta_time;
+    //time += delta_time;
     for * entries {
         it.time -= delta_time;
         if it.time < 0 {

@@ -78,6 +78,11 @@ draw :: (using it: *SpriteRenderer, transform: *Transform) {
         Sprite_Anim.draw_frame(_current_frame, position.xy);
 }
 
+draw_debug :: (using it: *SpriteRenderer, transform: *Transform) {
+    
+    
+}
+
 #scope_file
 #import "raylib";
 #import "toolbelt";

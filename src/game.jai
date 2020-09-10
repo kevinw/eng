@@ -252,6 +252,13 @@ on_host_init :: () {
     envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
     envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
     envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY);
+
+    if false {
+        r :: #bake_arguments random_get_within_range(min=0, max=1000);
+        rc :: #bake_arguments random_get_within_range(min=0, max=255);
+        for i: 0..100
+            envitem(*world, r(), r(), r(), r(), .PLATFORM, make_Color(rc(), rc(), rc(), 255));
+    }
 }
 
 
@@ -517,7 +524,7 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, delta: floa
             }
         }
     } else {
-        if player.can_jump && (player.speed.y == 0) && (player.position.y != camera.target.y) {
+        if (player.speed.y == 0) && (player.position.y != camera.target.y) {
             eveningOut = 1;
             evenOutTarget = player.position.y;
         }

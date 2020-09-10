@@ -1,0 +1,7 @@
+55 player_dust
+
+SpriteRenderer
+{
+    sprite_anim "little_hop_dust"
+    mode Play_Once_And_Die
+}
