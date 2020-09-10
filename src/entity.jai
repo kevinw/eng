@@ -123,6 +123,18 @@ bucket_chooser :: () -> string {
     });
 }
 
+foreach_component_type :: (inner_code_string: string) #expand {
+    inner :: (inner_code_string: string) -> string {
+        sb: String_Builder;
+        defer free_buffers(*sb);
+        for all_component_types
+            print_to_builder(*sb, "%\n", inner_code_string);
+        return builder_to_string(*sb);
+    }
+
+    #insert_internal #run inner(inner_code_string);
+}
+
 runtime_bucket_chooser :: (inner_code_string: string) -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
