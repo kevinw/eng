@@ -32,6 +32,10 @@ cmdline_args: struct {
     live_reload := true;
 };
 
+#load "host_common.jai";
+
+host_state: Host_State;
+
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
@@ -49,11 +53,17 @@ on_asset_change :: (using asset_change: *Asset_Change) {
             print("output_string: %\n", output_string);
             print("error string: %\n", error_string);
         } else {
+            // HACK: the jai compiler is not returning an error value on the console??
+            if String.contains(output_string, " Error: ") {
+                success = false;
+            }
+
             print("%", output_string);
             if error_string && error_string.count {
                 print("[stderr] %", error_string);
             }
         }
+        host_state.jai_compiler_did_error = !success;
     } else {
         // all other changes go to the plugin, which may want to live reload
         // textures, etc.
@@ -72,7 +82,7 @@ host_settings: struct {
 // plugin functions
 Plugin_Init_Func        :: #type (ctx: *Context, old_value: *void) #c_call;
 Plugin_Deinit_Func      :: #type (ctx: *Context, shutting_down: bool) -> *void #c_call;
-Plugin_Tick_Func        :: #type (ctx: *Context) #c_call;
+Plugin_Tick_Func        :: #type (ctx: *Context, host_state: Host_State) #c_call;
 Plugin_On_Resource_Change_Func :: #type (ctx: *Context, change: *Asset_Change) #c_call;
 
 plugin_init:        Plugin_Init_Func;
@@ -215,7 +225,7 @@ main :: () {
         }
 
         ctx := context;
-        plugin_tick(*ctx);
+        plugin_tick(*ctx, host_state);
         reset_temporary_storage();
     }
 

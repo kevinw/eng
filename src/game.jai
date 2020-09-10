@@ -452,6 +452,7 @@ update_and_draw :: () {
 
             editor_draw_ui();
             screenlog.draw();
+            host_debug_draw();
         }
         rlglDraw();
         #if IMGUI_ENABLED ImGui.Render();
