@@ -15,10 +15,10 @@ Handle_Type :: struct {
     generation: s32;
 };
 
-Array_With_Holes :: struct(Value: Type, Max_Bytes_N: int = 4000) {
+Array_With_Holes :: struct(Value: Type) {
     Handle :: Handle_Type;
     Value_Type :: Value;
-    Max_Bytes :: Max_Bytes_N;
+    Max_Bytes :: 1000 * size_of(Slot);
     Slot :: struct(Value: Type) {
         union  {
             value: Value;
@@ -39,7 +39,6 @@ init_array_with_holes :: (arr: *$A/Array_With_Holes) {
     arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
     assert(arr.items != null);
     arr.items[0].generation = SENTINEL_GENERATION;
-
 }
 
 SENTINEL_GENERATION  :: 999999;
@@ -58,7 +57,10 @@ allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
         arr.count += 1;
         assert(size_of(A.Slot) * arr.count < A.Max_Bytes);
         slot_index = cast(u32)arr.count;  // here we intentionally don't subtract one, to account for the freelist slot at 0
-        assert(arr.items[slot_index].generation == 0);
+
+        _slot := *arr.items[slot_index];
+        _gen  := _slot.generation;
+        assert(_gen == 0);
     }
 
     arr.items[slot_index].generation += 1;
