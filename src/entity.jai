@@ -20,18 +20,13 @@ all_component_types :: Type.[
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
     entity := get_item_ptr(*state.world.entities, entity_handle);
     return entity != null, entity;
-
 }
 
 get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
-    if name == {
-        case "SpriteRenderer"; return type_info(SpriteRenderer);
-        case "BoxCollider";    return type_info(BoxCollider);
-        case "RectRenderer";   return type_info(RectRenderer);
-        case;
-            assert(false, tprint("cannot get component type info for '%'", name));
-            return null;
-    }
+    #insert #run foreach_component_type(#string END
+        if name == "<type>" return type_info(<type>);
+    END);
+    assert(false, tprint("no component named %", name));
 }
 
 Component :: struct {
@@ -123,16 +118,16 @@ bucket_chooser :: () -> string {
     });
 }
 
-foreach_component_type :: (inner_code_string: string) #expand {
-    inner :: (inner_code_string: string) -> string {
-        sb: String_Builder;
-        defer free_buffers(*sb);
-        for all_component_types
-            print_to_builder(*sb, "%\n", inner_code_string);
-        return builder_to_string(*sb);
-    }
+foreach_component_type :: (inner_code_string: string) -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+    for all_component_types {
+        replaced := String.replace(inner_code_string, "<type>", tprint("%", it)); // @Leak compile-time
+        defer free(replaced);
 
-    #insert_internal #run inner(inner_code_string);
+        print_to_builder(*sb, "%\n", replaced);
+    }
+    return builder_to_string(*sb);
 }
 
 runtime_bucket_chooser :: (inner_code_string: string) -> string {
@@ -427,6 +422,7 @@ spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
 File :: #import "File";
 wbml :: #import "wbml";
 laas :: #import "laas";
+String :: #import "String";
 
 #import "live_raylib";
 
