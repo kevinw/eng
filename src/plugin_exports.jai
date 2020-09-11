@@ -1,6 +1,5 @@
 #scope_file // everything in this file is "private" since we're only exporting symbols.
 
-HOTLOADING_ENABLED :: true;
 #import "Basic";
 #import "live_raylib";
 Math :: #import "Math";
@@ -12,7 +11,7 @@ Math :: #import "Math";
 
 #import "Hotloader";
 
-strip_dot_slash :: (path: string) -> string {
+strip_dot_slash :: (path: string) -> string @substring {
     s := path;
     if s.count >= 2 && s[0] == #char "." && s[1] == #char "/"
         advance(*s, 2);

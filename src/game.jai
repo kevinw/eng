@@ -10,24 +10,23 @@ screenlog :: #import "screenlog";
 reaper :: #import "reaper";
 inp :: #import "inp";
 
-SOUND_ENABLED :: true;
 HOTLOADING_ENABLED :: true;
 
 #import "game_sound_soloud";
 
 #import "player";
 
-#import "soloud";
-
 #import "entity";
 #load "editor.jai";
 
 #import "live_raylib";
 #import "Live_Types";
+
 #load "plugin_exports.jai";
 
 #load "../lib/imgui_inspector.jai";
 
+#add_context state: *State;
 
 IMGUI_ENABLED :: false;
 
@@ -53,8 +52,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     return entity;
 }
 
-
-#add_context state: *State;
 
 State :: struct {
     restart: ();
@@ -143,8 +140,8 @@ cameraUpdaters :: CameraFunc.[
 ];
 
 update_bgm_volume :: () {
-    using context.state.sound_state;
-    Soloud_setVolume(soloud, bgm_voice, ifx context.state.muted then 0.0 else 1.0);
+    using context.state;
+    set_volume(sound_state.bgm_voice, ifx muted then 0.0 else 1.0);
 }
 
 set_context_funcs :: () {
@@ -163,7 +160,6 @@ on_host_did_reload_game_dll :: () {
 
 on_host_init :: () {
     using context.state;
-
     set_context_funcs();
     init_world(*world);
 
@@ -179,8 +175,7 @@ on_host_init :: () {
     start_canary = 0xBEEFBEEF;
     end_canary =   0xDEADBEEF;
 
-    #if SOUND_ENABLED
-        sound_init(*sound_state);
+    sound_init(*sound_state);
     
     // load textures and sprites
     textures.gino = LoadTexture("resources/sprites/gino.png");
@@ -264,8 +259,7 @@ on_host_shutdown :: () {
     UnloadLiveTexture(bg.texture);
     UnloadShader(bg.shader.resource);
 
-    #if SOUND_ENABLED
-        sound_deinit(*sound_state);
+    sound_deinit(*sound_state);
     #if IMGUI_ENABLED
         ImGui_ImplSdl_Shutdown(*ui);
 }
@@ -277,13 +271,8 @@ restart :: () {
     camera.target = .{0, 0};
     player.position = .{400, 280, 0};
 
-    {
-        // Reset the song back to the beginning for now.
-        using sound_state;
-
-        #if SOUND_ENABLED
-            Soloud_seek(soloud, bgm_voice, 0);
-    }
+    // Reset the song back to the beginning for now.
+    seek(sound_state.bgm_voice, 0);
 
     beat_timer = 0;
 }
@@ -337,9 +326,7 @@ update_and_draw :: () {
             // update beat
             {
                 using sound_state;
-
-                #if SOUND_ENABLED
-                    beat_timer = Soloud_getStreamTime(soloud, bgm_voice);
+                beat_timer = get_stream_time(bgm_voice);
             }
             bgm_bpm:float = 122.069;
             beats_per_second := bgm_bpm * (1.0 / 60.0);

@@ -22,14 +22,27 @@ Sound_State :: struct {
     bgm_voice: Voice_Handle;
 };
 
-play_sound :: (wav: *Wav, volume := 1.0) {
-    Soloud_play(context.state.sound_state.soloud, wav, volume);
+soloud_state :: inline () -> *Soloud { return context.state.sound_state.soloud; }
 
+set_volume :: (voice_handle: Voice_Handle, volume: float) {
+    Soloud_setVolume(soloud_state(), voice_handle, volume);
+}
+
+seek :: (voice_handle: Voice_Handle, time_seconds: float64) {
+    Soloud_seek(soloud_state(), voice_handle, time_seconds);
+}
+
+get_stream_time :: (voice_handle: Voice_Handle) -> float64 {
+    return Soloud_getStreamTime(soloud_state(), voice_handle);
+}
+
+play_sound :: (wav: *Wav, volume := 1.0) {
+    Soloud_play(soloud_state(), wav, volume);
 }
 
 play_sfx :: ($name: string) {
     wav := get_field_value(*context.state.sound_state.fx, name, *Wav);
-    Soloud_play(context.state.sound_state.soloud, wav);
+    Soloud_play(soloud_state(), wav);
 }
 
 sound_init :: (using state: *Sound_State) {
