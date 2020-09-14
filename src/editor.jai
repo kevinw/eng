@@ -111,6 +111,10 @@ editor_draw :: (state: *State) {
 
 editor_update :: (state: *State) {
     using context.state.editor;
+
+    if ImGui.GetIO().WantCaptureMouse // don't let imgui clicks come through to this one.
+        return;
+
     Time := *state.Time;
     if play_mode == .Play return;
 
