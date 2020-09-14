@@ -1,6 +1,5 @@
 #import "Basic";
 #import "raylib";
-#import "raygui";
 #import "raymath";
 #import "toolbelt";
 #import "Sprite_Anim";
@@ -24,11 +23,10 @@ HOTLOADING_ENABLED :: true;
 
 #load "plugin_exports.jai";
 
-#load "../lib/imgui_inspector.jai";
+#load "../imgui_impl_gl.jai";
+IMGUI_ENABLED :: true;
 
 #add_context state: *State;
-
-IMGUI_ENABLED :: false;
 
 gameWidth :: 640;
 gameHeight :: 360;
@@ -54,8 +52,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 
 
 State :: struct {
-    restart: ();
-
     start_canary: u32; @noui // = 0xBEEFBEEF;
     blob: LiveSprite;
 
@@ -125,9 +121,10 @@ State :: struct {
         texture: RenderTexture;
     };
 
-    end_canary: u32; @noui // = 0xBEEFBEEF;
-
     debug_draw := false;
+    restart: ();
+
+    end_canary: u32; @noui // = 0xBEEFBEEF;
 };
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, delta: float, w: int, h: int);
@@ -153,8 +150,9 @@ on_host_did_reload_game_dll :: () {
     set_context_funcs();
     set_default_font(*default_font);
 
-    #if IMGUI_ENABLED
+    #if IMGUI_ENABLED {
         ImGui_Impl_Init(*ui, GetWindowHandle());
+    }
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
@@ -164,7 +162,9 @@ on_host_init :: () {
     init_world(*world);
 
     #if IMGUI_ENABLED {
+        gl_load(*gl);
         ImGui_Impl_CreateContext(*ui);
+        ImGui.StyleColorsDark();
         ImGui_Impl_Init(*ui, GetWindowHandle());
     }
 
@@ -229,6 +229,7 @@ on_host_init :: () {
     bg.texture = LoadLiveTexture("resources/textures/space.png");
     bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
 
+    /*
     my_obj, my_obj_handle := create_entity(*world);
     my_obj.transform.position = Vector3.{380, 380, 0};
     my_obj.transform.scale = Vector3.{300, 200, 1};
@@ -236,6 +237,7 @@ on_host_init :: () {
     my_sprite := add_component(my_obj_handle, SpriteRenderer);
     my_sprite.sprite = sprites.evilplant.idle;
     my_sprite.texture = textures.evilplant;
+    */
 
     envitem(*world, 0,   400, 1000, 200, .PLATFORM, GRAY);
     envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
@@ -260,8 +262,6 @@ on_host_shutdown :: () {
     UnloadShader(bg.shader.resource);
 
     sound_deinit(*sound_state);
-    #if IMGUI_ENABLED
-        ImGui_ImplSdl_Shutdown(*ui);
 }
 
 restart :: () {
@@ -295,8 +295,13 @@ update_and_draw :: () {
     using context.state;
 
     #if IMGUI_ENABLED {
-        ImGui_ProcessRaylibEvents(*state.ui);
-        ImGui_Impl_NewFrame(*state.ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
+        ImGui_SetMouseEvents(
+            *ui,
+            left = IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
+            middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
+            right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
+            wheel = cast(float)GetMouseWheelMove());
+        ImGui_Impl_NewFrame(*ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
     }
 
     #if HOTLOADING_ENABLED {
@@ -430,7 +435,10 @@ update_and_draw :: () {
             host_debug_draw();
         }
         rlglDraw();
-        #if IMGUI_ENABLED ImGui.Render();
+        #if IMGUI_ENABLED {
+            ImGui.Render();
+            ImGui_Impl_RenderDrawData(*context.state.ui, ImGui.GetDrawData());
+        }
 
         // TODO: @Speed the EndDrawing implied by PushDrawing is calling
         // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary

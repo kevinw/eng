@@ -1,8 +1,7 @@
-#load "imgui_impl.jai";
-
 Reflection :: #import "Reflection";
 
 #scope_file
+ImVec2 :: ImGui.ImVec2;
 
 show_inspector := true;    // Wish we could declare static variables inside functions.
 
@@ -98,7 +97,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
                 if ImGui.BeginCombo(name, temp_c_string(value_name)) {
                     for info_enum.names {
                         is_selected := value == info_enum.values[it_index];
-                        if ImGui.Selectable(temp_c_string(it), is_selected, size=*default_size) {
+                        if ImGui.Selectable(temp_c_string(it), is_selected, size=default_size) {
                             Reflection.set_enum_value(data, info_enum, info_enum.values[it_index]);
                         }
                         if is_selected ImGui.SetItemDefaultFocus();

@@ -42,6 +42,8 @@ idea: animate the changes from a prefab to the current instance to show the diff
 use the animation to "go back" to the prefab when you zoom in on it
 */
 
+#load "../lib/imgui_inspector.jai";
+
 Play_Mode :: enum {
     Play;
     Edit;
@@ -88,6 +90,8 @@ editor_draw_world :: (state: *State) {
 
 }
 
+demo_window_open: bool = true;
+
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
 
@@ -99,6 +103,7 @@ editor_draw :: (state: *State) {
 
     #if IMGUI_ENABLED {
         ImGui.Begin("state", *ui_open);
+        ImGui.ShowDemoWindow(*demo_window_open);
         inspect("state", *state);
         ImGui.End();
     }

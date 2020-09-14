@@ -2,8 +2,8 @@
 #import "Compiler";
 
 module_search_paths := string.[
+    "../jai-imgui",
     "../jai-raylib",
-    "../raygui/src",
     "../jai-soloud",
     "lib",
     "src"
