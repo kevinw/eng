@@ -220,6 +220,13 @@ ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
     if io.Fonts.TexID != null
         return false;
 
+    //io.Fonts.AddFontFromFileTTF(io.Fonts, "resources/fonts/FiraCode-VariableFont_wght.ttf", 25);
+
+    {
+        style := ImGui.GetStyle();
+        style.ScaleAllSizes(style, 1.00);
+    }
+
     // Build texture atlas
     pixels: *u8 = null;
     width, height: s32;

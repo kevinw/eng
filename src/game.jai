@@ -24,12 +24,12 @@ HOTLOADING_ENABLED :: true;
 #load "plugin_exports.jai";
 
 #load "../imgui_impl_gl.jai";
-IMGUI_ENABLED :: true;
 
 #add_context state: *State;
 
 gameWidth :: 640;
 gameHeight :: 360;
+IMGUI_ENABLED :: true;
 DEFAULT_CAM_ZOOM :: 1.2;
 GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
@@ -150,9 +150,7 @@ on_host_did_reload_game_dll :: () {
     set_context_funcs();
     set_default_font(*default_font);
 
-    #if IMGUI_ENABLED {
-        ImGui_Impl_Init(*ui, GetWindowHandle());
-    }
+    ImGui_Impl_Init(*ui, GetWindowHandle());
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
@@ -161,12 +159,10 @@ on_host_init :: () {
     set_context_funcs();
     init_world(*world);
 
-    #if IMGUI_ENABLED {
-        gl_load(*gl);
-        ImGui_Impl_CreateContext(*ui);
-        ImGui.StyleColorsDark();
-        ImGui_Impl_Init(*ui, GetWindowHandle());
-    }
+    gl_load(*gl);
+    ImGui_Impl_CreateContext(*ui);
+    ImGui.StyleColorsDark();
+    ImGui_Impl_Init(*ui, GetWindowHandle());
 
     blob = LoadLiveSprite("resources/sprites/blob.aseprite");
 
@@ -294,15 +290,13 @@ change_global_time_scale :: (delta: float) {
 update_and_draw :: () {
     using context.state;
 
-    #if IMGUI_ENABLED {
-        ImGui_SetMouseEvents(
-            *ui,
-            left = IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
-            middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
-            right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
-            wheel = cast(float)GetMouseWheelMove());
-        ImGui_Impl_NewFrame(*ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
-    }
+    ImGui_SetMouseEvents(
+        *ui,
+        left = IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
+        middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
+        right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
+        wheel = cast(float)GetMouseWheelMove());
+    ImGui_Impl_NewFrame(*ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
 
     #if HOTLOADING_ENABLED {
         assert(start_canary == 0xBEEFBEEF);
@@ -435,10 +429,9 @@ update_and_draw :: () {
             host_debug_draw();
         }
         rlglDraw();
-        #if IMGUI_ENABLED {
-            ImGui.Render();
-            ImGui_Impl_RenderDrawData(*context.state.ui, ImGui.GetDrawData());
-        }
+
+        ImGui.Render();
+        ImGui_Impl_RenderDrawData(*context.state.ui, ImGui.GetDrawData());
 
         // TODO: @Speed the EndDrawing implied by PushDrawing is calling
         // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary
