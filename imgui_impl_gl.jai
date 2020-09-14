@@ -33,9 +33,28 @@ UI_State :: struct {
     ElementsHandle: GLuint = 0;
 };
 
-_render_ui_state: *UI_State;
+imgui_alloc_context: Context;
+
+// @Speed: maybe imgui should just get 
+c_alloc :: (sz: u64, userdata: *void) -> *void #c_call {
+    push_context << cast(*Context)userdata {
+        return alloc(cast(s64)sz);
+    }
+}
+
+c_free :: (ptr: *void, userdata: *void) #c_call {
+    push_context << cast(*Context)userdata {
+        free(ptr);
+    }
+}
+
+_SetAllocators :: () {
+    imgui_alloc_context = context;
+    ImGui.SetAllocatorFunctions(c_alloc, c_free, *imgui_alloc_context);
+}
 
 ImGui_Impl_CreateContext :: (using ui_state: *UI_State) {
+    _SetAllocators();
     ctx = ImGui.CreateContext();
 
     io := ImGui.GetIO();
@@ -54,7 +73,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     fb_width := (io.DisplaySize.x * io.DisplayFramebufferScale.x);
     fb_height := (io.DisplaySize.y * io.DisplayFramebufferScale.y);
     if fb_width == 0 || fb_height == 0 return;
-    draw_data.ScaleClipRects(draw_data, *io.DisplayFramebufferScale);
+    draw_data.ScaleClipRects(draw_data, io.DisplayFramebufferScale);
 
     // Backup GL state
     last_active_texture: GLenum;        glGetIntegerv(GL_ACTIVE_TEXTURE, xx *last_active_texture);
@@ -170,6 +189,7 @@ ImGui_Impl_SetClipboardText :: (data: *void, text: *u8) #c_call {
 }
 
 ImGui_SetMouseState :: (using ui_state: *UI_State, left: bool, middle: bool, right: bool, wheel: float) {
+    // TODO: this is a duplicate of SetMouseEvents above
     MousePressed[0] = left;
     MousePressed[1] = middle;
     MousePressed[2] = right;
@@ -180,7 +200,7 @@ ImGui_SetMouseState :: (using ui_state: *UI_State, left: bool, middle: bool, rig
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-ImGui_Impl_ProcessEvent :: (using ui_state: *UI_State, event: Input.Event) -> bool {
+ImGui_Impl_ProcessEvent :: (using ui_state: *UI_State, event: Input.Event) {
     using Input;
     io := ImGui.GetIO();
     if event.type == {
@@ -190,7 +210,6 @@ ImGui_Impl_ProcessEvent :: (using ui_state: *UI_State, event: Input.Event) -> bo
         case .MOUSE_WHEEL;
             if event.wheel_delta > 0 MouseWheel = 1;
             if event.wheel_delta < 0 MouseWheel = -1;
-            return true;
         case .KEYBOARD;
             if event.key_code == {
                 case .MOUSE_BUTTON_LEFT;   MousePressed[0] = event.key_pressed != 0;
@@ -202,14 +221,11 @@ ImGui_Impl_ProcessEvent :: (using ui_state: *UI_State, event: Input.Event) -> bo
                     io.KeyCtrl = event.ctrl_pressed;
                     io.KeyAlt = event.alt_pressed;
             }
-            return true;
         case .TEXT_INPUT;
             buf := talloc(size_of(s32) + 1); // unicode rune + 0
             memcpy(buf, *event.utf32, size_of(s32));
             io.AddInputCharactersUTF8(io, buf);
-            return true;
     }
-    return false;
 }
 
 ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
@@ -412,10 +428,16 @@ ImGui_ImplSdl_Shutdown :: (ui_state: *UI_State) {
     ui_state.ctx = null;
 }
 
+ImGui_Impl_DLL_Was_Reloaded :: (ui_state: *UI_State) {
+    _SetAllocators();
+    ui_state.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
+
+    assert(context.state.ui.ctx != null);
+    ImGui.SetCurrentContext(context.state.ui.ctx);
+}
+
 ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {
     using ui_state;
-
-    _render_ui_state = ui_state; // TODO
 
     io := ImGui.GetIO();
 

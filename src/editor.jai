@@ -99,10 +99,53 @@ editor_draw :: (state: *State) {
 
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
-    DrawText("editing", 275, 330, 20, color);
+    DrawText("editing", 275, 330, 16, color);
 
-    #if IMGUI_ENABLED {
-        ImGui.Begin("state", *ui_open);
+    // dockspace
+    fullscreen :: true;
+    padding    :: false;
+
+    window_flags := ImGui.WindowFlags.MenuBar | .NoDocking;
+    if fullscreen {
+        viewport := ImGui.GetMainViewport();
+        ImGui.SetNextWindowPos(viewport.GetWorkPos(viewport));
+        ImGui.SetNextWindowSize(viewport.GetWorkSize(viewport));
+        ImGui.SetNextWindowViewport(viewport.ID_);
+        ImGui.PushStyleVar(.WindowRounding, 0);
+        ImGui.PushStyleVar(.WindowBorderSize, 0);
+        window_flags |= ImGui.WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
+                        .NoBringToFrontOnFocus | .NoNavFocus;
+    }
+    window_flags |= .NoBackground;
+    open := true;
+    {
+        if !padding ImGui.PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
+        ImGui.Begin("DockSpace Demo", *open, window_flags);
+        if !padding ImGui.PopStyleVar();
+
+        defer ImGui.End();
+
+        if fullscreen
+            ImGui.PopStyleVar(2);
+
+        io := ImGui.GetIO();
+        assert(io.ConfigFlags_ & .DockingEnable != 0);
+
+        // dockspace
+        dockspace_flags := ImGui.DockNodeFlags.PassthruCentralNode;
+        ImGui.DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
+
+        if ImGui.BeginMenuBar() {
+            defer ImGui.EndMenuBar();
+            if  ImGui.BeginMenu("Options") {
+                defer ImGui.EndMenu();
+
+            }
+            HelpMarker("Some example help text goes here.");
+        }
+    }
+
+    if ImGui.Begin("state", *ui_open) {
         ImGui.ShowDemoWindow(*demo_window_open);
         inspect("state", *state);
         ImGui.End();
@@ -275,6 +318,17 @@ save_scene :: (name: string) {
     File.write_entire_file(filename, str);
 
     logprint("editor", "saved %", filename);
+}
+
+HelpMarker :: (desc: string) {
+    ImGui.TextDisabled("(?)");
+    if ImGui.IsItemHovered() {
+        ImGui.BeginTooltip();
+        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35.0);
+        ImGui.TextUnformatted(tprintz(desc).data);
+        ImGui.PopTextWrapPos();
+        ImGui.EndTooltip();
+    }
 }
 
 #scope_file

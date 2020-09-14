@@ -29,7 +29,6 @@ HOTLOADING_ENABLED :: true;
 
 gameWidth :: 640;
 gameHeight :: 360;
-IMGUI_ENABLED :: true;
 DEFAULT_CAM_ZOOM :: 1.2;
 GLSL_VERSION :: 330;
 DEFAULT_BGM_VOLUME :: 0.03;
@@ -150,7 +149,10 @@ on_host_did_reload_game_dll :: () {
     set_context_funcs();
     set_default_font(*default_font);
 
-    ImGui_Impl_Init(*ui, GetWindowHandle());
+    gl_load(*gl);
+    ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
+
+    //ImGui_Impl_Init(*ui, GetWindowHandle());
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
@@ -290,8 +292,7 @@ change_global_time_scale :: (delta: float) {
 update_and_draw :: () {
     using context.state;
 
-    ImGui_SetMouseEvents(
-        *ui,
+    ImGui_SetMouseEvents(*ui,
         left = IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
         middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
         right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),

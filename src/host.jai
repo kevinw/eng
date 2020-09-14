@@ -187,6 +187,7 @@ main :: () {
     SetTargetFPS(60);
     frame_count := 0;
     while !WindowShouldClose() {
+        auto_release_temp();
         frame_count += 1;
 
         // Set the window to be a little transparent when it's not in focus, if we're always on top.
@@ -224,7 +225,6 @@ main :: () {
         }
 
         plugin_tick(*plugin_context, host_state);
-        reset_temporary_storage();
     }
 
     if !IsWindowFullscreen() && !platform.is_window_borderless(native_window_handle) {
