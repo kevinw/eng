@@ -112,8 +112,8 @@ to_temp_c_string :: (s: string) -> *u8 {
 // copy a string and make sure the last byte is null
 copy_string_z :: (s: string) -> string {
     r: string;
-    r.count = s.count + 1;
-    r.data = cast(*u8) alloc(r.count);  // Add 1 for the zero.
+    r.count = s.count;
+    r.data = cast(*u8) alloc(r.count + 1);  // Add 1 for the zero.
     memcpy(r.data, s.data, s.count);
     r.data[s.count] = 0;
     return r;
