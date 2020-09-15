@@ -127,7 +127,7 @@ get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type
 get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
     assert(arr.items != null, "Array_With_Holes was not initialized");
     assert(arr.items[0].generation == SENTINEL_GENERATION);
-    assert(handle.id > 0);
+    assert(handle.id > 0, "You passed an uninitialized handle to Array_With_Holes.get_item_ptr");
     assert(handle.generation > 0);
 
     slot := *arr.items[handle.id];
