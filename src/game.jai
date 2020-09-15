@@ -13,8 +13,6 @@ HOTLOADING_ENABLED :: true;
 
 #import "game_sound_soloud";
 
-#import "player";
-
 #import "entity";
 #load "editor.jai";
 
@@ -103,7 +101,7 @@ State :: struct {
     bgm: Music;
     beat_timer: float64;
 
-    player: Player;
+    player: *Player;
     scene: struct {};
     camera: Camera2D;
 
@@ -220,18 +218,21 @@ on_host_init :: () {
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
 
-    player_reset(*player);
+    player_entity := spawn_prefab("player");
+    player = get_component(player_entity, Player);
+    player_reset(player);
 
     spawn_prefab("plant_chomper", v3(400, 197, 0));
     spawn_prefab("plant_chomper", v3(600, 197, 0));
 
-    camera.target = player.position.xy;
+    camera.target = get_transform(player).position.xy;
     camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
     camera.rotation = 0.0;
     camera.zoom = DEFAULT_CAM_ZOOM;
 
     bg.texture = LoadLiveTexture("resources/textures/space.png");
     bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
+
 
     /*
     my_obj, my_obj_handle := create_entity(*world);
@@ -273,7 +274,7 @@ restart :: () {
 
     camera.zoom = DEFAULT_CAM_ZOOM;
     camera.target = .{0, 0};
-    player.position = .{400, 280, 0};
+    get_transform(player).position = .{400, 280, 0};
 
     // Reset the song back to the beginning for now.
     seek(sound_state.bgm_voice, 0);
@@ -351,8 +352,6 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
        
-        player_update(*player);
-
         if context.state.editor.play_mode == .Play {
             wheel := GetMouseWheelMove();
             if wheel != 0 {
@@ -385,7 +384,7 @@ update_and_draw :: () {
         }
 
         if context.state.editor.play_mode == .Play
-            cameraUpdaters[cameraOption](*camera, *player, Time.delta_time, gameWidth, gameHeight);
+            cameraUpdaters[cameraOption](*camera, player, Time.delta_time, gameWidth, gameHeight);
 
         world_update(*world, Time.delta_time);
     }
@@ -410,7 +409,6 @@ update_and_draw :: () {
                 // draw foreground
                 push_mode_2D(camera);
 
-                player_draw(*player);
                 world_draw(*world);
 
                 editor_draw_world(context.state);
@@ -451,7 +449,7 @@ update_and_draw :: () {
 
 UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
     offset = make_Vector2(width/2, height/2);
-    target = player.position.xy;
+    target = get_transform(player).position.xy;
 }
 
 UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
@@ -460,11 +458,10 @@ UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: fl
     fractionSpeed :: 2.9;
     
     camera.offset = make_Vector2(width/2, height/2);
-    diff := player.position.xy - camera.target;
+    diff := get_transform(player).position.xy - camera.target;
     length := Vector2Length(diff);
     
-    if length > minEffectLength
-    {
+    if length > minEffectLength {
         speed := max(fractionSpeed*length, minSpeed);
         camera.target = Vector2Add(camera.target, Vector2Scale(diff, speed*delta/length));
         //camera.target.x = round(camera.target.x);
@@ -483,7 +480,8 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, delta: floa
     evenOutSpeed :: 700;
     
     camera.offset = make_Vector2(width/2, height/2);
-    camera.target.x = player.position.x;
+    transform := get_transform(player);
+    camera.target.x = transform.position.x;
     
     if eveningOut {
         if evenOutTarget > camera.target.y {
@@ -502,9 +500,9 @@ UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, delta: floa
             }
         }
     } else {
-        if (player.speed.y == 0) && (player.position.y != camera.target.y) {
+        if (player.speed.y == 0) && (transform.position.y != camera.target.y) {
             eveningOut = 1;
-            evenOutTarget = player.position.y;
+            evenOutTarget = transform.position.y;
         }
     }
 }
@@ -516,8 +514,12 @@ UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, delta: floa
     bboxWorldMax := GetScreenToWorld2D(make_Vector2((1 + bbox.x)*0.5*width, (1 + bbox.y)*0.5*height ), << camera);
     camera.offset = make_Vector2((1 - bbox.x)*0.5 * width, (1 - bbox.y)*0.5*height);
 
-    if player.position.x < bboxWorldMin.x camera.target.x = player.position.x;
-    if player.position.y < bboxWorldMin.y camera.target.y = player.position.y;
-    if player.position.x > bboxWorldMax.x camera.target.x = bboxWorldMin.x + (player.position.x - bboxWorldMax.x);
-    if player.position.y > bboxWorldMax.y camera.target.y = bboxWorldMin.y + (player.position.y - bboxWorldMax.y);
+    ok, player_entity := get_entity(player.entity);
+    assert(ok);
+    transform := *player_entity.transform;
+
+    if transform.position.x < bboxWorldMin.x camera.target.x = transform.position.x;
+    if transform.position.y < bboxWorldMin.y camera.target.y = transform.position.y;
+    if transform.position.x > bboxWorldMax.x camera.target.x = bboxWorldMin.x + (transform.position.x - bboxWorldMax.x);
+    if transform.position.y > bboxWorldMax.y camera.target.y = bboxWorldMin.y + (transform.position.y - bboxWorldMax.y);
 }

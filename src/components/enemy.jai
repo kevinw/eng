@@ -137,9 +137,7 @@ draw :: (using it: *Enemy, transform: *Transform) {
 enemy_update_all :: () {
     using context.state;
 
-    #import "player";
-
-    p_rect := player_rect(*context.state.player);
+    p_rect := player_rect(context.state.player); // TODO: remove state's reference to *Player (so there could be more than one!)
     player_midpoint := midpoint(p_rect);
 
     for * context.state.world._Enemy {

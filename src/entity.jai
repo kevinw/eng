@@ -3,6 +3,7 @@
 #load "components/box_collider.jai";
 #load "components/rect_renderer.jai";
 #load "components/enemy.jai";
+#load "components/player.jai";
 
 // goals
 
@@ -18,8 +19,14 @@ all_component_types :: Type.[
     RectRenderer,
     Enemy,
     Editor_Selectable_Rect,
+    Player,
 ];
 
+get_transform :: (component: *Component) -> *Transform {
+    ok, entity := get_entity(component.entity);
+    assert(ok);
+    return *entity.transform;
+}
 
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
     entity := get_item_ptr(*context.state.world.entities, entity_handle);
@@ -213,11 +220,14 @@ init_world :: (world: *World) {
 }
 
 world_update :: (world: *World, delta_time: float) {
+    for * world._Player player_update(it);
     for * world._SpriteRenderer update(it);
     enemy_update_all();
 }
 
 world_draw :: (world: *World) {
+    for * world._Player player_draw(it);
+
     for * world._RectRenderer {
         color2 := it.color;
         color2.r -= 100; color2.g -= 100; color2.b -= 100;
@@ -418,7 +428,7 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     return ptr;
 }
 
-spawn_prefab :: (name: string, world_pos: Vector3) -> *Entity {
+spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> *Entity {
     filename := tprint("prefabs/%.wbml", name);
     prefab_cache_entry := get_prefab_cache_entry(filename);
 
