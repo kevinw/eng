@@ -136,7 +136,7 @@ draw_world :: () {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
-    font_size :: 15;
+    font_size :: 9;
 
     draw :: #code { DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE); };
 
