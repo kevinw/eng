@@ -1,5 +1,7 @@
 #import "Windows";
 
+ROBUSTNESS_CHECKS :: false;
+
 /*
 The point of this data structure is to have a bucket of things with pointers that never move,
 for which you can add and remove elements in O(1).
@@ -13,6 +15,10 @@ Handle_Type :: struct {
     id: u32;
     generation: s32;
 };
+
+operator == :: (a: Handle_Type, b: Handle_Type) -> bool {
+    return a.id == b.id && a.generation == b.generation;
+}
 
 Array_With_Holes :: struct(Value: Type) {
     Handle :: Handle_Type;
@@ -70,10 +76,40 @@ allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
     handle.id = slot_index;
     handle.generation = arr.items[slot_index].generation;
 
-    memory := *arr.items[slot_index].value;
-    Construct(memory, A.Value_Type);
+    value_ptr := *arr.items[slot_index].value;
+    Construct(value_ptr, A.Value_Type);
 
-    return handle, memory;
+    #if ROBUSTNESS_CHECKS {
+        test_handle := get_handle_for_value_ptr(arr, value_ptr);
+        assert(get_item_ptr(test_handle) == value_ptr);
+    }
+
+    return handle, value_ptr;
+}
+
+get_handle_for_value_ptr :: (arr: *$A/Array_With_Holes, value_ptr: *A.Value_Type) -> A.Handle {
+    // TODO: not sure this should even exist. don't we want to store handles
+    // everywhere anyways?
+
+    assert(value_ptr != null, "You passed a null value_ptr to get_handle_for_value_ptr");
+    assert(value_ptr >= *arr.items[1].value, "You passed a value_ptr that was too low to get_handle_for_value_ptr");
+    assert(value_ptr <= *arr.items[arr.count].value);
+
+    diff := (cast(*A.Slot)value_ptr - cast(*A.Slot)*arr.items[1].value);
+    slot_index := diff + 1;
+
+    assert(slot_index > 0, tprint("slot index must be greater than 0: %", slot_index));
+    assert(slot_index <= arr.count,
+        tprint("derived slot_index was %, but arr.count was %", slot_index, arr.count));
+
+    handle: Handle_Type;
+    handle.id = cast(u32)slot_index;
+    handle.generation = arr.items[slot_index].generation;
+    assert(handle.generation > 0, tprint("expected entity pointer to have a valid generation, but it was %", handle.generation));
+
+    assert(get_item_ptr(arr, handle) == value_ptr);
+
+    return handle;
 }
 
 delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {

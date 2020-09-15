@@ -255,6 +255,14 @@ create_entity :: (world: *World, name: string = "", id: s32 = -1) -> *Entity, En
     return e, handle;
 }
 
+get_entity_handle :: (entity: *Entity) -> Entity_Handle {
+    return get_handle_for_value_ptr(*context.state.world.entities, entity);
+}
+
+destroy_entity :: (entity_ptr: *Entity) {
+    destroy_entity(get_entity_handle(entity_ptr));
+}
+
 destroy_entity :: (e: Entity_Handle) {
     other_e := e;
     assert(other_e.id == e.id);
