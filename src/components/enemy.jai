@@ -7,6 +7,16 @@ DYING_FPS :: 9;
 #import "game_sound_soloud";
 #scope_export
 
+Editor_Selectable_Rect :: struct {
+    using component: Component;
+
+    rect: Rectangle;
+}
+
+on_enable :: (using self: *Editor_Selectable_Rect, parent_entity: *Entity) {
+    parent_entity.flags |= .Has_Component_Rect;
+}
+
 enemy_was_damaged :: (using it: *Takes_Damage) -> bool {
     play_sfx("whack");
 
@@ -40,9 +50,12 @@ Enemy :: struct {
     attack_cooldown: float;
 
     padding: [30]u8;
+
+    editor_rect: *Editor_Selectable_Rect;
 }
 
 on_enable :: (using it: *Enemy, parent_entity: *Entity) {
+    editor_rect = add_component(it.entity, Editor_Selectable_Rect);
 }
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
@@ -135,6 +148,8 @@ enemy_update_all :: () {
         assert(ok);
         transform := *e_entity.transform;
 
+        assert(it.editor_rect != null);
+        it.editor_rect.rect = enemy_rect(it, transform);
 
         using it;
         if dying_timer > 0 {

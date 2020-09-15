@@ -164,6 +164,12 @@ on_host_init :: () {
     gl_load(*gl);
     ImGui_Impl_CreateContext(*ui);
     ImGui.StyleColorsDark();
+    style := ImGui.GetStyle();
+    style.ScaleAllSizes(style, 1.2);
+
+    io := ImGui.GetIO();
+    io.Fonts.AddFontFromFileTTF(io.Fonts, "resources/fonts/FiraCode-VariableFont_wght.ttf", 26);
+
     ImGui_Impl_Init(*ui, GetWindowHandle());
 
     blob = LoadLiveSprite("resources/sprites/blob.aseprite");
@@ -347,10 +353,12 @@ update_and_draw :: () {
        
         player_update(*player);
 
-        wheel := GetMouseWheelMove();
-        if wheel != 0 {
-            camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
-            logprint("=camera zoom", "camera zoom %", camera.zoom);
+        if context.state.editor.play_mode == .Play {
+            wheel := GetMouseWheelMove();
+            if wheel != 0 {
+                camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
+                logprint("=camera zoom", "camera zoom %", camera.zoom);
+            }
         }
 
         shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);

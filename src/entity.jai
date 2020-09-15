@@ -17,7 +17,9 @@ all_component_types :: Type.[
     BoxCollider,
     RectRenderer,
     Enemy,
+    Editor_Selectable_Rect,
 ];
+
 
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
     entity := get_item_ptr(*context.state.world.entities, entity_handle);
@@ -52,6 +54,7 @@ Entity :: struct {
     using transform: Transform;
     _world: *World;
     flags: Flags;
+    name: string; @owned
 
     Component_Entry :: struct {
         component_handle: Handle_Type;
@@ -93,6 +96,11 @@ entity_rect :: (entity_handle: Entity_Handle) -> Rectangle {
     return .{};
 }
 
+operator + :: inline (rect: Rectangle, pos: Vector2) -> Rectangle {
+    return make_Rectangle(rect.x + pos.x, rect.y + pos.y, rect.width, rect.height);
+}
+
+
 entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
     if entity.flags & .Has_Component_Rect {
         spr := get_component(entity, SpriteRenderer);
@@ -100,6 +108,13 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
             assert(spr.canary == 42);
             ok, rect := get_entity_rect(spr);
             if ok return rect;
+        }
+
+        editor_selectable_rect := get_component(entity, Editor_Selectable_Rect);
+        if editor_selectable_rect != null {
+            r := editor_selectable_rect.rect + entity.transform.position.xy;
+            //logprint("editor", "entity rect % for %\n", r, entity);
+            return r;
         }
     }
 
@@ -156,6 +171,7 @@ _return_component_array_add :: () -> string {
             print_to_builder(sb, "    ptr: *%;\n", it);
             print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%);\n", it);
             print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
+            print_to_builder(sb, "    ptr.entity = entity_handle;\n");
             print_to_builder(sb, "    on_enable(ptr, entity);\n", it);
             print_to_builder(sb, "    c = ptr;\n", it);
             print_to_builder(sb, "}\n", it);
@@ -233,6 +249,8 @@ create_entity :: (world: *World, name: string = "", id: s32 = -1) -> *Entity, En
     handle, e := allocate_slot(*world.entities);
     e._world = world;
 
+    e.name = copy_string(name);
+
     //print("create_entity -> %\n", e);
     return e, handle;
 }
@@ -287,19 +305,19 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct)
     entry.component_handle = component_handle;
 
     assert(c != null);
-    c.entity = entity_handle;
+    // c.entity = entity_handle; // this is seet in _return_component_array_add
     return c;
 }
 
 add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
+    ok, entity := get_entity(entity_handle);
+    assert(ok);
+
     bucket: *Array_With_Holes(component_type);
     #insert #run bucket_chooser();
 
     component_handle, component_ptr := allocate_slot(bucket);
     c := cast(*component_type)component_ptr;
-
-    ok, entity := get_entity(entity_handle);
-    assert(ok);
 
     entry := array_add(*entity.components);
     entry.type_name = copy_string((cast(*Type_Info_Struct)type_info(component_type)).name); // @Leak

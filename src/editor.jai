@@ -92,6 +92,12 @@ editor_draw_world :: (state: *State) {
 
 demo_window_open: bool = true;
 
+base_flags: ImGui.TreeNodeFlags = ImGui.TreeNodeFlags.OpenOnArrow | .OpenOnDoubleClick | .SpanAvailWidth;
+align_label_with_current_x_position:bool = false;
+test_drag_and_drop:bool = false;
+selection_mask: s32 = (1 << 2);
+entities_open := true;
+
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
 
@@ -105,7 +111,11 @@ editor_draw :: (state: *State) {
     fullscreen :: true;
     padding    :: false;
 
-    window_flags := ImGui.WindowFlags.MenuBar | .NoDocking;
+    menubar :: false;
+
+    window_flags := ImGui.WindowFlags.NoDocking;
+    if menubar window_flags |= .MenuBar;
+
     if fullscreen {
         viewport := ImGui.GetMainViewport();
         ImGui.SetNextWindowPos(viewport.GetWorkPos(viewport));
@@ -121,9 +131,8 @@ editor_draw :: (state: *State) {
     {
         if !padding ImGui.PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
         ImGui.Begin("DockSpace Demo", *open, window_flags);
-        if !padding ImGui.PopStyleVar();
-
         defer ImGui.End();
+        if !padding ImGui.PopStyleVar();
 
         if fullscreen
             ImGui.PopStyleVar(2);
@@ -135,8 +144,9 @@ editor_draw :: (state: *State) {
         dockspace_flags := ImGui.DockNodeFlags.PassthruCentralNode;
         ImGui.DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
 
-        if ImGui.BeginMenuBar() {
-            defer ImGui.EndMenuBar();
+        if menubar {
+            ImGui.BeginMenuBar();
+            ImGui.EndMenuBar();
             if  ImGui.BeginMenu("Options") {
                 defer ImGui.EndMenu();
 
@@ -145,10 +155,115 @@ editor_draw :: (state: *State) {
         }
     }
 
-    if ImGui.Begin("state", *ui_open) {
+    if demo_window_open
         ImGui.ShowDemoWindow(*demo_window_open);
+
+    if ui_open {
+        ImGui.Begin("state", *ui_open);
+        defer ImGui.End();
+
         inspect("state", *state);
-        ImGui.End();
+    }
+
+    if entities_open {
+        using ImGui;
+        Begin("entities", *entities_open);
+        defer End();
+
+        if TreeNode("Entities") {
+            defer TreePop();
+
+            node_clicked: *Entity;
+            for * it, it_index: context.state.world.entities {
+
+                flags := TreeNodeFlags.SpanAvailWidth;
+                // flags |= .OpenOnArrow;
+
+                for * sel: state.editor.selected
+                    if sel.obj == it
+                        flags |= .Selected;
+
+                if TreeNodeEx(it, flags, "entity %", it_index) {
+                    defer TreePop();
+                    //for * it.components {
+                        //ImGui.Text(tprintz(it.type_name).data);
+                    //}
+                }
+
+                if IsItemClicked()
+                    node_clicked = it;
+            }
+
+            if node_clicked != null {
+                set_selected(node_clicked);
+            }
+
+        }
+
+        if false && ImGui.TreeNode("Advanced, with Selectable nodes") {
+            HelpMarker("This is a more typical looking tree with selectable nodes.\nClick to select, CTRL+Click to toggle, click on arrows or double-click to open.");
+            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_OpenOnArrow",       cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.OpenOnArrow);
+            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_OpenOnDoubleClick", cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.OpenOnDoubleClick);
+            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_SpanAvailWidth",    cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.SpanAvailWidth); ImGui.SameLine(); HelpMarker("Extend hit area to all available width instead of allowing more items to be laid out after the node.");
+            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth",     cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.SpanFullWidth);
+            ImGui.Checkbox("Align label with current X position", *align_label_with_current_x_position);
+            ImGui.Checkbox("Test tree node as drag source", *test_drag_and_drop);
+            ImGui.Text("Hello!");
+            if (align_label_with_current_x_position)
+                ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
+
+            // 'selection_mask' is dumb representation of what may be user-side selection state.
+            //  You may retain selection state inside or outside your objects in whatever format you see fit.
+            // 'node_clicked' is temporary storage of what node we have clicked to process selection at the end
+            /// of the loop. May be a pointer to your own node type, etc.
+            node_clicked:s32 = -1;
+            for i: 0..5 {
+                // Disable the default "open on single-click behavior" + set Selected flag according to our selection.
+                node_flags := base_flags;
+                is_selected := (selection_mask & (1 << i)) != 0;
+                if is_selected
+                    node_flags |= .Selected;
+                if i < 3 {
+                    // Items 0..2 are Tree Node
+                    node_open:bool = ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Node %d", i);
+                    if (ImGui.IsItemClicked())
+                        node_clicked = cast(s32)i;
+                    if test_drag_and_drop && ImGui.BeginDragDropSource() {
+                        ImGui.SetDragDropPayload("_TREENODE", null, 0);
+                        ImGui.Text("This is a drag and drop source");
+                        ImGui.EndDragDropSource();
+                    }
+                    if node_open {
+                        ImGui.BulletText("Blah blah\nBlah Blah");
+                        ImGui.TreePop();
+                    }
+                } else {
+                    // Items 3..5 are Tree Leaves
+                    // The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
+                    // use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
+                    node_flags |= ImGui.TreeNodeFlags.Leaf | .NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
+                    ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Leaf %d", i);
+                    if ImGui.IsItemClicked()
+                        node_clicked = cast(s32)i;
+                    if test_drag_and_drop && ImGui.BeginDragDropSource() {
+                        ImGui.SetDragDropPayload("_TREENODE", null, 0);
+                        ImGui.Text("This is a drag and drop source");
+                        ImGui.EndDragDropSource();
+                    }
+                }
+            }
+            if node_clicked != -1 {
+                // Update selection state
+                // (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
+                if ImGui.GetIO().KeyCtrl
+                    selection_mask ^= cast(s32)(1 << node_clicked);          // CTRL+click to toggle
+                else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
+                    selection_mask = cast(s32)(1 << node_clicked);           // Click to single-select
+            }
+            if (align_label_with_current_x_position)
+                ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
+            ImGui.TreePop();
+        }
     }
 }
 
@@ -157,6 +272,12 @@ editor_update :: (state: *State) {
 
     if ImGui.GetIO().WantCaptureMouse // don't let imgui clicks come through to this one.
         return;
+
+    if false
+        for * state.world.entities {
+            e_rect := entity_rect(it, true);
+            screenlog.world(e_rect.position, "%", e_rect);
+        }
 
     Time := *state.Time;
     if play_mode == .Play return;
@@ -232,7 +353,7 @@ editor_update :: (state: *State) {
             if hover == it.obj
                 hover = null;
 
-            print("TODO: delete entity\n");
+            destroy_entity(it.obj);
         }
         clear_selection();
     }
