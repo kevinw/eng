@@ -20,7 +20,7 @@ SpriteRenderer :: struct {
     mode: Mode;
 
     Mode :: enum u8 {
-        Play_Forever :: 0;
+        Play_Forever      :: 0;
         Play_Once_And_Die :: 1;
     }
 }
@@ -44,7 +44,6 @@ get_entity_rect :: (using it: *SpriteRenderer) -> (bool, Rectangle) {
 
 update :: (using it: *SpriteRenderer) {
     assert(entity.id > 0);
-    //print("SpriteRenderer.update(%)\n", it);
     assert(canary == 42);
 
     last_timer = timer;

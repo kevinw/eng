@@ -65,8 +65,11 @@ enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
     }
 }
 
-enemy_rect :: (using it: *Enemy, transform: *Transform) -> Rectangle {
+enemy_rect :: (using it: *Enemy, transform: *Transform=null) -> Rectangle {
     using context.state;
+
+    if transform == null
+        transform = get_transform(it);
 
     since_attack := Time.now - last_attack_time;
     position := *transform.position;
@@ -142,12 +145,8 @@ enemy_update_all :: () {
 
     for * context.state.world._Enemy {
     //for * state.enemies {
-        ok, e_entity := get_entity(it.entity);
-        assert(ok);
-        transform := *e_entity.transform;
-
-        assert(it.editor_rect != null);
-        it.editor_rect.rect = enemy_rect(it, transform);
+        transform := get_transform(it);
+        it.editor_rect.rect = enemy_rect(it, get_transform(it));
 
         using it;
         if dying_timer > 0 {

@@ -233,7 +233,6 @@ player_update :: (using player: *Player) {
                 if Time.now - last_grounded_time > 0.2 {
                     // landed
                     last_grounded_time = Time.now;
-                    //logprint("land", "landed");
                     spawn_prefab("player_dust", <<position);
                     play_sfx("landing");
                 }

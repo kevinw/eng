@@ -169,9 +169,8 @@ editor_draw :: (state: *State) {
         using ImGui;
         Begin("entities", *entities_open);
         defer End();
-
-        if TreeNode("Entities") {
-            defer TreePop();
+        //if TreeNodeEx("Entities", .DefaultOpen) {
+            //defer TreePop();
 
             node_clicked: *Entity;
             for * it, it_index: context.state.world.entities {
@@ -183,7 +182,7 @@ editor_draw :: (state: *State) {
                     if sel.obj == it
                         flags |= .Selected;
 
-                if TreeNodeEx(it, flags, "entity %", it_index) {
+                if TreeNodeEx(it, flags, "%s", it.name.data) {
                     defer TreePop();
                     //for * it.components {
                         //ImGui.Text(tprintz(it.type_name).data);
@@ -198,7 +197,7 @@ editor_draw :: (state: *State) {
                 set_selected(node_clicked);
             }
 
-        }
+        //}
 
         if false && ImGui.TreeNode("Advanced, with Selectable nodes") {
             HelpMarker("This is a more typical looking tree with selectable nodes.\nClick to select, CTRL+Click to toggle, click on arrows or double-click to open.");

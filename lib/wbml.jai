@@ -183,7 +183,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 		case .String;
 			str, length := unescape_string(root_token.text);
             node := Node.{type = .String};
-            node._string.value = str;
+            node._string = str;
 			return new_clone(node);
 
 		case .Identifier;
@@ -215,8 +215,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 					return new_clone(node);
 				case;
                     node := Node.{type = .Enum_Value};
-                    node._enum.value = root_token.text;
-					node.source_str = root_token.text;
+                    node._enum = root_token.text;
                     return new_clone(node);
 			}
 
@@ -227,7 +226,6 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 			float64_value, ok3 := string_to_float64(root_token.text); assert(ok3);
 
             node := Node.{type = .Number};
-            node.source_str = root_token.text;
             node._number.int_value = s64_value * sign;
             node._number.uint_value = cast(u64)(cast(s64)u64_value * sign);
             node._number.float_value = float64_value * cast(float64)sign;
@@ -240,7 +238,6 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 }
 
 Node :: struct {
-    source_str: string;
     Type :: enum {
         Number;
         Bool;
@@ -256,9 +253,9 @@ Node :: struct {
 	union {
 		_number: Node_Number;
 		_bool: Node_Bool;
-		_string: Node_String;
+		_string: string;
 		_nil: Node_Nil;
-		_enum: Node_Enum_Value;
+		_enum: string;
 		_object: Node_Object;
 		_array: Node_Array;
 		_union: Node_Union;
@@ -278,10 +275,6 @@ Node_String :: struct {
 
 Node_Bool :: struct {
 	value: bool;
-}
-
-Node_Enum_Value :: struct {
-	value: string;
 }
 
 Node_Nil :: struct {
@@ -314,6 +307,47 @@ Node_Union :: struct {
 
 Node_Quat :: struct {
 	w, x, y, z: *Node;
+}
+
+deep_copy :: (node: *Node) -> *Node {
+    dest := New(Node);
+    _deep_copy_internal(dest, node);
+    return dest;
+}
+
+_deep_copy_internal :: (dest: *Node, source: *Node) {
+    t := source.type;
+    dest.type = t;
+    if t == {
+		case .Number;
+		case .Bool;
+		case .Nil;
+		case .String;
+            dest._string = copy_string(source._string);
+		case .Enum_Value;
+            dest._enum = copy_string(source._enum);
+		case .Object;
+            fields: [..]Object_Field;
+            for * source._object.fields {
+                new_field_entry: Object_Field;
+                new_field_entry.name = copy_string(it.name);
+                new_field_entry.value = New(Node);
+                _deep_copy_internal(new_field_entry.value, it.value);
+                array_add(*fields, new_field_entry);
+            }
+            dest._object.fields = fields;
+		case .Array;
+            elems: [..]*Node;
+            for source._array.elements
+                array_add(*elems, deep_copy(it));
+            dest._array.elements = elems;
+		case .Union;
+            unreachable();
+		case .Quat;
+            unreachable();
+		case;
+			assert(false, tprint("%", dest.type));
+    }
 }
 
 delete_node :: (node: *Node) {
@@ -415,13 +449,13 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
 			}
         case .STRING;
 			// how to manage allocation? overwriting?
-			<<cast(*string)ptr = copy_string(node._string.value);
+			<<cast(*string)ptr = copy_string(node._string);
         case .BOOL;
 			<<cast(*bool)ptr = node._bool.value;
         case .INTEGER; #through;
         case .FLOAT;   #through;
 		case .ENUM;
-			Reflection.set_value_from_string(any, node.source_str);
+			Reflection.set_value_from_string(any, node._enum);
         case;
             print("unhandled: '%' %\n", debug_name, ti.type);
     }
@@ -488,13 +522,10 @@ new_clone :: inline (data: $T) -> *T {
 
 laas :: #import "laas";
 
-_type_info_table: Table(string, Type_Info);
-
 panic :: (msg: string, args: ..Any, loc := #caller_location) { // TODO
 	print("%\n", loc);
     assert(false, tprint(msg, ..args));
 }
-
 
 unreachable :: () {
     // TODO

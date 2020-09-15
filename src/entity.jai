@@ -110,12 +110,20 @@ operator + :: inline (rect: Rectangle, pos: Vector2) -> Rectangle {
 
 entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
     if entity.flags & .Has_Component_Rect {
+
+        // TODO: this is the kind of thing where we might be able to know based on the bitflag in the entity,
+        // which method to call, and what to cast to. static dispatch ~!
+
         spr := get_component(entity, SpriteRenderer);
         if spr != null {
             assert(spr.canary == 42);
             ok, rect := get_entity_rect(spr);
             if ok return rect;
         }
+
+        enemy := get_component(entity, Enemy);
+        if enemy != null
+            return enemy_rect(enemy);
 
         editor_selectable_rect := get_component(entity, Editor_Selectable_Rect);
         if editor_selectable_rect != null {
@@ -259,7 +267,7 @@ create_entity :: (world: *World, name: string = "", id: s32 = -1) -> *Entity, En
     handle, e := allocate_slot(*world.entities);
     e._world = world;
 
-    e.name = copy_string(name);
+    e.name = copy_string_z(name);
 
     //print("create_entity -> %\n", e);
     return e, handle;
@@ -385,7 +393,7 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
         return null;
     }
     defer free(entity_file_text);
-    print("read % bytes from '%'", entity_file_text.count, filename);
+    print("read % bytes from '%'\n", entity_file_text.count, filename);
 
     // entity id
     lexer := laas.make_lexer(entity_file_text);
@@ -420,7 +428,7 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
         value := wbml.parse_value(*lexer);
         assert(value != null, "could not parse value as wbml");
         assert(value.type == .Object);
-        component_cache_entry.object_node = value;
+        component_cache_entry.object_node = wbml.deep_copy(value);
     }
 
     ptr := array_add(*context.state.world.prefab_cache.entries);
@@ -428,13 +436,12 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     return ptr;
 }
 
-spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> *Entity {
+spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Entity, Entity_Handle) {
     filename := tprint("prefabs/%.wbml", name);
     prefab_cache_entry := get_prefab_cache_entry(filename);
 
     // make the entitty
     // TODO: need to actually use the entity_id paramenter here, or get rid of it.
-
     entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
     entity.transform.position = world_pos;
 
@@ -449,10 +456,15 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> *Entit
         for it.object_node._object.fields {
             assert(it.value != null);
 
-            if it.name == "sprite_anim" {
-                asset_path := tprint("resources/sprites/%.aseprite", it.value._string.value);
+            KEY :: "sprite_anim";
 
-                field := get_field(component_ti, "sprite_anim");
+            if it.name == KEY {
+                assert(it.value.type == .String);
+                assert(it.value._string.count > 0, tprint("node object string for 'sprite_anim' has empty string"));
+
+                asset_path := tprint("resources/sprites/%.aseprite", it.value._string);
+
+                field := get_field(component_ti, KEY);
                 assert(field != null);
                 live_sprite_ptr := cast(*LiveSprite)(cast(*u8)comp + field.offset_in_bytes);
 
@@ -464,7 +476,7 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> *Entit
         wbml.write_value(it.object_node, comp, component_ti);
     }
 
-    return entity;
+    return entity, entity_handle;
 }
 
 #scope_file

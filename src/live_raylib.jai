@@ -51,7 +51,6 @@ LoadLiveTexture :: (filename: string, raylib_texture: Texture) -> LiveTexture {
 
 LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
     assert(filename.count > 0);
-
     obj: LiveSprite;
     was_new := false;
 
@@ -67,7 +66,7 @@ LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
         new_entry := array_add(*context.state.live.sprites);
         new_entry.filename = copy_string(filename);
         ok := load_from_aseprite(*new_entry.sprite, filename);
-        assert(ok);
+        assert(ok, tprint("could not read '%'", filename));
         obj._entry = new_entry;
     }
 
