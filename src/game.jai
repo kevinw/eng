@@ -21,7 +21,7 @@ HOTLOADING_ENABLED :: true;
 
 #load "plugin_exports.jai";
 
-#load "../imgui_impl_gl.jai";
+#load "../lib/ui.jai";
 
 #add_context state: *State;
 
@@ -50,7 +50,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 
 State :: struct {
     start_canary: u32; @noui // = 0xBEEFBEEF;
-    blob: LiveSprite;
 
     ui: UI_State;
     ui_open: bool = true;
@@ -159,18 +158,7 @@ on_host_init :: () {
     set_context_funcs();
     init_world(*world);
 
-    gl_load(*gl);
-    ImGui_Impl_CreateContext(*ui);
-    ImGui.StyleColorsDark();
-    style := ImGui.GetStyle();
-    style.ScaleAllSizes(style, 1.2);
-
-    io := ImGui.GetIO();
-    io.Fonts.AddFontFromFileTTF(io.Fonts, "resources/fonts/FiraCode-VariableFont_wght.ttf", 24);
-
-    ImGui_Impl_Init(*ui, GetWindowHandle());
-
-    blob = LoadLiveSprite("resources/sprites/blob.aseprite");
+    imgui_init(*ui);
 
     set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
 
@@ -299,12 +287,7 @@ change_global_time_scale :: (delta: float) {
 update_and_draw :: () {
     using context.state;
 
-    ImGui_SetMouseEvents(*ui,
-        left = IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
-        middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
-        right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
-        wheel = cast(float)GetMouseWheelMove());
-    ImGui_Impl_NewFrame(*ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
+    imgui_raylib_new_frame(*ui);
 
     #if HOTLOADING_ENABLED {
         assert(start_canary == 0xBEEFBEEF);
@@ -315,11 +298,9 @@ update_and_draw :: () {
     }
 
     absolute_delta_time := GetFrameTime();
-
     Time.delta_time = global_time_scale * absolute_delta_time;
     Time.now += Time.delta_time;
     Time.unscaled_now = GetTime();
-
 
     if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
         editor_toggle(context.state);
@@ -435,11 +416,9 @@ update_and_draw :: () {
             screenlog.draw();
             host_debug_draw();
         }
+
         rlglDraw();
-
-        ImGui.Render();
-        ImGui_Impl_RenderDrawData(*context.state.ui, ImGui.GetDrawData());
-
+        imgui_render(*context.state.ui);
         // TODO: @Speed the EndDrawing implied by PushDrawing is calling
         // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary
         // for us to be able to overlay IMGUI onto raylib

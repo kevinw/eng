@@ -117,14 +117,14 @@ draw_inspector :: (editor_state: *Editor) {
             return;
     }
 
-    inspect("Transform", *entity.transform);
+    inspect("", *entity.transform);
 
     for entity.components {
         component_ti := get_component_ti_from_name(it.type_name);
         assert(component_ti != null);
 
         component_ptr := get_component(entity, component_ti);
-        inspect(component_ti.name.data, component_ptr, component_ti);
+        inspect("", component_ptr, component_ti);
     }
 }
 
