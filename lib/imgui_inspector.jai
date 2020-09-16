@@ -69,7 +69,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
         case .FLOAT;
             if info.runtime_size == {
                 case 4;
-                    //ImGui.DragFloat(name, data, display_format="%.3f");
+                    //DragFloat(name, data, display_format="%.3f");
                     InputFloat(name, data, 0.01, 1.0);
                 case 8;
                     x : float = xx <<cast(*float64) data;
@@ -77,8 +77,8 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
             }
         case .BOOL;
             //Checkbox(name, data);
-            index : s32 = xx <<cast(*bool)data;
-            if Combo(name, *index, "false\0true\0\0") { <<cast(*bool)data = xx index; };
+            index: s32 = xx <<cast(*bool)data;
+            if Combo(name, *index, "false\0true\0\0") { <<cast(*bool)data = xx index; }
         case .STRING;
             string_data := Reflection.get_string_data(data, xx info);
             string_count := Reflection.get_string_count(data, xx info);
@@ -92,20 +92,19 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
             assert(info_pointer.relative_pointer_size == 0, "TODO: implement relative pointers?");
             inspect("", <<(cast(**void)data), info_pointer.pointer_to);
         case .PROCEDURE;
-            Text("procedure");
+            TextUnformatted("procedure");
         case .VOID;
-            Text("void");
+            TextUnformatted("void");
         case .CODE;
-            Text("Code");
+            TextUnformatted("Code");
         case .STRUCT;
             ti_struct := cast(*Type_Info_Struct) info;
             if categorize_ti_struct(ti_struct) == {
-                //case .Float2;
-                    //DragFloat2(name, cast([2]float)data);
+                case .Float2;
+                    DragFloat2(name, cast([2]float)data);
                 case .Float3;
                     DragFloat3(name, cast([3]float)data);
                 case .Float4;
-                    Text(name); SameLine();
                     DragFloat4(name, cast([4]float)data);
                 case;
                     if TreeNode("%: %", to_string(name), ti_struct.name) {

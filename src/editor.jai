@@ -108,7 +108,9 @@ draw_inspector :: (editor_state: *Editor) {
     entity: *Entity;
     if editor_state.selected.count == {
         case 0; 
-            Text("Select an entity to inspect it.");
+            PushStyleColor(.Text, .{.35, .35, .35, 1});
+            defer PopStyleColor();
+            Text("Nothing selected.");
             return;
         case 1;
             entity = editor_state.selected[0].obj;
@@ -200,6 +202,8 @@ editor_draw :: (state: *State) {
         using ImGui;
         Begin("entities", *entities_open);
         defer End();
+        PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
+        defer PopStyleVar();
         //if TreeNodeEx("Entities", .DefaultOpen) {
             //defer TreePop();
 
