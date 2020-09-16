@@ -94,6 +94,21 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     return null;
 }
 
+get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Component {
+    assert(entity != null);
+
+    for * entity.components {
+        if it.type_name == component_ti.name {
+            sibling_handle := it.component_handle;
+            #insert #run runtime_bucket_chooser(#string END
+                return get_item_ptr(bucket, sibling_handle);
+            END);
+        }
+    }
+
+    return null;
+}
+
 entity_rect :: (entity_handle: Entity_Handle) -> Rectangle {
     ok, entity := get_entity(entity_handle);
 

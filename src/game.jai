@@ -166,7 +166,7 @@ on_host_init :: () {
     style.ScaleAllSizes(style, 1.2);
 
     io := ImGui.GetIO();
-    io.Fonts.AddFontFromFileTTF(io.Fonts, "resources/fonts/FiraCode-VariableFont_wght.ttf", 26);
+    io.Fonts.AddFontFromFileTTF(io.Fonts, "resources/fonts/FiraCode-VariableFont_wght.ttf", 24);
 
     ImGui_Impl_Init(*ui, GetWindowHandle());
 

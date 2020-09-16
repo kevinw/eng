@@ -98,6 +98,36 @@ test_drag_and_drop:bool = false;
 selection_mask: s32 = (1 << 2);
 entities_open := true;
 
+draw_inspector :: (editor_state: *Editor) {
+    using ImGui;
+
+    Begin("Inspector");
+    defer End();
+
+
+    entity: *Entity;
+    if editor_state.selected.count == {
+        case 0; 
+            Text("Select an entity to inspect it.");
+            return;
+        case 1;
+            entity = editor_state.selected[0].obj;
+        case;
+            Text("TODO: implement multiple selection.");
+            return;
+    }
+
+    inspect("Transform", *entity.transform);
+
+    for entity.components {
+        component_ti := get_component_ti_from_name(it.type_name);
+        assert(component_ti != null);
+
+        component_ptr := get_component(entity, component_ti);
+        inspect(component_ti.name.data, component_ptr, component_ti);
+    }
+}
+
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
 
@@ -106,6 +136,7 @@ editor_draw :: (state: *State) {
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
     DrawText("editing", 275, 330, 16, color);
+
 
     // dockspace
     fullscreen :: true;
@@ -264,6 +295,8 @@ editor_draw :: (state: *State) {
             ImGui.TreePop();
         }
     }
+
+    draw_inspector(*state.editor);
 }
 
 editor_update :: (state: *State) {
