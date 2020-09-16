@@ -25,11 +25,10 @@ HOTLOADING_ENABLED :: true;
 
 #add_context state: *State;
 
-gameWidth :: 640;
+gameWidth  :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
 GLSL_VERSION :: 330;
-DEFAULT_BGM_VOLUME :: 0.03;
 
 envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> *Entity {
     entity, entity_handle := create_entity(world, "box");
