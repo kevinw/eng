@@ -13,7 +13,6 @@ JUMP_FLOAT_POW :: 1.1;
 
 player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
 #import "raylib";
-#import "entity";
 #import "toolbelt";
 inp :: #import "inp";
 Math :: #import "Math";

@@ -463,7 +463,7 @@ load_scene :: (name: string) {
         return;
     }
 
-    wbml.deserialize(str, *context.state.scene);
+    //wbml.deserialize(str, *context.state.scene);
 
     logprint("editor", "loaded %", filename);
 }
@@ -471,8 +471,9 @@ load_scene :: (name: string) {
 save_scene :: (name: string) {
     filename := tprint("%.wbml", name);
 
-    str := wbml.serialize(*context.state.scene);
-    File.write_entire_file(filename, str);
+    //str := wbml.serialize(*context.state.scene);
+    //File.write_entire_file(filename, str);
+    assert(false, "TODO");
 
     logprint("editor", "saved %", filename);
 }
