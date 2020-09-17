@@ -15,6 +15,7 @@ Plugin :: #import "plugin";
 platform :: #import "platform";
 screenlog :: #import "screenlog";
 assets :: #import "assets";
+#import "soloud";
 
 panic :: (msg: string) {
     write_string(msg);
@@ -79,7 +80,7 @@ host_settings: struct {
 };
 
 // plugin functions
-Plugin_Init_Func        :: #type (ctx: *Context, old_value: *void) #c_call;
+Plugin_Init_Func        :: #type (ctx: *Context, old_value: *void, host_state: Host_State) #c_call;
 Plugin_Deinit_Func      :: #type (ctx: *Context, shutting_down: bool) -> *void #c_call;
 Plugin_Tick_Func        :: #type (ctx: *Context, host_state: Host_State) #c_call;
 Plugin_On_Resource_Change_Func :: #type (ctx: *Context, change: *Asset_Change) #c_call;
@@ -112,9 +113,6 @@ main :: () {
     Debug.init();
     GWP.init();
     context.allocator = GWP.allocator;
-
-
-
 
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
@@ -189,13 +187,22 @@ main :: () {
 
     plugin_dll_filename := copy_string_z(tprint("%.dll", cmdline_args.game_name));
 
+    soloud := Soloud_create();
+    assert(soloud != null);
+    Soloud_init(soloud, SOLOUD_CLIP_ROUNDOFF);
+    defer {
+        Soloud_deinit(soloud);
+        Soloud_destroy(soloud);
+    }
+    host_state.soloud_context = soloud;
+
     if !Plugin.load(*module, plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
         panic(tprint("Could not load DLL '%'\n", plugin_dll_filename));
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
 
     plugin_context = context;
-    plugin_init(*plugin_context, null);
+    plugin_init(*plugin_context, null, host_state);
     defer {
         plugin_deinit(*plugin_context, shutting_down = true);
     }
@@ -205,6 +212,8 @@ main :: () {
 
     SetTargetFPS(60);
     frame_count := 0;
+
+
     while !WindowShouldClose() {
         auto_release_temp();
         frame_count += 1;
@@ -239,7 +248,7 @@ main :: () {
                 update_plugin_functions(*module);
                 assert(plugin_tick != null);
 
-                plugin_init(*plugin_context, old_state);
+                plugin_init(*plugin_context, old_state, host_state);
             }
         }
 

@@ -133,11 +133,6 @@ draw_rect_outline :: inline (rect: Rectangle, thickness :s32 = 3, color := RED) 
 
 normalize :: Vector2Normalize;
 
-default_font: *Font; // TODO: this is dumb, because when the plugin dll gets reloaded it needs to reset this pointer back to its new state's default_font value. I wonder if we can put the data segment somewhere manually?
-
-set_default_font :: (font_ptr: *Font) {
-    default_font = font_ptr;
-}
 
 print_time :: (msg: string, args: ..Any) #expand {
     // Measure the time from now until the end of the current scope,
@@ -150,19 +145,13 @@ print_time :: (msg: string, args: ..Any) #expand {
     `defer print("took %\n", GetTime() - __print_time_now);
 }
 
-set_default_font :: (font_ptr: *Font, filename: string) {
-    default_font = font_ptr;
-    print_time("loading font");
-    <<default_font = LoadFontEx(constant_or_temp_cstring(filename), xx 40, xx 0, xx 200);
-}
-
 draw_texture :: (tex: Texture2D, source_rect: Rectangle, dest_rect: Rectangle, origin: Vector2 = .{0, 0}, rotation: float = 0, tint:Color = WHITE) {
     DrawTexturePro(tex, source_rect, dest_rect, origin, rotation, tint);
 }
 
 draw_text :: (msg: string, x: $X, y: $Y, size: $S, color := WHITE) {
     msg_z := constant_or_temp_cstring(msg);
-    DrawTextEx(<<default_font, msg_z, make_Vector2(x, y), xx size, -2, color);
+    DrawTextEx(GetFontDefault(), msg_z, make_Vector2(x, y), xx size, -2, color);
 }
 
 midpoint :: inline (rect: Rectangle) -> Vector2 {

@@ -45,10 +45,6 @@ play_sfx :: ($name: string) {
 }
 
 sound_init :: (using state: *Sound_State) {
-    soloud =  Soloud_create();
-    assert(soloud != null);
-
-    Soloud_init(soloud, SOLOUD_CLIP_ROUNDOFF);
 
     fx.footstep1   = create_and_load_wav("resources/sfx/footsteps/wood1.wav");
     fx.footstep2   = create_and_load_wav("resources/sfx/footsteps/wood2.wav");
@@ -67,8 +63,6 @@ sound_init :: (using state: *Sound_State) {
 }
 
 sound_deinit :: (using state: *Sound_State) {
-    Soloud_deinit(soloud);
-    Soloud_destroy(soloud);
 }
 
 sound_update :: (using state: *Sound_State) {

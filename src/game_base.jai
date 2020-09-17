@@ -25,7 +25,6 @@ State_Base :: struct {
         unscaled_now: float64;
         delta_time: float;
     };
-    default_font: Font;
     global_time_scale:float = 1.0;
 
     // TODO: this is a kind of weird inversion of control. other files we import
@@ -119,6 +118,11 @@ game_base_init :: () {
 
     init_world(*world);
     imgui_init(*ui);
-    set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
     sound_init(*sound_state);
+}
+
+game_base_did_reload_dll :: () {
+    gl_load(*gl);
+    ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
+    logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }

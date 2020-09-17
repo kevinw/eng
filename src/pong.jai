@@ -21,21 +21,8 @@ update_and_draw :: () {
     }
 }
 
-on_host_will_reload_game_dll :: () {
-    sound_deinit(*context.state.sound_state);
-}
-
 on_host_did_reload_game_dll :: () {
-    using context.state;
-
-    sound_init(*context.state.sound_state);
-
-    set_default_font(*default_font);
-
-    gl_load(*gl);
-    ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
-
-    logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
+    game_base_did_reload_dll();
 }
 
 on_host_init :: () {
