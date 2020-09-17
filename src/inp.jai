@@ -46,7 +46,7 @@ Axes :: enum u16 {
     BOTH       :: HORIZONTAL | VERTICAL;
 }
 
-movement :: (input_types := Input_Type.ALL, axes := Axes.BOTH) -> Vector2 {
+movement :: (input_types := Input_Type.ALL, axes := Axes.BOTH, gamepad_index := 0) -> Vector2 {
     move: Vector2;
 
     // keyboard
@@ -72,7 +72,7 @@ movement :: (input_types := Input_Type.ALL, axes := Axes.BOTH) -> Vector2 {
         }
     }
 
-    gamepad :: 0; // the gamepad index
+    gamepad := gamepad_index; // the gamepad index
 
     if input_types & .GAMEPAD_LEFT_STICK
         move += get_gamepad_stick(gamepad, .GAMEPAD_AXIS_LEFT_X, .GAMEPAD_AXIS_LEFT_Y);

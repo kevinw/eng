@@ -1,5 +1,14 @@
 69 paddle
 
+Transform
+{
+    scale {
+        x 0.4
+        y 0.2
+        z 1
+    }
+}
+
 Pong_Paddle
 {
 }
@@ -7,4 +16,14 @@ Pong_Paddle
 SpriteRenderer
 {
     sprite_anim "tile1"
+
+    border {
+        left 20
+        top 20
+        right 20
+        bottom 20
+    }
+
+    slice_mode NineSlice
+
 }

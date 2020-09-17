@@ -68,9 +68,9 @@ Component :: struct {
 }
 
 Transform :: struct {
-    position: Vector3;
-    scale: Vector3;
-    rotation: Quaternion;
+    position: Vector3 = Vector3.{0, 0, 0};
+    scale: Vector3 = Vector3.{1, 1, 1};
+    rotation: Quaternion = Vector4.{0, 0, 0, 1};
 }
 
 Entity :: struct {
@@ -101,6 +101,12 @@ get_components :: ($component_type: Type) -> []*component_type {
     for * bucket array_add(*all, it);
 
     return all;
+}
+
+get_component :: (component: *Component, $component_type: Type) -> *component_type {
+    ok, entity := get_entity(component.entity);
+    assert(ok);
+    return get_component(entity, component_type);
 }
 
 get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
@@ -282,6 +288,11 @@ world_update :: (world: *World, delta_time: float) {
     for * world._SpriteRenderer update(it);
     #if GAME_NAME == "beat_platformer"
         enemy_update_all();
+    #if GAME_NAME == "pong" {
+        for * world._Pong_Paddle {
+            update(it, get_transform(it), get_component(it, SpriteRenderer));
+        }
+    }
 }
 
 world_draw :: (world: *World = null) {
@@ -424,6 +435,8 @@ Prefab_Cache :: struct {
             component_type_name: string; @owned
             object_node: *wbml.Node; @owned
         };
+
+        transform_node: *wbml.Node;
     }
 
     entries: [..]Entry;
@@ -434,6 +447,8 @@ Prefab_Cache :: struct {
                 free(it.component_type_name);
                 wbml.delete_node(it.object_node);
             }
+
+            if it.transform_node wbml.delete_node(it.transform_node);
         }
     }
 }
@@ -476,15 +491,21 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
         nl, nl_ok := laas.expect(*lexer, .New_Line);
         assert(nl_ok, "expected a newline after the component name '%'", component_name_ident.text);
 
-        ti := get_component_ti_from_name(component_name_ident.text);
-
-        component_cache_entry := array_add(*cache_entry.components);
-        component_cache_entry.component_type_name = copy_string(ti.name);
-
         value := wbml.parse_value(*lexer);
         assert(value != null, "could not parse value as wbml");
         assert(value.type == .Object);
-        component_cache_entry.object_node = wbml.deep_copy(value);
+        value = wbml.deep_copy(value);
+
+        if component_name_ident.text == "Transform" {
+            // TODO: this goes away once Transform is just another component.
+            cache_entry.transform_node = value;
+        } else {
+            ti := get_component_ti_from_name(component_name_ident.text);
+
+            component_cache_entry := array_add(*cache_entry.components);
+            component_cache_entry.component_type_name = copy_string(ti.name);
+            component_cache_entry.object_node = value;
+        }
     }
 
     ptr := array_add(*context.state.world.prefab_cache.entries);
@@ -493,18 +514,24 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
 }
 
 spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Entity, Entity_Handle) {
+    VERBOSE :: true;
     filename := tprint("prefabs/%.wbml", name);
     prefab_cache_entry := get_prefab_cache_entry(filename);
 
     // make the entitty
     // TODO: need to actually use the entity_id paramenter here, or get rid of it.
     entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
+
+    if prefab_cache_entry.transform_node
+        wbml.write_value(prefab_cache_entry.transform_node, *entity.transform);
+
     entity.transform.position = world_pos;
 
     for prefab_cache_entry.components {
         component_type_name := it.component_type_name;
         component_ti := get_component_ti_from_name(component_type_name);
         comp := add_or_get_component(entity_handle, component_ti);
+        assert(comp != null);
 
         // here we use the runtime type info to dynamically poke bits into the
         // struct, which we don't know the layout of at compile time.
@@ -529,7 +556,7 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
             }
         }
 
-        wbml.write_value(it.object_node, comp, component_ti);
+        wbml.write_value(it.object_node, comp, component_ti, component_type_name);
     }
 
     return entity, entity_handle;

@@ -52,4 +52,5 @@ on_host_init :: () {
     screen.shader = LoadShader(null, null);
 
     spawn_prefab("paddle");
+    //spawn_prefab("paddle_2");
 }
