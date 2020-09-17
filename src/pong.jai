@@ -1,3 +1,4 @@
+GAME_NAME :: "pong";
 #load "game_base.jai";
 
 State :: struct {

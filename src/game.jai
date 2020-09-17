@@ -1,5 +1,6 @@
-#import "Basic";
+GAME_NAME :: "beat_platformer";
 #load "game_base.jai";
+#import "Basic";
 #import "Sprite_Anim";
 Math :: #import "Math";
 wbml :: #import "wbml";
@@ -101,6 +102,12 @@ on_host_init :: () {
     editor.callbacks.did_drag = editor_did_drag;
 
     game_base_init();
+    {
+        using sound_state;
+
+        #import "soloud";
+        bgm_voice = Soloud_play(soloud, bgm);
+    }
 
     start_canary = 0xBEEFBEEF;
     end_canary =   0xDEADBEEF;

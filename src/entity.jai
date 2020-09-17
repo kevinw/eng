@@ -1,21 +1,20 @@
-/*
-Problems:
+#module_parameters(GAME_NAME := "");
+#assert(GAME_NAME.count > 0);
 
- * enemy, player rely on toolbelt sprite stuff.
-    - either create Live versions of them, or
-      hack in a module level thing that gets reloaded
-      (maybe this is easy if game_base.jai provides a hook
-      where you can be asked to get notified when the dll has loaded)
- * generating the right imports
- * entity_rect
-*/
-
-// TODO: generate these imports
-#load "components/sprite_renderer.jai";
-#load "components/box_collider.jai";
-#load "components/rect_renderer.jai";
-#load "components/enemy.jai";
-#load "components/player.jai";
+#if GAME_NAME == "beat_platformer" {
+    #load "components/sprite_renderer.jai";
+    #load "components/box_collider.jai";
+    #load "components/rect_renderer.jai";
+    #load "components/enemy.jai";
+    #load "components/player.jai";
+}
+#if GAME_NAME == "pong" {
+    #load "components/sprite_renderer.jai";
+    #load "components/box_collider.jai";
+    #load "components/rect_renderer.jai";
+    #load "components/pong_paddle.jai";
+}
+#load "components/editor_selectable_rect.jai";
 
 // goals
 
@@ -25,14 +24,24 @@ Problems:
 
 // some inspiration maybe: https://github.com/skypjack/entt/wiki/Crash-Course:-entity-component-system
 
-all_component_types :: Type.[
-    SpriteRenderer,
-    BoxCollider,
-    RectRenderer,
-    Enemy,
-    Editor_Selectable_Rect,
-    Player,
-];
+// declare a list of all component type infos
+#insert #run (() -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+    Compiler :: #import "Compiler";
+    print_to_builder(*sb, "all_component_types :: Type.[\n");
+    total := 0;
+    for Compiler.get_type_table() {
+        if Compiler.is_subclass_of(it, "Component") { // TODO: don't do this lookup by name
+            ti_struct := cast(*Type_Info_Struct)it;
+            print_to_builder(*sb, "    %,\n", ti_struct.name);
+            total += 1;
+        }
+    }
+    //print("num Components: %\n", total);
+    print_to_builder(*sb, "];\n");
+    return builder_to_string(*sb);
+}());
 
 get_transform :: (component: *Component) -> *Transform {
     ok, entity := get_entity(component.entity);
@@ -159,9 +168,11 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
             if ok return rect;
         }
 
-        enemy := get_component(entity, Enemy);
-        if enemy != null
-            return enemy_rect(enemy);
+        #if GAME_NAME == "beat_platformer" {
+            enemy := get_component(entity, Enemy);
+            if enemy != null
+                return enemy_rect(enemy);
+        }
 
         editor_selectable_rect := get_component(entity, Editor_Selectable_Rect);
         if editor_selectable_rect != null {
@@ -266,13 +277,16 @@ init_world :: (world: *World) {
 }
 
 world_update :: (world: *World, delta_time: float) {
-    for * world._Player player_update(it);
+    #if GAME_NAME == "beat_platformer"
+        for * world._Player player_update(it);
     for * world._SpriteRenderer update(it);
-    enemy_update_all();
+    #if GAME_NAME == "beat_platformer"
+        enemy_update_all();
 }
 
 world_draw :: (world: *World) {
-    for * world._Player player_draw(it);
+    #if GAME_NAME == "beat_platformer"
+        for * world._Player player_draw(it);
 
     for * world._RectRenderer {
         color2 := it.color;
@@ -292,6 +306,7 @@ world_draw :: (world: *World) {
         draw(it, *entity.transform);
     }
 
+    #if GAME_NAME == "beat_platformer"
     for * world._Enemy {
         ok, entity := get_entity(it.entity);
         assert(ok);

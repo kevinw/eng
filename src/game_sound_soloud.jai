@@ -1,4 +1,3 @@
-
 #scope_module
 #import "Basic";
 #import "soloud";
@@ -65,8 +64,6 @@ sound_init :: (using state: *Sound_State) {
     // TODO delete the sfx
 
     Soloud_set3dListenerUp(soloud, 0, 1, 0); // for a 2D game, we'll just use a basic unchanging up vector
-
-    bgm_voice = Soloud_play(soloud, bgm);
 }
 
 sound_deinit :: (using state: *Sound_State) {

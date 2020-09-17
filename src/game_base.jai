@@ -7,7 +7,7 @@ inp :: #import "inp";
 #import "live_raylib";
 Sloppy_Math :: #import "Sloppy_Math";
 #import "Live_Types";
-#import "entity";
+#import "entity"(GAME_NAME);
 #import "game_sound_soloud";
 
 #load "../lib/ui.jai";
