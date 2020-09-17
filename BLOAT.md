@@ -16,3 +16,5 @@
 - link raylib statically
 
 - bypass plugin architecture and embed game.dll functions directly
+-miniz (and probably others) has /z7 embedded debugging info
+- find a tool to see if there is debugging info anywhere?
