@@ -229,6 +229,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
             node._number.int_value = s64_value * sign;
             node._number.uint_value = cast(u64)(cast(s64)u64_value * sign);
             node._number.float_value = float64_value * cast(float64)sign;
+            node._number.value_str = sprint((ifx is_negative_number then "-%" else "%"), root_token.text);
 			return new_clone(node);
 		case;
 			panic(tprint("%", root_token));
@@ -267,6 +268,8 @@ Node_Number :: struct {
 	int_value: s64;
 	uint_value: u64;
 	float_value: float64;
+
+    value_str: string;
 }
 
 Node_String :: struct {
@@ -320,7 +323,10 @@ _deep_copy_internal :: (dest: *Node, source: *Node) {
     dest.type = t;
     if t == {
 		case .Number;
+            dest._number = source._number;
+            dest._number.value_str = copy_string(source._number.value_str);
 		case .Bool;
+            dest._bool = source._bool;
 		case .Nil;
 		case .String;
             dest._string = copy_string(source._string);
@@ -351,8 +357,12 @@ _deep_copy_internal :: (dest: *Node, source: *Node) {
 }
 
 delete_node :: (node: *Node) {
+    // TODO: use a "I own my strings" flag to see whether we free things or not. or
+    // add a "free_strings" argument to this function?
+    
 	if node.type == {
 		case .Number;     // do nothing
+            //free(node._number.value_str); // @Leak
 		case .Bool;       // do nothing
 		case .Nil;        // do nothing
 		case .String;     // do nothing, strings are slices from source text
@@ -452,10 +462,15 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
 			<<cast(*string)ptr = copy_string(node._string);
         case .BOOL;
 			<<cast(*bool)ptr = node._bool.value;
-        case .INTEGER; #through;
-        case .FLOAT;   #through;
+        case .INTEGER;
+            did_set := Reflection.set_value_from_string(any, node._number.value_str);
+            if !did_set print("WARNING: set_value_from_string failed for setting integer % from %\n", debug_name, node._number.value_str);
+        case .FLOAT;
+            did_set := Reflection.set_value_from_string(any, node._number.value_str);
+            if !did_set print("WARNING: set_value_from_string failed for setting float %\n", debug_name);
 		case .ENUM;
-			Reflection.set_value_from_string(any, node._enum);
+            did_set := Reflection.set_value_from_string(any, node._enum);
+            if !did_set print("WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
         case;
             print("unhandled: '%' %\n", debug_name, ti.type);
     }
