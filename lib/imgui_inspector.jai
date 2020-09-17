@@ -107,7 +107,13 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
                 case .Float4;
                     DragFloat4(name, cast([4]float)data);
                 case;
-                    if TreeNode("%: %", to_string(name), ti_struct.name) {
+                    tree_node_str:string;
+                    if name != null && str_length(name) > 0
+                        tree_node_str = tprint("%: %", to_string(name), ti_struct.name);
+                    else
+                        tree_node_str = ti_struct.name;
+
+                    if TreeNode(tree_node_str) {
                         defer TreePop();
 
                         for member:ti_struct.members {
