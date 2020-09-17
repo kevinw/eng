@@ -17,6 +17,7 @@ update_and_draw :: () {
         game_base_push_drawing();
         editor_draw(context.state);
         ClearBackground(RED);
+        DrawText("PONG?", 0, 0, 32, WHITE);
     }
 }
 

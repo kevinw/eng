@@ -15,7 +15,8 @@ Sloppy_Math :: #import "Sloppy_Math";
 #load "editor.jai";
 
 HOTLOADING_ENABLED :: true;
-#add_context state: *State;
+
+#add_context state: *State; // State gets defined by the game.
 
 State_Base :: struct {
     ui: UI_State;

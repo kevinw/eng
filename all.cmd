@@ -1,1 +1,1 @@
-@jai -x64 first.jai -- all && first.exe
+@jai -x64 first.jai -- all && first.exe %*

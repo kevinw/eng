@@ -21,6 +21,12 @@ panic :: (msg: string) {
     debug_break();
 }
 
+cmdline_args: struct {
+    topmost_window := true;
+    live_reload := true;
+    game_name := "game";
+};
+
 WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
@@ -34,7 +40,7 @@ on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
         arguments: [..]string;
-        array_add(*arguments, "jai", "-x64", "first.jai");
+        array_add(*arguments, "jai", "-x64", "first.jai", "--", cmdline_args.game_name);
 
         cmd_string := concatenate(..arguments, " ");
         defer free(cmd_string);
@@ -108,11 +114,6 @@ main :: () {
     context.allocator = GWP.allocator;
 
 
-    cmdline_args: struct {
-        topmost_window := true;
-        live_reload := true;
-        plugin_dll_filename := "game.dll";
-    };
 
 
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
@@ -141,8 +142,7 @@ main :: () {
                             exit(1);
                         }
 
-                        cmdline_args.plugin_dll_filename = copy_string_z(tprint("%.dll", it));//sprint("%\0", it);
-                        print("will load DLL: %\n", cmdline_args.plugin_dll_filename);
+                        cmdline_args.game_name = copy_string(it);
                         did_set_plugin_dll = true;
                     }
                     
@@ -186,8 +186,11 @@ main :: () {
     defer if cmdline_args.live_reload hotloader_shutdown();
 
     module: Plugin.Module;
-    if !Plugin.load(*module, cmdline_args.plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
-        panic(tprint("Could not load DLL '%'\n", cmdline_args.plugin_dll_filename));
+
+    plugin_dll_filename := copy_string_z(tprint("%.dll", cmdline_args.game_name));
+
+    if !Plugin.load(*module, plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
+        panic(tprint("Could not load DLL '%'\n", plugin_dll_filename));
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
 
