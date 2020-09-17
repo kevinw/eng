@@ -1,5 +1,6 @@
 #import "Basic";
 #import "Compiler";
+String :: #import "String";
 
 module_search_paths := string.[
     "../jai-imgui",
@@ -14,12 +15,17 @@ Build_Flags :: enum_flags {
     Check_Only :: (1 << 0);
 }
 
-build_plugin :: (build_flags: Build_Flags, source_files: ..string) {
+build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);
 
     opts := get_build_options();
     opts.output_type = .NO_OUTPUT;
     set_build_options(opts);
+
+    if String.count(game_dll_source_name, ".") > 0 {
+        compiler_error(tprint("Error: no dots in source name please: '%'", game_dll_source_name), loc);
+        return;
+    }
 
     w := compiler_create_workspace("build");
     {
@@ -32,11 +38,11 @@ build_plugin :: (build_flags: Build_Flags, source_files: ..string) {
         if build_flags & .Check_Only
             opts.output_path = CHECK_PATH;
 
-        opts.output_executable_name = "game";
+        opts.output_executable_name = game_dll_source_name;
         set_build_options(opts, w);
 
-        for source_files
-            add_build_file(it, w);
+        source_file := tprint("src/%.jai", game_dll_source_name);
+        add_build_file(source_file, w);
 
         while true {
             message := compiler_wait_for_message();
@@ -76,7 +82,7 @@ build_host :: (check := false) {
 CHECK_PATH :: "check/";
 
 build :: () {
-    DEFAULT_SRC_PLUGIN :: "src/game.jai";
+    DEFAULT_SRC_PLUGIN :: "game";
 
     args := compiler_get_command_line_arguments();
     if args.count > 0 {
@@ -90,17 +96,14 @@ build :: () {
                 build_host(check=true);
                 build_plugin(.Check_Only, DEFAULT_SRC_PLUGIN);
             case;
-                print("building:\n");
-                for args print("  %\n", it);
-                build_plugin(.None, ..args);
-                //print("error: unknown argument '%'", args[0]);
-                exit(1);
+                build_plugin(.None, args[0]);
         }
 
         return; // done.
     }
 
-    // else...just build game.dll
+    // With no command line arugments, just build the plugin specified by
+    // DEFAULT_SRC_PLUGIN.
     build_plugin(.None, DEFAULT_SRC_PLUGIN);
 }
 

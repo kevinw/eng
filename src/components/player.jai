@@ -17,12 +17,47 @@ player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
 inp :: #import "inp";
 Math :: #import "Math";
 #import "raymath";
-#import "Array_With_Holes";
 #import "game_sound_soloud";
 #import "Basic";
+reaper :: #import "reaper";
 screenlog :: #import "screenlog";
-#scope_export
 
+// TODO: get rid of these. use LiveTextures, LiveSprites. something.
+gino: LiveTexture;
+gino_sprites: struct {
+    idle: []Sprite;
+    run: []Sprite;
+    jump_start: []Sprite;
+    jump_mid: []Sprite;
+    jump_landing: []Sprite;
+    attack: []Sprite;
+    attack_miss: []Sprite;
+    attack_air: []Sprite;
+    damaged: []Sprite;
+};
+
+ensure_sprites_loaded :: () {
+    // @Speed don't call this every frame for every entity!!
+    if !has_value(gino)
+        gino = LoadLiveTexture("resources/sprites/gino.png");
+
+    if gino_sprites.idle.count == 0 {
+        using gino_sprites;
+        all := parse_spriter_atlas("resources/sprites/gino.atlas");
+        idle         = sprites_with_prefix(all, "Idle/");
+        run          = sprites_with_prefix(all, "Run/");
+        jump_start   = sprites_with_prefix(all, "Jump/start/");
+        jump_mid     = sprites_with_prefix(all, "Jump/mid/");
+        jump_landing = sprites_with_prefix(all, "Jump/landing/");
+        attack       = sprites_with_prefix(all, "Attacks/A/");
+        attack_miss  = sprites_with_prefix(all, "Throw/Throw Attack/");
+        attack_air   = sprites_with_prefix(all, "Attack in jump/");
+        damaged      = sprites_with_prefix(all, "Damage/");
+    }
+    // @Leak
+}
+
+#scope_export
 
 On_Damage_Func :: #type (takes_damage: *Takes_Damage) -> bool;
 
@@ -119,6 +154,9 @@ Player :: struct {
         damage_func_type = .Player,
     };
     //damage.damage_func = player_was_damaged;
+
+    nearest_marker: *reaper.Marker;
+    beat_timer: float64; // TODO: duplicated and set from game.jai
 }
 
 player_reset :: (using it: *Player) {
@@ -131,6 +169,8 @@ player_has_been_damaged :: (using player: *Player) -> bool {
 }
 
 player_update :: (using player: *Player) {
+    ensure_sprites_loaded();
+
     Time := *context.state.Time;
 
     is_being_knocked_back := player_has_been_damaged(player);
@@ -170,14 +210,14 @@ player_update :: (using player: *Player) {
 
     state := context.state;
 
-    time_since_marker := ifx context.state.nearest_marker then state.beat_timer - state.nearest_marker.time else 0;
+    time_since_marker := ifx nearest_marker then beat_timer - nearest_marker.time else 0;
     allow_all_beats := false;
 
     if !is_being_knocked_back {
         // ATTACK
         if (IsKeyPressed(.KEY_E) || IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
             attack_offset :: Vector2.{0, -20};
-            if state.nearest_marker && (allow_all_beats || (Math.abs(time_since_marker) < .2 && state.nearest_marker.beat_type == .Kick)) {
+            if nearest_marker && (allow_all_beats || (Math.abs(time_since_marker) < .2 && nearest_marker.beat_type == .Kick)) {
                 last_attack_time = Time.now;
                 attack_did_hit = true;
                 sprite_timer = 0;
@@ -191,7 +231,7 @@ player_update :: (using player: *Player) {
 
         // JUMP
         if !attacking && jump_button_pressed_this_frame {
-            beat_match_type := state.nearest_marker; // && state.nearest_marker.beat_type == .Snare;
+            beat_match_type := nearest_marker; // && nearest_marker.beat_type == .Snare;
             matched_beat := allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type);
             spawn_prefab("player_dust_small", <<position);
             if matched_beat && jump_count < 2 {
@@ -313,7 +353,7 @@ player_update :: (using player: *Player) {
 player_is_attacking :: (it: *Player) -> bool {
     using context.state;
 
-    return Time.now - it.last_attack_time < cast(float)context.state.sprites.player.attack.count/ATTACK_FPS;
+    return Time.now - it.last_attack_time < cast(float)gino_sprites.attack.count/ATTACK_FPS;
 }
 
 player_attack_hitbox :: (it: *Player) -> bool {
@@ -323,6 +363,8 @@ player_attack_hitbox :: (it: *Player) -> bool {
 }
 
 player_draw :: (using player: *Player) {
+    ensure_sprites_loaded();
+
     state := context.state;
     Time := *state.Time;
 
@@ -340,7 +382,7 @@ player_draw :: (using player: *Player) {
     walking := false;
     
     {
-        using state.sprites.player;
+        using gino_sprites;
         if is_being_knocked_back {
             spr = damaged;
             fps = DAMAGE_FPS;
@@ -351,7 +393,7 @@ player_draw :: (using player: *Player) {
             } else {
                 fps = 9;
                 since_jump := Time.now - player.last_jump_time;
-                launching_anim_time := cast(float)state.sprites.player.jump_start.count/fps;
+                launching_anim_time := cast(float)gino_sprites.jump_start.count/fps;
                 if since_jump < launching_anim_time {
                     spr = jump_start;
                     N:float : 1.27;
@@ -373,7 +415,7 @@ player_draw :: (using player: *Player) {
 
             fps = 10;
             since_land := Time.now - player.last_grounded_time;
-            landing_animation_time := cast(float)state.sprites.player.jump_landing.count/fps;
+            landing_animation_time := cast(float)gino_sprites.jump_landing.count/fps;
             if since_land < landing_animation_time {
                 spr = jump_landing;
                 N:float : 0.82;
@@ -415,7 +457,7 @@ player_draw :: (using player: *Player) {
     //dest_rect.width = round(dest_rect.width);
     //dest_rect.height = round(dest_rect.height);
 
-    DrawTexturePro(state.textures.gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
+    DrawTexturePro(gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     //screenlog.world(position, "%", position);
 

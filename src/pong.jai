@@ -1,37 +1,35 @@
-#import "Basic";
-#import "toolbelt";
-#import "entity";
-
-HOTLOADING_ENABLED :: true;
-
-#import "game_sound_soloud";
-#load "editor.jai";
-#import "live_raylib";
-#import "Live_Types";
-screenlog :: #import "screenlog";
-#import "raylib";
-
-#load "plugin_exports.jai";
-
-#load "../lib/ui.jai";
-
-#add_context state: *State;
+#load "game_base.jai";
 
 State :: struct {
-    ui: UI_State;
-    editor: Editor;
-    live: Live_Asset_Database;
-    sound_state: Sound_State;
-    world: World;
+    using _base: State_Base;
 }
 
 on_host_shutdown :: () {
-    
+    game_base_shutdown();
 }
 
 update_and_draw :: () {
     {
-        PushDrawing();
+        game_base_update();
+    }
+    {
+        game_base_push_drawing();
+        editor_draw(context.state);
         ClearBackground(RED);
     }
+}
+
+on_host_did_reload_game_dll :: () {
+    using context.state;
+
+    set_default_font(*default_font);
+
+    gl_load(*gl);
+    ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
+
+    logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
+}
+
+on_host_init :: () {
+    game_base_init();
 }

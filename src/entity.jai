@@ -1,3 +1,15 @@
+/*
+Problems:
+
+ * enemy, player rely on toolbelt sprite stuff.
+    - either create Live versions of them, or
+      hack in a module level thing that gets reloaded
+      (maybe this is easy if game_base.jai provides a hook
+      where you can be asked to get notified when the dll has loaded)
+ * generating the right imports
+ * entity_rect
+*/
+
 // TODO: generate these imports
 #load "components/sprite_renderer.jai";
 #load "components/box_collider.jai";
@@ -69,6 +81,17 @@ Entity :: struct {
     }
 
     components: [..]Component_Entry; // TODO: Small_Array
+}
+
+get_components :: ($component_type: Type) -> []*component_type {
+    all: [..]*component_type;
+    all.allocator = __temporary_allocator;
+
+    bucket: *Array_With_Holes(component_type);
+    #insert #run bucket_chooser();
+    for * bucket array_add(*all, it);
+
+    return all;
 }
 
 get_component :: (entity: *Entity, $component_type: Type) -> *component_type {

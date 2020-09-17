@@ -1,5 +1,6 @@
 # TODO
 
+- make imgui assert the context assert
 - footsteps with reverb - going to need a way to do dynamic sound in this game about sound
 - in edit mode, a toolbar appears on the left side with icon buttons in a grid
 

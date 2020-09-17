@@ -133,7 +133,7 @@ draw_rect_outline :: inline (rect: Rectangle, thickness :s32 = 3, color := RED) 
 
 normalize :: Vector2Normalize;
 
-default_font: *Font; // TODO: this is dumb, because when game.dll gets reloaded it needs to reset this pointer back to its new state's default_font value. I wonder if we can put the data segment somewhere manually?
+default_font: *Font; // TODO: this is dumb, because when the plugin dll gets reloaded it needs to reset this pointer back to its new state's default_font value. I wonder if we can put the data segment somewhere manually?
 
 set_default_font :: (font_ptr: *Font) {
     default_font = font_ptr;

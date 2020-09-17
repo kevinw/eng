@@ -59,6 +59,10 @@ Selected_Object :: struct {
 Editor :: struct {
     play_mode: Play_Mode;
 
+    callbacks: struct {
+        did_drag: #type (rect: Rectangle);
+    };
+
     drag_state: struct {
         dragging: bool;
         origin: Vec2;
@@ -149,39 +153,39 @@ editor_draw :: (state: *State) {
     window_flags := ImGui.WindowFlags.NoDocking;
     if menubar window_flags |= .MenuBar;
 
+    using ImGui;
+
     if fullscreen {
-        viewport := ImGui.GetMainViewport();
-        ImGui.SetNextWindowPos(viewport.GetWorkPos(viewport));
-        ImGui.SetNextWindowSize(viewport.GetWorkSize(viewport));
-        ImGui.SetNextWindowViewport(viewport.ID_);
-        ImGui.PushStyleVar(.WindowRounding, 0);
-        ImGui.PushStyleVar(.WindowBorderSize, 0);
-        window_flags |= ImGui.WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
+        viewport := GetMainViewport();
+        SetNextWindowPos(viewport.GetWorkPos(viewport));
+        SetNextWindowSize(viewport.GetWorkSize(viewport));
+        SetNextWindowViewport(viewport.ID_);
+        PushStyleVar(.WindowRounding, 0);
+        PushStyleVar(.WindowBorderSize, 0);
+        window_flags |= WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
                         .NoBringToFrontOnFocus | .NoNavFocus;
     }
     window_flags |= .NoBackground;
     open := true;
     {
-        if !padding ImGui.PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
-        ImGui.Begin("DockSpace Demo", *open, window_flags);
-        defer ImGui.End();
-        if !padding ImGui.PopStyleVar();
+        if !padding PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
+        Begin("DockSpace Demo", *open, window_flags);
+        defer End();
+        if !padding PopStyleVar();
 
-        if fullscreen
-            ImGui.PopStyleVar(2);
+        if fullscreen PopStyleVar(2);
 
-        io := ImGui.GetIO();
-        assert(io.ConfigFlags_ & .DockingEnable != 0);
+        assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
 
         // dockspace
-        dockspace_flags := ImGui.DockNodeFlags.PassthruCentralNode;
-        ImGui.DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
+        dockspace_flags := DockNodeFlags.PassthruCentralNode;
+        DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
 
         if menubar {
-            ImGui.BeginMenuBar();
-            ImGui.EndMenuBar();
-            if  ImGui.BeginMenu("Options") {
-                defer ImGui.EndMenu();
+            BeginMenuBar();
+            EndMenuBar();
+            if  BeginMenu("Options") {
+                defer EndMenu();
 
             }
             HelpMarker("Some example help text goes here.");
@@ -189,17 +193,18 @@ editor_draw :: (state: *State) {
     }
 
     if demo_window_open
-        ImGui.ShowDemoWindow(*demo_window_open);
+        ShowDemoWindow(*demo_window_open);
 
+    /*
     if ui_open {
         ImGui.Begin("state", *ui_open);
         defer ImGui.End();
 
         inspect("state", *state);
     }
+    */
 
     if entities_open {
-        using ImGui;
         Begin("entities", *entities_open);
         defer End();
         PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
@@ -365,18 +370,8 @@ editor_update :: (state: *State) {
 
         rect := rect_from_points(drag_state.origin, world_mouse_pos);
         if rect.width > 5 && rect.height > 5 {
-            color := RED;
-            color.b = cast(u8)random_get_within_range(100, 255);
-
-            block := envitem(
-                *state.world,
-                rect.position.x,
-                rect.position.y,
-                rect.size.x,
-                rect.size.y,
-                .PLATFORM,
-                color
-            );
+            if callbacks.did_drag != null
+                callbacks.did_drag(rect);
         }
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
         delta := world_mouse_pos - drag_state.origin;
@@ -442,7 +437,9 @@ editor_toggle :: (using s: *State) {
             play_mode = .Play;
         case;
             print("error: unknown play_mode '%'\n", play_mode);
+            return;
     }
+    print("entering mode %\n", play_mode);
 }
 
 editor_draw_ui :: () {

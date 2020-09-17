@@ -6,8 +6,7 @@
 #import "config";
 #import "Process";
 #import "System";
-#import "Sound_Player";
-#import "soloud";
+#import "toolbelt";
 File :: #import "File";
 String :: #import "String";
 Debug :: #import "Debug";
@@ -26,11 +25,6 @@ WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
 USE_SCREENLOG :: true;
-
-cmdline_args: struct {
-    topmost_window := true;
-    live_reload := true;
-};
 
 #load "host_common.jai";
 
@@ -108,9 +102,18 @@ Math :: #import "Math";
 plugin_context: Context;
 
 main :: () {
+
     Debug.init();
     GWP.init();
     context.allocator = GWP.allocator;
+
+
+    cmdline_args: struct {
+        topmost_window := true;
+        live_reload := true;
+        plugin_dll_filename := "game.dll";
+    };
+
 
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
@@ -122,6 +125,7 @@ main :: () {
         args := get_command_line_arguments();
         defer array_free(args);
 
+        did_set_plugin_dll := false;
         for args {
             if it == {
                 case "--no-topmost";
@@ -130,6 +134,18 @@ main :: () {
                 case "--no-live-reload";
                     print("no live reload\n");
                     cmdline_args.live_reload = false;
+                case;
+                    if it_index > 0 {
+                        if did_set_plugin_dll {
+                            print("error: more than one dll argument specified.\n");
+                            exit(1);
+                        }
+
+                        cmdline_args.plugin_dll_filename = copy_string_z(tprint("%.dll", it));//sprint("%\0", it);
+                        print("will load DLL: %\n", cmdline_args.plugin_dll_filename);
+                        did_set_plugin_dll = true;
+                    }
+                    
             }
         }
     }
@@ -170,8 +186,8 @@ main :: () {
     defer if cmdline_args.live_reload hotloader_shutdown();
 
     module: Plugin.Module;
-    if !Plugin.load(*module, "game.dll", COPY_TO_TEMP_PATH = cmdline_args.live_reload)
-        panic("Could not load game.dll\n");
+    if !Plugin.load(*module, cmdline_args.plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
+        panic(tprint("Could not load DLL '%'\n", cmdline_args.plugin_dll_filename));
     defer Plugin.unload(*module);
     update_plugin_functions(*module);
 

@@ -5,6 +5,31 @@ ATTACK_CHOMP_TIME :: 0.295;
 DYING_FPS :: 9;
 #import "raymath";
 #import "game_sound_soloud";
+#import "Sprite_Anim";
+
+evilplant: LiveTexture;
+evilplant_sprite: struct {
+    idle: []Sprite;
+    hit: []Sprite;
+    attack_left: []Sprite;
+    attack_right: []Sprite;
+};
+
+ensure_sprites_loaded :: () {
+    if !has_value(evilplant)
+        evilplant = LoadLiveTexture("resources/sprites/evilplant.png");
+    if evilplant_sprite.idle.count == 0 {
+        using evilplant_sprite;
+
+        all := parse_spriter_atlas("resources/sprites/evilplant.atlas");
+        idle = sprites_with_prefix(all, "Idle/");
+        hit  = sprites_with_prefix(all, "Hit/");
+        attack_left = sprites_with_prefix(all, "Attack_Left/");
+        attack_right = sprites_with_prefix(all, "Attack_Right/");
+        // @Leak
+    }
+}
+
 #scope_export
 
 Editor_Selectable_Rect :: struct {
@@ -22,7 +47,7 @@ enemy_was_damaged :: (using it: *Takes_Damage) -> bool {
 
     if it.health == 0 {
         enemy := get_parent_struct(Enemy, it);
-        enemy.dying_timer = cast(float)context.state.sprites.evilplant.hit.count/DYING_FPS;
+        enemy.dying_timer = cast(float)evilplant_sprite.hit.count/DYING_FPS;
         enemy.sprite_timer = 0;
     }
 
@@ -34,6 +59,8 @@ Enemy :: struct {
 
     sprite_timer: float64;
     last_sprite_timer: float64;
+
+    sprite: *Sprite_Anim;
 
     damage := Takes_Damage.{
         health = 1,
@@ -95,25 +122,27 @@ enemy_trigger_rect :: (using it: *Enemy, transform: *Transform) -> Rectangle {
 enemy_is_attacking :: (using it: *Enemy) -> bool {
     using context.state;
 
-    return Time.now - last_attack_time < cast(float)context.state.sprites.evilplant.attack_left.count/ATTACK_FPS;
+    return Time.now - last_attack_time < cast(float)evilplant_sprite.attack_left.count/ATTACK_FPS;
 }
 
 draw :: (using it: *Enemy, transform: *Transform) {
+    ensure_sprites_loaded(); // @Speed
+
     using context.state;
 
     position := *transform.position;
 
     fps := 10;
 
-    spr := sprites.evilplant.idle;
+    spr := evilplant_sprite.idle;
     if dying_timer > 0 {
-        spr = sprites.evilplant.hit;
+        spr = evilplant_sprite.hit;
         fps = DYING_FPS;
     } else if enemy_is_attacking(it) {
         if last_attack_direction_right
-            spr = sprites.evilplant.attack_right;
+            spr = evilplant_sprite.attack_right;
         else
-            spr = sprites.evilplant.attack_left;
+            spr = evilplant_sprite.attack_left;
     }
     sprite_rect, offset := sprite_get_rect(spr, it.sprite_timer, fps);
     
@@ -127,7 +156,7 @@ draw :: (using it: *Enemy, transform: *Transform) {
     if being_damaged(*damage) {
         color = ColorFromNormalized(Vector4.{1, .5, .5, 1});
     }
-    DrawTexturePro(textures.evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
+    DrawTexturePro(evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     if debug_draw {
         draw_point(position.xy, 4, RED);
@@ -140,8 +169,15 @@ draw :: (using it: *Enemy, transform: *Transform) {
 enemy_update_all :: () {
     using context.state;
 
-    p_rect := player_rect(context.state.player); // TODO: remove state's reference to *Player (so there could be more than one!)
-    player_midpoint := midpoint(p_rect);
+    p_rect: Rectangle;
+    player_midpoint: Vector2;
+
+    all_players := get_components(Player);
+    assert(all_players.count < 2, "right now only coded for one player, but there are: %", all_players.count);
+    if all_players.count > 0 {
+        p_rect = player_rect(all_players[0]); // TODO: remove state's reference to *Player (so there could be more than one!)
+        player_midpoint = midpoint(p_rect);
+    }
 
     for * context.state.world._Enemy {
     //for * state.enemies {
@@ -165,17 +201,19 @@ enemy_update_all :: () {
 
         if attack_cooldown > 0 continue;
 
-        e_rect := enemy_trigger_rect(it, transform);
-        if CheckCollisionRecs(p_rect, e_rect) {
-            // ENEMY ATTACKING!
-            attack_cooldown = ATTACK_COOLDOWN;
+        if all_players.count > 0 {
+            e_rect := enemy_trigger_rect(it, transform);
+            if CheckCollisionRecs(p_rect, e_rect) {
+                // ENEMY ATTACKING!
+                attack_cooldown = ATTACK_COOLDOWN;
 
-            e_midpoint := midpoint(e_rect);
-            delta := e_midpoint - player_midpoint;
+                e_midpoint := midpoint(e_rect);
+                delta := e_midpoint - player_midpoint;
 
-            last_attack_time = Time.now;
-            last_attack_direction_right = delta.x < 0;
-            sprite_timer = 0;
+                last_attack_time = Time.now;
+                last_attack_direction_right = delta.x < 0;
+                sprite_timer = 0;
+            }
         }
 
     }

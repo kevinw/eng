@@ -1,34 +1,43 @@
 #import "Basic";
-#import "raylib";
-#import "raymath";
-#import "toolbelt";
+#load "game_base.jai";
 #import "Sprite_Anim";
 Math :: #import "Math";
 wbml :: #import "wbml";
-screenlog :: #import "screenlog";
 reaper :: #import "reaper";
-inp :: #import "inp";
-
-HOTLOADING_ENABLED :: true;
-
-#import "game_sound_soloud";
-
-#import "entity";
-#load "editor.jai";
-
-#import "live_raylib";
-#import "Live_Types";
-
-#load "plugin_exports.jai";
-
-#load "../lib/ui.jai";
-
-#add_context state: *State;
 
 gameWidth  :: 640;
 gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
 GLSL_VERSION :: 330;
+
+State :: struct {
+    using _base: State_Base;
+
+    start_canary: u32; @noui // = 0xBEEFBEEF;
+
+    muted := true;
+    sprites: struct {
+        test_ase: Sprite_Anim;
+    };
+
+    song: reaper.Song;
+    nearest_marker: *reaper.Marker;
+    bgm: Music;
+    beat_timer: float64;
+
+    player: *Player;
+    scene: struct {};
+
+    cameraOption: int = 1;
+
+    bg: struct {
+        timer: float64;
+        texture: LiveTexture;
+        shader: LiveShader;
+    };
+
+    end_canary: u32; @noui // = 0xBEEFBEEF;
+};
 
 envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> *Entity {
     entity, entity_handle := create_entity(world, "box");
@@ -47,80 +56,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 }
 
 
-State :: struct {
-    start_canary: u32; @noui // = 0xBEEFBEEF;
-
-    ui: UI_State;
-    ui_open: bool = true;
-    Time: struct {
-        now: float64;
-        unscaled_now: float64;
-        delta_time: float;
-    };
-    default_font: Font;
-    global_time_scale:float = 1.0;
-
-    // TODO: this is a kind of weird inversion of control. other files we import
-    // provide the structs that we use here. is that badly designed, or using a
-    // jai feature in a way that is actually fine?
-    editor: Editor;
-    sound_state: Sound_State;
-    live: Live_Asset_Database;
-
-    muted := true;
-    textures: struct {
-        gino: Texture;
-        evilplant: Texture;
-    };
-    world: World;
-    sprites: struct {
-        test_ase: Sprite_Anim;
-        player: struct {
-            idle: []Sprite;
-            run: []Sprite;
-            jump_start: []Sprite;
-            jump_mid: []Sprite;
-            jump_landing: []Sprite;
-            attack: []Sprite;
-            attack_miss: []Sprite;
-            attack_air: []Sprite;
-            damaged: []Sprite;
-        };
-        evilplant: struct {
-            idle: []Sprite;
-            hit: []Sprite;
-            attack_left: []Sprite;
-            attack_right: []Sprite;
-        };
-    };
-
-    song: reaper.Song;
-    nearest_marker: *reaper.Marker;
-    bgm: Music;
-    beat_timer: float64;
-
-    player: *Player;
-    scene: struct {};
-    camera: Camera2D;
-
-    cameraOption: int = 1;
-
-    bg: struct {
-        timer: float64;
-        texture: LiveTexture;
-        shader: LiveShader;
-    };
-
-    screen: struct {
-        shader: Shader;
-        texture: RenderTexture;
-    };
-
-    debug_draw := false;
-    restart: ();
-
-    end_canary: u32; @noui // = 0xBEEFBEEF;
-};
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, delta: float, w: int, h: int);
 
@@ -152,45 +87,25 @@ on_host_did_reload_game_dll :: () {
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }
 
+editor_did_drag :: (rect: Rectangle) {
+    color := RED;
+    color.b = cast(u8)random_get_within_range(100, 255);
+    block := envitem(*context.state.world,
+        rect.x, rect.y, rect.width, rect.height,
+        .PLATFORM, color);
+}
+
 on_host_init :: () {
     using context.state;
     set_context_funcs();
-    init_world(*world);
+    editor.callbacks.did_drag = editor_did_drag;
 
-    imgui_init(*ui);
-
-    set_default_font(*default_font, "resources/fonts/FiraCode-VariableFont_wght.ttf");
+    game_base_init();
 
     start_canary = 0xBEEFBEEF;
     end_canary =   0xDEADBEEF;
 
-    sound_init(*sound_state);
-    
     // load textures and sprites
-    textures.gino = LoadTexture("resources/sprites/gino.png");
-    {
-        using sprites.player;
-        gino_sprites := parse_spriter_atlas("resources/sprites/gino.atlas");
-        idle         = sprites_with_prefix(gino_sprites, "Idle/");
-        run          = sprites_with_prefix(gino_sprites, "Run/");
-        jump_start   = sprites_with_prefix(gino_sprites, "Jump/start/");
-        jump_mid     = sprites_with_prefix(gino_sprites, "Jump/mid/");
-        jump_landing = sprites_with_prefix(gino_sprites, "Jump/landing/");
-        attack       = sprites_with_prefix(gino_sprites, "Attacks/A/");
-        attack_miss  = sprites_with_prefix(gino_sprites, "Throw/Throw Attack/");
-        attack_air   = sprites_with_prefix(gino_sprites, "Attack in jump/");
-        damaged      = sprites_with_prefix(gino_sprites, "Damage/");
-    }
-
-    textures.evilplant = LoadTexture("resources/sprites/evilplant.png");
-    {
-        using sprites.evilplant;
-        evilplant_sprites := parse_spriter_atlas("resources/sprites/evilplant.atlas");
-        idle = sprites_with_prefix(evilplant_sprites, "Idle/");
-        hit  = sprites_with_prefix(evilplant_sprites, "Hit/");
-        attack_left = sprites_with_prefix(evilplant_sprites, "Attack_Left/");
-        attack_right = sprites_with_prefix(evilplant_sprites, "Attack_Right/");
-    }
 
     ok: bool;
     //ok, song = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
@@ -220,17 +135,6 @@ on_host_init :: () {
     bg.texture = LoadLiveTexture("resources/textures/space.png");
     bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
 
-
-    /*
-    my_obj, my_obj_handle := create_entity(*world);
-    my_obj.transform.position = Vector3.{380, 380, 0};
-    my_obj.transform.scale = Vector3.{300, 200, 1};
-
-    my_sprite := add_component(my_obj_handle, SpriteRenderer);
-    my_sprite.sprite = sprites.evilplant.idle;
-    my_sprite.texture = textures.evilplant;
-    */
-
     envitem(*world, 0,   400, 1000, 200, .PLATFORM, GRAY);
     envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
     envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
@@ -248,12 +152,10 @@ on_host_init :: () {
 on_host_shutdown :: () {
     using context.state;
 
-    World.deinit(*world);
-
     UnloadLiveTexture(bg.texture);
     UnloadShader(bg.shader.resource);
 
-    sound_deinit(*sound_state);
+    game_base_shutdown();
 }
 
 restart :: () {
@@ -269,24 +171,8 @@ restart :: () {
     beat_timer = 0;
 }
 
-Sloppy_Math :: #import "Sloppy_Math";
-
-change_global_time_scale :: (delta: float) {
-    using context.state;
-
-    STEP :: 0.2;
-
-    global_time_scale = clamp(global_time_scale + delta * STEP, 0.1, 4.0);
-    if Sloppy_Math.values_are_close(global_time_scale, 1.0)
-        global_time_scale = 1;
-
-    logprint("=time_scale", "time scale %", global_time_scale);
-}
-
 update_and_draw :: () {
     using context.state;
-
-    imgui_raylib_new_frame(*ui);
 
     #if HOTLOADING_ENABLED {
         assert(start_canary == 0xBEEFBEEF);
@@ -296,19 +182,10 @@ update_and_draw :: () {
         }
     }
 
-    absolute_delta_time := GetFrameTime();
-    Time.delta_time = global_time_scale * absolute_delta_time;
-    Time.now += Time.delta_time;
-    Time.unscaled_now = GetTime();
-
-    if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
-        editor_toggle(context.state);
+    game_base_update();
 
     // update
     {
-        editor_update(context.state);
-        screenlog.update(Time.delta_time);
-        sound_update(*sound_state);
         {
             // update beat
             {
@@ -319,6 +196,8 @@ update_and_draw :: () {
             beats_per_second := bgm_bpm * (1.0 / 60.0);
             found: bool;
             nearest_marker = reaper.get_nearest_marker(song, null, beat_timer);
+            player.nearest_marker = nearest_marker;
+            player.beat_timer = beat_timer;
         }
 
         bg.timer += Time.delta_time * 0.2;
@@ -340,24 +219,7 @@ update_and_draw :: () {
             }
         }
 
-        shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
-        
-        if IsKeyPressed(.KEY_R) && !shift restart();
-        if IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
-        if IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
-        if IsKeyPressed(.KEY_D) && shift {
-            debug_draw = !debug_draw;
-            logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
-        }
         if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
-        if IsKeyPressed(.KEY_F) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
-            USE_REAL_FULLSCREEN :: false;
-            if USE_REAL_FULLSCREEN {
-                ToggleFullscreen();
-            } else {
-                ToggleFakeFullscreen();
-            }
-        }
         if IsKeyPressed(.KEY_M) {
             muted = !muted;
             update_bgm_volume();
@@ -365,32 +227,27 @@ update_and_draw :: () {
 
         if context.state.editor.play_mode == .Play
             cameraUpdaters[cameraOption](*camera, player, Time.delta_time, gameWidth, gameHeight);
-
-        world_update(*world, Time.delta_time);
     }
 
     {
         // DRAW
-        PushDrawing();
+        game_base_push_drawing();
+
         {
             PushTextureMode(screen.texture);
 
-            if 1 {
-                // draw background
+            // draw background
+            {
                 PushShaderMode(bg.shader.resource);
                 DrawTexture(bg.texture, 0, 0, WHITE);
                 DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
                 DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
                 DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
-            } else {
-                ClearBackground(BLACK);
             }
             {
                 // draw foreground
                 push_mode_2D(camera);
-
                 world_draw(*world);
-
                 editor_draw_world(context.state);
                 screenlog.draw_world();
             }
@@ -416,12 +273,6 @@ update_and_draw :: () {
             host_debug_draw();
         }
 
-        rlglDraw();
-        imgui_render(*context.state.ui);
-        // TODO: @Speed the EndDrawing implied by PushDrawing is calling
-        // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary
-        // for us to be able to overlay IMGUI onto raylib
-        // https://github.com/raysan5/raylib/issues/1216
     }
 }
 
