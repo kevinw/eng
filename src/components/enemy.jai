@@ -32,16 +32,6 @@ ensure_sprites_loaded :: () {
 
 #scope_export
 
-Editor_Selectable_Rect :: struct {
-    using component: Component;
-
-    rect: Rectangle;
-}
-
-on_enable :: (using self: *Editor_Selectable_Rect, parent_entity: *Entity) {
-    parent_entity.flags |= .Has_Component_Rect;
-}
-
 enemy_was_damaged :: (using it: *Takes_Damage) -> bool {
     play_sfx("whack");
 
