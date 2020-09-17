@@ -1,0 +1,10 @@
+69 paddle
+
+Pong_Paddle
+{
+}
+
+SpriteRenderer
+{
+    sprite_anim "tile1"
+}

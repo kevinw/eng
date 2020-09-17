@@ -284,7 +284,10 @@ world_update :: (world: *World, delta_time: float) {
         enemy_update_all();
 }
 
-world_draw :: (world: *World) {
+world_draw :: (world: *World = null) {
+    if world == null
+        world = *context.state.world;
+
     #if GAME_NAME == "beat_platformer"
         for * world._Player player_draw(it);
 
