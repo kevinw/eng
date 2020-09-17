@@ -203,16 +203,16 @@ cel_to_frame :: (frame: *Frame, cel: *Cel, layer: *Layer) {
     blend := layer.blend_mode;
     sprite_w := cast(s16)sprite_width(frame);
 
-    for sx: 0..cel.width - 1 {
-        dx := cel.x + cast(s16)sx;
-        dy := cel.y * cast(s16)sprite_w;
+    for sx: cast(s32)0..cast(s32)cel.width - 1 {
+        dx :s32 = cast(s32)cel.x + cast(s16)sx;
+        dy :s32 = cast(s32)cel.y * cast(s16)sprite_w;
 
         sy := 0;
         for i: 0..cel.height - 1 {
             dest := *frame.pixels[dx + dy];
             src  := cel.pixels[sx + sy];
             blend_normal(dest, src, opacity);
-            sy += cel.width;
+            sy += cast(s32)cel.width;
             dy += sprite_w;
         }
     }
@@ -454,7 +454,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                     if cel_type == .Raw || cel_type == .Compressed {
                         cel.width  = read_WORD(b);
                         cel.height = read_WORD(b);
-                        count := cast(s64)(cel.width * cel.height * bytes_per_pixel);
+                        count := cast(s64)cel.width * cast(s64)cel.height * cast(s64)bytes_per_pixel;
 
                         bytes := NewArray(count, u8);
                         defer array_free(bytes);
@@ -471,6 +471,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
 
                             buf.offset += num_compressed_bytes;
 
+                            //print("decompressing a % x % x % image from % bytes...\n", cel.width, cel.height, bytes_per_pixel, num_compressed_bytes);
                             ok := uncompress(compressed, bytes);
                             if !ok {
                                 print("error uncompressing cel data\n");
@@ -480,7 +481,7 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                             assert(false);
                         }
 
-                        cel.pixels = NewArray(cel.width * cel.height, Color);
+                        cel.pixels = NewArray(cast(s64)cel.width * cast(s64)cel.height, Color);
                         bytes_to_pixels(bytes, cel.pixels, header.bits_per_pixel, palette);
 
                         // TODO: @Speed don't allocate and call bytes_to_pixels for
@@ -612,12 +613,36 @@ read_SHORT :: #bake_arguments read_or_panic(T = s16);
 read_BYTE  :: #bake_arguments read_or_panic(T = u8);
 
 uncompress :: (compressed_bytes: []u8, dest: []u8) -> bool {
+    //print("uncompress dest: %", dest.count);
+
     // we assume dest has exactly enough space for the uncompresesd data here.
     // see the assert
     asked_for_len := dest.count;
     dest_len: u64 = cast(u64)dest.count;
+
+    DEBUG_COMPRESSION :: false;
+
+    if DEBUG_COMPRESSION {
+        to_print: []u8;
+        to_print.data = compressed_bytes.data;
+        to_print.count = 256;
+        toolbelt::#import "toolbelt";
+        print("---- % bytes total, first %:\n", compressed_bytes.count, to_print.count);
+
+        File.write_entire_file("test_compressed_data.dat", compressed_bytes.data, compressed_bytes.count);
+
+        toolbelt.print_hex_bytes(to_print);
+    }
+
     ret_code := miniz.uncompress(dest.data, *dest_len, compressed_bytes.data, cast(u64)compressed_bytes.count);
+    if ret_code == .BUF_ERROR {
+        print("dest.count is %, dest_len is %\n", dest.count, dest_len);
+    }
+
     assert(dest_len == cast(u64)asked_for_len);
+    if ret_code != .OK
+        print("error from miniz: %\n", ret_code);
+
     return ret_code == .OK;
 }
 
