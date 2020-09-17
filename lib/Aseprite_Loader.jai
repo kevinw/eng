@@ -203,16 +203,16 @@ cel_to_frame :: (frame: *Frame, cel: *Cel, layer: *Layer) {
     blend := layer.blend_mode;
     sprite_w := cast(s16)sprite_width(frame);
 
-    for sx: cast(s32)0..cast(s32)cel.width - 1 {
-        dx :s32 = cast(s32)cel.x + cast(s16)sx;
-        dy :s32 = cast(s32)cel.y * cast(s16)sprite_w;
+    for sx: cast(s64)0..cast(s64)cel.width - 1 {
+        dx :s64 = cast(s64)cel.x + cast(s64)sx;
+        dy :s64 = cast(s64)cel.y * cast(s64)sprite_w;
 
         sy := 0;
         for i: 0..cel.height - 1 {
             dest := *frame.pixels[dx + dy];
             src  := cel.pixels[sx + sy];
             blend_normal(dest, src, opacity);
-            sy += cast(s32)cel.width;
+            sy += cast(s64)cel.width;
             dy += sprite_w;
         }
     }
