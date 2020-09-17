@@ -24,7 +24,7 @@ update_and_draw :: () {
 
         {
             PushTextureMode(screen.texture);
-            ClearBackground(RED);
+            ClearBackground(BLACK);
             world_draw();
             editor_draw_world(context.state);
             screenlog.draw_world();
