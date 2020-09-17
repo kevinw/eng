@@ -15,7 +15,7 @@ Module :: struct {
 load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
     temp_path: string;
     if COPY_TO_TEMP_PATH {
-        temp_path = copy_string(tprint("bin\\temp\\temp_%.dll", plugin.count));
+        temp_path = copy_string(tprint("bin\\temp\\temp_%_%.dll", name, plugin.count));
         plugin.count += 1;
 
         if plugin.count > 5 plugin.count = 0; // a hacky way to rotate the DLLs we're writing to...

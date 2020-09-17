@@ -21,8 +21,14 @@ update_and_draw :: () {
     }
 }
 
+on_host_will_reload_game_dll :: () {
+    sound_deinit(*context.state.sound_state);
+}
+
 on_host_did_reload_game_dll :: () {
     using context.state;
+
+    sound_init(*context.state.sound_state);
 
     set_default_font(*default_font);
 

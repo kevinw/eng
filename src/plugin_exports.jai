@@ -50,6 +50,8 @@ plugin_deinit :: (ctx: *Context, shutting_down: bool) -> *void #c_call {
         if shutting_down {
             on_host_shutdown();
             return null;
+        } else {
+            on_host_will_reload_game_dll();
         }
 
         return ctx.state;
