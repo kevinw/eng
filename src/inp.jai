@@ -13,16 +13,15 @@ get_gamepad_dpad :: (gamepad: int) -> Vector2 {
     if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_LEFT)  result.x -= 1;
     if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_RIGHT) result.x += 1;
 
-    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_UP)    result.x += 1;
-    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_DOWN)  result.x -= 1;
+    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_UP)    result.y += 1;
+    if IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_LEFT_FACE_DOWN)  result.y -= 1;
 
     return result;
 }
 
 get_gamepad_stick :: (gamepad: int, x_axis: GamepadAxis, y_axis: GamepadAxis, DEAD_ZONE := 0.17) -> Vector2 {
-    stick := make_Vector2(
-        GetGamepadAxisMovement(gamepad, x_axis),
-        GetGamepadAxisMovement(gamepad, y_axis));
+    stick := make_Vector2(GetGamepadAxisMovement(gamepad, x_axis),
+                          GetGamepadAxisMovement(gamepad, y_axis));
 
     if Math.abs(stick.x) < DEAD_ZONE stick.x = 0;
     if Math.abs(stick.y) < DEAD_ZONE stick.y = 0;

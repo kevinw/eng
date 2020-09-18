@@ -1,0 +1,22 @@
+69 PongBall
+
+Transform
+{
+    scale {
+        x 150
+        y 150
+        z 1
+    }
+}
+
+Shape_Renderer
+{
+    shape Circle
+    color {
+        r 255
+        g 255
+        b 255
+        a 255
+    }
+}
+
