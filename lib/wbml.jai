@@ -337,8 +337,7 @@ _deep_copy_internal :: (dest: *Node, source: *Node) {
             for * source._object.fields {
                 new_field_entry: Object_Field;
                 new_field_entry.name = copy_string(it.name);
-                new_field_entry.value = New(Node);
-                _deep_copy_internal(new_field_entry.value, it.value);
+                new_field_entry.value = deep_copy(it.value);
                 array_add(*fields, new_field_entry);
             }
             dest._object.fields = fields;
@@ -359,10 +358,9 @@ _deep_copy_internal :: (dest: *Node, source: *Node) {
 delete_node :: (node: *Node) {
     // TODO: use a "I own my strings" flag to see whether we free things or not. or
     // add a "free_strings" argument to this function?
-    
 	if node.type == {
 		case .Number;     // do nothing
-            //free(node._number.value_str); // @Leak
+            free(node._number.value_str); // @Leak
 		case .Bool;       // do nothing
 		case .Nil;        // do nothing
 		case .String;     // do nothing, strings are slices from source text
@@ -388,89 +386,103 @@ delete_node :: (node: *Node) {
 	free(node);
 }
 
-write_value :: (node: *Node, ptr: *$T, debug_string: string = "") {
-    ti := type_info(T);
-    write_value(node, ptr, ti, debug_string);
+write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "") {
+    write_value(node, ptr, type_info(T), debug_string);
 }
 
 write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = "") {
-	//print("write_value ptr=% name=%\n", ptr, debug_name);
-    any: Any;
+    any: Any = ---;
     any.type = ti;
     any.value_pointer = ptr;
 
     t := ti.type;
     if t == {
         case .STRUCT;
-            for field: node._object.fields
-                for (cast(*Type_Info_Struct)ti).members
-                    if it.name == field.name
-                        write_value(field.value, ptr + it.offset_in_bytes, it.type, tprint("%.%", debug_name, it.name));
+            if node.type == .Object {
+                for field: node._object.fields
+                    for (cast(*Type_Info_Struct)ti).members
+                        if it.name == field.name {
+                            field_debug_name := tprint("%.%", debug_name, it.name);
+                            write_value(field.value, ptr + it.offset_in_bytes, it.type, field_debug_name);
+                        }
+            }
 		case .ARRAY;
-			ti_array := cast(*Type_Info_Array)ti;
-			elem_size := ti_array.element_type.runtime_size;
-			assert(ti_array.relative_pointer_size == 0, "TODO: implement relative pointers");
-			if ti_array.array_type == {
-				case .FIXED;
-					assert(ti_array.array_count != -1);
-					assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
-						node._array.elements.count, ti_array.array_count);
-					for node._array.elements
-						write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
-				case .VIEW;
-					if ti_array.relative_pointer_size == {
-						case 0;
-							array := cast(*Resizable_Array)ptr;
-							assert(array.data == null, "TODO: what to do with the old slice data?");
-							desired_items := node._array.elements.count;
-							if desired_items == 0 {
-								array.data = null;
-								array.count = 0;
-							} else {
-								array.data = cast(*void) realloc(array.data, desired_items * elem_size, array.count * elem_size);
-								assert(array.data != null);
-								array.count = desired_items;
-								for node._array.elements
-									write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
-							}
-						case;
-							assert(false, "TODO: relative pointer sizes for slices");
-					}
-				case .RESIZABLE;
-					array := cast(*Resizable_Array)ptr;
-					desired_items := node._array.elements.count;
-					if desired_items > array.allocated {
-						if !array.allocator {
-							if context.allocator {
-								array.allocator      = context.allocator;
-								array.allocator_data = context.allocator_data;
-							} else {
-								array.allocator      = context.default_allocator;
-							}
-						}
-						array.data = realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator, array.allocator_data);
-						assert(array.data != null);
-						array.allocated = desired_items;
-					}
-					array.count = desired_items;
-					if desired_items > 0
-						for node._array.elements
-							write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
-			}
+            if node.type == .Array {
+                ti_array := cast(*Type_Info_Array)ti;
+                elem_size := ti_array.element_type.runtime_size;
+                assert(ti_array.relative_pointer_size == 0, "TODO: implement relative pointers");
+                if ti_array.array_type == {
+                    case .FIXED;
+                        assert(ti_array.array_count != -1);
+                        assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
+                            node._array.elements.count, ti_array.array_count);
+                        for node._array.elements
+                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+                    case .VIEW;
+                        if ti_array.relative_pointer_size == {
+                            case 0;
+                                array := cast(*Resizable_Array)ptr;
+                                assert(array.data == null, "TODO: what to do with the old slice data?");
+                                desired_items := node._array.elements.count;
+                                if desired_items == 0 {
+                                    array.data = null;
+                                    array.count = 0;
+                                } else {
+                                    array.data = cast(*void) realloc(array.data, desired_items * elem_size, array.count * elem_size);
+                                    assert(array.data != null);
+                                    array.count = desired_items;
+                                    for node._array.elements
+                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+                                }
+                            case;
+                                assert(false, "TODO: relative pointer sizes for slices");
+                        }
+                    case .RESIZABLE;
+                        array := cast(*Resizable_Array)ptr;
+                        desired_items := node._array.elements.count;
+                        if desired_items > array.allocated {
+                            if !array.allocator {
+                                if context.allocator {
+                                    array.allocator      = context.allocator;
+                                    array.allocator_data = context.allocator_data;
+                                } else {
+                                    array.allocator      = context.default_allocator;
+                                }
+                            }
+                            array.data = realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator, array.allocator_data);
+                            assert(array.data != null);
+                            array.allocated = desired_items;
+                        }
+                        array.count = desired_items;
+                        if desired_items > 0
+                            for node._array.elements
+                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+                }
+            }
         case .STRING;
 			// how to manage allocation? overwriting?
-			<<cast(*string)ptr = copy_string(node._string);
+            if node.type == .String {
+                <<cast(*string)ptr = copy_string(node._string);
+            }
         case .BOOL;
-			<<cast(*bool)ptr = node._bool.value;
+            if node.type == .Bool {
+                <<cast(*bool)ptr = node._bool.value;
+            }
         case .INTEGER;
-            did_set := Reflection.set_value_from_string(any, node._number.value_str);
-            if !did_set print("WARNING: set_value_from_string failed for setting integer % from %\n", debug_name, node._number.value_str);
+            if node.type == .Number {
+                did_set := Reflection.set_value_from_string(any, node._number.value_str);
+                if !did_set print("WARNING: set_value_from_string failed for setting integer % from %\n", debug_name, node._number.value_str);
+            }
         case .FLOAT;
-            did_set := Reflection.set_value_from_string(any, node._number.value_str);
-            if !did_set print("WARNING: set_value_from_string failed for setting float %\n", debug_name);
+            if node.type == .Number {
+                did_set := Reflection.set_value_from_string(any, node._number.value_str);
+                if !did_set print("WARNING: set_value_from_string failed for setting float %\n", debug_name);
+            }
 		case .ENUM;
-            did_set := Reflection.set_value_from_string(any, node._enum);
-            if !did_set print("WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
+            if node.type == .Enum_Value {
+                did_set := Reflection.set_value_from_string(any, node._enum);
+                if !did_set print("WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
+            }
         case;
             print("unhandled: '%' %\n", debug_name, ti.type);
     }

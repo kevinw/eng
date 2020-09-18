@@ -536,6 +536,10 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
         // here we use the runtime type info to dynamically poke bits into the
         // struct, which we don't know the layout of at compile time.
         // TODO: (or do we??? in a non-development build???)
+
+
+        wbml.write_value(it.object_node, comp, component_ti, component_type_name);
+
         for it.object_node._object.fields {
             assert(it.value != null);
 
@@ -556,7 +560,6 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
             }
         }
 
-        wbml.write_value(it.object_node, comp, component_ti, component_type_name);
     }
 
     return entity, entity_handle;
