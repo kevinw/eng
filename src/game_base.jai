@@ -16,9 +16,17 @@ Sloppy_Math :: #import "Sloppy_Math";
 
 HOTLOADING_ENABLED :: true;
 
-#add_context state: *State; // State gets defined by the game.
+#add_context state: *State;
 
 State_Base :: struct {
+    check_canaries :: (state: *State_Base) {
+        assert(state.canary1 == 9999);
+        assert(state.canary2 == 4000);
+        assert(state.canary3 == -99);
+    }
+
+    canary1 := 9999;
+
     ui: UI_State;
     Time: struct {
         now: float64;
@@ -36,6 +44,7 @@ State_Base :: struct {
     live: Live_Asset_Database;
     debug_draw := false;
     world: World;
+    canary2 := 4000;
 
     screen: struct {
         shader: Shader;
@@ -43,6 +52,7 @@ State_Base :: struct {
     };
 
     restart: ();
+    canary3 := -99;
 }
 
 game_base_shutdown :: () {
@@ -85,6 +95,7 @@ game_base_update :: () {
         }
     }
 
+    context.state.check_canaries(context.state);
     world_update(*world, Time.delta_time);
 }
 
@@ -105,6 +116,8 @@ game_base_push_drawing :: () #expand {
     `defer {
         rlglDraw();
         imgui_render(*context.state.ui);
+        screenlog.draw();
+        host_debug_draw();
         EndDrawing();
     }
     // TODO: @Speed the EndDrawing implied by PushDrawing is calling

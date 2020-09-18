@@ -1,6 +1,6 @@
 #import "Windows";
 
-ROBUSTNESS_CHECKS :: false;
+ROBUSTNESS_CHECKS :: true;
 
 /*
 The point of this data structure is to have a bucket of things with pointers that never move,
@@ -25,12 +25,21 @@ Array_With_Holes :: struct(Value: Type) {
     Value_Type :: Value;
     Max_Bytes :: 1000 * size_of(Slot);
     Slot :: struct(Value: Type) {
-        union  {
+        #if ROBUSTNESS_CHECKS {
             value: Value;
-            next: u32;       // offset from beginning of array
+            padding: [10]u8;
+            next: u32;
+            generation: s32;
+        } else {
+            union  {
+                value: Value;
+                next: u32;       // offset from beginning of array
+            }
+            generation: s32;
         }
-        generation: s32;
     }
+
+    debug_name: string;
 
     count: u32; // not the actual count of active items; it's the count of
                 // allocated space for the following field 'items'. we can
@@ -40,11 +49,44 @@ Array_With_Holes :: struct(Value: Type) {
     items: *Slot;
 }
 
-init_array_with_holes :: (arr: *$A/Array_With_Holes) {
+#if ROBUSTNESS_CHECKS {
+    get_page_size :: () -> u32 {
+        #import "Windows";
+        sys_info: SYSTEM_INFO;
+        GetSystemInfo(*sys_info);
+        return sys_info.dwPageSize;
+    }
+}
+
+init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
     assert(arr.items == null, "Array_With_Holes was already initialized");
-    arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
+
+    padding_at_start:u64 = 0;
+
+    #if ROBUSTNESS_CHECKS {
+        padding_at_start = get_page_size();
+    }
+
+    arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes + padding_at_start, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
+
+    #if ROBUSTNESS_CHECKS {
+        assert(padding_at_start > 0);
+        old_protect_flags: u32;
+        res := VirtualProtect(arr.items, padding_at_start, PAGE_GUARD | PAGE_READONLY, *old_protect_flags);
+        assert(res != 0, "VirtualProtect failed");
+
+        //old_ptr := arr.items;
+
+        arr.items = cast(*A.Slot)((cast(*void)arr.items) + padding_at_start);
+
+        //old_ptr.generation = 42; // should crash
+    }
+
     assert(arr.items != null);
     arr.items[0].generation = SENTINEL_GENERATION;
+    arr.debug_name = copy_string(debug_name);
+    print("init_array_with_holes % items at %\n", debug_name, arr.items);
+
 }
 
 SENTINEL_GENERATION  :: 999999;
@@ -69,6 +111,7 @@ allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
         assert(_gen == 0);
     }
 
+    assert(slot_index != 0);
     arr.items[slot_index].generation += 1;
     assert(arr.items[slot_index].generation > 0);
 
@@ -81,7 +124,7 @@ allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
 
     #if ROBUSTNESS_CHECKS {
         test_handle := get_handle_for_value_ptr(arr, value_ptr);
-        assert(get_item_ptr(test_handle) == value_ptr);
+        assert(get_item_ptr(arr, test_handle) == value_ptr);
     }
 
     return handle, value_ptr;
@@ -104,6 +147,7 @@ get_handle_for_value_ptr :: (arr: *$A/Array_With_Holes, value_ptr: *A.Value_Type
 
     handle: Handle_Type;
     handle.id = cast(u32)slot_index;
+    assert(slot_index != 0);
     handle.generation = arr.items[slot_index].generation;
     assert(handle.generation > 0, tprint("expected entity pointer to have a valid generation, but it was %", handle.generation));
 
@@ -181,7 +225,9 @@ set :: inline (arr: *$A/Array_With_Holes, handle: A.Handle, value: A.Value_Type)
 
 for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
     assert(arr.items != null);
-    assert(arr.items[0].generation == SENTINEL_GENERATION);
+    assert(arr.items[0].generation == SENTINEL_GENERATION,
+        tprint("gen (%) of first item for % was not %: %",
+            *arr.items[0].generation, arr.debug_name, SENTINEL_GENERATION, arr.items[0].generation));
 
     #assert(!reverse);
 
@@ -213,7 +259,7 @@ test_array_with_holes :: () {
     print("array with holes\n");
 
     my_arr: Array_With_Holes(int);
-    init_array_with_holes(*my_arr);
+    init_array_with_holes(*my_arr, "test-arr");
     slot := allocate_slot(*my_arr);
     set(*my_arr, slot, 42);
     assert(my_arr.items[slot.id].value == 42);

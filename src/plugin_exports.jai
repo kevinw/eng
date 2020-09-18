@@ -5,6 +5,7 @@
 Math :: #import "Math";
 #import "raylib";
 
+State_Type_In_Context :: *State;
 #load "host_common.jai";
 
 #if HOTLOADING_ENABLED {
@@ -19,59 +20,75 @@ strip_dot_slash :: (path: string) -> string @substring {
 }
 
 #program_export
-plugin_on_resource_change :: (ctx: *Context, using change: *Asset_Change) #c_call {
-    push_context << ctx {
-        assert(ctx.state != null);
+plugin_sanity_checks :: (sanity_check_info: Sanity_Check_Info) {
+    //push_context << ctx {
+        print("doing sanity checks in plugin. state is at %\n", context.state);
+        my_context_size := size_of(Context);
+        host_context_size := sanity_check_info.size_of_context;
+        assert(host_context_size == my_context_size);
+    ////}
+}
+
+#program_export
+plugin_on_resource_change :: (using change: *Asset_Change) {
+    //push_context << ctx {
+        assert(context.state != null);
         full_name_stripped := strip_dot_slash(full_name);
         try_reload_live_resource(full_name_stripped, extension);
-    }
+    //}
 }
 
 }
 
 #program_export
-plugin_init :: (ctx: *Context, old_value: *void, host_state: Host_State) #c_call {
-    push_context << ctx {
-        if old_value != null {
-            ctx.state = cast(*State)old_value;
+plugin_init :: (old_value: *void, host_state: Host_State) {
+    if old_value != null {
+        context.state = cast(*State)old_value;
+        //push_context << ctx {
+            context.state.check_canaries(context.state);
             on_host_did_reload_game_dll();
-        } else {
-            ctx.state = New(State);
-            assert(ctx.state != null);
+        //}
+    } else {
+        //push_context << ctx {
+            context.state = New(State);
+            print("alloced memory for state at %\n", context.state);
+            assert(context.state != null);
+        //}
 
-            // without creating soloud's context in the host, I get crashes on reload.
-            // my theory right now is that it must have thread local storage, which,
-            // inside the DLL, gets unloaded. but I don't want to investigate this right now.
-            // so here we just receive the soloud context from the host.
-            ctx.state.sound_state.soloud = host_state.soloud_context;
+        // without creating soloud's context in the host, I get crashes on reload.
+        // my theory right now is that it must have thread local storage, which,
+        // inside the DLL, gets unloaded. but I don't want to investigate this right now.
+        // so here we just receive the soloud context from the host.
+        context.state.sound_state.soloud = host_state.soloud_context;
 
+        //push_context << ctx {
             on_host_init();
-        }
+        //}
     }
 }
 
 #program_export
-plugin_deinit :: (ctx: *Context, shutting_down: bool) -> *void #c_call {
-    push_context << ctx {
-        assert(ctx.state != null);
+plugin_deinit :: (shutting_down: bool) -> *void {
+    //push_context << ctx {
+        assert(context.state != null);
         if shutting_down {
             on_host_shutdown();
             return null;
         }
 
-        return ctx.state;
-    }
+        return context.state;
+    //}
 }
 
 _local_host_state: Host_State;
 
 #program_export
-plugin_tick :: (ctx: *Context, host_state: Host_State) #c_call {
-    push_context << ctx {
-        assert(ctx.state != null);
+plugin_tick :: (host_state: Host_State) {
+    //push_context << ctx {
+        assert(context.state != null);
         _local_host_state = host_state;
         update_and_draw();
-    }
+    //}
 }
 
 #scope_module

@@ -7,12 +7,14 @@
     #load "components/rect_renderer.jai";
     #load "components/enemy.jai";
     #load "components/player.jai";
+    #load "components/shape_renderer.jai";
 }
 #if GAME_NAME == "pong" {
     #load "components/sprite_renderer.jai";
     #load "components/box_collider.jai";
     #load "components/rect_renderer.jai";
     #load "components/pong_paddle.jai";
+    #load "components/shape_renderer.jai";
 }
 #load "components/editor_selectable_rect.jai";
 
@@ -149,11 +151,8 @@ get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Componen
 
 entity_rect :: (entity_handle: Entity_Handle) -> Rectangle {
     ok, entity := get_entity(entity_handle);
-
-    if ok
+    assert(ok && entity != null);
     return entity_rect(entity);
-    else
-    return .{};
 }
 
 operator + :: inline (rect: Rectangle, pos: Vector2) -> Rectangle {
@@ -261,8 +260,12 @@ buf_string :: (f: (sb: *String_Builder)) -> string {
 Entity_Handle :: Handle_Type;
 
 World :: struct {
+    canary1 := 101;
     entities: Array_With_Holes(Entity);
     #insert #run get_component_buckets();
+
+
+    canary2 := 999;
 
     prefab_cache: Prefab_Cache;
 
@@ -272,11 +275,11 @@ World :: struct {
 };
 
 init_world :: (world: *World) {
-    init_array_with_holes(*world.entities);
+    init_array_with_holes(*world.entities, "all-entities");
     #insert #run(() -> string {
         return buf_string((sb: *String_Builder) {
             for all_component_types {
-                print_to_builder(sb, "init_array_with_holes(*context.state.world._%);\n", it);
+                print_to_builder(sb, "init_array_with_holes(*context.state.world._%, \"all-%\");\n", it, it);
             }
         });
     }());
@@ -298,6 +301,9 @@ world_update :: (world: *World, delta_time: float) {
 world_draw :: (world: *World = null) {
     if world == null
         world = *context.state.world;
+
+    assert(world.canary1 == 101, tprint("world canary1 was not 101: %", world.canary1));
+    assert(world.canary2 == 999, tprint("world canary1 was not 999: %", world.canary2));
 
     #if GAME_NAME == "beat_platformer"
         for * world._Player player_draw(it);
@@ -324,6 +330,11 @@ world_draw :: (world: *World = null) {
     for * world._Enemy {
         ok, entity := get_entity(it.entity);
         assert(ok);
+        draw(it, *entity.transform);
+    }
+
+    for * world._Shape_Renderer {
+        ok, entity := get_entity(it.entity);
         draw(it, *entity.transform);
     }
 }
@@ -391,7 +402,8 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct)
 
     #insert #run _return_component_array_add();
     assert(component_type_info != null);
-    assert(component_handle.id != 0);
+    assert(component_handle.id >= 0);
+    assert(component_handle.generation >= 0);
 
     entry := array_add(*entity.components);
     entry.type_name = copy_string(component_type_info.name);

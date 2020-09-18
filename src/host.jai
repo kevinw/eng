@@ -33,44 +33,65 @@ WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
 USE_SCREENLOG :: true;
 
+#add_context state: *void;
 #load "host_common.jai";
 
 host_state: Host_State;
+needs_recompile_timer:float = 0;
+reload_new_dll_filename: string;
+RECOMPILE_DELAY :: 0.5;
+
+do_recompile :: () {
+    t := thread_create(_do_recompile);
+    thread_start(t);
+}
+
+_do_recompile :: (t: *Thread) -> s64 {
+    arguments: [..]string;
+    array_add(*arguments, "jai", "-x64", "first.jai", "--", "reload", cmdline_args.game_name);
+
+    cmd_string := concatenate(..arguments, " ");
+    defer free(cmd_string);
+    print("Running jai compiler: %\n", cmd_string);
+
+    success, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
+
+    if !success {
+        print("success: %\n");
+        print("exit code: %\n", exit_code);
+        print("output_string: %\n", output_string);
+        print("error string: %\n", error_string);
+    } else {
+        // HACK: the jai compiler is not returning an error value on the console??
+        if String.contains(output_string, " Error: ") {
+            success = false;
+        }
+
+        print("%", output_string);
+        if error_string && error_string.count {
+            print("[stderr] %", error_string);
+        }
+    }
+    host_state.jai_compiler_did_error = !success;
+    return ifx success 0 else -1;
+}
 
 on_asset_change :: (using asset_change: *Asset_Change) {
+    //print("%\n", <<asset_change);
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
-        arguments: [..]string;
-        array_add(*arguments, "jai", "-x64", "first.jai", "--", cmdline_args.game_name);
-
-        cmd_string := concatenate(..arguments, " ");
-        defer free(cmd_string);
-        print("Running jai compiler: %\n", cmd_string);
-
-        success, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
-        if !success {
-            print("success: %\n");
-            print("exit code: %\n", exit_code);
-            print("output_string: %\n", output_string);
-            print("error string: %\n", error_string);
-        } else {
-            // HACK: the jai compiler is not returning an error value on the console??
-            if String.contains(output_string, " Error: ") {
-                success = false;
-            }
-
-            print("%", output_string);
-            if error_string && error_string.count {
-                print("[stderr] %", error_string);
-            }
-        }
-        host_state.jai_compiler_did_error = !success;
+        #import "Thread";
+        do_recompile();
+    } else if extension == "dll" && begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
+        reload_new_dll_filename = full_name;
+        if begins_with(reload_new_dll_filename, "./")
+            advance(*reload_new_dll_filename, 2);
+        reload_new_dll_filename = copy_string(reload_new_dll_filename);
     } else {
         // all other changes go to the plugin, which may want to live reload
         // textures, etc.
-        if plugin_on_resource_change != null {
-            plugin_on_resource_change(*plugin_context, asset_change);
-        }
+        if plugin_on_resource_change != null
+            plugin_on_resource_change(asset_change);
     }
 }
 
@@ -80,17 +101,21 @@ host_settings: struct {
 };
 
 // plugin functions
-Plugin_Init_Func        :: #type (ctx: *Context, old_value: *void, host_state: Host_State) #c_call;
-Plugin_Deinit_Func      :: #type (ctx: *Context, shutting_down: bool) -> *void #c_call;
-Plugin_Tick_Func        :: #type (ctx: *Context, host_state: Host_State) #c_call;
-Plugin_On_Resource_Change_Func :: #type (ctx: *Context, change: *Asset_Change) #c_call;
+Plugin_Init_Func               :: #type (old_value: *void, host_state: Host_State);
+Plugin_Deinit_Func             :: #type (shutting_down: bool) -> *void;
+Plugin_Tick_Func               :: #type (host_state: Host_State);
+Plugin_On_Resource_Change_Func :: #type (change: *Asset_Change);
+Plugin_Sanity_Checks_Func      :: #type (sanity_check_info: Sanity_Check_Info);
+
 
 plugin_init:        Plugin_Init_Func;
 plugin_deinit:      Plugin_Deinit_Func;
 plugin_tick:        Plugin_Tick_Func;
 plugin_on_resource_change: Plugin_On_Resource_Change_Func;
+plugin_sanity_checks: Plugin_Sanity_Checks_Func;
 
 update_plugin_functions :: (module: *Plugin.Module) {
+
     plugin_tick = cast(Plugin_Tick_Func)GetProcAddress(module.native_module, "plugin_tick");
     if !plugin_tick panic("Could not load plugin_tick func");
 
@@ -102,6 +127,9 @@ update_plugin_functions :: (module: *Plugin.Module) {
 
     plugin_on_resource_change = cast(Plugin_On_Resource_Change_Func)GetProcAddress(module.native_module, "plugin_on_resource_change");
     // ^optional
+
+    plugin_sanity_checks = cast(Plugin_Sanity_Checks_Func)GetProcAddress(module.native_module, "plugin_sanity_checks");
+    if !plugin_sanity_checks panic("Could not load plugin_sanity_checks func");
 }
 
 Math :: #import "Math";
@@ -111,7 +139,7 @@ plugin_context: Context;
 main :: () {
 
     Debug.init();
-    GWP.init();
+    GWP.init(max_allocation = 100000, sample_rate = 1);
     context.allocator = GWP.allocator;
 
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
@@ -202,10 +230,10 @@ main :: () {
     update_plugin_functions(*module);
 
     plugin_context = context;
-    plugin_init(*plugin_context, null, host_state);
-    defer {
-        plugin_deinit(*plugin_context, shutting_down = true);
-    }
+    plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
+    plugin_init(null, host_state);
+    print("plugin init returned. context.state is %\n", context.state);
+    defer plugin_deinit(shutting_down = true);
 
     native_window_handle := GetWindowHandle();
     window_was_active := platform.is_window_active(native_window_handle);
@@ -236,11 +264,20 @@ main :: () {
         if cmdline_args.live_reload {
             if frame_count % 4 == 0 hotloader_process_change();
 
-            force_reload := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
+            recompile_requested := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
+            if recompile_requested {
+                do_recompile();
+            }
 
-            if force_reload || (frame_count % 2 == 0 && Plugin.should_reload(*module)) {
-                old_state := plugin_deinit(*plugin_context, shutting_down = false);
+            if frame_count % 2 == 0 && Plugin.should_reload(*module) || reload_new_dll_filename.count > 0 {
+                old_state := plugin_deinit(shutting_down = false);
 
+                force_reload := false;
+                if reload_new_dll_filename.count > 0 {
+                    force_reload = true;
+                    module.name = reload_new_dll_filename; // @Leak. what to do with path_on_disk
+                    reload_new_dll_filename.count = 0;
+                }
                 if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                     panic("couldn't reload module");
                 assert(module.native_module != null);
@@ -248,11 +285,12 @@ main :: () {
                 update_plugin_functions(*module);
                 assert(plugin_tick != null);
 
-                plugin_init(*plugin_context, old_state, host_state);
+                plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
+                plugin_init(old_state, host_state);
             }
         }
 
-        plugin_tick(*plugin_context, host_state);
+        plugin_tick(host_state);
     }
 
     if !IsWindowFullscreen() && !platform.is_window_borderless(native_window_handle) {

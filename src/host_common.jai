@@ -3,3 +3,7 @@ Host_State :: struct {
     soloud_context: *void;
 }
 
+Sanity_Check_Info :: struct {
+    size_of_context: int;
+}
+

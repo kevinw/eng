@@ -8,10 +8,6 @@ State :: struct {
     using _base: State_Base;
 }
 
-on_host_shutdown :: () {
-    game_base_shutdown();
-}
-
 update_and_draw :: () {
     using context.state;
 
@@ -28,7 +24,6 @@ update_and_draw :: () {
             world_draw();
             editor_draw_world(context.state);
             screenlog.draw_world();
-
             editor_draw(context.state);
         }
 
@@ -39,10 +34,6 @@ update_and_draw :: () {
     }
 }
 
-on_host_did_reload_game_dll :: () {
-    game_base_did_reload_dll();
-}
-
 on_host_init :: () {
     using context.state;
 
@@ -51,6 +42,20 @@ on_host_init :: () {
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
 
-    spawn_prefab("paddle");
-    //spawn_prefab("paddle_2");
+    p1 := get_component(spawn_prefab("paddle"), Pong_Paddle);
+    p1.player_index = 0;
+
+    p2 := get_component(spawn_prefab("paddle", v3(0, 300, 0)), Pong_Paddle);
+    p2.player_index = 1;
+
+    ball := spawn_prefab("pong_ball");
 }
+
+on_host_did_reload_game_dll :: () {
+    game_base_did_reload_dll();
+}
+
+on_host_shutdown :: () {
+    game_base_shutdown();
+}
+

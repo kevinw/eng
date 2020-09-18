@@ -158,15 +158,18 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
                 }
 
                 if BeginCombo(name, temp_c_string(value_name)) {
+                    defer EndCombo();
+
+
                     for info_enum.names {
                         is_selected := value == info_enum.values[it_index];
+                        print("%: % !\n", it_index, value);
                         if Selectable(temp_c_string(it), is_selected, size=default_size) {
                             Reflection.set_enum_value(data, info_enum, info_enum.values[it_index]);
                         }
-                        if is_selected SetItemDefaultFocus();
+                        if is_selected
+                            SetItemDefaultFocus();
                     }
-
-                    EndCombo();
                 }
             }
 
