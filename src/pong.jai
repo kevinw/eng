@@ -1,11 +1,11 @@
 GAME_NAME :: "pong";
 #load "game_base.jai";
 
-gameWidth  :: 640;
-gameHeight :: 360;
-
 State :: struct {
     using _base: State_Base;
+    gameWidth  :: 640;
+    gameHeight :: 360;
+
 }
 
 update_and_draw :: () {
@@ -49,6 +49,7 @@ on_host_init :: () {
     p2.player_index = 1;
 
     ball := spawn_prefab("pong_ball");
+    ball.transform.position.xy = v2(100, 100);
 }
 
 on_host_did_reload_game_dll :: () {

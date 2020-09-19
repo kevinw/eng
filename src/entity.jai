@@ -15,6 +15,7 @@
     #load "components/rect_renderer.jai";
     #load "components/pong_paddle.jai";
     #load "components/shape_renderer.jai";
+    #load "components/pong_components.jai";
 }
 #load "components/editor_selectable_rect.jai";
 
@@ -299,9 +300,10 @@ world_update :: (world: *World, delta_time: float) {
     #if GAME_NAME == "beat_platformer"
         enemy_update_all();
     #if GAME_NAME == "pong" {
-        for * world._Pong_Paddle {
+        for * world._Pong_Paddle
             update(it, get_transform(it), get_component(it, SpriteRenderer));
-        }
+        for * world._Bounce
+            update(it, get_transform(it));
     }
 }
 

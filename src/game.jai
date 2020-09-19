@@ -76,8 +76,8 @@ set_context_funcs :: () {
     context.state.restart = restart;
 }
 
+
 on_host_did_reload_game_dll :: () {
-    print("dll was reloaded. state at %. world.entities at %\n", context.state, context.state.world.entities);
     set_context_funcs();
     game_base_did_reload_dll();
 }

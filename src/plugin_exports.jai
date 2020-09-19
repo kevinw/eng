@@ -43,7 +43,6 @@ plugin_init :: (old_value: *void, host_state: Host_State) {
         on_host_did_reload_game_dll();
     } else {
         context.state = New(State);
-        print("alloced memory for state at %\n", context.state);
         assert(context.state != null);
 
         // without creating soloud's context in the host, I get crashes on reload.

@@ -20,9 +20,9 @@ HOTLOADING_ENABLED :: true;
 
 State_Base :: struct {
     check_canaries :: (state: *State_Base) {
-        assert(state.canary1 == 9999);
-        assert(state.canary2 == 4000);
-        assert(state.canary3 == -99);
+        assert(state.canary1 == 9999, "State_Base canary check failed");
+        assert(state.canary2 == 4000, "State_Base canary check failed");
+        assert(state.canary3 == -99, "State_Base canary check failed");
     }
 
     canary1 := 9999;

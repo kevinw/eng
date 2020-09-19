@@ -5,17 +5,16 @@
 #import "File_Utilities";
 
 Module :: struct {
-    name: string;
-    path_on_disk: string;
+    filename: string;
     native_module: HMODULE;
     last_write_time: u64;
     count: u16;
 }
 
-load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
+load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     temp_path: string;
     if COPY_TO_TEMP_PATH {
-        temp_path = copy_string(tprint("bin\\temp\\temp_%_%.dll", name, plugin.count));
+        temp_path = copy_string(tprint("bin\\temp\\temp_%_%.dll", filename, plugin.count));
         plugin.count += 1;
 
         if plugin.count > 5 plugin.count = 0; // a hacky way to rotate the DLLs we're writing to...
@@ -24,16 +23,16 @@ load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
         // is hardcoded in the pdb, so there is some stuff online we can use
         // that rewrites that bit here)
 
-        if !_copy_file(name, temp_path) {
-            print("could not copy % to %\n", name, temp_path);
+        if !_copy_file(filename, temp_path) {
+            print("could not copy % to %\n", filename, temp_path);
             return false;
         }
     } else {
-        temp_path = name;
+        temp_path = filename;
     }
 
     // load dll
-    print("LOADING % from %...", temp_path, name);
+    print("LOADING % from %...", temp_path, filename);
     new_dll := LoadLibraryA(to_c_string(temp_path));
     print("ok.\n");
     if !new_dll {
@@ -41,16 +40,15 @@ load :: (plugin: *Module, name: string, COPY_TO_TEMP_PATH := true) -> bool {
         return false;
     }
 
-    file_time, ok := file_modtime(name);
+    file_time, ok := file_modtime(filename);
     if !ok {
-        print("could not read DLL write time: %\n", name);
+        print("could not read DLL write time: %\n", filename);
         return false;
     }
     plugin.last_write_time = file_time;
 
-    plugin.name = name;
+    plugin.filename = filename;
     plugin.native_module = new_dll;
-    plugin.path_on_disk = name;
 
     return true;
 }
@@ -116,10 +114,10 @@ should_reload :: (plugin: *Module) -> bool {
     if !plugin.native_module
         return false;
 
-    file_time, ok := file_modtime_with_busy_loop(plugin.path_on_disk);
+    file_time, ok := file_modtime_with_busy_loop(plugin.filename);
 
     if !ok {
-        print("should_reload: could not get modtime: '%'\n", plugin.path_on_disk);
+        print("should_reload: could not get modtime: '%'\n", plugin.filename);
         return false;
     }
 
@@ -135,10 +133,10 @@ reload :: (plugin: *Module, force_reload := false) -> bool {
         return false;
     }
 
-    file_time, ok := file_modtime_with_busy_loop(plugin.path_on_disk);
+    file_time, ok := file_modtime_with_busy_loop(plugin.filename);
 
     if !ok {
-        print("could not get modtime: '%'\n", plugin.path_on_disk);
+        print("could not get modtime: '%'\n", plugin.filename);
         return false;
     }
 
@@ -151,7 +149,7 @@ reload :: (plugin: *Module, force_reload := false) -> bool {
 
     // The jai compiler returns before the linker is done, so here we wait for
     // the file to be readable again.
-    if !wait_for_readable_file(plugin.path_on_disk) {
+    if !wait_for_readable_file(plugin.filename) {
         print("error waiting for file to become readable\n");
         return false;
     }
@@ -161,7 +159,7 @@ reload :: (plugin: *Module, force_reload := false) -> bool {
         return false;
     }
 
-    if !load(plugin, plugin.name) { // Load the new DLL
+    if !load(plugin, plugin.filename) { // Load the new DLL
         print("error trying to load the new plugin!\n");
         return false;
     }

@@ -10,7 +10,6 @@
 File :: #import "File";
 String :: #import "String";
 Debug :: #import "Debug";
-GWP :: #import "gwpasan";
 Plugin :: #import "plugin";
 platform :: #import "platform";
 screenlog :: #import "screenlog";
@@ -28,10 +27,15 @@ cmdline_args: struct {
     game_name := "game";
 };
 
+GUARD_ALLOCATOR :: true;
+
 WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
 USE_SCREENLOG :: true;
+
+#if GUARD_ALLOCATOR
+    GWP :: #import "gwpasan";
 
 #add_context state: *void;
 #load "host_common.jai";
@@ -41,12 +45,15 @@ needs_recompile_timer:float = 0;
 reload_new_dll_filename: string;
 RECOMPILE_DELAY :: 0.5;
 
+_recompile_thread: *Thread;
 do_recompile :: () {
-    t := thread_create(_do_recompile);
-    thread_start(t);
+    _recompile_thread := thread_create(_do_recompile);
+    thread_start(_recompile_thread);
 }
 
 _do_recompile :: (t: *Thread) -> s64 {
+    defer _recompile_thread = null;
+
     arguments: [..]string;
     array_add(*arguments, "jai", "-x64", "first.jai", "--", "reload", cmdline_args.game_name);
 
@@ -73,6 +80,7 @@ _do_recompile :: (t: *Thread) -> s64 {
         }
     }
     host_state.jai_compiler_did_error = !success;
+
     return ifx success 0 else -1;
 }
 
@@ -139,8 +147,11 @@ plugin_context: Context;
 main :: () {
 
     Debug.init();
-    GWP.init(max_allocation = 100000, sample_rate = 1);
-    context.allocator = GWP.allocator;
+    if GUARD_ALLOCATOR {
+        print("[Perf] Using slow guard allocator.\n");
+        GWP.init(max_allocation = 100000, sample_rate = 1);
+        context.allocator = GWP.allocator;
+    }
 
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
@@ -232,7 +243,7 @@ main :: () {
     plugin_context = context;
     plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
-    //print("plugin init returned. context.state is %\n", context.state);
+    assert(context.state != null, "plugin_init did not allocate a state");
     defer plugin_deinit(shutting_down = true);
 
     native_window_handle := GetWindowHandle();
@@ -269,14 +280,14 @@ main :: () {
                 do_recompile();
             }
 
-            if frame_count % 2 == 0 && Plugin.should_reload(*module) || reload_new_dll_filename.count > 0 {
+            if _recompile_thread == null && frame_count % 2 == 0 && (Plugin.should_reload(*module) || reload_new_dll_filename.count > 0) {
                 old_state := plugin_deinit(shutting_down = false);
 
                 force_reload := false;
                 if reload_new_dll_filename.count > 0 {
                     force_reload = true;
-                    module.name = reload_new_dll_filename; // @Leak. what to do with path_on_disk
-                    reload_new_dll_filename.count = 0;
+                    module.filename = reload_new_dll_filename; // @Leak
+                    reload_new_dll_filename.count = 0; // @Leak?
                 }
                 if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                     panic("couldn't reload module");

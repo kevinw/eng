@@ -3,9 +3,17 @@
 Transform
 {
     scale {
-        x 150
-        y 150
+        x 15
+        y 15
         z 1
+    }
+}
+
+Bounce
+{
+    velocity {
+        x 20
+        y 20
     }
 }
 
@@ -14,7 +22,7 @@ Shape_Renderer
     shape Circle
     color {
         r 255
-        g 255
+        g 155
         b 255
         a 255
     }
