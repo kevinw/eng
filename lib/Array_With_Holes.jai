@@ -1,6 +1,7 @@
 #import "Windows";
 
 ROBUSTNESS_CHECKS :: false;
+DEVELOPER :: true;
 
 /*
 The point of this data structure is to have a bucket of things with pointers that never move,
@@ -32,6 +33,9 @@ Array_With_Holes :: struct(Value: Type) {
         } else {
             union  {
                 value: Value;
+                #if DEVELOPER {
+                    padding: [2]u64;
+                }
                 next: u32;       // offset from beginning of array
             }
             generation: s32;

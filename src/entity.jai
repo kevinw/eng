@@ -375,31 +375,31 @@ destroy_entity :: (entity_ptr: *Entity) {
 
 destroy_entity :: (e: Entity_Handle) {
     other_e := e;
-    assert(other_e.id == e.id);
+    assert(other_e.id == e.id, "simple assignment of entity handle failed");
 
     entity := get_item_ptr(*context.state.world.entities, e);
-    assert(other_e.id == e.id);
+    if !entity return;
+
+    assert(other_e.id == e.id, "simple assignment of entity handle failed #2");
     for entity.components {
         component_ti := get_component_ti_from_name(it.type_name);
         free(it.type_name);
         component_handle := it.component_handle;
         {
             #insert #run runtime_bucket_chooser(#string END
-                assert(other_e.id == e.id);
                 did_delete := delete_item(bucket, component_handle);
-
-                //assert(other_e.id == e.id); // TODO: @CompilerBug
 
                 // The above line fails.
                 // It does nothing with the argument e to this function, so it
                 // appears to be a codegen bug.
 
-                assert(did_delete);
+                assert(did_delete, "delete_item for component failed");
             END);
         }
     }
     array_reset(*entity.components);
-    delete_item(*context.state.world.entities, other_e);
+    did_delete := delete_item(*context.state.world.entities, other_e);
+    assert(did_delete, "delete_item for entity failed");
 }
 
 add_or_get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
@@ -537,6 +537,15 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     ptr := array_add(*context.state.world.prefab_cache.entries);
     <<ptr = cache_entry;
     return ptr;
+}
+
+spawn_prefab :: (name: string, world_pos: Vector2) -> (*Entity, Entity_Handle) {
+    world_pos_v3: Vector3 = ---;
+    world_pos_v3.x = world_pos.x;
+    world_pos_v3.y = world_pos.y;
+    world_pos_v3.z = 0;
+    entity, entity_handle := spawn_prefab(name, world_pos_v3);
+    return entity, entity_handle;
 }
 
 spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Entity, Entity_Handle) {
