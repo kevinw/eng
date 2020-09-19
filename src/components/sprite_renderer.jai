@@ -48,14 +48,17 @@ on_enable :: (using it: *SpriteRenderer, parent_entity: *Entity) {
 }
 
 get_entity_rect :: (using it: *SpriteRenderer) -> (bool, Rectangle) {
+    ok, entity_ptr := get_entity(it.entity);
+    if !ok return false, .{};
+    transform := *entity_ptr.transform;
+
     if sprite.count > 0 {
-        ok, entity := get_entity(it.entity);
-        if ok {
-            pos := entity.transform.position.xy;
-            r, offset, idx := sprite_get_rect(sprite, 0, 0);
-            return true, make_Rectangle(pos.x + offset.x, pos.y + offset.y, r.width, r.height);
-        }
+        pos := transform.position.xy;
+        r, offset, idx := sprite_get_rect(sprite, 0, 0);
+        return true, make_Rectangle(pos.x + offset.x, pos.y + offset.y, r.width, r.height);
     }
+    if has_value(sprite_anim)
+        return true, get_sprite_anim_dest_rect(it, transform);
 
     return false, .{};
 }
@@ -99,10 +102,7 @@ draw :: (using it: *SpriteRenderer, transform: *Transform) {
 
 
     if has_value(sprite_anim) {
-        pos := position.xy;
-        dest_rect := make_Rectangle(pos.x, pos.y, _current_frame.rect.width, _current_frame.rect.height);
-        dest_rect.width *= transform.scale.x;
-        dest_rect.height *= transform.scale.y;
+        dest_rect := get_sprite_anim_dest_rect(it, transform);
         if #complete slice_mode == {
             case .None;
                 toolbelt.draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset);
@@ -115,10 +115,17 @@ draw :: (using it: *SpriteRenderer, transform: *Transform) {
                 npatch_info.bottom = border.bottom;
                 npatch_info.type = cast(s32)NPatchType.NPT_9PATCH; // TODO: raylib bindings should make the type of the 'type' field here the enum
 
-                DrawTextureNPatch(_current_frame.texture, npatch_info, dest_rect, _current_frame.offset, 0, color);
+                DrawTextureNPatch(_current_frame.texture, npatch_info, dest_rect, Vector2Scale(_current_frame.offset, transform.scale.xy), 0, color);
                 
         }
     }
+}
+
+get_sprite_anim_dest_rect :: (it: *SpriteRenderer, transform: *Transform) -> Rectangle {
+    dest_rect := make_Rectangle(transform.position.x, transform.position.y, it._current_frame.rect.width, it._current_frame.rect.height);
+    dest_rect.width  *= transform.scale.x;
+    dest_rect.height *= transform.scale.y;
+    return dest_rect;
 }
 
 draw_debug :: (using it: *SpriteRenderer, transform: *Transform) {

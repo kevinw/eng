@@ -1,4 +1,8 @@
-window_rect: Rectangle;
+window_rect: Rectangle; // TODO: this needs to be injected into state, or refreshed, or deleted
+
+scrlog :: (id: *void, fmt: string, args: ..Any) {
+    logprint(tprint("=%", id), fmt, ..args);
+}
 
 push_mode_2D :: (camera: Camera2D) #expand {
     begin_mode_2D(camera);

@@ -346,6 +346,11 @@ world_draw :: (world: *World = null) {
         ok, entity := get_entity(it.entity);
         draw(it, *entity.transform);
     }
+
+    #if GAME_NAME == "pong" {
+        for * world._Bounce draw(it);
+        for * world._Pong_Paddle draw(it, get_transform(it));
+    }
 }
 
 create_entity :: (world: *World, name: string = "", id: s32 = -1) -> *Entity, Entity_Handle {

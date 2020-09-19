@@ -5,7 +5,6 @@ State :: struct {
     using _base: State_Base;
     gameWidth  :: 640;
     gameHeight :: 360;
-
 }
 
 update_and_draw :: () {
@@ -42,10 +41,10 @@ on_host_init :: () {
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
 
-    p1 := get_component(spawn_prefab("paddle"), Pong_Paddle);
+    p1 := get_component(spawn_prefab("paddle", v3(200, 50, 0)), Pong_Paddle);
     p1.player_index = 0;
 
-    p2 := get_component(spawn_prefab("paddle", v3(0, 300, 0)), Pong_Paddle);
+    p2 := get_component(spawn_prefab("paddle", v3(200, 320, 0)), Pong_Paddle);
     p2.player_index = 1;
 
     ball := spawn_prefab("pong_ball");

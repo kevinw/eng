@@ -13,13 +13,8 @@ Debug :: #import "Debug";
 Plugin :: #import "plugin";
 platform :: #import "platform";
 screenlog :: #import "screenlog";
-assets :: #import "assets";
+//assets :: #import "assets";
 #import "soloud";
-
-panic :: (msg: string) {
-    write_string(msg);
-    debug_break();
-}
 
 cmdline_args: struct {
     topmost_window := true;
@@ -32,10 +27,6 @@ GUARD_ALLOCATOR :: true;
 WINDOW_WIDTH :: 1200;
 WINDOW_HEIGHT :: 675;
 ALWAYS_ON_TOP :: true;
-USE_SCREENLOG :: true;
-
-#if GUARD_ALLOCATOR
-    GWP :: #import "gwpasan";
 
 #add_context state: *void;
 #load "host_common.jai";
@@ -43,9 +34,33 @@ USE_SCREENLOG :: true;
 host_state: Host_State;
 needs_recompile_timer:float = 0;
 reload_new_dll_filename: string;
-RECOMPILE_DELAY :: 0.5;
-
+needs_complete_reload := false;
 _recompile_thread: *Thread;
+host_settings: struct {
+    window_pos_x: s32;
+    window_pos_y: s32;
+};
+all_games := string.[
+    "game.dll",
+    "pong.dll"
+];
+
+
+//
+// plugin functions
+//
+Plugin_Init_Func               :: #type (old_value: *void, host_state: Host_State);
+Plugin_Deinit_Func             :: #type (shutting_down: bool) -> *void;
+Plugin_Tick_Func               :: #type (host_state: Host_State);
+Plugin_On_Resource_Change_Func :: #type (change: *Asset_Change);
+Plugin_Sanity_Checks_Func      :: #type (sanity_check_info: Sanity_Check_Info);
+
+plugin_init:        Plugin_Init_Func;
+plugin_deinit:      Plugin_Deinit_Func;
+plugin_tick:        Plugin_Tick_Func;
+plugin_on_resource_change: Plugin_On_Resource_Change_Func;
+plugin_sanity_checks: Plugin_Sanity_Checks_Func;
+
 do_recompile :: () {
     _recompile_thread := thread_create(_do_recompile);
     thread_start(_recompile_thread);
@@ -103,26 +118,10 @@ on_asset_change :: (using asset_change: *Asset_Change) {
     }
 }
 
-host_settings: struct {
-    window_pos_x: s32;
-    window_pos_y: s32;
-};
+get_func_ptrs_from_dll :: (module: *Plugin.Module) {
+    // these functions are implemented plugin-side in plugin_exports.jai
 
-// plugin functions
-Plugin_Init_Func               :: #type (old_value: *void, host_state: Host_State);
-Plugin_Deinit_Func             :: #type (shutting_down: bool) -> *void;
-Plugin_Tick_Func               :: #type (host_state: Host_State);
-Plugin_On_Resource_Change_Func :: #type (change: *Asset_Change);
-Plugin_Sanity_Checks_Func      :: #type (sanity_check_info: Sanity_Check_Info);
-
-
-plugin_init:        Plugin_Init_Func;
-plugin_deinit:      Plugin_Deinit_Func;
-plugin_tick:        Plugin_Tick_Func;
-plugin_on_resource_change: Plugin_On_Resource_Change_Func;
-plugin_sanity_checks: Plugin_Sanity_Checks_Func;
-
-update_plugin_functions :: (module: *Plugin.Module) {
+    // required functions
 
     plugin_tick = cast(Plugin_Tick_Func)GetProcAddress(module.native_module, "plugin_tick");
     if !plugin_tick panic("Could not load plugin_tick func");
@@ -133,21 +132,25 @@ update_plugin_functions :: (module: *Plugin.Module) {
     plugin_deinit = cast(Plugin_Deinit_Func)GetProcAddress(module.native_module, "plugin_deinit");
     if !plugin_deinit panic("Could not load plugin_deinit func");
 
+    plugin_sanity_checks = cast(Plugin_Sanity_Checks_Func)GetProcAddress(module.native_module, "plugin_sanity_checks");
+    if !plugin_sanity_checks panic("Could not load plugin_sanity_checks func");
+
+    // optional
+
     plugin_on_resource_change = cast(Plugin_On_Resource_Change_Func)GetProcAddress(module.native_module, "plugin_on_resource_change");
     // ^optional
 
-    plugin_sanity_checks = cast(Plugin_Sanity_Checks_Func)GetProcAddress(module.native_module, "plugin_sanity_checks");
-    if !plugin_sanity_checks panic("Could not load plugin_sanity_checks func");
 }
 
-Math :: #import "Math";
-
-plugin_context: Context;
+panic :: (msg: string) {
+    write_string(msg);
+    debug_break();
+}
 
 main :: () {
-
     Debug.init();
     if GUARD_ALLOCATOR {
+        GWP :: #import "gwpasan";
         print("[Perf] Using slow guard allocator.\n");
         GWP.init(max_allocation = 100000, sample_rate = 1);
         context.allocator = GWP.allocator;
@@ -187,30 +190,30 @@ main :: () {
         }
     }
 
-    SetTraceLogLevel(.LOG_WARNING); // raylib
-    //SetTraceLogLevel(.LOG_ALL); // raylib
+    game_index := 0;
+    {
+        found_game_name, idx := array_find(all_games, cmdline_args.game_name);
+        if found_game_name
+            game_index = idx;
+    }
+
+    SetTraceLogLevel(.LOG_WARNING); // raylib (.LOG_ALL for everything)
 
     host_config_name :: "setup.cfg";
-
     parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
 
-    assets.start_thread();
-    defer assets.stop_thread();
+    //assets.start_thread();
+    //defer assets.stop_thread();
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "");
     SetWindowPosition(win_x, win_y);
     defer CloseWindow();
 
-    #if USE_SCREENLOG {
-        context.logger_data = New(screenlog.Logger_State);
-        context.logger = screenlog.context_func;
-        defer free(context.logger_data);
-    }
-
-    InitAudioDevice();
-    defer CloseAudioDevice();
+    context.logger_data = New(screenlog.Logger_State);
+    context.logger = screenlog.context_func;
+    defer free(context.logger_data);
 
     #if ALWAYS_ON_TOP
         if cmdline_args.topmost_window
@@ -238,9 +241,8 @@ main :: () {
     if !Plugin.load(*module, plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
         panic(tprint("Could not load DLL '%'\n", plugin_dll_filename));
     defer Plugin.unload(*module);
-    update_plugin_functions(*module);
+    get_func_ptrs_from_dll(*module);
 
-    plugin_context = context;
     plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
     assert(context.state != null, "plugin_init did not allocate a state");
@@ -251,7 +253,6 @@ main :: () {
 
     SetTargetFPS(60);
     frame_count := 0;
-
 
     while !WindowShouldClose() {
         auto_release_temp();
@@ -267,6 +268,7 @@ main :: () {
             window_was_active = win_active;
         }
 
+
         if IsKeyPressed(.KEY_ZERO) {
             top := platform.toggle_always_on_top(native_window_handle);
             logprint("host", ifx top then "window always on top" else "window not topmost");
@@ -278,6 +280,18 @@ main :: () {
             recompile_requested := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
             if recompile_requested {
                 do_recompile();
+            }
+
+            game_delta := 0;
+            if IsKeyPressed(.KEY_LEFT_BRACKET) game_delta -= 1;
+            if IsKeyPressed(.KEY_RIGHT_BRACKET) game_delta += 1;
+            if game_delta != 0 {
+                game_index += game_delta;
+                if game_index < 0 game_index = all_games.count - 1;
+                if game_index >= all_games.count game_index = 0;
+                reload_new_dll_filename = all_games[game_index];
+                logprint("game switch", "loading new game from '%'", reload_new_dll_filename);
+                needs_complete_reload = true;
             }
 
             if _recompile_thread == null && frame_count % 2 == 0 && (Plugin.should_reload(*module) || reload_new_dll_filename.count > 0) {
@@ -293,10 +307,19 @@ main :: () {
                     panic("couldn't reload module");
                 assert(module.native_module != null);
 
-                update_plugin_functions(*module);
-                assert(plugin_tick != null);
+                get_func_ptrs_from_dll(*module);
 
-                plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
+                plugin_sanity_checks(.{size_of_context = size_of(Context)});
+
+                if needs_complete_reload {
+                    // when switching games, we deallocate the old game state
+                    // and pass a null pointer to plugin_init, which indicates
+                    // that it should start from scratch
+                    needs_complete_reload = true;
+                    free(old_state);
+                    old_state = null;
+                }
+
                 plugin_init(old_state, host_state);
             }
         }

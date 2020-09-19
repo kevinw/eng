@@ -4,12 +4,17 @@ inp :: #import "inp";
 #scope_export
 
 Pong_Paddle :: struct {
-    using component: Component;
+    using component: Component; @noui
 
     player_index: u8;
 }
 
 on_enable :: (it: *Pong_Paddle, entity: *Entity) {
+}
+
+draw :: (using it: *Pong_Paddle, transform: *Transform) {
+    //p := transform.position.xy - v2(2, 2);
+    //draw_rect_outline(rect(p.x, p.y, 4, 4), 2, BLUE);
 }
 
 update :: (using it: *Pong_Paddle, transform: *Transform, sprite_renderer: *SpriteRenderer) {
