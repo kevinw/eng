@@ -28,20 +28,27 @@
 
 // declare a list of all component type infos
 #insert #run (() -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
     Compiler :: #import "Compiler";
-    print_to_builder(*sb, "all_component_types :: Type.[\n");
-    total := 0;
+    #import "Sort";
+
+    all_component_names: [..]string;
     for Compiler.get_type_table() {
         if Compiler.is_subclass_of(it, "Component") { // TODO: don't do this lookup by name
             ti_struct := cast(*Type_Info_Struct)it;
-            print_to_builder(*sb, "    %,\n", ti_struct.name);
-            total += 1;
+            array_add(*all_component_names, ti_struct.name);
         }
     }
-    //print("num Components: %\n", total);
+    // We need to sort the component names, since the compiler does not find them
+    // in a determinate order.
+    quick_sort(all_component_names, compare_strings);
+
+    sb: String_Builder;
+    defer free_buffers(*sb);
+    print_to_builder(*sb, "all_component_types :: Type.[\n");
+    for all_component_names
+        print_to_builder(*sb, "    %,\n", it);
     print_to_builder(*sb, "];\n");
+
     return builder_to_string(*sb);
 }());
 
