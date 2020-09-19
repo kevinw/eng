@@ -96,7 +96,7 @@ on_host_init :: () {
     editor.callbacks.did_drag = editor_did_drag;
 
     game_base_init();
-    print("host inited. state at %. world.entities at %\n", context.state, context.state.world.entities);
+    // print("host inited. state at %. world.entities at %\n", context.state, context.state.world.entities);
 
     {
         using sound_state;

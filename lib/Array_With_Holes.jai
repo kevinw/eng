@@ -1,6 +1,6 @@
 #import "Windows";
 
-ROBUSTNESS_CHECKS :: true;
+ROBUSTNESS_CHECKS :: false;
 
 /*
 The point of this data structure is to have a bucket of things with pointers that never move,
@@ -27,7 +27,6 @@ Array_With_Holes :: struct(Value: Type) {
     Slot :: struct(Value: Type) {
         #if ROBUSTNESS_CHECKS {
             value: Value;
-            padding: [10]u8;
             next: u32;
             generation: s32;
         } else {
@@ -58,34 +57,96 @@ Array_With_Holes :: struct(Value: Type) {
     }
 }
 
+
 init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
     assert(arr.items == null, "Array_With_Holes was already initialized");
 
-    padding_at_start:u64 = 0;
-
     #if ROBUSTNESS_CHECKS {
-        padding_at_start = get_page_size();
+        page_size := get_page_size();
+        assert(size_of(A.Slot) < page_size, "Slot is bigger than a page!");
+    } else {
+        page_size :: 0;
     }
 
-    arr.items = VirtualAlloc(null, cast(u64)A.Max_Bytes + padding_at_start, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
+    valloc_ptr := VirtualAlloc(null, cast(u64)A.Max_Bytes + page_size - size_of(A.Slot), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // TODO: don't MEM_COMMIT till we actually need the page
+    // /print("VirtualAlloc original pointer at %\n", valloc_ptr);
 
     #if ROBUSTNESS_CHECKS {
-        assert(padding_at_start > 0);
+        assert(page_size > 0);
         old_protect_flags: u32;
-        res := VirtualProtect(arr.items, padding_at_start, PAGE_GUARD | PAGE_READONLY, *old_protect_flags);
+        res := VirtualProtect(valloc_ptr, page_size, PAGE_NOACCESS, *old_protect_flags);
         assert(res != 0, "VirtualProtect failed");
 
         //old_ptr := arr.items;
 
-        arr.items = cast(*A.Slot)((cast(*void)arr.items) + padding_at_start);
+        // the intent here is to make the freelist slot a protected page,
+        // except when we explictly unlock it.
+        arr.items = cast(*A.Slot)((cast(*void)valloc_ptr) + page_size - size_of(A.Slot));
 
         //old_ptr.generation = 42; // should crash
+    } else {
+        arr.items = valloc_ptr;
     }
 
     assert(arr.items != null);
-    arr.items[0].generation = SENTINEL_GENERATION;
+
+    {
+        unlock_freelist(arr);
+        arr.items[0].generation = SENTINEL_GENERATION;
+    }
+
     arr.debug_name = copy_string(debug_name);
-    print("init_array_with_holes % items at %\n", debug_name, arr.items);
+    //print("init_array_with_holes % items at %\n", debug_name, arr.items);
+
+}
+
+#if ROBUSTNESS_CHECKS {
+kernel32 :: #foreign_system_library "kernel32";
+unlock_freelist :: (arr: *$A/Array_With_Holes) #expand {
+    #import "Windows";
+
+    WORD :: u16;
+
+    MEMORY_BASIC_INFORMATION :: struct {
+        BaseAddress : *void;
+        AllocationBase: *void;
+        AllocationProtect: DWORD;
+        PartitionId: WORD;
+        RegionSize: int;
+        State: DWORD;
+        Protect: DWORD;
+        Type: DWORD;
+    }
+
+    VirtualQuery :: (lpAddress: *void, mbi: *MEMORY_BASIC_INFORMATION, len: int) -> int #foreign kernel32;
+
+    assert(arr != null && arr.items != null);
+    page_size := get_page_size();
+    alloc_ptr := (cast(*void)arr.items) - (page_size - size_of(A.Slot));
+
+    //mem_basic_info: MEMORY_BASIC_INFORMATION;
+    //sz := VirtualQuery(alloc_ptr, *mem_basic_info, size_of(MEMORY_BASIC_INFORMATION));
+    //assert(sz != 0);
+
+    old_protect: u32;
+
+    new_protect:u32 = PAGE_READWRITE;
+    //print("unlocking % bytes at %\n", page_size, alloc_ptr);
+    res := VirtualProtect(alloc_ptr, page_size, new_protect, *old_protect);
+    assert(res != 0, "VirtualProtect failed to unlock memory at %", alloc_ptr);
+    assert(new_protect != old_protect, "VirtualProtect unlock failed to change protect flags");
+
+    `defer {
+        //print("locking back %\n", alloc_ptr);
+        res = VirtualProtect(alloc_ptr, page_size, PAGE_NOACCESS, *old_protect);
+        assert(res != 0, "VirtualProtect failed to re-lock memory at %", alloc_ptr);
+    }
+}
+
+} else {
+    unlock_freelist :: (arr: *$A/Array_With_Holes) #expand {
+
+    }
 
 }
 
@@ -93,10 +154,14 @@ SENTINEL_GENERATION  :: 999999;
 
 allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
     assert(arr.items != null, "Array_With_Holes was not initialized");
-    assert(arr.items[0].generation == SENTINEL_GENERATION);
+    slot_index: u32;
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION);
+        slot_index = arr.items[0].next;
+        arr.items[0].next = arr.items[slot_index].next;
+    }
 
-    slot_index := arr.items[0].next;
-    arr.items[0].next = arr.items[slot_index].next;
     if slot_index != 0 {
         assert(arr.items[slot_index].generation <= 0);
         arr.items[slot_index].generation *= -1;
@@ -158,7 +223,10 @@ get_handle_for_value_ptr :: (arr: *$A/Array_With_Holes, value_ptr: *A.Value_Type
 
 delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
     assert(arr.items != null, "Array_With_Holes was not initialized");
-    assert(arr.items[0].generation == SENTINEL_GENERATION);
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION);
+    }
 
     assert(handle.id > 0, "delete_item(handle=%)", handle);
     assert(handle.id <= arr.count);
@@ -176,8 +244,12 @@ delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
     assert(slot.generation < 0);
 
     // Add to the freelist, which is stored in slot 0.
-    arr.items[handle.id].next = arr.items[0].next;
-    arr.items[0].next = handle.id;
+    {
+        unlock_freelist(arr);
+        assert(handle.id != 0, "handle id was zero");
+        arr.items[handle.id].next = arr.items[0].next;
+        arr.items[0].next = handle.id;
+    }
 
     return true;
 }
@@ -192,7 +264,10 @@ add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
 
 get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
     assert(arr.items != null, "Array_With_Holes was not initialized");
-    assert(arr.items[0].generation == SENTINEL_GENERATION);
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION);
+    }
 
     assert(handle.id > 0);
     assert(handle.generation > 0);
@@ -206,7 +281,10 @@ get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type
 
 get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
     assert(arr.items != null, "Array_With_Holes was not initialized");
-    assert(arr.items[0].generation == SENTINEL_GENERATION);
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION);
+    }
     assert(handle.id > 0, "You passed an uninitialized handle to Array_With_Holes.get_item_ptr");
     assert(handle.generation > 0);
 
@@ -218,16 +296,22 @@ get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
 
 set :: inline (arr: *$A/Array_With_Holes, handle: A.Handle, value: A.Value_Type) {
     assert(arr.items != null);
-    assert(arr.items[0].generation == SENTINEL_GENERATION);
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION);
+    }
 
     arr.items[handle.id].value = value;
 }
 
 for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
     assert(arr.items != null);
-    assert(arr.items[0].generation == SENTINEL_GENERATION,
-        tprint("gen (%) of first item for % was not %: %",
-            *arr.items[0].generation, arr.debug_name, SENTINEL_GENERATION, arr.items[0].generation));
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION,
+            tprint("gen (address %) of first item for % at root addr % was not %: %",
+                *arr.items[0].generation, arr.debug_name, arr.items, SENTINEL_GENERATION, arr.items[0].generation));
+    }
 
     #assert(!reverse);
 
@@ -236,8 +320,8 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
     while n <= arr.count {
         slot := *arr.items[n];
         n += 1;
-
-        if slot.generation < 0 continue; // dead
+        
+        if slot.generation <= 0 continue; // dead
 
         #if pointer {
             `it := *slot.value;
@@ -253,9 +337,10 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
 
 }
 
-#scope_file
+main :: () {
+    Debug :: #import "Debug";
+    Debug.init();
 
-test_array_with_holes :: () {
     print("array with holes\n");
 
     my_arr: Array_With_Holes(int);

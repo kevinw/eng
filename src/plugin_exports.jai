@@ -21,21 +21,16 @@ strip_dot_slash :: (path: string) -> string @substring {
 
 #program_export
 plugin_sanity_checks :: (sanity_check_info: Sanity_Check_Info) {
-    //push_context << ctx {
-        print("doing sanity checks in plugin. state is at %\n", context.state);
-        my_context_size := size_of(Context);
-        host_context_size := sanity_check_info.size_of_context;
-        assert(host_context_size == my_context_size);
-    ////}
+    my_context_size := size_of(Context);
+    host_context_size := sanity_check_info.size_of_context;
+    assert(host_context_size == my_context_size);
 }
 
 #program_export
 plugin_on_resource_change :: (using change: *Asset_Change) {
-    //push_context << ctx {
-        assert(context.state != null);
-        full_name_stripped := strip_dot_slash(full_name);
-        try_reload_live_resource(full_name_stripped, extension);
-    //}
+    assert(context.state != null);
+    full_name_stripped := strip_dot_slash(full_name);
+    try_reload_live_resource(full_name_stripped, extension);
 }
 
 }
@@ -44,16 +39,12 @@ plugin_on_resource_change :: (using change: *Asset_Change) {
 plugin_init :: (old_value: *void, host_state: Host_State) {
     if old_value != null {
         context.state = cast(*State)old_value;
-        //push_context << ctx {
-            context.state.check_canaries(context.state);
-            on_host_did_reload_game_dll();
-        //}
+        context.state.check_canaries(context.state);
+        on_host_did_reload_game_dll();
     } else {
-        //push_context << ctx {
-            context.state = New(State);
-            print("alloced memory for state at %\n", context.state);
-            assert(context.state != null);
-        //}
+        context.state = New(State);
+        print("alloced memory for state at %\n", context.state);
+        assert(context.state != null);
 
         // without creating soloud's context in the host, I get crashes on reload.
         // my theory right now is that it must have thread local storage, which,
@@ -61,34 +52,28 @@ plugin_init :: (old_value: *void, host_state: Host_State) {
         // so here we just receive the soloud context from the host.
         context.state.sound_state.soloud = host_state.soloud_context;
 
-        //push_context << ctx {
-            on_host_init();
-        //}
+        on_host_init();
     }
 }
 
 #program_export
 plugin_deinit :: (shutting_down: bool) -> *void {
-    //push_context << ctx {
-        assert(context.state != null);
-        if shutting_down {
-            on_host_shutdown();
-            return null;
-        }
+    assert(context.state != null);
+    if shutting_down {
+        on_host_shutdown();
+        return null;
+    }
 
-        return context.state;
-    //}
+    return context.state;
 }
 
 _local_host_state: Host_State;
 
 #program_export
 plugin_tick :: (host_state: Host_State) {
-    //push_context << ctx {
-        assert(context.state != null);
-        _local_host_state = host_state;
-        update_and_draw();
-    //}
+    assert(context.state != null);
+    _local_host_state = host_state;
+    update_and_draw();
 }
 
 #scope_module

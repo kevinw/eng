@@ -232,7 +232,7 @@ main :: () {
     plugin_context = context;
     plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
-    print("plugin init returned. context.state is %\n", context.state);
+    //print("plugin init returned. context.state is %\n", context.state);
     defer plugin_deinit(shutting_down = true);
 
     native_window_handle := GetWindowHandle();
