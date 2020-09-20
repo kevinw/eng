@@ -42,7 +42,8 @@ host_settings: struct {
 };
 all_games := string.[
     "game.dll",
-    "pong.dll"
+    "pong.dll",
+    "transform_test.dll",
 ];
 
 

@@ -17,6 +17,15 @@
     #load "components/shape_renderer.jai";
     #load "components/pong_components.jai";
 }
+#if GAME_NAME == "transform_test" {
+    #load "components/sprite_renderer.jai";
+    #load "components/box_collider.jai";
+    #load "components/rect_renderer.jai";
+    #load "components/enemy.jai";
+    #load "components/player.jai";
+    #load "components/shape_renderer.jai";
+    #load "components/transform_test_components.jai";
+}
 #load "components/editor_selectable_rect.jai";
 
 // goals
@@ -353,15 +362,22 @@ world_draw :: (world: *World = null) {
     }
 }
 
-create_entity :: (world: *World, name: string = "", id: s32 = -1) -> *Entity, Entity_Handle {
+create_entity :: (world: *World = null, name: string = "", id: s32 = -1) -> *Entity, Entity_Handle {
+    if world == null
+        world = *context.state.world;
     assert(world != null);
 
     handle, e := allocate_slot(*world.entities);
     e._world = world;
 
-    e.name = copy_string_z(name);
+    name_to_use: string;
+    if name.count == 0
+        name_to_use = "Unnamed Entity";
+    else
+        name_to_use = name;
 
-    //print("create_entity -> %\n", e);
+    e.name = copy_string_z(name_to_use);
+
     return e, handle;
 }
 

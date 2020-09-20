@@ -1,0 +1,66 @@
+GAME_NAME :: "transform_test";
+#load "game_base.jai";
+
+State :: struct {
+    using _base: State_Base;
+    gameWidth  :: 640;
+    gameHeight :: 360;
+}
+
+update_and_draw :: () {
+    using context.state;
+
+    {
+        game_base_update();
+    }
+
+    {
+        game_base_push_drawing();
+
+        {
+            PushTextureMode(screen.texture);
+            ClearBackground(WHITE);
+            world_draw();
+            editor_draw_world(context.state);
+            screenlog.draw_world();
+            editor_draw(context.state);
+        }
+
+        {
+            PushShaderMode(screen.shader);
+            blit_render_texture_to_screen(screen.texture);
+        }
+    }
+}
+
+on_host_init :: () {
+    using context.state;
+
+    game_base_init();
+    SetWindowTitle(GAME_NAME);
+
+    screen.texture = LoadRenderTexture(gameWidth, gameHeight);
+    screen.shader = LoadShader(null, null);
+
+    //
+
+    e, handle := create_entity(*world);
+    e.transform.scale = v3(100, 100, 1);
+    e.transform.position = v3(200, 200, 0);
+
+    shape_r := add_component(handle, Shape_Renderer);
+    shape_r.shape = .Square;
+
+    r := add_component(handle, Rotater);
+    r.speed = v3(0, 0, 100);
+}
+
+on_host_did_reload_game_dll :: () {
+    SetWindowTitle(GAME_NAME);
+    game_base_did_reload_dll();
+}
+
+on_host_shutdown :: () {
+    game_base_shutdown();
+}
+
