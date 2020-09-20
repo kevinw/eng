@@ -325,7 +325,7 @@ player_update :: (using player: *Player) {
             ok, entity := get_entity(it.entity);
             assert(ok);
 
-            e_transform := *entity.transform;
+            e_transform := get_transform(entity);
             e_rect := enemy_rect(it, e_transform);
             if !is_being_knocked_back && CheckCollisionRecs(e_rect, p_rect) && !being_damaged(*it.damage) {
                 // player hit

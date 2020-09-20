@@ -44,8 +44,10 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     entity, entity_handle := create_entity(world, "box");
     assert(entity != null);
 
-    entity.position.xy = v2(x, y);
-    entity.scale = make_Vector3(width, height, 1);
+    transform := get_component(entity, TRS);
+    assert(transform != null);
+    transform.position.xy = v2(x, y);
+    transform.scale = make_Vector3(width, height, 1);
 
     box := add_component(entity_handle, BoxCollider);
     box.collision = .PLATFORM;
@@ -344,7 +346,7 @@ UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, delta: floa
 
     ok, player_entity := get_entity(player.entity);
     assert(ok);
-    transform := *player_entity.transform;
+    transform := get_transform(player_entity);
 
     if transform.position.x < bboxWorldMin.x camera.target.x = transform.position.x;
     if transform.position.y < bboxWorldMin.y camera.target.y = transform.position.y;

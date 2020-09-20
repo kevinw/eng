@@ -50,7 +50,7 @@ on_enable :: (using it: *SpriteRenderer, parent_entity: *Entity) {
 get_entity_rect :: (using it: *SpriteRenderer) -> (bool, Rectangle) {
     ok, entity_ptr := get_entity(it.entity);
     if !ok return false, .{};
-    transform := *entity_ptr.transform;
+    transform := get_transform(it);
 
     if sprite.count > 0 {
         pos := transform.position.xy;

@@ -28,6 +28,17 @@
 }
 #load "components/editor_selectable_rect.jai";
 
+Transform :: struct {
+    using component: Component;
+    position: Vector3 = Vector3.{0, 0, 0};
+    rotation: Quaternion = Vector4.{0, 0, 0, 1};
+    scale: Vector3 = Vector3.{1, 1, 1};
+}
+
+on_enable :: (it: *Transform, entity: *Entity) {}
+
+TRS :: Transform;
+
 // goals
 
 // be able to sketch an entity real fast without making a new file; so ideally it could just start
@@ -62,12 +73,6 @@
     return builder_to_string(*sb);
 }());
 
-get_transform :: (component: *Component) -> *Transform {
-    ok, entity := get_entity(component.entity);
-    assert(ok);
-    return *entity.transform;
-}
-
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
     entity := get_item_ptr(*context.state.world.entities, entity_handle);
     return entity != null, entity;
@@ -86,20 +91,12 @@ Component :: struct {
     entity: Entity_Handle;
 }
 
-Transform :: struct {
-    position: Vector3 = Vector3.{0, 0, 0};
-    scale: Vector3 = Vector3.{1, 1, 1};
-    rotation: Quaternion = Vector4.{0, 0, 0, 1};
-}
-
 Entity :: struct {
     Flags :: enum_flags u16 {
         None               :: (0 << 0);
         Has_Component_Rect :: (1 << 0);
     }
 
-    using transform: Transform;
-    _world: *World;
     flags: Flags;
     name: string; @owned
 
@@ -122,9 +119,16 @@ get_components :: ($component_type: Type) -> []*component_type {
     return all;
 }
 
+get_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
+    ok, entity := get_entity(entity_handle);
+    if !ok return null;
+    return get_component(entity, component_type);
+}
+
 get_component :: (component: *Component, $component_type: Type) -> *component_type {
     ok, entity := get_entity(component.entity);
-    assert(ok);
+    if !ok return null;
+
     return get_component(entity, component_type);
 }
 
@@ -150,6 +154,11 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
 
     return null;
 }
+
+
+get_transform :: (component: *Component) -> *Transform { return get_component(component.entity, Transform); }
+get_transform :: (entity: *Entity) -> *Transform { return get_component(entity, Transform); }
+
 
 get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Component {
     assert(entity != null);
@@ -198,14 +207,16 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
 
         editor_selectable_rect := get_component(entity, Editor_Selectable_Rect);
         if editor_selectable_rect != null {
-            r := editor_selectable_rect.rect + entity.transform.position.xy;
+            r := editor_selectable_rect.rect + get_transform(entity).position.xy;
             //logprint("editor", "entity rect % for %\n", r, entity);
             return r;
         }
     }
 
-    pos := entity.position.xy;
-    sz := entity.scale.xy;
+
+    trs := get_transform(entity);
+    pos := trs.position.xy;
+    sz := trs.scale.xy;
     return make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
@@ -339,22 +350,13 @@ world_draw :: (world: *World = null) {
         //
         // research the concept of systems. this is really about
         // desigining a database and might be overkill for now.
-        ok, entity := get_entity(it.entity);
-        assert(ok);
-        draw(it, *entity.transform);
+        draw(it, get_transform(it));
     }
 
     #if GAME_NAME == "beat_platformer"
-    for * world._Enemy {
-        ok, entity := get_entity(it.entity);
-        assert(ok);
-        draw(it, *entity.transform);
-    }
+        for * world._Enemy draw(it, get_transform(it));
 
-    for * world._Shape_Renderer {
-        ok, entity := get_entity(it.entity);
-        draw(it, *entity.transform);
-    }
+    for * world._Shape_Renderer draw(it, get_transform(it));
 
     #if GAME_NAME == "pong" {
         for * world._Bounce draw(it);
@@ -368,7 +370,6 @@ create_entity :: (world: *World = null, name: string = "", id: s32 = -1) -> *Ent
     assert(world != null);
 
     handle, e := allocate_slot(*world.entities);
-    e._world = world;
 
     name_to_use: string;
     if name.count == 0
@@ -377,6 +378,8 @@ create_entity :: (world: *World = null, name: string = "", id: s32 = -1) -> *Ent
         name_to_use = name;
 
     e.name = copy_string_z(name_to_use);
+
+    add_component(handle, Transform);
 
     return e, handle;
 }
@@ -573,10 +576,13 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
     // TODO: need to actually use the entity_id paramenter here, or get rid of it.
     entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
 
-    if prefab_cache_entry.transform_node
-        wbml.write_value(prefab_cache_entry.transform_node, *entity.transform);
+    transform := get_transform(entity);
+    assert(transform != null);
 
-    entity.transform.position = world_pos;
+    if prefab_cache_entry.transform_node
+        wbml.write_value(prefab_cache_entry.transform_node, transform);
+
+    transform.position = world_pos;
 
     for prefab_cache_entry.components {
         component_type_name := it.component_type_name;

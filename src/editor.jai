@@ -129,8 +129,6 @@ draw_inspector :: (editor_state: *Editor) {
         return cast(*Type_Info)type_info(Component) != ti;
     }
 
-    inspect("", *entity.transform, classify_node);
-
     for entity.components {
         component_ti := get_component_ti_from_name(it.type_name);
         assert(component_ti != null);
@@ -369,7 +367,7 @@ editor_update :: (state: *State) {
 
         if took_action
             for * selected
-                it.original_pos = it.position.xy;
+                it.original_pos = get_transform(it).position.xy;
 
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) && selected.count == 0 {
         drag_state.dragging = false;
@@ -382,7 +380,7 @@ editor_update :: (state: *State) {
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
         delta := world_mouse_pos - drag_state.origin;
         for selected
-            it.obj.position.xy = it.original_pos + delta;
+            get_transform(it.obj).position.xy = it.original_pos + delta;
     }
 
     if IsKeyPressed(.KEY_DELETE) {
