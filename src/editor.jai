@@ -123,14 +123,20 @@ draw_inspector :: (editor_state: *Editor) {
             return;
     }
 
-    inspect("", *entity.transform);
+    classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
+        // Here we have the inspector omit showing info for the  "using component: Component;"
+        // field (this is the field that makes a struct a subclass of Component).
+        return cast(*Type_Info)type_info(Component) != ti;
+    }
+
+    inspect("", *entity.transform, classify_node);
 
     for entity.components {
         component_ti := get_component_ti_from_name(it.type_name);
         assert(component_ti != null);
 
         component_ptr := get_component(entity, component_ti);
-        inspect("", component_ptr, component_ti);
+        inspect("", component_ptr, component_ti, classify_node);
     }
 }
 

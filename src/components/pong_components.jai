@@ -55,6 +55,7 @@ update :: (using it: *Bounce, transform: *Transform) {
 
         if CheckCollisionCircleRec(p.xy, radius, r) {
             delta := p.xy - midpoint(r);
+            // this is wrong
             if abs(delta.x) > abs(delta.y) {
                 it.velocity.x *= -1;
             } else {

@@ -7,10 +7,6 @@ show_inspector := true;    // Wish we could declare static variables inside func
 
 #scope_export
 
-inspect :: inline (name: *u8, t: *$T) {
-    inspect(name, t, type_info(T));
-}
-
 Struct_Looks_Like :: enum {
     None      :: 0;
     Float2    :: 2;
@@ -55,7 +51,17 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct) -> Struct_Looks_Like {
 
 #assert(categorize_ti_struct(cast(*Type_Info_Struct)type_info(Vector3)) == .Float3);
 
-inspect :: (name: *u8, data: *void, info:*Type_Info) {
+Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
+
+inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null) {
+    inspect(name, t, type_info(T), show_node_func);
+}
+
+
+inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null) {
+    if show_node_func != null && !show_node_func(name, data, info)
+        return;
+
     default_size:ImVec2;
     using ImGui;
 
@@ -90,7 +96,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
             // @@ Open in new window?
             info_pointer := cast(*Type_Info_Pointer) info;
             assert(info_pointer.relative_pointer_size == 0, "TODO: implement relative pointers?");
-            inspect("", <<(cast(**void)data), info_pointer.pointer_to);
+            inspect("", <<(cast(**void)data), info_pointer.pointer_to, show_node_func);
         case .PROCEDURE;
             TextUnformatted("procedure");
         case .VOID;
@@ -125,7 +131,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
                                 }
                             }
                             if !skip
-                                inspect(temp_c_string(member.name), data + member.offset_in_bytes, member.type);
+                                inspect(temp_c_string(member.name), data + member.offset_in_bytes, member.type, show_node_func);
                         }
                     }
             }
@@ -138,39 +144,70 @@ inspect :: (name: *u8, data: *void, info:*Type_Info) {
                 defer TreePop();
                 for 0..array_count-1 {
                     item_name := temp_c_string(tprint("%[%]", array_name, it));
-                    inspect(item_name, array_data + it * element_size, info_array.element_type);
+                    inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func);
                 }
             }
+
         case .ANY;
             // @@ Display type and inspect value.
-            Text("Any!");        
-        case .ENUM;
-            info_enum := cast(*Type_Info_Enum) info;
+            any := cast(*Any)data;
+            inspect(name, any.value_pointer, any.type, show_node_func);
 
-            if info_enum.enum_type_flags & .Is_Flags {
+        case .ENUM;
+            ti_enum := cast(*Type_Info_Enum) info;
+
+            if ti_enum.enum_type_flags & .Is_Flags {
                 // @@ How to handle flags?
-            }
-            else {
-                value := Reflection.get_enum_value(data, info_enum);
-                value_name := "";
-                for info_enum.names {
-                    if value == info_enum.values[it_index]  value_name = it;
+                TextUnformatted("TODO: implement enum_flags");
+            } else {
+
+                s64_val: s64;
+                if ti_enum.internal_type.signed {
+                    if ti_enum.internal_type.runtime_size == {
+                        case 8;  s64_val = <<cast(*s8)data;
+                        case 16; s64_val = <<cast(*s16)data;
+                        case 32; s64_val = <<cast(*s32)data;
+                        case 64; s64_val = <<cast(*s64)data;
+                    }
+                }
+                else {
+                    if ti_enum.internal_type.runtime_size == {
+                        case 8;  s64_val = <<cast(*u8)data;
+                        case 16; s64_val = <<cast(*u16)data;
+                        case 32; s64_val = <<cast(*u32)data;
+                        case 64; s64_val = cast(s64) <<cast(*u64)data;
+                    }
+                }
+
+                Text("Hey.");
+
+                /*
+
+
+                value := Reflection.get_enum_value(data, ti_enum);
+                scrlog(data, "got enum value '%'", value);
+                value_name := "mising";
+                for ti_enum.names {
+                    print("val idx=% is % vs %\n", it_index, ti_enum.values[it_index], value);
+                    if value == ti_enum.values[it_index]
+                        value_name = it;
                 }
 
                 if BeginCombo(name, temp_c_string(value_name)) {
                     defer EndCombo();
 
 
-                    for info_enum.names {
-                        is_selected := value == info_enum.values[it_index];
+                    for ti_enum.names {
+                        is_selected := value == ti_enum.values[it_index];
                         print("%: % !\n", it_index, value);
                         if Selectable(temp_c_string(it), is_selected, size=default_size) {
-                            Reflection.set_enum_value(data, info_enum, info_enum.values[it_index]);
+                            Reflection.set_enum_value(data, ti_enum, ti_enum.values[it_index]);
                         }
                         if is_selected
                             SetItemDefaultFocus();
                     }
                 }
+                */
             }
 
             
