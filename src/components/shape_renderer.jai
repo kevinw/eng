@@ -5,7 +5,8 @@ Shape_Renderer :: struct {
     using component: Component;
 
     Shape :: enum u8 {
-        Circle :: 0;
+        Circle   :: 0;
+        Square   :: 1;
     }
 
     shape: Shape = .Circle;
@@ -13,9 +14,16 @@ Shape_Renderer :: struct {
 }
 
 draw :: (using shape_renderer: *Shape_Renderer, transform: *Transform) {
-    radius := max(transform.scale.x, transform.scale.y);
-    //logprint("=foob", "DrawCircleV(%, %, %)\n", transform.position.xy, radius, color);
-    DrawCircleV(transform.position.xy, radius, color);
+    scl := transform.scale.xy;
+    if shape == {
+        case .Circle;
+            radius := max(scl.x, scl.y);
+            DrawCircleV(transform.position.xy, radius, color);
+        case .Square;
+            p := transform.position.xy - scl * 0.5;
+            DrawRectangleV(p, scl, color);
+    }
+
 } @draw
 
 on_enable :: (it: *Shape_Renderer, entity: *Entity) {

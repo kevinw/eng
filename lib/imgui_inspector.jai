@@ -164,50 +164,63 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 s64_val: s64;
                 if ti_enum.internal_type.signed {
                     if ti_enum.internal_type.runtime_size == {
-                        case 8;  s64_val = <<cast(*s8)data;
-                        case 16; s64_val = <<cast(*s16)data;
-                        case 32; s64_val = <<cast(*s32)data;
-                        case 64; s64_val = <<cast(*s64)data;
+                        case 1;  s64_val = <<cast(*s8)data;
+                        case 2; s64_val = <<cast(*s16)data;
+                        case 4; s64_val = <<cast(*s32)data;
+                        case 8; s64_val = <<cast(*s64)data;
                     }
                 }
                 else {
                     if ti_enum.internal_type.runtime_size == {
-                        case 8;  s64_val = <<cast(*u8)data;
-                        case 16; s64_val = <<cast(*u16)data;
-                        case 32; s64_val = <<cast(*u32)data;
-                        case 64; s64_val = cast(s64) <<cast(*u64)data;
+                        case 1;  s64_val = <<cast(*u8)data;
+                        case 2; s64_val = <<cast(*u16)data;
+                        case 4; s64_val = <<cast(*u32)data;
+                        case 8; s64_val = cast(s64) <<cast(*u64)data;
                     }
                 }
 
-                Text("Hey.");
-
-                /*
-
-
-                value := Reflection.get_enum_value(data, ti_enum);
-                scrlog(data, "got enum value '%'", value);
-                value_name := "mising";
-                for ti_enum.names {
-                    print("val idx=% is % vs %\n", it_index, ti_enum.values[it_index], value);
-                    if value == ti_enum.values[it_index]
+                value_name := "Unknown";
+                for ti_enum.names
+                    if s64_val == ti_enum.values[it_index]
                         value_name = it;
-                }
 
-                if BeginCombo(name, temp_c_string(value_name)) {
+                if BeginCombo(name, to_temp_c_string(value_name)) {
                     defer EndCombo();
 
-
                     for ti_enum.names {
-                        is_selected := value == ti_enum.values[it_index];
-                        print("%: % !\n", it_index, value);
-                        if Selectable(temp_c_string(it), is_selected, size=default_size) {
-                            Reflection.set_enum_value(data, ti_enum, ti_enum.values[it_index]);
+                        is_selected := s64_val == ti_enum.values[it_index];
+
+                        if Selectable(to_temp_c_string(it), is_selected, size=default_size) {
+                            new_val := ti_enum.values[it_index];
+                            logprint("foo", "selecting % %", it, new_val);
+                            logprint("bar", "internal type %", <<ti_enum.internal_type);
+                            if ti_enum.internal_type.signed {
+                                if ti_enum.internal_type.runtime_size == {
+                                    case 1;  <<cast(*s8)data = xx new_val;
+                                    case 2; <<cast(*s16)data = xx new_val;
+                                    case 4; <<cast(*s32)data = xx new_val;
+                                    case 8; <<cast(*s64)data = new_val;
+                                    case; assert(false);
+                                }
+                            } else {
+                                if ti_enum.internal_type.runtime_size == {
+                                    case 1;
+                                        <<cast(*u8)data = xx new_val;
+                                        print("set here %\n", new_val);
+                                        print("set value in mem: %\n", <<(cast(*u8)data));
+                                    case 2; <<cast(*u16)data = xx new_val;
+                                    case 4; <<cast(*u32)data = xx new_val;
+                                    case 8; <<cast(*u64)data = xx new_val;
+                                    case; assert(false, tprint("unexpected enum runtime_size: %", ti_enum.internal_type.runtime_size));
+                                }
+                            }
                         }
+
                         if is_selected
                             SetItemDefaultFocus();
                     }
+
                 }
-                */
             }
 
             
