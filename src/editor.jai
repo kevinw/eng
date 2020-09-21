@@ -347,8 +347,14 @@ editor_update :: (state: *State) {
 
         hover = null;
         for * state.world.entities {
-            if overlaps(entity_rect(it, true), world_mouse_pos) {
+            e_rect := entity_rect(it, true);
+
+            //scrlog(it, "%", e_rect);
+            //scrlog(cast(*void)42, "%", world_mouse_pos);
+
+            if overlaps(e_rect, world_mouse_pos) {
                 hover = it;
+                scrlog(cast(*void)55, "hover");
             }
         }
     }
@@ -360,7 +366,10 @@ editor_update :: (state: *State) {
             took_action = true;
         }
 
-        if !took_action clear_selection();
+        if !took_action {
+            logprint("foo", "clearing selection");
+            clear_selection();
+        }
 
         drag_state.dragging = true;
         drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);

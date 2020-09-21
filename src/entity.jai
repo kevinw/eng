@@ -1,5 +1,37 @@
+/*
+
+TODO
+
+the our machinery blog mentions an interesting fact in this post --
+https://ourmachinery.com/post/syncing-a-data-oriented-ecs/
+
+-- that one way to view groups of entities and the systems that act on them are
+as "types". an entity type defines which components it has. so (Transform, Rotater)
+is a type.
+
+the key takeaway from that post for me is that the entities of a certain type all
+have their component data stored sequentially. that means that
+
+velocity_system :: (td: *Transform, vd: *Velocity @const, n: u32, dt: float) {
+    while n > 0 {
+        td.pos = vec3_mul_add(td.pos, vd.vel, dt);
+        td += 1;
+        vd += 1;
+        n -= 1;
+    }
+}
+
+
+...that's cool. i wonder if there's an easy way to bridge the gap between what
+we have now, and this kind of thing...
+
+
+*/
+
 #module_parameters(GAME_NAME := "");
 #assert(GAME_NAME.count > 0);
+
+
 
 #if GAME_NAME == "beat_platformer" {
     #load "components/sprite_renderer.jai";

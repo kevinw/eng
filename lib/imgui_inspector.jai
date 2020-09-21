@@ -155,12 +155,28 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
         case .ENUM;
             ti_enum := cast(*Type_Info_Enum) info;
-
             if ti_enum.enum_type_flags & .Is_Flags {
-                // @@ How to handle flags?
-                TextUnformatted("TODO: implement enum_flags");
-            } else {
+                if ti_enum.internal_type.runtime_size > 4 {
+                    TextUnformatted("TODO: 64bit enum_flags");
+                } else {
+                    any: Any;
+                    any.value_pointer = data;
+                    any.type = ti_enum;
 
+                    sb: String_Builder;
+                    defer free_buffers(*sb);
+                    print_item_to_builder(*sb, any);
+                    as_str := builder_to_string(*sb);
+
+                    z := tprintz("%: %", to_string(name), as_str);
+                    TextUnformatted(z.data);
+
+                    for ti_enum.values {
+                        if it == 0 continue;
+                        CheckboxFlags(to_temp_c_string(ti_enum.names[it_index]), data, cast(u32)it);
+                    }
+                }
+            } else { // a non-flags enum
                 s64_val: s64;
                 if ti_enum.internal_type.signed {
                     if ti_enum.internal_type.runtime_size == {

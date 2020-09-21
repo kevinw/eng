@@ -113,7 +113,7 @@ draw :: () {
     using cast(*Logger_State)context.logger_data;
 
     y:s32 = 0;
-    font_size:s32 = 27;
+    font_size:s32 = 22;
     for * entries {
         DrawText(it.message, 0, y, font_size, WHITE);
         y += font_size;

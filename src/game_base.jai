@@ -38,7 +38,10 @@ State_Base :: struct {
     // TODO: this is a kind of weird inversion of control. other files we import
     // provide the structs that we use here. is that badly designed, or using a
     // jai feature in a way that is actually fine?
-    camera: Camera2D;
+
+    camera: Camera2D; // TODO: this needs to become a component, and become optional
+    camera.zoom = 1;
+
     editor: Editor;
     sound_state: Sound_State;
     live: Live_Asset_Database;
