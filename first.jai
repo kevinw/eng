@@ -153,7 +153,14 @@ generate_systems :: (metaprogram: *Metaprogram) {
     by_stage.allocator = __temporary_allocator;
 
     for metaprogram.system_funcs {
-        assert(it.body_or_null != null && it.arguments.count > 0);
+        if it.body_or_null == null {
+            print("WARNING: system function has null body_or_null\n");
+            continue;
+        }
+        if it.arguments.count == 0 {
+            print("WARNING: system function has zero args\n");
+            continue;
+        }
 
         needs_entity_at_end := false; // TODO: this is a hack. maybe find a different way...
         component_names: [..]string;
