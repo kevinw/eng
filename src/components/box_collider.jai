@@ -11,9 +11,6 @@ BoxCollider :: struct {
     offset: Vector2 = .{0, 0};
 }
 
-on_enable :: (using it: *BoxCollider, parent_entity: *Entity) {
-}
-
 worldspace_rect :: (it: *BoxCollider, transform: *Transform = null) -> Rectangle {
     if transform == null
         transform = get_transform(it);

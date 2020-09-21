@@ -156,6 +156,8 @@ draw :: (using it: *Enemy, transform: *Transform) {
     }
 }
 
+// TODO: implement an "update_all" hook
+
 enemy_update_all :: () {
     using context.state;
 

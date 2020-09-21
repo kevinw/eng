@@ -35,7 +35,10 @@ Transform :: struct {
     scale: Vector3 = Vector3.{1, 1, 1};
 }
 
-on_enable :: (it: *Transform, entity: *Entity) {}
+Link :: struct {
+    using component: Component;
+    parent: Entity_Handle;
+}
 
 TRS :: Transform;
 
@@ -95,6 +98,7 @@ Entity :: struct {
     Flags :: enum_flags u16 {
         None               :: (0 << 0);
         Has_Component_Rect :: (1 << 0);
+        Pivot_Center       :: (1 << 1);
     }
 
     flags: Flags;
@@ -217,6 +221,10 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
     trs := get_transform(entity);
     pos := trs.position.xy;
     sz := trs.scale.xy;
+
+    if entity.flags & .Pivot_Center
+        pos -= sz * 0.5;
+
     return make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
@@ -269,7 +277,7 @@ _return_component_array_add :: () -> string {
             print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%);\n", it);
             print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
             print_to_builder(sb, "    ptr.entity = entity_handle;\n");
-            print_to_builder(sb, "    on_enable(ptr, entity);\n", it);
+            print_to_builder(sb, "    run_on_enable(ptr, entity);\n", it);
             print_to_builder(sb, "    c = ptr;\n", it);
             print_to_builder(sb, "}\n", it);
         }
@@ -315,54 +323,21 @@ init_world :: (world: *World) {
 
 world_update :: (world: *World, delta_time: float) {
     #if GAME_NAME == "beat_platformer"
-        for * world._Player player_update(it);
-    for * world._SpriteRenderer update(it);
-    #if GAME_NAME == "beat_platformer"
         enemy_update_all();
-    #if GAME_NAME == "pong" {
-        for * world._Pong_Paddle
-            update(it, get_transform(it), get_component(it, SpriteRenderer));
-        for * world._Bounce
-            update(it, get_transform(it));
-    }
+    run_all(world, .update);
 }
 
 world_draw :: (world: *World = null) {
-    if world == null
-        world = *context.state.world;
+    if world == null world = *context.state.world;
 
     assert(world.canary1 == 101, tprint("world canary1 was not 101: %", world.canary1));
     assert(world.canary2 == 999, tprint("world canary1 was not 999: %", world.canary2));
 
-    #if GAME_NAME == "beat_platformer"
-        for * world._Player player_draw(it);
-
-    for * world._RectRenderer {
-        color2 := it.color;
-        color2.r -= 100; color2.g -= 100; color2.b -= 100;
-        DrawRectangleGradientEx(entity_rect(it.entity), it.color, color2, color2, it.color);
-    }
-
-    for * world._SpriteRenderer {
-        // TODO: here we need to pass the transform as well.
-        // perhaps we note functions like draw which require
-        // multiple entities, and store relative pointers to them somewhere?
-        //
-        // research the concept of systems. this is really about
-        // desigining a database and might be overkill for now.
-        draw(it, get_transform(it));
-    }
-
-    #if GAME_NAME == "beat_platformer"
-        for * world._Enemy draw(it, get_transform(it));
-
-    for * world._Shape_Renderer draw(it, get_transform(it));
-
-    #if GAME_NAME == "pong" {
-        for * world._Bounce draw(it);
-        for * world._Pong_Paddle draw(it, get_transform(it));
-    }
+    run_all(world, .draw);
 }
+
+#placeholder run_all;
+#placeholder run_on_enable;
 
 create_entity :: (world: *World = null, name: string = "", id: s32 = -1) -> *Entity, Entity_Handle {
     if world == null
@@ -462,7 +437,7 @@ add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *compo
     entry.component_handle = component_handle;
 
     c.entity = entity_handle;
-    on_enable(c, entity);
+    run_on_enable(c, entity);
 
     return c;
 }

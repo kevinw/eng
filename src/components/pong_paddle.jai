@@ -11,9 +11,6 @@ Pong_Paddle :: struct {
     gun_dir: Vector2; // normalized
 }
 
-on_enable :: (it: *Pong_Paddle, entity: *Entity) {
-}
-
 get_gun_tip :: (using it: *Pong_Paddle, transform: *Transform) -> Vector2 {
     return transform.position.xy + gun_dir * 50.0;
 }
@@ -50,7 +47,10 @@ update :: (using it: *Pong_Paddle, transform: *Transform, sprite_renderer: *Spri
 
     if fire && length(<<cast(*Math.Vector2)*gun_dir) > 0.0001 {
         new_ball := spawn_prefab("pong_ball", get_gun_tip(it, transform));
-        new_ball.transform.scale.xy = v2(10, 10);
+
+        new_transform := get_transform(new_ball);
+        new_transform.scale.xy = v2(10, 10);
+
         new_bounce := get_component(new_ball, Bounce);
         new_bounce.velocity = gun_dir * 40;
         new_bounce.dies_on_collide = true;

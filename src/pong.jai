@@ -48,7 +48,7 @@ on_host_init :: () {
     p2.player_index = 1;
 
     ball := spawn_prefab("pong_ball");
-    ball.transform.position.xy = v2(100, 100);
+    get_transform(ball).position.xy = v2(100, 100);
 }
 
 on_host_did_reload_game_dll :: () {

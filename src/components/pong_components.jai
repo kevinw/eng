@@ -12,8 +12,6 @@ Bounce :: struct {
     dies_on_collide := false;
 }
 
-on_enable :: (it: *Bounce, entity: *Entity) { }
-
 bottom :: inline (r: Rectangle) -> float { return r.y + r.height; }
 right  :: inline (r: Rectangle) -> float { return r.x + r.width; }
 

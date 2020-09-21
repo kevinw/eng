@@ -27,4 +27,5 @@ draw :: (using shape_renderer: *Shape_Renderer, transform: *Transform) {
 } @draw
 
 on_enable :: (it: *Shape_Renderer, entity: *Entity) {
+    entity.flags |= .Pivot_Center;
 }

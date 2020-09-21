@@ -123,9 +123,6 @@ take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
     invoke_damage_func(it);
 }
 
-on_enable :: (it: *Player, entity: *Entity) {
-}
-
 Player :: struct {
     using component: Component;
 
@@ -168,7 +165,7 @@ player_has_been_damaged :: (using player: *Player) -> bool {
     return context.state.Time.now - damage.time < DAMAGE_TIME;
 }
 
-player_update :: (using player: *Player) {
+update :: (using player: *Player) {
     ensure_sprites_loaded();
 
     Time := *context.state.Time;
@@ -362,7 +359,7 @@ player_attack_hitbox :: (it: *Player) -> bool {
     return time_since_attack < 0.43 && time_since_attack > 0.1;
 }
 
-player_draw :: (using player: *Player) {
+draw :: (using player: *Player) {
     ensure_sprites_loaded();
 
     state := context.state;
