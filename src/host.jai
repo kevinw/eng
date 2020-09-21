@@ -34,6 +34,7 @@ ALWAYS_ON_TOP :: true;
 host_state: Host_State;
 needs_recompile_timer:float = 0;
 reload_new_dll_filename: string;
+transparent_while_not_focused := true;
 needs_complete_reload := false;
 _recompile_thread: *Thread;
 host_settings: struct {
@@ -262,10 +263,11 @@ main :: () {
         // Set the window to be a little transparent when it's not in focus, if we're always on top.
         {
             win_active := platform.is_window_active(native_window_handle);
-            if !win_active && window_was_active && platform.is_window_always_on_top(native_window_handle)
+            if (!win_active && window_was_active && platform.is_window_always_on_top(native_window_handle)) && transparent_while_not_focused
                 platform.set_window_opacity(native_window_handle, 0.63);
-            else if win_active && !window_was_active
+            else if (win_active && !window_was_active) || !transparent_while_not_focused
                 platform.set_window_opacity(native_window_handle, 1.0);
+
             window_was_active = win_active;
         }
 
@@ -273,6 +275,11 @@ main :: () {
         if IsKeyPressed(.KEY_ZERO) {
             top := platform.toggle_always_on_top(native_window_handle);
             logprint("host", ifx top then "window always on top" else "window not topmost");
+        }
+
+        if IsKeyPressed(.KEY_NINE) {
+            transparent_while_not_focused = !transparent_while_not_focused;
+            logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         }
 
         if cmdline_args.live_reload {
