@@ -44,6 +44,8 @@ use the animation to "go back" to the prefab when you zoom in on it
 
 #load "../lib/imgui_inspector.jai";
 
+Undo :: #import "undo";
+
 Play_Mode :: enum {
     Play;
     Edit;
@@ -57,6 +59,9 @@ Selected_Object :: struct {
 }
 
 Editor :: struct {
+    undo_state: Undo.Impl;
+    show_undo_window: bool = true;
+
     play_mode: Play_Mode;
 
     callbacks: struct {
@@ -199,6 +204,30 @@ editor_draw :: (state: *State) {
     if editor.demo_window_open
         ShowDemoWindow(*editor.demo_window_open);
 
+    ButtonEx :: (label: *u8, size:ImVec2 = .{0,0}, enabled := true) -> bool {
+        if !enabled PushStyleVar(.Alpha, 0.5);
+        defer if !enabled PopStyleVar();
+        res := Button(label, size);
+        return enabled && res;
+    }
+
+    if editor.show_undo_window {
+        using context.state.editor;
+        Begin("Undo", *show_undo_window);
+        defer End();
+
+        if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
+            Undo.undo(*undo_state);
+
+        SameLine();
+
+        if ButtonEx("Redo", enabled=Undo.can_redo(*undo_state))
+            Undo.redo(*undo_state);
+
+        SetNextItemOpen(true);
+        inspect("", *state.editor.undo_state);
+    }
+
     if editor.entities_open {
         Begin("entities", *editor.entities_open);
         defer End();
@@ -316,6 +345,8 @@ editor_draw :: (state: *State) {
     }
 
     draw_inspector(*state.editor);
+
+
 }
 
 editor_update :: (state: *State) {
@@ -373,6 +404,9 @@ editor_update :: (state: *State) {
         if !took_action
             clear_selection();
 
+        for * selected
+            Undo.push(*undo_state, get_transform(it));
+
         drag_state.dragging = true;
         drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
 
@@ -380,18 +414,24 @@ editor_update :: (state: *State) {
             for * selected
                 it.original_pos = get_transform(it).position.xy;
 
-    } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) && selected.count == 0 {
-        drag_state.dragging = false;
+    } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
+        if selected.count == 0 {
+            drag_state.dragging = false;
 
-        rect := rect_from_points(drag_state.origin, world_mouse_pos);
-        if rect.width > 5 && rect.height > 5 {
-            if callbacks.did_drag != null
-                callbacks.did_drag(rect);
+            rect := rect_from_points(drag_state.origin, world_mouse_pos);
+            if rect.width > 5 && rect.height > 5 {
+                if callbacks.did_drag != null
+                    callbacks.did_drag(rect);
+            }
+        } else {
+            Undo.commit(*undo_state);
         }
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
         delta := world_mouse_pos - drag_state.origin;
-        for selected
-            get_transform(it.obj).position.xy = it.original_pos + delta;
+        for selected {
+            trs := get_transform(it.obj);
+            trs.position.xy = it.original_pos + delta;
+        }
     }
 
     if IsKeyPressed(.KEY_DELETE) {
@@ -411,6 +451,11 @@ editor_update :: (state: *State) {
             load_scene("1");
         }
     }
+
+    if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state)
+        Undo.undo(*undo_state);
+    if ctrl_down && IsKeyPressed(.KEY_Y) && Undo.can_redo(*undo_state)
+        Undo.redo(*undo_state);
 }
 
 clear_selection :: () {

@@ -91,11 +91,11 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             // @@ Open in new window?
             info_pointer := cast(*Type_Info_Pointer) info;
             assert(info_pointer.relative_pointer_size == 0, "TODO: implement relative pointers?");
-            inspect("", <<(cast(**void)data), info_pointer.pointer_to, show_node_func);
+            inspect(name, <<(cast(**void)data), info_pointer.pointer_to, show_node_func);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
         case .VOID;
-            TextUnformatted("void");
+            Text("%s: %p", name, data);
         case .CODE;
             TextUnformatted("Code");
         case .STRUCT;
