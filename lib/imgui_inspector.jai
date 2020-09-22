@@ -1,10 +1,6 @@
-Reflection :: #import "Reflection";
-
 #scope_file
+Reflection :: #import "Reflection";
 ImVec2 :: ImGui.ImVec2;
-
-show_inspector := true;    // Wish we could declare static variables inside functions.
-
 #scope_export
 
 Struct_Looks_Like :: enum {
@@ -98,7 +94,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             assert(info_pointer.relative_pointer_size == 0, "TODO: implement relative pointers?");
             inspect("", <<(cast(**void)data), info_pointer.pointer_to, show_node_func);
         case .PROCEDURE;
-            TextUnformatted("procedure");
+            TextUnformatted("TODO: procedure inspect");
         case .VOID;
             TextUnformatted("void");
         case .CODE;
@@ -238,12 +234,10 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
                 }
             }
-
             
         case .POLYMORPHIC_VARIABLE;
             // @@ ??
         case .TYPE;
-            // @@
         case .OVERLOAD_SET;
             // @@
     }

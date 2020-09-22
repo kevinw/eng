@@ -114,9 +114,14 @@ get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
 }
 
 get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
-    #insert #run foreach_component_type(#string END
-        if name == "<type>" return type_info(<type>);
-    END);
+
+    #insert #run (() -> string {
+        cases := foreach_component_type(#string END
+            case "<type>"; return type_info(<type>);
+        END);
+        name_switch_code_str := tprint("if name == {\n%}\n", cases);
+        return name_switch_code_str;
+    }());
 
     assert(false, tprint("no component named %", name));
     return null;
