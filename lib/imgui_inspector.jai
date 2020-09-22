@@ -53,7 +53,6 @@ inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null) {
     inspect(name, t, type_info(T), show_node_func);
 }
 
-
 inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null) {
     if show_node_func != null && !show_node_func(name, data, info)
         return;

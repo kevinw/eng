@@ -73,6 +73,9 @@ Editor :: struct {
 
     world_mouse_pos: Vector2;
     mouse_pos: Latch(Vector2);
+
+    demo_window_open := true;
+    entities_open := true;
 }
 
 editor_draw_world :: (state: *State) {
@@ -94,13 +97,10 @@ editor_draw_world :: (state: *State) {
 
 }
 
-demo_window_open: bool = true;
-
 base_flags: ImGui.TreeNodeFlags = ImGui.TreeNodeFlags.OpenOnArrow | .OpenOnDoubleClick | .SpanAvailWidth;
 align_label_with_current_x_position:bool = false;
 test_drag_and_drop:bool = false;
 selection_mask: s32 = (1 << 2);
-entities_open := true;
 
 draw_inspector :: (editor_state: *Editor) {
     using ImGui;
@@ -134,6 +134,7 @@ draw_inspector :: (editor_state: *Editor) {
         assert(component_ti != null);
 
         component_ptr := get_component(entity, component_ti);
+        SetNextItemOpen(true);
         inspect("", component_ptr, component_ti, classify_node);
     }
 }
@@ -146,7 +147,6 @@ editor_draw :: (state: *State) {
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
     DrawText("editing", 275, 330, 16, color);
-
 
     // dockspace
     fullscreen :: true;
@@ -196,42 +196,48 @@ editor_draw :: (state: *State) {
         }
     }
 
-    if demo_window_open
-        ShowDemoWindow(*demo_window_open);
+    if editor.demo_window_open
+        ShowDemoWindow(*editor.demo_window_open);
 
-    /*
-    if ui_open {
-        ImGui.Begin("state", *ui_open);
-        defer ImGui.End();
-
-        inspect("state", *state);
-    }
-    */
-
-    if entities_open {
-        Begin("entities", *entities_open);
+    if editor.entities_open {
+        Begin("entities", *editor.entities_open);
         defer End();
+
         PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
         defer PopStyleVar();
+
         //if TreeNodeEx("Entities", .DefaultOpen) {
             //defer TreePop();
 
             node_clicked: *Entity;
             for * it, it_index: context.state.world.entities {
-
                 flags := TreeNodeFlags.SpanAvailWidth;
                 // flags |= .OpenOnArrow;
+
+                flags |= .Leaf;
+
+                ///
+                /// MUST REMOVE .Leaf once we have parent entities!
+                //
 
                 for * sel: state.editor.selected
                     if sel.obj == it
                         flags |= .Selected;
 
-                if TreeNodeEx(it, flags, "%s", it.name.data) {
-                    defer TreePop();
-                    //for * it.components {
-                        //ImGui.Text(tprintz(it.type_name).data);
-                    //}
+                entity_handle := get_entity_handle(it);
+                {
+                    dnd := BeginDragDropSource();
+                    defer { if dnd EndDragDropSource(); }
+
+                    if dnd SetDragDropPayload("_ENTITY", *entity_handle, size_of(type_of(entity_handle)));
+
+                    if TreeNodeEx(it, flags, "%s", it.name.data) {
+                        defer TreePop();
+                    }
+
+                    //TextUnformatted(it.name.data);
                 }
+                
 
                 if IsItemClicked()
                     node_clicked = it;
@@ -352,10 +358,8 @@ editor_update :: (state: *State) {
             //scrlog(it, "%", e_rect);
             //scrlog(cast(*void)42, "%", world_mouse_pos);
 
-            if overlaps(e_rect, world_mouse_pos) {
+            if overlaps(e_rect, world_mouse_pos)
                 hover = it;
-                scrlog(cast(*void)55, "hover");
-            }
         }
     }
 
@@ -366,10 +370,8 @@ editor_update :: (state: *State) {
             took_action = true;
         }
 
-        if !took_action {
-            logprint("foo", "clearing selection");
+        if !took_action
             clear_selection();
-        }
 
         drag_state.dragging = true;
         drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
