@@ -359,8 +359,6 @@ editor_draw :: (state: *State) {
     }
 
     draw_inspector(*state.editor);
-
-
 }
 
 editor_update :: (state: *State) {
@@ -436,16 +434,16 @@ editor_update :: (state: *State) {
         }
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
         if selected.count == 0 {
-            drag_state.dragging = false;
-
             rect := rect_from_points(drag_state.origin, world_mouse_pos);
             if rect.width > 5 && rect.height > 5 {
                 if callbacks.did_drag != null
                     callbacks.did_drag(rect);
             }
-        } else {
+        } else
             Undo.commit(*undo_state);
-        }
+
+        drag_state.dragging = false;
+
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
         delta := world_mouse_pos - drag_state.origin;
         for selected {
