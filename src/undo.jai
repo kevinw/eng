@@ -1,17 +1,21 @@
 //
-// A tiny undo system for writing runs of bytes in memory.
+// A tiny typeless undo.
 //
 // thanks https://rxi.github.io/a_simple_undo_system.html
-// (the comments in this file are rxi's)
-
-// TODO: max undo stack size
-
+// (the comments in this file are mostly rxi's)
+//
 // Note: items must be stable in memory, i.e., their addresses cannot change.
+//
+
+//
+// TODO: max undo stack size
+// TODO: use Any or Type_Info*s to maintain more metadata for UI?
+//
 
 Impl :: struct {
     undo: [..]Item; // Stores changes that can be undone
     redo: [..]Item; // Stores undone changes which can be redone
-    temp: [..]Item; // Stores copies of all blocks of data passed to undo_push since the last commit
+    temp: [..]Item; // Stores copies of all blocks of data passed to undo.push since the last commit
 }
 
 Item :: struct {
@@ -20,20 +24,23 @@ Item :: struct {
     size: int;      // size in bytes of the data
 }
 
-can_undo :: (impl: *Impl) -> bool { return impl.undo.count > 0; }
-can_redo :: (impl: *Impl) -> bool { return impl.redo.count > 0; }
+can_undo :: (impl: *Impl) -> bool {
+    return impl.undo.count > 0;
+}
 
-push_scope :: (impl: *Impl, obj: *$T) #expand {
-    push(impl, obj);
-    `defer commit(impl);
+can_redo :: (impl: *Impl) -> bool {
+    return impl.redo.count > 0;
 }
 
 push :: (impl: *Impl, obj: *$T) {
+    // This undo.push() overload accepts a pointer to any type, and will get
+    // the Type_Info's runtime size for you.
+
     push(impl, obj, type_info(T).runtime_size);
 }
 
 push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int) {
-    // The undo_push() function takes a pointer and size value. When it is
+    // The undo.push() function takes a pointer and size value. When it is
     // called the temp stack is first scanned to check if we already have an
     // item for the given data block — if so the function already has the
     // old-data for this commit and can return without doing anything.
@@ -41,7 +48,7 @@ push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int) {
     // the given pointer and size: pushing the data at the pointer, the pointer
     // itself and finally the size of the data block.
 
-    assert(obj_data != null, "undo_push given a null pointer");
+    assert(obj_data != null, "undo.push given a null pointer");
     
     for temp {
         if obj_data == it.data {
@@ -60,7 +67,7 @@ push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int) {
 }
 
 commit :: (using impl: *Impl) {
-    // When undo_commit() is called each item is popped from the temp stack and
+    // When undo.commit() is called each item is popped from the temp stack and
     // the stored data is compared to the current data at the item's pointer.
     // Any differences are pushed as items to the undo stack. When the first
     // change is encountered the redo stack is reset and a null item is pushed
@@ -85,8 +92,16 @@ commit :: (using impl: *Impl) {
     }
 }
 
+push_scope :: (impl: *Impl, obj: *$T) #expand {
+    // A macro for calling push() now and commit() at the end of the current
+    // scope.
+
+    push(impl, obj);
+    `defer commit(impl);
+}
+
 undo :: (using impl: *Impl) {
-    // When undo_undo() is called each item on the undo stack is popped until
+    // When undo.undo() is called each item on the undo stack is popped until
     // the null item is reached. The data stored for each item is pushed to the
     // redo stack so that it can be redone and the item's data is copied to the
     // location of the item's stored pointer such as to restore its old state.
@@ -97,7 +112,7 @@ undo :: (using impl: *Impl) {
 }
 
 redo :: (using impl: *Impl) {
-    // The implementation of undo_redo() is identical to that of undo_undo() but with
+    // The implementation of undo.redo() is identical to that of undo.undo() but with
     // the roles of the undo and redo stacks swapped.
     assert(redo.count > 0, "No items in the redo stack");
 
@@ -114,7 +129,9 @@ pop_apply_and_push :: (from_stack: *[..]Item, to_stack: *[..]Item) {
     first_item := true;
     while true {
         item := pop(from_stack);
-        if item.data == null break;
+        if item.data == null {
+            break;
+        }
 
         if first_item {
             null_item := array_add(to_stack); // null item indicates new sequence
