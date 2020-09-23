@@ -298,6 +298,48 @@ set :: inline (arr: *$A/Array_With_Holes, handle: A.Handle, value: A.Value_Type)
     arr.items[handle.id].value = value;
 }
 
+HandleIterator :: struct(A: Type) {
+    arr: *A;
+}
+
+handles :: (arr: *$A/Array_With_Holes) -> HandleIterator(A) {
+    //assert(arr != null);
+    iter: HandleIterator(A);
+    iter.arr = arr;
+    return iter;
+}
+
+for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, reverse: bool) #expand {
+    arr := handles.arr;
+    assert(arr != null);
+    {
+        unlock_freelist(arr);
+        assert(arr.items[0].generation == SENTINEL_GENERATION,
+            tprint("gen (address %) of first item for % at root addr % was not %: %",
+                *arr.items[0].generation, arr.debug_name, arr.items, SENTINEL_GENERATION, arr.items[0].generation));
+    }
+    #assert(!reverse);
+
+    index := 0;
+    n := 1; // start at one to ignore the first freelist hole
+    while n <= arr.count {
+        slot_index := cast(u32)n;
+        slot := *arr.items[n];
+        n += 1;
+        
+        if slot.generation <= 0 continue; // dead
+
+        `it: Handle_Type;
+        `it.id = slot_index;
+        `it.generation = slot.generation;
+        `it_index := index; // TODO: not sure it_index is useful here...
+
+        #insert body;
+
+        index += 1;
+    }
+}
+
 for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
     assert(arr.items != null);
     {
@@ -317,15 +359,12 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
         
         if slot.generation <= 0 continue; // dead
 
-        #if pointer {
-            `it := *slot.value;
-        }
-        else {
-            `it := slot.value;
-        }
+        #if pointer `it := *slot.value;
+        else `it := slot.value;
+        `it_index := index; // TODO: not sure it_index is useful here...
 
-        `it_index := index;
         #insert body;
+
         index += 1;
     }
 
