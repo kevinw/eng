@@ -199,6 +199,7 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
 
 get_transform :: (component: *Component) -> *Transform { return get_component(component.entity, Transform); }
 get_transform :: (entity: *Entity) -> *Transform { return get_component(entity, Transform); }
+get_transform_or_null :: (entity_handle: Entity_Handle) -> *Transform { return get_component(entity_handle, Transform); }
 
 
 get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Component {

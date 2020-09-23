@@ -54,9 +54,15 @@ Play_Mode :: enum {
 Vec2 :: Vector2;
 
 Selected_Object :: struct {
-    using obj: *Entity;
+    using handle: Entity_Handle;
     original_pos: Vector2;
 }
+
+Maybe :: struct(V: Type) {
+    using value: V;
+    has_value: bool;
+}
+
 
 Editor :: struct {
     undo_state: Undo.Impl;
@@ -74,7 +80,7 @@ Editor :: struct {
     };
 
     selected: [..]Selected_Object;
-    hover: *Entity;
+    hover: Maybe(Entity_Handle);
 
     world_mouse_pos: Vector2;
     mouse_pos: Latch(Vector2);
@@ -90,14 +96,19 @@ editor_draw_world :: (state: *State) {
 
     if selected.count > 0 {
         for selected {
-            DrawRectangleLinesEx(entity_rect(it.obj), 2, WHITE);
+            ok, entity := get_entity(it);
+            if ok {
+                DrawRectangleLinesEx(entity_rect(entity), 2, WHITE);
+            }
         }
     } else if drag_state.dragging {
         DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, RED);
     }
 
-    if hover != null {
-        DrawRectangleLinesEx(entity_rect(hover), 1, Color.{200, 200, 255, 128});
+    if hover.has_value {
+        ok, entity := get_entity(hover);
+        if ok
+            DrawRectangleLinesEx(entity_rect(entity), 1, Color.{200, 200, 255, 128});
     }
 
 }
@@ -117,12 +128,10 @@ draw_inspector :: (editor_state: *Editor) {
     entity: *Entity;
     if editor_state.selected.count == {
         case 0; 
-            PushStyleColor(.Text, .{.35, .35, .35, 1});
-            defer PopStyleColor();
-            Text("Nothing selected.");
-            return;
+            // do nothing
         case 1;
-            entity = editor_state.selected[0].obj;
+            ok: bool;
+            ok, entity = get_entity(editor_state.selected[0].handle);
         case;
             Text("TODO: implement multiple selection.");
             return;
@@ -132,6 +141,13 @@ draw_inspector :: (editor_state: *Editor) {
         // Here we have the inspector omit showing info for the  "using component: Component;"
         // field (this is the field that makes a struct a subclass of Component).
         return cast(*Type_Info)type_info(Component) != ti;
+    }
+
+    if entity == null {
+        PushStyleColor(.Text, .{.35, .35, .35, 1});
+        defer PopStyleColor();
+        Text("Nothing selected.");
+        return;
     }
 
     for entity.components {
@@ -238,8 +254,8 @@ editor_draw :: (state: *State) {
         //if TreeNodeEx("Entities", .DefaultOpen) {
             //defer TreePop();
 
-            node_clicked: *Entity;
-            for * it, it_index: context.state.world.entities {
+            node_clicked: Maybe(Entity_Handle);
+            for handles(*context.state.world.entities) {
                 flags := TreeNodeFlags.SpanAvailWidth;
                 // flags |= .OpenOnArrow;
 
@@ -250,30 +266,28 @@ editor_draw :: (state: *State) {
                 //
 
                 for * sel: state.editor.selected
-                    if sel.obj == it
+                    if sel.handle == it
                         flags |= .Selected;
 
-                entity_handle := get_entity_handle(it);
-                {
+                ok, entity := get_entity(it);
+                if ok {
                     dnd := BeginDragDropSource();
                     defer { if dnd EndDragDropSource(); }
 
-                    if dnd SetDragDropPayload("_ENTITY", *entity_handle, size_of(type_of(entity_handle)));
-
-                    if TreeNodeEx(it, flags, "%s", it.name.data) {
+                    if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
+                    if TreeNodeEx(entity, flags, "%s", entity.name.data) {
                         defer TreePop();
                     }
-
-                    //TextUnformatted(it.name.data);
                 }
                 
-
-                if IsItemClicked()
-                    node_clicked = it;
+                if IsItemClicked() {
+                    node_clicked.value = it;
+                    node_clicked.has_value = true;
+                }
             }
 
-            if node_clicked != null {
-                set_selected(node_clicked);
+            if node_clicked.has_value {
+                set_selected(node_clicked.value);
             }
 
         //}
@@ -382,20 +396,20 @@ editor_update :: (state: *State) {
     if set_if_different(*mouse_pos, GetMousePosition()) {
         world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
 
-        hover = null;
-        for * state.world.entities {
-            e_rect := entity_rect(it, true);
-
-            //scrlog(it, "%", e_rect);
-            //scrlog(cast(*void)42, "%", world_mouse_pos);
-
-            if overlaps(e_rect, world_mouse_pos)
-                hover = it;
+        hover.has_value = false;
+        for handles(*state.world.entities) {
+            ok, entity := get_entity(it);
+            assert(ok);
+            e_rect := entity_rect(entity, true);
+            if overlaps(e_rect, world_mouse_pos) {
+                hover.value = it;
+                hover.has_value = true;
+            }
         }
     }
 
     if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
-        if hover != null {
+        if hover.has_value {
             if ctrl_down toggle_selection(hover);
             else set_selected(hover);
             took_action = true;
@@ -404,16 +418,22 @@ editor_update :: (state: *State) {
         if !took_action
             clear_selection();
 
-        for * selected
-            Undo.push(*undo_state, get_transform(it));
+        for * selected {
+            trs := get_transform_or_null(it.handle);
+            if trs != null
+                Undo.push(*undo_state, trs);
+        }
 
         drag_state.dragging = true;
         drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
 
-        if took_action
-            for * selected
-                it.original_pos = get_transform(it).position.xy;
-
+        if took_action {
+            for * selected {
+                trs := get_transform_or_null(it.handle);
+                if trs
+                    it.original_pos = trs.position.xy;
+            }
+        }
     } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
         if selected.count == 0 {
             drag_state.dragging = false;
@@ -429,24 +449,25 @@ editor_update :: (state: *State) {
     } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
         delta := world_mouse_pos - drag_state.origin;
         for selected {
-            trs := get_transform(it.obj);
-            trs.position.xy = it.original_pos + delta;
+            trs := get_transform_or_null(it);
+            if trs != null
+                trs.position.xy = it.original_pos + delta;
         }
     }
 
     if IsKeyPressed(.KEY_DELETE) {
         for selected {
-            if hover == it.obj
-                hover = null;
-
-            destroy_entity(it.obj);
+            if hover == it.handle
+                hover.has_value = false;
+            destroy_entity(it);
         }
         clear_selection();
     }
 
     if IsKeyPressed(.KEY_ONE) {
-        if shift_down save_scene("1");
-        else {
+        if shift_down {
+            save_scene("1");
+        } else {
             clear_selection();
             load_scene("1");
         }
@@ -463,27 +484,27 @@ clear_selection :: () {
     array_reset(*selected);
 }
 
-set_selected :: (obj: *Entity) {
+set_selected :: (entity_handle: Entity_Handle) {
     using context.state.editor;
 
     array_reset(*selected);
 
     selected_obj := array_add(*selected);
-    selected_obj.obj = obj;
+    selected_obj.handle = entity_handle;
 }
 
-toggle_selection :: (obj: *Entity) -> bool {
+toggle_selection :: (entity_handle: Entity_Handle) -> bool {
     using context.state.editor;
 
     for selected {
-        if it.obj == obj {
+        if it.handle == entity_handle {
             remove it;
             return false;
         }
     }
 
     selected_obj := array_add(*selected);
-    selected_obj.obj = obj;
+    selected_obj.handle = entity_handle;
 
     return true;
 }
