@@ -488,6 +488,12 @@ print_field_offsets :: ($type: Type) {
     }
 }
 
+print_hex_bytes :: (data: *void, size_in_bytes: int) {
+    s: []u8;
+    s.data = data;
+    s.count = size_in_bytes;
+    print_hex_bytes(s);
+}
 
 print_hex_bytes :: (data: []u8) {
     count := 0;

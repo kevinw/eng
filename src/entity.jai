@@ -87,23 +87,50 @@ TRS :: Transform;
     Compiler :: #import "Compiler";
     #import "Sort";
 
-    all_component_names: [..]string;
+    all_components: [..]*Type_Info_Struct;
     for Compiler.get_type_table() {
         if Compiler.is_subclass_of(it, "Component") { // TODO: don't do this lookup by name
             ti_struct := cast(*Type_Info_Struct)it;
-            array_add(*all_component_names, ti_struct.name);
+            array_add(*all_components, ti_struct);
         }
     }
+
+    compare_type_info_names :: (a: *Type_Info_Struct, b: *Type_Info_Struct) -> s64 {
+        return compare_strings(a.name, b.name);
+    }
+
     // We need to sort the component names, since the compiler does not find them
     // in a determinate order.
-    quick_sort(all_component_names, compare_strings);
+    quick_sort(all_components, compare_type_info_names);
 
     sb: String_Builder;
     defer free_buffers(*sb);
-    print_to_builder(*sb, "all_component_types :: Type.[\n");
-    for all_component_names
-        print_to_builder(*sb, "    %,\n", it);
-    print_to_builder(*sb, "];\n");
+    p :: print_to_builder;
+    p(*sb, "all_component_types :: Type.[\n");
+    for all_components
+        p(*sb, "    %,\n", it.name);
+    p(*sb, "];\n");
+
+    // each component gets a bit.
+    p(*sb, "Component_Bit :: enum_flags {\n");
+    for all_components
+        p(*sb, "    % :: (1 << %);\n", it.name, it_index);
+    p(*sb, "}\n");
+
+    p(*sb, "component_bit_to_ti :: (bit: Component_Bit) -> *Type_Info_Struct {\n");
+    p(*sb, "    if bit == {\n");
+    for all_components
+        p(*sb, "        case .%; return type_info(%);\n", it.name, it.name);
+    p(*sb, "    }\n");
+    p(*sb, "}\n");
+
+    p(*sb, "component_ti_to_bit :: (component_ti: *Type_Info_Struct) -> Component_Bit {\n");
+    p(*sb, "    if component_ti.name == {\n");
+    for all_components
+        p(*sb, "        case \"%\"; return Component_Bit.%;\n", it.name, it.name);
+    p(*sb, "    }\n");
+    p(*sb, "}\n");
+
 
     return builder_to_string(*sb);
 }());
@@ -139,11 +166,11 @@ Entity :: struct {
     }
 
     flags: Flags;
-    name: string; @owned
+    name: string; @free_in_deiit
 
     Component_Entry :: struct {
         component_handle: Handle_Type;
-        type_name: string; // TODO. maybe a bit?
+        bit: Component_Bit;
     }
 
     components: [..]Component_Entry; // TODO: Small_Array
@@ -163,33 +190,30 @@ get_components :: ($component_type: Type) -> []*component_type {
 get_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
     ok, entity := get_entity(entity_handle);
     if !ok return null;
+
     return get_component(entity, component_type);
 }
 
 get_component :: (component: *Component, $component_type: Type) -> *component_type {
-    ok, entity := get_entity(component.entity);
-    if !ok return null;
-
-    return get_component(entity, component_type);
+    return get_component(component.entity, component_type);
 }
 
 get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
-    #assert(type_info(component_type).type == .STRUCT);
-
     assert(entity != null);
 
-    ti_struct := cast(*Type_Info_Struct)type_info(component_type);
+    #assert(type_info(component_type).type == .STRUCT);
+    component_bit :: #run component_ti_to_bit(cast(*Type_Info_Struct)type_info(component_type));
+
     for * entity.components {
-        if it.type_name == ti_struct.name {
+        if it.bit == component_bit {
             sibling_handle := it.component_handle;
 
             bucket: *Array_With_Holes(component_type);
             #insert #run bucket_chooser();
-
             assert(bucket != null);
+
             sibling_ptr := get_item_ptr(bucket, sibling_handle);
-            if sibling_ptr != null
-            return sibling_ptr;
+            if sibling_ptr != null return sibling_ptr;
         }
     }
 
@@ -201,12 +225,13 @@ get_transform :: (component: *Component) -> *Transform { return get_component(co
 get_transform :: (entity: *Entity) -> *Transform { return get_component(entity, Transform); }
 get_transform_or_null :: (entity_handle: Entity_Handle) -> *Transform { return get_component(entity_handle, Transform); }
 
-
 get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Component {
     assert(entity != null);
 
+    component_bit := component_ti_to_bit(component_ti);
+
     for * entity.components {
-        if it.type_name == component_ti.name {
+        if it.bit == component_bit {
             sibling_handle := it.component_handle;
             #insert #run runtime_bucket_chooser(#string END
                 return get_item_ptr(bucket, sibling_handle);
@@ -257,6 +282,11 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
 
 
     trs := get_transform(entity);
+    if trs == null {
+        logprint("=entity_rect", "no Transform in % %\n", entity.name, entity);
+        return .{};
+    }
+
     pos := trs.position.xy;
     sz := trs.scale.xy;
 
@@ -312,7 +342,7 @@ _return_component_array_add :: () -> string {
             maybe_else := ifx it_index > 0 then "else " else "";
             print_to_builder(sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
             print_to_builder(sb, "    ptr: *%;\n", it);
-            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%);\n", it);
+            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%, undo=undo);\n", it);
             print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
             print_to_builder(sb, "    ptr.entity = entity_handle;\n");
             print_to_builder(sb, "    run_on_enable(ptr, entity);\n", it);
@@ -377,12 +407,14 @@ world_draw :: (world: *World = null) {
 #placeholder run_all;
 #placeholder run_on_enable;
 
-create_entity :: (world: *World = null, name: string = "", id: s32 = -1) -> *Entity, Entity_Handle {
+create_entity :: (world: *World = null, name: string = "", id: s32 = -1,
+    undo: *Undo.Impl = null
+) -> *Entity, Entity_Handle {
     if world == null
         world = *context.state.world;
     assert(world != null);
 
-    handle, e := allocate_slot(*world.entities);
+    handle, e := allocate_slot(*world.entities, undo=undo);
 
     name_to_use: string;
     if name.count == 0
@@ -390,9 +422,9 @@ create_entity :: (world: *World = null, name: string = "", id: s32 = -1) -> *Ent
     else
         name_to_use = name;
 
-    e.name = copy_string_z(name_to_use);
+    e.name = copy_string_z(name_to_use); // @Leak
 
-    add_component(handle, Transform);
+    add_component(handle, Transform, undo=undo);
 
     return e, handle;
 }
@@ -401,36 +433,43 @@ get_entity_handle :: (entity: *Entity) -> Entity_Handle {
     return get_handle_for_value_ptr(*context.state.world.entities, entity);
 }
 
-destroy_entity :: (entity_ptr: *Entity) {
-    destroy_entity(get_entity_handle(entity_ptr));
+destroy_entity :: (entity_ptr: *Entity, undo: *Undo.Impl = null) {
+    destroy_entity(get_entity_handle(entity_ptr), undo);
 }
 
-destroy_entity :: (e: Entity_Handle) {
+destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
     other_e := e;
     assert(other_e.id == e.id, "simple assignment of entity handle failed");
 
     entity := get_item_ptr(*context.state.world.entities, e);
     if !entity return;
 
+    // nocheckin: make a `runtime_bit_bucket_chooser`
+
     assert(other_e.id == e.id, "simple assignment of entity handle failed #2");
     for entity.components {
-        component_ti := get_component_ti_from_name(it.type_name);
-        free(it.type_name);
+        component_ti := component_bit_to_ti(it.bit);
         component_handle := it.component_handle;
         {
             #insert #run runtime_bucket_chooser(#string END
-                did_delete := delete_item(bucket, component_handle);
-
-                // The above line fails.
-                // It does nothing with the argument e to this function, so it
-                // appears to be a codegen bug.
-
+                did_delete := delete_item(bucket, component_handle, undo);
                 assert(did_delete, "delete_item for component failed");
             END);
         }
     }
-    array_reset(*entity.components);
-    did_delete := delete_item(*context.state.world.entities, other_e);
+
+    did_delete := delete_item(*context.state.world.entities, other_e, undo);
+
+    // TODO: this has to come AFTER the delete_item(entities) call directly above us.
+    // this is because the address of the array we're resetting is in the bounds
+    // of the thing we "noted" in delete_item. that means we want to restore the array
+    // here after restoring the rest of the entity state upon undo.
+    //
+    // There might be some kind of sorting inside the Undo module we can do to
+    // make this ordering unimportant and "just work," but it needs more thought I think and for now
+    // we'll just be careful.
+    Undo.array_reset(undo, *entity.components);
+
     assert(did_delete, "delete_item for entity failed");
 }
 
@@ -438,7 +477,7 @@ add_or_get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_
     return add_component(entity_handle, component_ti);
 }
 
-add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
+add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct, undo: *Undo.Impl=null) -> *Component {
     ok, entity := get_entity(entity_handle);
     assert(ok);
 
@@ -451,8 +490,10 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct)
     assert(component_handle.id >= 0);
     assert(component_handle.generation >= 0);
 
+    if undo Undo.push_array(undo, *entity.components);
+
     entry := array_add(*entity.components);
-    entry.type_name = copy_string(component_type_info.name);
+    entry.bit = component_ti_to_bit(component_type_info);
     entry.component_handle = component_handle;
 
     assert(c != null);
@@ -460,18 +501,19 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct)
     return c;
 }
 
-add_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
+add_component :: (entity_handle: Entity_Handle, $component_type: Type, undo: *Undo.Impl=null) -> *component_type {
     ok, entity := get_entity(entity_handle);
     assert(ok);
 
     bucket: *Array_With_Holes(component_type);
     #insert #run bucket_chooser();
 
-    component_handle, component_ptr := allocate_slot(bucket);
+    component_handle, component_ptr := allocate_slot(bucket, undo=undo);
     c := cast(*component_type)component_ptr;
 
+    if undo Undo.push_array(undo, *entity.components);
     entry := array_add(*entity.components);
-    entry.type_name = copy_string((cast(*Type_Info_Struct)type_info(component_type)).name); // @Leak
+    entry.bit = component_ti_to_bit(cast(*Type_Info_Struct)type_info(component_type));
     entry.component_handle = component_handle;
 
     c.entity = entity_handle;
@@ -644,6 +686,7 @@ File :: #import "File";
 wbml :: #import "wbml";
 laas :: #import "laas";
 String :: #import "String";
+Undo :: #import "undo";
 
 #import "live_raylib";
 

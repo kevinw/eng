@@ -40,8 +40,12 @@ State :: struct {
     end_canary: u32; @noui // = 0xBEEFBEEF;
 };
 
-envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color) -> *Entity {
-    entity, entity_handle := create_entity(world, "box");
+envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color, is_editor: bool = false) -> *Entity {
+
+    undo: *Undo.Impl;
+    if is_editor undo = *context.state.editor.undo_state;
+
+    entity, entity_handle := create_entity(world, "box", undo=undo);
     assert(entity != null);
 
     transform := get_component(entity, TRS);
@@ -49,10 +53,10 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     transform.position.xy = v2(x, y);
     transform.scale = make_Vector3(width, height, 1);
 
-    box := add_component(entity_handle, BoxCollider);
+    box := add_component(entity_handle, BoxCollider, undo=undo);
     box.collision = .PLATFORM;
 
-    renderer := add_component(entity_handle, RectRenderer);
+    renderer := add_component(entity_handle, RectRenderer, undo=undo);
     renderer.color = color;
 
     return entity;
@@ -89,7 +93,8 @@ editor_did_drag :: (rect: Rectangle) {
     color.b = cast(u8)random_get_within_range(100, 255);
     block := envitem(*context.state.world,
         rect.x, rect.y, rect.width, rect.height,
-        .PLATFORM, color);
+        .PLATFORM, color, is_editor=true);
+    Undo.commit(*context.state.editor.undo_state);
 }
 
 on_host_init :: () {

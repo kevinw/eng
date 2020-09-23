@@ -1,4 +1,27 @@
 /*
+
+prefabs and undo
+- prefab is 
+{
+    prefab_link "prefab_unique_name"
+
+    // and overridden properties...
+    x 42
+    y 99
+
+}
+
+making undoing a delete of an entity would mean exactly the same thing as
+serializing an object as a prefab, and instantiating it.  perhaps ids in the
+context of serialized wbml can just be saved as they are in memory. but then
+when instantiating them, they may get "reassigned". or is it simpler than that?
+if undoing the deleting of an entity is just writing bytes again...
+
+what are the simplest possible operations? make an object. save out the type
+info. (hash the type info? and save that? and then be able to reference it
+forever?)
+
+
 how do "changes" work in the editor compared to unity?
 or are these questions too early? instead it might be good
 to focus in on this particular game. or at least to think
@@ -151,10 +174,11 @@ draw_inspector :: (editor_state: *Editor) {
     }
 
     for entity.components {
-        component_ti := get_component_ti_from_name(it.type_name);
+        component_ti := component_bit_to_ti(it.bit);
         assert(component_ti != null);
 
         component_ptr := get_component(entity, component_ti);
+        assert(component_ptr != null);
         SetNextItemOpen(true);
         inspect("", component_ptr, component_ti, classify_node);
     }
@@ -179,6 +203,13 @@ editor_draw :: (state: *State) {
     if menubar window_flags |= .MenuBar;
 
     using ImGui;
+
+    {
+        Begin("DEBUG");
+        defer End();
+
+        inspect("entities", *state.world.entities.items);
+    }
 
     if fullscreen {
         viewport := GetMainViewport();
@@ -248,6 +279,8 @@ editor_draw :: (state: *State) {
         Begin("entities", *editor.entities_open);
         defer End();
 
+        Text("%d total", count_items(*context.state.world.entities));
+
         PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
         defer PopStyleVar();
 
@@ -271,10 +304,10 @@ editor_draw :: (state: *State) {
 
                 ok, entity := get_entity(it);
                 if ok {
-                    dnd := BeginDragDropSource();
-                    defer { if dnd EndDragDropSource(); }
+                    //dnd := BeginDragDropSource();
+                    //defer { if dnd EndDragDropSource(); }
 
-                    if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
+                    //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
                     if TreeNodeEx(entity, flags, "%s", entity.name.data) {
                         defer TreePop();
                     }
@@ -454,10 +487,15 @@ editor_update :: (state: *State) {
     }
 
     if IsKeyPressed(.KEY_DELETE) {
-        for selected {
-            if hover == it.handle
-                hover.has_value = false;
-            destroy_entity(it);
+        if selected.count > 0 {
+            for selected {
+                if hover == it.handle
+                    hover.has_value = false;
+
+                destroy_entity(it, undo=*undo_state);
+            }
+
+            Undo.commit(*undo_state);
         }
         clear_selection();
     }
@@ -471,21 +509,26 @@ editor_update :: (state: *State) {
         }
     }
 
-    if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state)
+    if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {
         Undo.undo(*undo_state);
+    }
     if ctrl_down && IsKeyPressed(.KEY_Y) && Undo.can_redo(*undo_state)
         Undo.redo(*undo_state);
 }
 
 clear_selection :: () {
     using context.state.editor;
+
+    if selected.count == 0 return;
+
     array_reset(*selected);
 }
 
 set_selected :: (entity_handle: Entity_Handle) {
     using context.state.editor;
 
-    array_reset(*selected);
+    if selected.count == 1 && selected[0].handle == entity_handle
+        return;
 
     selected_obj := array_add(*selected);
     selected_obj.handle = entity_handle;

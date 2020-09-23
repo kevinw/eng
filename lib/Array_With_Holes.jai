@@ -39,7 +39,7 @@ Array_With_Holes :: struct(Value: Type) {
                 // consider maintaining a separate "active_count" or something
                 // if we need it...
 
-    items: *Slot;
+    items: []Slot;
 }
 
 #if ROBUSTNESS_CHECKS {
@@ -51,9 +51,16 @@ Array_With_Holes :: struct(Value: Type) {
     }
 }
 
+count_items :: (arr: *$A/Array_With_Holes) -> int {
+    // TODO: the array should probably just keep an "active count" around.
+    count := 0;
+    for * arr count += 1;
+    return count;
+}
+
 
 init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
-    assert(arr.items == null, "Array_With_Holes was already initialized");
+    assert(arr.items.data == null, "Array_With_Holes was already initialized");
 
     #if ROBUSTNESS_CHECKS {
         page_size := get_page_size();
@@ -71,18 +78,19 @@ init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
         res := VirtualProtect(valloc_ptr, page_size, PAGE_NOACCESS, *old_protect_flags);
         assert(res != 0, "VirtualProtect failed");
 
-        //old_ptr := arr.items;
+        //old_ptr := arr.items.data;
 
         // the intent here is to make the freelist slot a protected page,
         // except when we explictly unlock it.
-        arr.items = cast(*A.Slot)((cast(*void)valloc_ptr) + page_size - size_of(A.Slot));
+        arr.items.data = cast(*A.Slot)((cast(*void)valloc_ptr) + page_size - size_of(A.Slot));
 
         //old_ptr.generation = 42; // should crash
     } else {
-        arr.items = valloc_ptr;
+        arr.items.data = valloc_ptr;
     }
 
-    assert(arr.items != null);
+    assert(arr.items.data != null);
+    arr.items.count = 1;
 
     {
         unlock_freelist(arr);
@@ -114,9 +122,9 @@ unlock_freelist :: (arr: *$A/Array_With_Holes) #expand {
 
     VirtualQuery :: (lpAddress: *void, mbi: *MEMORY_BASIC_INFORMATION, len: int) -> int #foreign kernel32;
 
-    assert(arr != null && arr.items != null);
+    assert(arr != null && arr.items.data != null);
     page_size := get_page_size();
-    alloc_ptr := (cast(*void)arr.items) - (page_size - size_of(A.Slot));
+    alloc_ptr := (cast(*void)arr.items.data) - (page_size - size_of(A.Slot));
 
     //mem_basic_info: MEMORY_BASIC_INFORMATION;
     //sz := VirtualQuery(alloc_ptr, *mem_basic_info, size_of(MEMORY_BASIC_INFORMATION));
@@ -146,26 +154,36 @@ unlock_freelist :: (arr: *$A/Array_With_Holes) #expand {
 
 SENTINEL_GENERATION  :: 999999;
 
-allocate_slot :: (arr: *$A/Array_With_Holes) -> (A.Handle, *A.Value_Type) {
-    assert(arr.items != null, "Array_With_Holes was not initialized");
+allocate_slot :: (arr: *$A/Array_With_Holes, undo: *Undo.Impl = null) -> (A.Handle, *A.Value_Type) {
+    assert(arr.items.data != null, "Array_With_Holes was not initialized");
     slot_index: u32;
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
+
+        if undo != null {
+            if undo Undo.push(undo, *arr.items[0]);
+        }
+            
         slot_index = arr.items[0].next;
         arr.items[0].next = arr.items[slot_index].next;
     }
 
     if slot_index != 0 {
+        if undo Undo.push(undo, *arr.items[slot_index]);
         assert(arr.items[slot_index].generation <= 0);
         arr.items[slot_index].generation *= -1;
     } else {
         // If it was zero, the freelist is empty.
+        if undo Undo.push(undo, *arr.count);
+        if undo Undo.push(undo, *arr.items.count);
         arr.count += 1;
+        arr.items.count += 1;
         assert(size_of(A.Slot) * arr.count < A.Max_Bytes);
         slot_index = cast(u32)arr.count;  // here we intentionally don't subtract one, to account for the freelist slot at 0
 
         _slot := *arr.items[slot_index];
+        if undo Undo.push(undo, _slot);
         _gen  := _slot.generation;
         assert(_gen == 0);
     }
@@ -215,8 +233,8 @@ get_handle_for_value_ptr :: (arr: *$A/Array_With_Holes, value_ptr: *A.Value_Type
     return handle;
 }
 
-delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
-    assert(arr.items != null, "Array_With_Holes was not initialized");
+delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle, undo: *Undo.Impl = null) -> bool {
+    assert(arr.items.data != null, "Array_With_Holes was not initialized");
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
@@ -234,6 +252,17 @@ delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
     if handle.generation != slot.generation
         return false;
 
+    if undo != null {
+        /*
+        print("[undo] ArrWHoles.delete_item % is noting freelist at % and slot at %\n",
+            <<arr, *arr.items[0], slot);
+        */
+
+        // the freelist, and the slot we're writing to will change.
+        if undo Undo.push(undo, *arr.items[0]);
+        if undo Undo.push(undo, slot);
+    }
+
     slot.generation *= -1;
     assert(slot.generation < 0);
 
@@ -249,15 +278,16 @@ delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> bool {
 }
 
 add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
-    assert(arr.items != null, "Array_With_Holes was not initialized");
+    assert(arr.items.data != null, "Array_With_Holes was not initialized");
 
     handle := allocate_slot(arr);
     arr.items[handle.id].value = value;
     return handle;
 }
 
+/*
 get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
-    assert(arr.items != null, "Array_With_Holes was not initialized");
+    assert(arr.items.data != null, "Array_With_Holes was not initialized");
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
@@ -272,9 +302,10 @@ get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type
     
     return false, .{};
 }
+*/
 
 get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
-    assert(arr.items != null, "Array_With_Holes was not initialized");
+    assert(arr.items.data != null, "Array_With_Holes was not initialized");
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
@@ -289,7 +320,7 @@ get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
 }
 
 set :: inline (arr: *$A/Array_With_Holes, handle: A.Handle, value: A.Value_Type) {
-    assert(arr.items != null);
+    assert(arr.items.data != null);
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
@@ -303,7 +334,7 @@ HandleIterator :: struct(A: Type) {
 }
 
 handles :: (arr: *$A/Array_With_Holes) -> HandleIterator(A) {
-    //assert(arr != null);
+    assert(arr != null);
     iter: HandleIterator(A);
     iter.arr = arr;
     return iter;
@@ -341,7 +372,7 @@ for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, rever
 }
 
 for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
-    assert(arr.items != null);
+    assert(arr.items.data != null);
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION,
@@ -405,4 +436,5 @@ main :: () {
 }
 
 #scope_file
+Undo :: #import "undo";
 #import "Basic";
