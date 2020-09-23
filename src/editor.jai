@@ -89,7 +89,13 @@ Maybe :: struct(V: Type) {
 
 Editor :: struct {
     undo_state: Undo.Impl;
-    show_undo_window: bool = true;
+
+    windows: struct {
+        undo := true;
+        demo := true;
+        entities := true;
+        ecs_internals := false;
+    };
 
     play_mode: Play_Mode;
 
@@ -108,8 +114,6 @@ Editor :: struct {
     world_mouse_pos: Vector2;
     mouse_pos: Latch(Vector2);
 
-    demo_window_open := true;
-    entities_open := true;
 }
 
 editor_draw_world :: (state: *State) {
@@ -204,13 +208,6 @@ editor_draw :: (state: *State) {
 
     using ImGui;
 
-    {
-        Begin("DEBUG");
-        defer End();
-
-        inspect("entities", *state.world.entities.items);
-    }
-
     if fullscreen {
         viewport := GetMainViewport();
         SetNextWindowPos(viewport.GetWorkPos(viewport));
@@ -248,8 +245,8 @@ editor_draw :: (state: *State) {
         }
     }
 
-    if editor.demo_window_open
-        ShowDemoWindow(*editor.demo_window_open);
+    if editor.windows.demo
+        ShowDemoWindow(*editor.windows.demo);
 
     ButtonEx :: (label: *u8, size:ImVec2 = .{0,0}, enabled := true) -> bool {
         if !enabled PushStyleVar(.Alpha, 0.5);
@@ -258,9 +255,17 @@ editor_draw :: (state: *State) {
         return enabled && res;
     }
 
-    if editor.show_undo_window {
+    if editor.windows.ecs_internals {
+        Begin("DEBUG", *editor.windows.ecs_internals);
+        defer End();
+
+        inspect("internals", *state.world.entities.items);
+    }
+
+
+    if editor.windows.undo {
         using context.state.editor;
-        Begin("Undo", *show_undo_window);
+        Begin("Undo", *editor.windows.undo);
         defer End();
 
         if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
@@ -275,8 +280,8 @@ editor_draw :: (state: *State) {
         inspect("", *state.editor.undo_state);
     }
 
-    if editor.entities_open {
-        Begin("entities", *editor.entities_open);
+    if editor.windows.entities {
+        Begin("entities", *editor.windows.entities);
         defer End();
 
         Text("%d total", count_items(*context.state.world.entities));
