@@ -13,9 +13,19 @@ Struct_Looks_Like :: enum {
     Int2      :: 102; // TODO: return these from categorize_ti_struct
     Int3      :: 103;
     Int4      :: 104;
+
+    Color_Float4 :: 1004;
+    Color_Byte4  :: 1104;
 }
 
-categorize_ti_struct :: (ti_struct: *Type_Info_Struct) -> Struct_Looks_Like {
+categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Categorize_Type_Func) -> Struct_Looks_Like {
+
+    if categorize_type_func != null {
+        user_categorization := categorize_type_func(ti_struct);
+        if user_categorization != .None
+            return user_categorization;
+    }
+
     // @Speed @Memoize
 
     seen_offsets: [..]int;
@@ -45,15 +55,16 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct) -> Struct_Looks_Like {
     }
 }
 
-#assert(categorize_ti_struct(cast(*Type_Info_Struct)type_info(Vector3)) == .Float3);
+#assert(categorize_ti_struct(cast(*Type_Info_Struct)type_info(Vector3), null) == .Float3);
 
 Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
+Categorize_Type_Func :: #type (ti: *Type_Info) -> Struct_Looks_Like;
 
-inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null) {
-    inspect(name, t, type_info(T), show_node_func);
+inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null) {
+    inspect(name, t, type_info(T), show_node_func, categorize_type_func);
 }
 
-inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null) {
+inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null) {
     if show_node_func != null && !show_node_func(name, data, info)
         return;
 
@@ -91,7 +102,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             // @@ Open in new window?
             info_pointer := cast(*Type_Info_Pointer) info;
             assert(info_pointer.relative_pointer_size == 0, "TODO: implement relative pointers?");
-            inspect(name, <<(cast(**void)data), info_pointer.pointer_to, show_node_func);
+            inspect(name, <<(cast(**void)data), info_pointer.pointer_to, show_node_func, categorize_type_func);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
         case .VOID;
@@ -100,13 +111,19 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             TextUnformatted("Code");
         case .STRUCT;
             ti_struct := cast(*Type_Info_Struct) info;
-            if categorize_ti_struct(ti_struct) == {
+            if categorize_ti_struct(ti_struct, categorize_type_func) == {
                 case .Float2;
                     DragFloat2(name, cast([2]float)data);
                 case .Float3;
                     DragFloat3(name, cast([3]float)data);
                 case .Float4;
                     DragFloat4(name, cast([4]float)data);
+                case .Color_Byte4;
+                    bytes := cast(*u8)data;
+                    floats: [4]float;
+                    for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
+                    if ColorEdit4(name, floats)
+                        for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
                 case;
                     tree_node_str:string;
                     if name != null && str_length(name) > 0
@@ -126,7 +143,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                                 }
                             }
                             if !skip
-                                inspect(temp_c_string(member.name), data + member.offset_in_bytes, member.type, show_node_func);
+                                inspect(temp_c_string(member.name), data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func);
                         }
                     }
             }
@@ -139,14 +156,14 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 defer TreePop();
                 for 0..array_count-1 {
                     item_name := temp_c_string(tprint("%[%]", array_name, it));
-                    inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func);
+                    inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func, categorize_type_func);
                 }
             }
 
         case .ANY;
             // @@ Display type and inspect value.
             any := cast(*Any)data;
-            inspect(name, any.value_pointer, any.type, show_node_func);
+            inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func);
 
         case .ENUM;
             ti_enum := cast(*Type_Info_Enum) info;

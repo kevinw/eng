@@ -86,6 +86,14 @@ Maybe :: struct(V: Type) {
     has_value: bool;
 }
 
+categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
+    if ti == type_info(Color) {
+        return .Color_Byte4;
+    }
+
+    return .None;
+}
+
 
 Editor :: struct {
     undo_state: Undo.Impl;
@@ -184,7 +192,7 @@ draw_inspector :: (editor_state: *Editor) {
         component_ptr := get_component(entity, component_ti);
         assert(component_ptr != null);
         SetNextItemOpen(true);
-        inspect("", component_ptr, component_ti, classify_node);
+        inspect("", component_ptr, component_ti, classify_node, categorize_type);
     }
 }
 
@@ -259,7 +267,7 @@ editor_draw :: (state: *State) {
         Begin("DEBUG", *editor.windows.ecs_internals);
         defer End();
 
-        inspect("internals", *state.world.entities.items);
+        inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type);
     }
 
 
