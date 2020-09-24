@@ -81,10 +81,6 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
     if show_node_func != null && !show_node_func(name, data, info)
         return;
 
-    if data == null {
-        Text("%s (null)", name);
-        return;
-    }
 
     default_size:ImVec2;
 
@@ -132,7 +128,18 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             // TODO: show visually somehow that we're following a pointer, and not displaying a direct member field.
             //name_with_pointer := tprintz("*%", to_string(name)).data; 
 
-            inspect(name, <<(cast(**void)data), info_pointer.pointer_to, show_node_func, categorize_type_func);
+            next_data := <<(cast(**void)data);
+
+            if next_data == null {
+                if info_pointer.pointer_to.type == .STRUCT {
+                    Text("%s: (*%s)null", name, (cast(*Type_Info_Struct)info_pointer.pointer_to).name.data);
+                } else {
+                    Text("%s: null", name);
+                }
+                return;
+            }
+
+            inspect(name, next_data, info_pointer.pointer_to, show_node_func, categorize_type_func);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
         case .VOID;
