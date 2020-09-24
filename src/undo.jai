@@ -114,7 +114,7 @@ push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int) {
     assert(obj_data != null, "undo.push given a null pointer");
     
     for temp {
-        if it.action == .Mem_Copy && obj_data == it.data {
+        if it.action == .Mem_Copy && obj_data == it.pointer {
             assert(it.size == size_in_bytes, "You gave two different sizes for the same undo data pointer");
 
             // We can return without doing anything, since we already noted the state.
