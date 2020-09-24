@@ -7,11 +7,11 @@ imgui_init :: (ui: *UI_State) {
     style := ImGui.GetStyle();
     style.ScaleAllSizes(style, 1.2);
 
-    io := ImGui.GetIO();
-
     //font_file :: "resources/fonts/FiraCode-VariableFont_wght.ttf"; font_size :: 24;
-    font_file :: "resources/fonts/consola.ttf"; font_size :: 18;
+    //font_file :: "resources/fonts/consola.ttf"; font_size :: 18;
+    font_file :: "resources/fonts/Roboto-Regular.ttf"; font_size :: 20;
 
+    io := ImGui.GetIO();
     io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, font_size);
 
     ImGui_Impl_Init(ui, GetWindowHandle());
