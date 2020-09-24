@@ -111,16 +111,13 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     if InputFloat(name, *x, 0.01, 1.0) { <<cast(*float64) data = x; };
             }
         case .BOOL;
-            //Checkbox(name, data);
-            index: s32 = xx <<cast(*bool)data;
-            if Combo(name, *index, "false\0true\0\0") { <<cast(*bool)data = xx index; }
+            Checkbox(name, data);
         case .STRING;
             string_data := Reflection.get_string_data(data, xx info);
             string_count := Reflection.get_string_count(data, xx info);
             
             if string_data InputText(name, string_data, xx string_count, InputTextFlags.ReadOnly);    // @@ We could allow editing of strings too.
             else InputText(name, "(null)", 6, InputTextFlags.ReadOnly);
-
         case .POINTER;
             info_pointer := cast(*Type_Info_Pointer) info;
             assert(info_pointer.relative_pointer_size == 0, "implement relative pointers");

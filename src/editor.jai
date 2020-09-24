@@ -585,7 +585,7 @@ draw_inspector :: (editor_state: *Editor) {
             entity_handle = editor_state.selected[0].handle;
             ok, entity = get_entity(entity_handle);
         case;
-            Text("TODO: implement multiple selection.");
+            Text("Multiple objects are selected.");
             return;
     }
 

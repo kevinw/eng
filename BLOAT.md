@@ -12,8 +12,9 @@
 ```
 
 - make sure debug allocators are off
+- make sure ROBUSTNESS flags in entity / array with holes are off
 
-- link raylib statically
+- link (and other libraries?) raylib statically
 
 - bypass plugin architecture and embed game.dll functions directly
 -miniz (and probably others) has /z7 embedded debugging info
