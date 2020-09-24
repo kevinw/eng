@@ -479,6 +479,8 @@ editor_update :: (state: *State) {
     }
 
     if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+        Undo.push_array(*undo_state, *selected);
+
         if hover.has_value {
             if ctrl_down toggle_selection(hover);
             else set_selected(hover);

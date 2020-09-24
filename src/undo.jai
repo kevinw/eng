@@ -44,6 +44,11 @@ can_redo :: (impl: *Impl) -> bool {
 }
 
 push_array :: (using impl: *Impl, array: *[..]$T) {
+    // don't push more than once for the same array.
+    for temp
+        if it.pointer == array && it.action == .Array_Replacement
+            return;
+
     item := array_add(*temp);
 
     item.action = .Array_Replacement;
