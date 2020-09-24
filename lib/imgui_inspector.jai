@@ -18,6 +18,17 @@ Struct_Looks_Like :: enum {
     Color_Byte4  :: 1104;
 }
 
+should_display_struct_member :: (member: *Type_Info_Struct_Member) -> bool {
+    if member.flags & .CONSTANT != 0
+        return false;
+
+    for member.notes
+        if it == "noui"
+            return false;
+
+    return true;
+}
+
 categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Categorize_Type_Func) -> Struct_Looks_Like {
 
     if categorize_type_func != null {
@@ -65,19 +76,35 @@ inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, cat
 }
 
 inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null) {
+    using ImGui;
+
     if show_node_func != null && !show_node_func(name, data, info)
         return;
 
+    if data == null {
+        Text("%s (null)", name);
+        return;
+    }
+
     default_size:ImVec2;
-    using ImGui;
 
     PushID(data);
     defer PopID();
 
+    undo := *context.state.editor.undo_state;
+
     if #complete info.type == {
         case .INTEGER;
-            info_int := cast(*Type_Info_Integer) info;
-            InputInt(name, data); // @@ Add support for unsigned, and larger int types.
+            ti_int := cast(*Type_Info_Integer) info;
+            data_type: DataType;
+            if info.runtime_size == {
+                case 1; data_type = ifx ti_int.signed then DataType.S8 else DataType.U8;
+                case 2; data_type = ifx ti_int.signed then DataType.S16 else DataType.U16;
+                case 4; data_type = ifx ti_int.signed then DataType.S32 else DataType.U32;
+                case 8; data_type = ifx ti_int.signed then DataType.S64 else DataType.U64;
+                case; assert(false, tprint("don't know how to handle integer with Type_Info.runtime_size of %"));
+            }
+            InputScalar(name, data_type, data);
         case .FLOAT;
             if info.runtime_size == {
                 case 4;
@@ -99,9 +126,12 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             else InputText(name, "(null)", 6, InputTextFlags.ReadOnly);
 
         case .POINTER;
-            // @@ Open in new window?
             info_pointer := cast(*Type_Info_Pointer) info;
-            assert(info_pointer.relative_pointer_size == 0, "TODO: implement relative pointers?");
+            assert(info_pointer.relative_pointer_size == 0, "implement relative pointers");
+
+            // TODO: show visually somehow that we're following a pointer, and not displaying a direct member field.
+            //name_with_pointer := tprintz("*%", to_string(name)).data; 
+
             inspect(name, <<(cast(**void)data), info_pointer.pointer_to, show_node_func, categorize_type_func);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
@@ -122,29 +152,33 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     bytes := cast(*u8)data;
                     floats: [4]float;
                     for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
-                    if ColorEdit4(name, floats)
+                    if ColorEdit4(name, floats) {
+                        Undo.push(undo, data, 4);
                         for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
+                    }
+                    if IsItemDeactivatedAfterEdit()
+                        Undo.commit(undo);
                 case;
                     tree_node_str:string;
                     if name != null && str_length(name) > 0
-                        tree_node_str = tprint("%: %", to_string(name), ti_struct.name);
+                        tree_node_str = tprintz("%: %", to_string(name), ti_struct.name);
                     else
                         tree_node_str = ti_struct.name;
 
-                    if TreeNode(tree_node_str) {
-                        defer TreePop();
+                    //tree_node_flags := TreeNodeFlags.None;
+                    //tree_node_flags := TreeNodeFlags.DefaultOpen;
+                    tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
+                    PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
+                    if TreeNodeEx(tree_node_str.data, tree_node_flags) {
+                        PopStyleColor();
+                        for * member: ti_struct.members
+                            if should_display_struct_member(member)
+                                inspect(member.name.data, data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func);
 
-                        for member:ti_struct.members {
-                            skip := false;
-                            for note: member.notes {
-                                if note == "noui" {
-                                    skip = true;
-                                    break;
-                                }
-                            }
-                            if !skip
-                                inspect(temp_c_string(member.name), data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func);
-                        }
+                        if tree_node_flags & .NoTreePushOnOpen == 0
+                            TreePop();
+                    } else {
+                        PopStyleColor();
                     }
             }
         case .ARRAY;
@@ -159,15 +193,14 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func, categorize_type_func);
                 }
             }
-
         case .ANY;
             // @@ Display type and inspect value.
             any := cast(*Any)data;
             inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func);
-
         case .ENUM;
             ti_enum := cast(*Type_Info_Enum) info;
             if ti_enum.enum_type_flags & .Is_Flags {
+                // enum_flags
                 if ti_enum.internal_type.runtime_size > 4 {
                     TextUnformatted("TODO: 64bit enum_flags");
                 } else {

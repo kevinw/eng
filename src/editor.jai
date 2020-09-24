@@ -191,7 +191,6 @@ draw_inspector :: (editor_state: *Editor) {
 
         component_ptr := get_component(entity, component_ti);
         assert(component_ptr != null);
-        SetNextItemOpen(true);
         inspect("", component_ptr, component_ti, classify_node, categorize_type);
     }
 }
@@ -292,10 +291,13 @@ editor_draw :: (state: *State) {
         Begin("entities", *editor.windows.entities);
         defer End();
 
-        Text("%d total", count_items(*context.state.world.entities));
+        //Text("%d total", count_items(*context.state.world.entities));
 
         PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
         defer PopStyleVar();
+
+        ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
+        defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
 
         //if TreeNodeEx("Entities", .DefaultOpen) {
             //defer TreePop();
