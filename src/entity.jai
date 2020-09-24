@@ -322,6 +322,23 @@ foreach_component_type :: (inner_code_string: string) -> string {
     return builder_to_string(*sb);
 }
 
+runtime_bit_bucket_chooser :: (inner_code_string: string) -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    print_to_builder(*sb, "if component_bit == {\n");
+    for all_component_types {
+        print_to_builder(*sb, "    case .%;\n", it);
+        print_to_builder(*sb, "        bucket := *context.state.world._%;\n", it);
+        print_to_builder(*sb, "        %\n", inner_code_string);
+    }
+
+    print_to_builder(*sb, "    case; assert(false, \"unknown component bit\");\n");
+    print_to_builder(*sb, "}\n");
+
+    return builder_to_string(*sb);
+}
+
 runtime_bucket_chooser :: (inner_code_string: string) -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
@@ -444,14 +461,12 @@ destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
     entity := get_item_ptr(*context.state.world.entities, e);
     if !entity return;
 
-    // nocheckin: make a `runtime_bit_bucket_chooser`
-
     assert(other_e.id == e.id, "simple assignment of entity handle failed #2");
     for entity.components {
-        component_ti := component_bit_to_ti(it.bit);
+        component_bit := it.bit;
         component_handle := it.component_handle;
         {
-            #insert #run runtime_bucket_chooser(#string END
+            #insert #run runtime_bit_bucket_chooser(#string END
                 did_delete := delete_item(bucket, component_handle, undo);
                 assert(did_delete, "delete_item for component failed");
             END);

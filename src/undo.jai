@@ -297,7 +297,7 @@ pop_apply_and_push :: (from_stack: *[..]Item, to_stack: *[..]Item) {
                 // Restore the old array state.
                 <<arr = item.resizable_array;
 
-                // nocheckin SHOULD THIS BE REALLOC?
+                // @Leak SHOULD THIS BE REALLOC?
                 arr.data = alloc(arr.count * item.size);
                 //arr.data = realloc(arr.data, item.resizable_array.allocated * item.size, arr.allocated * item.size, arr.allocator, arr.allocator_data);
                 memcpy(arr.data, item.resizable_array.data, arr.count * item.size);
