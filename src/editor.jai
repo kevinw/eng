@@ -301,7 +301,7 @@ editor_draw :: (state: *State) {
             }
 
             if node_clicked.has_value {
-                set_selected(node_clicked.value);
+                set_or_toggle_selected(node_clicked.value);
                 if IsMouseDoubleClicked(0)
                     focus_editor_camera_on_entity(node_clicked.value);
             }
@@ -426,8 +426,7 @@ editor_update :: (state: *State) {
         Undo.push_array(*undo_state, *selected);
 
         if hover.has_value {
-            if ctrl_down toggle_selection(hover);
-            else set_selected(hover);
+            set_or_toggle_selected(hover.value);
             took_action = true;
         }
 
@@ -507,6 +506,12 @@ clear_selection :: () {
     if selected.count == 0 return;
 
     array_reset(*selected);
+}
+
+set_or_toggle_selected :: (entity_handle:  Entity_Handle) {
+    ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
+    if ctrl_down toggle_selection(entity_handle);
+    else set_selected(entity_handle);
 }
 
 set_selected :: (entity_handle: Entity_Handle, commit_undo := false) {
