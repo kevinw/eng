@@ -154,6 +154,8 @@ test_drag_and_drop:bool = false;
 selection_mask: s32 = (1 << 2);
 
 draw_inspector :: (editor_state: *Editor) {
+    using editor_state;
+
     using ImGui;
 
     Begin("Inspector");
@@ -161,12 +163,14 @@ draw_inspector :: (editor_state: *Editor) {
 
 
     entity: *Entity;
+    entity_handle: Entity_Handle;
     if editor_state.selected.count == {
         case 0; 
             // do nothing
         case 1;
             ok: bool;
-            ok, entity = get_entity(editor_state.selected[0].handle);
+            entity_handle = editor_state.selected[0].handle;
+            ok, entity = get_entity(entity_handle);
         case;
             Text("TODO: implement multiple selection.");
             return;
@@ -193,12 +197,26 @@ draw_inspector :: (editor_state: *Editor) {
         assert(component_ptr != null);
         inspect("", component_ptr, component_ti, classify_node, categorize_type);
     }
+
+    if Button("Add Component")
+        OpenPopup("add_component_popup");
+    if BeginPopup("add_component_popup") {
+        defer EndPopup();
+
+        bits_ti := cast(*Type_Info_Enum)type_info(Component_Bit);
+        for bits_ti.names {
+            if MenuItem(it.data, shortcut="", false) {
+                add_component(entity_handle, component_bit_to_ti(cast(Component_Bit)bits_ti.values[it_index]), undo=*undo_state);
+                Undo.commit(*undo_state);
+            }
+        }
+    }
 }
 
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
 
-    using context.state;
+    using state;
 
     color := YELLOW;
     color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
@@ -291,7 +309,13 @@ editor_draw :: (state: *State) {
         Begin("entities", *editor.windows.entities);
         defer End();
 
-        //Text("%d total", count_items(*context.state.world.entities));
+        if Button("New") {
+            entity_ptr, entity_handle := create_entity(undo=*editor.undo_state);
+            set_selected(entity_handle);
+            Undo.commit(*editor.undo_state);
+        }
+
+        //Text("%d total", count_items(*world.entities));
 
         PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
         defer PopStyleVar();
@@ -303,7 +327,7 @@ editor_draw :: (state: *State) {
             //defer TreePop();
 
             node_clicked: Maybe(Entity_Handle);
-            for handles(*context.state.world.entities) {
+            for handles(*world.entities) {
                 flags := TreeNodeFlags.SpanAvailWidth;
                 // flags |= .OpenOnArrow;
 
@@ -539,14 +563,17 @@ clear_selection :: () {
     array_reset(*selected);
 }
 
-set_selected :: (entity_handle: Entity_Handle) {
+set_selected :: (entity_handle: Entity_Handle, commit_undo := false) {
     using context.state.editor;
 
     if selected.count == 1 && selected[0].handle == entity_handle
         return;
 
+    array_reset(*selected);
     selected_obj := array_add(*selected);
     selected_obj.handle = entity_handle;
+
+    if commit_undo Undo.commit(*undo_state);
 }
 
 toggle_selection :: (entity_handle: Entity_Handle) -> bool {
@@ -613,13 +640,17 @@ save_scene :: (name: string) {
 }
 
 HelpMarker :: (desc: string) {
-    ImGui.TextDisabled("(?)");
-    if ImGui.IsItemHovered() {
-        ImGui.BeginTooltip();
-        ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35.0);
-        ImGui.TextUnformatted(tprintz(desc).data);
-        ImGui.PopTextWrapPos();
-        ImGui.EndTooltip();
+    using ImGui;
+
+    TextDisabled("(?)");
+    if IsItemHovered() {
+        BeginTooltip();
+        defer EndTooltip();
+
+        PushTextWrapPos(ImGui.GetFontSize() * 35.0);
+        defer PopTextWrapPos();
+
+        TextUnformatted(tprintz(desc).data);
     }
 }
 

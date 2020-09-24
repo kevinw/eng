@@ -41,7 +41,6 @@ State :: struct {
 };
 
 envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color, is_editor: bool = false) -> *Entity {
-
     undo: *Undo.Impl;
     if is_editor undo = *context.state.editor.undo_state;
 
@@ -61,8 +60,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 
     return entity;
 }
-
-
 
 CameraFunc :: #type (camera: *Camera2D, player: *Player, delta: float, w: int, h: int);
 
