@@ -94,9 +94,10 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
     return .None;
 }
 
-
 Editor :: struct {
     undo_state: Undo.Impl;
+
+    tweens: Tweens;
 
     windows: struct {
         undo := true;
@@ -122,6 +123,7 @@ Editor :: struct {
     world_mouse_pos: Vector2;
     mouse_pos: Latch(Vector2);
 
+    last_click_time: float64 = -99999;
 }
 
 editor_draw_world :: (state: *State) {
@@ -152,66 +154,6 @@ base_flags: ImGui.TreeNodeFlags = ImGui.TreeNodeFlags.OpenOnArrow | .OpenOnDoubl
 align_label_with_current_x_position:bool = false;
 test_drag_and_drop:bool = false;
 selection_mask: s32 = (1 << 2);
-
-draw_inspector :: (editor_state: *Editor) {
-    using editor_state;
-
-    using ImGui;
-
-    Begin("Inspector");
-    defer End();
-
-
-    entity: *Entity;
-    entity_handle: Entity_Handle;
-    if editor_state.selected.count == {
-        case 0; 
-            // do nothing
-        case 1;
-            ok: bool;
-            entity_handle = editor_state.selected[0].handle;
-            ok, entity = get_entity(entity_handle);
-        case;
-            Text("TODO: implement multiple selection.");
-            return;
-    }
-
-    classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
-        // Here we have the inspector omit showing info for the  "using component: Component;"
-        // field (this is the field that makes a struct a subclass of Component).
-        return cast(*Type_Info)type_info(Component) != ti;
-    }
-
-    if entity == null {
-        PushStyleColor(.Text, .{.35, .35, .35, 1});
-        defer PopStyleColor();
-        Text("Nothing selected.");
-        return;
-    }
-
-    for entity.components {
-        component_ti := component_bit_to_ti(it.bit);
-        assert(component_ti != null);
-
-        component_ptr := get_component(entity, component_ti);
-        assert(component_ptr != null);
-        inspect("", component_ptr, component_ti, classify_node, categorize_type);
-    }
-
-    if Button("Add Component")
-        OpenPopup("add_component_popup");
-    if BeginPopup("add_component_popup") {
-        defer EndPopup();
-
-        bits_ti := cast(*Type_Info_Enum)type_info(Component_Bit);
-        for bits_ti.names {
-            if MenuItem(it.data, shortcut="", false) {
-                add_component(entity_handle, component_bit_to_ti(cast(Component_Bit)bits_ti.values[it_index]), undo=*undo_state);
-                Undo.commit(*undo_state);
-            }
-        }
-    }
-}
 
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
@@ -360,6 +302,8 @@ editor_draw :: (state: *State) {
 
             if node_clicked.has_value {
                 set_selected(node_clicked.value);
+                if IsMouseDoubleClicked(0)
+                    focus_editor_camera_on_entity(node_clicked.value);
             }
 
         //}
@@ -617,6 +561,76 @@ editor_draw_ui :: () {
 
 #scope_file 
 
+draw_inspector :: (editor_state: *Editor) {
+    using editor_state;
+
+    using ImGui;
+
+    Begin("Inspector");
+    defer End();
+
+
+    entity: *Entity;
+    entity_handle: Entity_Handle;
+    if editor_state.selected.count == {
+        case 0; 
+            // do nothing
+        case 1;
+            ok: bool;
+            entity_handle = editor_state.selected[0].handle;
+            ok, entity = get_entity(entity_handle);
+        case;
+            Text("TODO: implement multiple selection.");
+            return;
+    }
+
+    classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
+        // Here we have the inspector omit showing info for the  "using component: Component;"
+        // field (this is the field that makes a struct a subclass of Component).
+        return cast(*Type_Info)type_info(Component) != ti;
+    }
+
+    if entity == null {
+        PushStyleColor(.Text, .{.35, .35, .35, 1});
+        defer PopStyleColor();
+        Text("Nothing selected.");
+        return;
+    }
+
+    for entity.components {
+        component_ti := component_bit_to_ti(it.bit);
+        assert(component_ti != null);
+
+        component_ptr := get_component(entity, component_ti);
+        assert(component_ptr != null);
+        inspect("", component_ptr, component_ti, classify_node, categorize_type);
+    }
+
+    if Button("Add Component")
+        OpenPopup("add_component_popup");
+    if BeginPopup("add_component_popup") {
+        defer EndPopup();
+
+        bits_ti := cast(*Type_Info_Enum)type_info(Component_Bit);
+        for bits_ti.names {
+            if MenuItem(it.data, shortcut="", false) {
+                add_component(entity_handle, component_bit_to_ti(cast(Component_Bit)bits_ti.values[it_index]), undo=*undo_state);
+                Undo.commit(*undo_state);
+            }
+        }
+    }
+}
+
+
+focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
+    ok, entity := get_entity(entity_handle);
+    if ok {
+        trs := get_transform(entity);
+        if trs != null
+            context.state.camera.target = trs.position.xy;
+    }
+}
+
 load_scene :: (name: string) {
     filename := tprint("%.wbml", name);
 
@@ -662,4 +676,5 @@ wbml :: #import "wbml";
 inp :: #import "inp";
 File :: #import "File";
 #import "Random";
+#import "tween";
 #import "Array_With_Holes";
