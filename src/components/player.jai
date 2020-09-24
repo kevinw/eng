@@ -12,13 +12,15 @@ JUMP_FLOAT :: 0.39;
 JUMP_FLOAT_POW :: 1.1;
 
 player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
-#import "raylib";
+
 #import "toolbelt";
-inp :: #import "inp";
-Math :: #import "Math";
-#import "raymath";
 #import "game_sound_soloud";
 #import "Basic";
+rl :: #import "raylib";
+Color :: rl.Color;
+Vector2 :: rl.Vector2;
+inp :: #import "inp";
+Math :: #import "Math";
 reaper :: #import "reaper";
 screenlog :: #import "screenlog";
 
@@ -77,7 +79,7 @@ patch_function_pointers :: () {
 Takes_Damage :: struct {
     // damage
     time: float64 = -999999;
-    delta: Vector2;
+    delta: rl.Vector2;
 
     health: float = 100;
 
@@ -104,14 +106,14 @@ being_damaged :: (damage: *Takes_Damage) -> bool {
     return Time.now - damage.time < damage.damage_time;
 }
 
-try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
+try_take_damage :: (it: *Takes_Damage, delta: rl.Vector2) -> bool {
     if being_damaged(it) return false;
 
     take_damage(it, delta);
     return true;
 }
 
-take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
+take_damage :: (using it: *Takes_Damage, in_delta: rl.Vector2) {
     using context.state;
 
     amount := 1.0;
@@ -126,7 +128,7 @@ take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
 Player :: struct {
     using component: Component;
 
-    speed: Vector2;
+    speed: rl.Vector2;
     grounded: bool;
     jump_count: u8;
 
@@ -196,10 +198,10 @@ update :: (using player: *Player) {
 
     gamepad :: 0;
 
-    a_jump_input_is_present := IsKeyDown(.KEY_SPACE) ||
-        (input_types & .KEYBOARD_WASD && IsKeyDown(.KEY_W)) ||
-        IsKeyDown(.KEY_UP) ||
-        IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+    a_jump_input_is_present := rl.IsKeyDown(.KEY_SPACE) ||
+        (input_types & .KEYBOARD_WASD && rl.IsKeyDown(.KEY_W)) ||
+        rl.IsKeyDown(.KEY_UP) ||
+        rl.IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
 
     jump_button_this_frame := !is_being_knocked_back && a_jump_input_is_present;
     jump_button_pressed_this_frame := jump_button_this_frame && !jump_button_last_frame;
@@ -212,7 +214,7 @@ update :: (using player: *Player) {
 
     if !is_being_knocked_back {
         // ATTACK
-        if (IsKeyPressed(.KEY_E) || IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+        if (rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
             attack_offset :: Vector2.{0, -20};
             if nearest_marker && (allow_all_beats || (Math.abs(time_since_marker) < .2 && nearest_marker.beat_type == .Kick)) {
                 last_attack_time = Time.now;
@@ -279,7 +281,7 @@ update :: (using player: *Player) {
             jump_count = 0;
         }
 
-        if !any_ground_at_feet && CheckCollisionRecs(ground_scan_rect, rect)
+        if !any_ground_at_feet && rl.CheckCollisionRecs(ground_scan_rect, rect)
             any_ground_at_feet = true;
     }
 
@@ -324,7 +326,7 @@ update :: (using player: *Player) {
 
             e_transform := get_transform(entity);
             e_rect := enemy_rect(it, e_transform);
-            if !is_being_knocked_back && CheckCollisionRecs(e_rect, p_rect) && !being_damaged(*it.damage) {
+            if !is_being_knocked_back && rl.CheckCollisionRecs(e_rect, p_rect) && !being_damaged(*it.damage) {
                 // player hit
                 delta := midpoint(e_rect) - p_midpoint;
                 take_damage(*damage, delta);
@@ -333,7 +335,7 @@ update :: (using player: *Player) {
                 speed.y = -PLAYER_JUMP_SPD * 0.45;
                 speed.x = DAMAGE_KNOCKBACK * cast(float)-sign(delta.x);
                 grounded = false;
-            } else if attack_hitbox && CheckCollisionRecs(e_rect, attack_hitbox_rect) {
+            } else if attack_hitbox && rl.CheckCollisionRecs(e_rect, attack_hitbox_rect) {
                 //logprint("player", "hit enemy %", it);
 
                 delta := midpoint(e_rect) - p_midpoint;
@@ -445,7 +447,8 @@ draw :: (using player: *Player) {
     dest_rect.height *= squish;
     dest_rect.y += squish_offset;
 
-    color := WHITE;
+    color := rl.WHITE;
+    Color :: rl.Color;
     if is_being_knocked_back
         color = Color.{255, 100, 100, 255};
 
@@ -459,7 +462,7 @@ draw :: (using player: *Player) {
     //screenlog.world(position, "%", position);
 
     if state.debug_draw {
-        debug_color :: RED;
+        debug_color :: rl.RED;
         draw_point(position.xy, 6, debug_color);
         draw_rect_outline(player_rect(player, transform), 2, debug_color);
         if player_attack_hitbox(player)
@@ -471,12 +474,12 @@ draw :: (using player: *Player) {
     }
 }
 
-player_ground_scan_rect :: (using it: *Player, transform: *Transform) -> Rectangle {
+player_ground_scan_rect :: (using it: *Player, transform: *Transform) -> rl.Rectangle {
     W :: 15;
     return rect(transform.position.x - W/2, transform.position.y, W, 4);
 }
 
-player_rect :: (using it: *Player, transform: *Transform=null) -> Rectangle {
+player_rect :: (using it: *Player, transform: *Transform=null) -> rl.Rectangle {
     if transform == null {
         // TODO: there should be systems that automatically grab the transform along with the
         // player pointer...
@@ -489,7 +492,7 @@ player_rect :: (using it: *Player, transform: *Transform=null) -> Rectangle {
     return outline_rect;
 }
 
-player_attack_rect :: (using it: *Player, transform: *Transform) -> Rectangle {
+player_attack_rect :: (using it: *Player, transform: *Transform) -> rl.Rectangle {
     x_off := ifx it.last_direction < 0 then -33 else 4;
     return rect(transform.position.x + x_off, transform.position.y - 25, 30, 20);
 }

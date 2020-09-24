@@ -2,9 +2,9 @@ Sprite_Anim :: struct {
     MAX_FRAME_COUNT :: 500;
 
     Frame :: struct {
-        texture: Texture;
-        rect: Rectangle;
-        offset: Vector2;
+        texture: rl.Texture;
+        rect: rl.Rectangle;
+        offset: rl.Vector2;
         duration_secs: float;
     }
 
@@ -59,7 +59,7 @@ get_frame :: (using sprite_anim: *Sprite_Anim, timer: float64, tag_name := "") -
     return false, .{}, -1;
 }
 
-draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: Vector2, tag_name := "") {
+draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: rl.Vector2, tag_name := "") {
     assert(sprite_anim != null);
     assert(frames.count > 0);
     assert(frames.count < MAX_FRAME_COUNT);
@@ -70,8 +70,8 @@ draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: Vector2, tag_name 
         logprint("warning", "couldn't get frame");
 }
 
-draw_frame :: (frame: Sprite_Anim.Frame, pos: Vector2) {
-    dest_rect := make_Rectangle(pos.x, pos.y, frame.rect.width, frame.rect.height);
+draw_frame :: (frame: Sprite_Anim.Frame, pos: rl.Vector2) {
+    dest_rect := rl.make_Rectangle(pos.x, pos.y, frame.rect.width, frame.rect.height);
     toolbelt.draw_texture(frame.texture, frame.rect, dest_rect, frame.offset);
 }
 
@@ -90,18 +90,20 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
         total_height = max(total_height, it.height);
     }
 
-    atlas_img := GenImageColor(total_width, total_height, Color.{0, 0, 0, 0});
+    TRANSPARENT_BLACK: rl.Color;
+
+    atlas_img := rl.GenImageColor(total_width, total_height, TRANSPARENT_BLACK);
     toolbelt.print_time("generating atlas (% x %) for '%'", total_width, total_height, filename);
     
-    dest_rect: Rectangle;
+    dest_rect: rl.Rectangle;
     for imgs {
-        src_img := LoadImageEx(cast(*Color)it.pixels.data, it.width, it.height);
-        defer UnloadImage(src_img);
+        src_img := rl.LoadImageEx(cast(*rl.Color)it.pixels.data, it.width, it.height);
+        defer rl.UnloadImage(src_img);
 
-        src_rect := make_Rectangle(0, 0, it.width, it.height);
+        src_rect := rl.make_Rectangle(0, 0, it.width, it.height);
         dest_rect.width = cast(float)it.width;
         dest_rect.height = cast(float)it.height;
-        ImageDraw(*atlas_img, src_img, src_rect, dest_rect, WHITE);
+        rl.ImageDraw(*atlas_img, src_img, src_rect, dest_rect, rl.WHITE);
 
         frame := array_add(*sprite_anim.frames);
         frame.rect = dest_rect;
@@ -115,7 +117,7 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
         dest_rect.x += dest_rect.width;
     }
 
-    tex := LoadTextureFromImage(atlas_img);
+    tex := rl.LoadTextureFromImage(atlas_img);
 
     for imgs
         sprite_anim.frames[it_index].texture = tex;
@@ -136,7 +138,7 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
 }
 
 #scope_file
-#import "raylib";
+rl :: #import "raylib";
 #import "Basic";
 toolbelt :: #import "toolbelt";
 Math :: #import "Math";

@@ -1,5 +1,5 @@
 #import "Basic";
-#import "raylib";
+rl :: #import "raylib";
 #import "toolbelt";
 
 // TODO: logs should use the camera's zoom to maintain its size on screen
@@ -20,7 +20,7 @@ Entry :: struct {
     ident: string;
 
     use_world_pos := false;
-    world_pos: Vector2;
+    world_pos: rl.Vector2;
 }
 
 #scope_module
@@ -31,7 +31,7 @@ Logger_State :: struct {
     this_frame_entries: [..]Entry;
 }
 
-world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
+world :: (pos: rl.Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
@@ -82,7 +82,7 @@ sticky :: (message: string, args: ..Any) {
     entry.message = copy_string_z(tprint(message, ..args));
 }
 
-world :: (world_pos: Vector2, message: string, args: ..Any) {
+world :: (world_pos: rl.Vector2, message: string, args: ..Any) {
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
@@ -115,7 +115,7 @@ draw :: () {
     y:s32 = 0;
     font_size:s32 = 22;
     for * entries {
-        DrawText(it.message, 0, y, font_size, WHITE);
+        rl.DrawText(it.message, 0, y, font_size, rl.WHITE);
         y += font_size;
     }
 
@@ -124,7 +124,7 @@ draw :: () {
     y = 0;
     for * this_frame_entries {
         if it.use_world_pos continue;
-        DrawText(it.message, x, y, font_size, WHITE);
+        rl.DrawText(it.message, x, y, font_size, rl.WHITE);
         y += font_size;
     }
 
@@ -138,7 +138,7 @@ draw_world :: () {
 
     font_size :: 9;
 
-    draw :: #code { DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, WHITE); };
+    draw :: #code { rl.DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, rl.WHITE); };
 
     for * this_frame_entries if it.use_world_pos
         #insert_internal draw;

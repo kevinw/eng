@@ -59,12 +59,13 @@ we have now, and this kind of thing...
     #load "components/transform_test_components.jai";
 }
 #load "components/editor_selectable_rect.jai";
+#load "components/camera.jai";
 
 Transform :: struct {
     using component: Component;
-    position: Vector3 = Vector3.{0, 0, 0};
-    rotation: Quaternion = Vector4.{0, 0, 0, 1};
-    scale: Vector3 = Vector3.{1, 1, 1};
+    position: rl.Vector3 = .{0, 0, 0};
+    rotation: rl.Quaternion = .{0, 0, 0, 1};
+    scale: rl.Vector3 = .{1, 1, 1};
 }
 
 Link :: struct {
@@ -242,18 +243,18 @@ get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Componen
     return null;
 }
 
-entity_rect :: (entity_handle: Entity_Handle) -> Rectangle {
+entity_rect :: (entity_handle: Entity_Handle) -> rl.Rectangle {
     ok, entity := get_entity(entity_handle);
     assert(ok && entity != null);
     return entity_rect(entity);
 }
 
-operator + :: inline (rect: Rectangle, pos: Vector2) -> Rectangle {
-    return make_Rectangle(rect.x + pos.x, rect.y + pos.y, rect.width, rect.height);
+operator + :: inline (rect: rl.Rectangle, pos: rl.Vector2) -> rl.Rectangle {
+    return rl.make_Rectangle(rect.x + pos.x, rect.y + pos.y, rect.width, rect.height);
 }
 
 
-entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
+entity_rect :: (entity: *Entity, verbose := false) -> rl.Rectangle {
     if entity.flags & .Has_Component_Rect {
 
         // TODO: this is the kind of thing where we might be able to know based on the bitflag in the entity,
@@ -293,7 +294,7 @@ entity_rect :: (entity: *Entity, verbose := false) -> Rectangle {
     if entity.flags & .Pivot_Center
         pos -= sz * 0.5;
 
-    return make_Rectangle(pos.x, pos.y, sz.x, sz.y);
+    return rl.make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
 get_component_buckets :: () -> string {
@@ -628,8 +629,8 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     return ptr;
 }
 
-spawn_prefab :: (name: string, world_pos: Vector2) -> (*Entity, Entity_Handle) {
-    world_pos_v3: Vector3 = ---;
+spawn_prefab :: (name: string, world_pos: rl.Vector2) -> (*Entity, Entity_Handle) {
+    world_pos_v3: rl.Vector3 = ---;
     world_pos_v3.x = world_pos.x;
     world_pos_v3.y = world_pos.y;
     world_pos_v3.z = 0;
@@ -695,13 +696,13 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
 #scope_file
 
 #import "Basic";
-#import "raylib";
-
 File :: #import "File";
 wbml :: #import "wbml";
 laas :: #import "laas";
 String :: #import "String";
 Undo :: #import "undo";
+rl :: #import "raylib";
+Vector3 :: rl.Vector3;
 
 #import "live_raylib";
 

@@ -1,5 +1,4 @@
 #import "Basic";
-#import "raylib";
 #import "Windows";
 #import "Hotloader";
 #import "String";
@@ -7,6 +6,7 @@
 #import "Process";
 #import "System";
 #import "toolbelt";
+rl :: #import "raylib";
 File :: #import "File";
 String :: #import "String";
 Debug :: #import "Debug";
@@ -199,7 +199,7 @@ main :: () {
             game_index = idx;
     }
 
-    SetTraceLogLevel(.LOG_WARNING); // raylib (.LOG_ALL for everything)
+    rl.SetTraceLogLevel(.LOG_WARNING); // raylib (.LOG_ALL for everything)
 
     host_config_name :: "setup.cfg";
     parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
@@ -209,9 +209,9 @@ main :: () {
     //assets.start_thread();
     //defer assets.stop_thread();
 
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "");
-    SetWindowPosition(win_x, win_y);
-    defer CloseWindow();
+    rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "");
+    rl.SetWindowPosition(win_x, win_y);
+    defer rl.CloseWindow();
 
     context.logger_data = New(screenlog.Logger_State);
     context.logger = screenlog.context_func;
@@ -219,7 +219,7 @@ main :: () {
 
     #if ALWAYS_ON_TOP
         if cmdline_args.topmost_window
-            platform.set_window_always_on_top(GetWindowHandle());
+            platform.set_window_always_on_top(rl.GetWindowHandle());
 
     if cmdline_args.live_reload {
         hotloader_init(".", _DEBUG_LOGGING=false);
@@ -250,13 +250,13 @@ main :: () {
     assert(context.state != null, "plugin_init did not allocate a state");
     defer plugin_deinit(shutting_down = true);
 
-    native_window_handle := GetWindowHandle();
+    native_window_handle := rl.GetWindowHandle();
     window_was_active := platform.is_window_active(native_window_handle);
 
-    SetTargetFPS(60);
+    rl.SetTargetFPS(60);
     frame_count := 0;
 
-    while !WindowShouldClose() {
+    while !rl.WindowShouldClose() {
         auto_release_temp();
         frame_count += 1;
 
@@ -272,12 +272,12 @@ main :: () {
         }
 
 
-        if IsKeyPressed(.KEY_ZERO) {
+        if rl.IsKeyPressed(.KEY_ZERO) {
             top := platform.toggle_always_on_top(native_window_handle);
             logprint("host", ifx top then "window always on top" else "window not topmost");
         }
 
-        if IsKeyPressed(.KEY_NINE) {
+        if rl.IsKeyPressed(.KEY_NINE) {
             transparent_while_not_focused = !transparent_while_not_focused;
             logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         }
@@ -285,14 +285,14 @@ main :: () {
         if cmdline_args.live_reload {
             if frame_count % 4 == 0 hotloader_process_change();
 
-            recompile_requested := IsKeyPressed(.KEY_R) && (IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT));
+            recompile_requested := rl.IsKeyPressed(.KEY_R) && (rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT));
             if recompile_requested {
                 do_recompile();
             }
 
             game_delta := 0;
-            if IsKeyPressed(.KEY_LEFT_BRACKET) game_delta -= 1;
-            if IsKeyPressed(.KEY_RIGHT_BRACKET) game_delta += 1;
+            if rl.IsKeyPressed(.KEY_LEFT_BRACKET) game_delta -= 1;
+            if rl.IsKeyPressed(.KEY_RIGHT_BRACKET) game_delta += 1;
             if game_delta != 0 {
                 game_index += game_delta;
                 if game_index < 0 game_index = all_games.count - 1;
@@ -335,12 +335,12 @@ main :: () {
         plugin_tick(host_state);
     }
 
-    if !IsWindowFullscreen() && !platform.is_window_borderless(native_window_handle) {
+    if !rl.IsWindowFullscreen() && !platform.is_window_borderless(native_window_handle) {
         builder: String_Builder;
         defer free_buffers(*builder);
 
         append(*builder, "[1]\n\n");
-        pos := GetWindowPosition();
+        pos := rl.GetWindowPosition();
         print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\n", cast(s32)pos.x, cast(s32)pos.y);
 
         output := builder_to_string(*builder);

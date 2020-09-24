@@ -36,7 +36,7 @@ set_shader_val :: (shader: LiveShader, name: string, val: $T) {
     set_shader_val(shader.resource, name, val);
 }
 
-LoadLiveTexture :: (filename: string, raylib_texture: Texture) -> LiveTexture {
+LoadLiveTexture :: (filename: string, raylib_texture: rl.Texture) -> LiveTexture {
     // create a new live entry for a texture loaded elsewhere (through aseprite for example)
 
     new_entry := array_add(*context.state.live.textures);
@@ -91,7 +91,7 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
         new_entry := array_add(*context.state.live.textures);
         assert(old_pointer == null || context.state.live.textures.data == old_pointer, "moved!?");
         new_entry.filename = copy_string(filename);
-        new_entry.resource = LoadTexture(constant_or_temp_cstring(filename));
+        new_entry.resource = rl.LoadTexture(constant_or_temp_cstring(filename));
         obj._entry = new_entry;
     }
 
@@ -121,7 +121,7 @@ LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
         vs_filenamez: *u8 = ifx new_entry.vs_filename.count > 0 then constant_or_temp_cstring(new_entry.vs_filename) else null;
         fs_filenamez: *u8 = ifx new_entry.fs_filename.count > 0 then constant_or_temp_cstring(new_entry.fs_filename) else null;
 
-        new_entry.resource = LoadShader(vs_filenamez, fs_filenamez);
+        new_entry.resource = rl.LoadShader(vs_filenamez, fs_filenamez);
         obj._entry = new_entry;
     }
 
@@ -129,18 +129,18 @@ LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
     return obj;
 }
 
-DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: Color) {
-    DrawTexture(texture._entry.resource, posX, posY, tint);
+DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: rl.Color) {
+    rl.DrawTexture(texture._entry.resource, posX, posY, tint);
 }
 
-DrawTexturePro :: (texture: LiveTexture, src_rect: Rectangle, dest_rect: Rectangle, offset: Vector2 = .{0, 0}, rotation:float = 0, color := WHITE) {
-    DrawTexturePro(texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
+DrawTexturePro :: (texture: LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.Rectangle, offset: rl.Vector2 = .{0, 0}, rotation:float = 0, color := rl.WHITE) {
+    rl.DrawTexturePro(texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
 UnloadLiveTexture :: (texture: LiveTexture) {
     texture._entry.count -= 1;
     if texture._entry.count == 0 {
-        UnloadTexture(texture._entry.resource);
+        rl.UnloadTexture(texture._entry.resource);
         free(texture._entry.filename);
         for * context.state.live.textures
             if texture._entry == it
@@ -153,8 +153,8 @@ TryReloadLiveShaderPath :: (filename: string) -> bool {
 
     for * context.state.live.shaders {
         if it.vs_filename == filename || it.fs_filename == filename {
-            UnloadShader(it.resource);
-            it.resource = LoadShader(
+            rl.UnloadShader(it.resource);
+            it.resource = rl.LoadShader(
                 _to_temp_c_string(it.vs_filename),
                 _to_temp_c_string(it.fs_filename),
             );
@@ -170,8 +170,8 @@ TryReloadLiveTexturePath :: (filename: string) -> bool {
 
     for * context.state.live.textures {
         if it.filename == filename {
-            UnloadTexture(it.resource);
-            it.resource = LoadTexture(_to_temp_c_string(it.filename));
+            rl.UnloadTexture(it.resource);
+            it.resource = rl.LoadTexture(_to_temp_c_string(it.filename));
             found = true;
         }
     }
@@ -207,6 +207,6 @@ _to_temp_c_string :: (s: string) -> *u8 {
 
 #scope_file
 #import "toolbelt";
-#import "raylib";
+rl :: #import "raylib";
 #import "Basic";
 #import "Sprite_Anim";

@@ -6,6 +6,8 @@ DYING_FPS :: 9;
 #import "raymath";
 #import "game_sound_soloud";
 #import "Sprite_Anim";
+rl :: #import "raylib";
+Vector4 :: rl.Vector4;
 
 evilplant: LiveTexture;
 evilplant_sprite: struct {
@@ -75,14 +77,14 @@ on_enable :: (using it: *Enemy, parent_entity: *Entity) {
     editor_rect = add_component(it.entity, Editor_Selectable_Rect);
 }
 
-enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
+enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: rl.Vector2) {
     if try_take_damage(*damage, delta) {
         last_attack_time = -99999;
         attack_cooldown = ATTACK_COOLDOWN;
     }
 }
 
-enemy_rect :: (using it: *Enemy, transform: *Transform=null) -> Rectangle {
+enemy_rect :: (using it: *Enemy, transform: *Transform=null) -> rl.Rectangle {
     using context.state;
 
     if transform == null
@@ -102,7 +104,7 @@ enemy_rect :: (using it: *Enemy, transform: *Transform=null) -> Rectangle {
     return rect_from_points(position.xy + v2(-w*0.5, 0), position.xy + v2(w*0.5, -h));
 }
 
-enemy_trigger_rect :: (using it: *Enemy, transform: *Transform) -> Rectangle {
+enemy_trigger_rect :: (using it: *Enemy, transform: *Transform) -> rl.Rectangle {
     position := *transform.position;
     w:float: 90;
     h:float = 25;
@@ -142,17 +144,17 @@ draw :: (using it: *Enemy, transform: *Transform) {
 
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
 
-    color := WHITE;
+    color := rl.WHITE;
     if being_damaged(*damage) {
-        color = ColorFromNormalized(Vector4.{1, .5, .5, 1});
+        color = rl.ColorFromNormalized(Vector4.{1, .5, .5, 1});
     }
     DrawTexturePro(evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     if debug_draw {
-        draw_point(position.xy, 4, RED);
+        draw_point(position.xy, 4, rl.RED);
         r := enemy_rect(it, transform);
-        draw_rect_outline(r, 2, RED);
-        draw_rect_outline(enemy_trigger_rect(it, transform), 2, RED);
+        draw_rect_outline(r, 2, rl.RED);
+        draw_rect_outline(enemy_trigger_rect(it, transform), 2, rl.RED);
     }
 }
 
@@ -161,8 +163,8 @@ draw :: (using it: *Enemy, transform: *Transform) {
 enemy_update_all :: () {
     using context.state;
 
-    p_rect: Rectangle;
-    player_midpoint: Vector2;
+    p_rect: rl.Rectangle;
+    player_midpoint: rl.Vector2;
 
     all_players := get_components(Player);
     assert(all_players.count < 2, "right now only coded for one player, but there are: %", all_players.count);
@@ -195,7 +197,7 @@ enemy_update_all :: () {
 
         if all_players.count > 0 {
             e_rect := enemy_trigger_rect(it, transform);
-            if CheckCollisionRecs(p_rect, e_rect) {
+            if rl.CheckCollisionRecs(p_rect, e_rect) {
                 // ENEMY ATTACKING!
                 attack_cooldown = ATTACK_COOLDOWN;
 

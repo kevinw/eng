@@ -1,4 +1,5 @@
 #scope_file
+rl :: #import "raylib";
 #scope_export
 
 Shape_Renderer :: struct {
@@ -10,7 +11,7 @@ Shape_Renderer :: struct {
     }
 
     shape: Shape = .Circle;
-    color: Color = MAGENTA;
+    color: rl.Color = rl.MAGENTA;
 }
 
 draw :: (using shape_renderer: *Shape_Renderer, transform: *Transform) {
@@ -18,10 +19,10 @@ draw :: (using shape_renderer: *Shape_Renderer, transform: *Transform) {
     if shape == {
         case .Circle;
             radius := max(scl.x, scl.y);
-            DrawCircleV(transform.position.xy, radius, color);
+            rl.DrawCircleV(transform.position.xy, radius, color);
         case .Square;
             p := transform.position.xy - scl * 0.5;
-            DrawRectangleV(p, scl, color);
+            rl.DrawRectangleV(p, scl, color);
     }
 
 } @draw

@@ -30,7 +30,7 @@ LiveTextureEntry :: struct {
     using _live_entry: LiveEntry;
 
     filename: string;
-    using resource: Texture;
+    using resource: rl.Texture;
 }
 
 LiveShaderEntry :: struct {
@@ -39,9 +39,9 @@ LiveShaderEntry :: struct {
     vs_filename: string;
     fs_filename: string;
 
-    using resource: Shader;
+    using resource: rl.Shader;
 }
 
 #scope_file
-#import "raylib";
+rl :: #import "raylib";
 #import "Sprite_Anim";
