@@ -82,24 +82,37 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             seen_offsets: [..]int;
             seen_offsets.allocator = __temporary_allocator;
             for * (cast(*Type_Info_Struct)ti).members {
-                if it.flags & .CONSTANT continue;
-                if !array_add_if_unique(*seen_offsets, it.offset_in_bytes) {
-                    // we skip #place directives by ignoring fields which are at byte
-                    // offsets we've already seen.
+                if !should_serialize_struct_member(it, *seen_offsets)
                     continue;
-                }
                 print_indents(indent_level, sb);
                 serialize_with_type_info(it.name, value + it.offset_in_bytes, it.type, sb, indent_level, tprint("%.%", debug_name, it.name));
             }
             indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "}");
         case .POINTER;
-            print("TODO: skipping wbml serialize for %\n", debug_name);
+            print("TODO: skipping wbml serialize POINTER for %\n", debug_name);
         case;
             panic(tprint("%: % (%)", name, ti.type, debug_name));
     }
 
     if do_newline
         print_to_builder(sb, "\n");
+}
+
+should_serialize_struct_member :: (it: *Type_Info_Struct_Member, seen_offsets: *[..]int) -> bool {
+    if it.flags & .CONSTANT
+        return false;
+
+    for note: it.notes
+        if note == "noserialize"
+            return false;
+
+    if !array_add_if_unique(seen_offsets, it.offset_in_bytes) {
+        // we skip #place directives by ignoring fields which are at byte
+        // offsets we've already seen.
+        return false;
+    }
+
+    return true;
 }
 
 deserialize :: inline ($T: Type, data: string) -> T {
@@ -601,7 +614,6 @@ eat_newlines :: (lexer: *laas.Lexer) {
     }
 }
 
-
 run_tests :: () {
     len :: (a: []$A) -> int { return a.count; }
 
@@ -843,6 +855,19 @@ END;
 	assert(b.empty_slice.data == null, tprint("%", b.empty_slice));
 	assert(len(b.empty_slice) == 0, tprint("%", len(b.empty_slice)));
 
-	print("Tests done!\n");
+    // check that @noserialize members are skipped
+    {
+        Meep :: struct {
+            yes: int;
+            no: int; @noserialize
+        }
+        m := Meep.{yes = 42, no = 99};
+        meep_str := serialize(*m);
+        m2 := deserialize(Meep, meep_str);
+        assert(m2.yes == 42);
+        assert(m2.no == 0, "the 'no' field should not have been serialized b/c of note @noserialized:\n\n%", meep_str);
+    }
+
+	print("wbml tests done!\n");
 }
 
