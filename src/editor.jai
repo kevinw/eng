@@ -134,9 +134,7 @@ editor_draw_world :: (state: *State) {
     if selected.count > 0 {
         for selected {
             ok, entity := get_entity(it);
-            if ok {
-                DrawRectangleLinesEx(entity_rect(entity), 2, WHITE);
-            }
+            if ok DrawRectangleLinesEx(entity_rect(entity), 2, WHITE);
         }
     } else if drag_state.dragging {
         DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, RED);

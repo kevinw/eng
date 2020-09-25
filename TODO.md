@@ -1,5 +1,6 @@
 # TODO
 
+- @bug saving changes sometimes results in the DLL being loaded twice.
 - footsteps with reverb - going to need a way to do dynamic sound in this game about sound
 
 ## general Jai research projects

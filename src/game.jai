@@ -5,6 +5,7 @@ GAME_NAME :: "beat_platformer";
 Math :: #import "Math";
 wbml :: #import "wbml";
 reaper :: #import "reaper";
+rl :: #import "raylib";
 
 gameWidth  :: 640;
 gameHeight :: 360;
@@ -28,8 +29,6 @@ State :: struct {
 
     player: *Player;
     scene: struct {};
-
-    cameraOption: int = 1;
 
     bg: struct {
         timer: float64;
@@ -61,14 +60,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     return entity;
 }
 
-CameraFunc :: #type (camera: *Camera2D, player: *Player, delta: float, w: int, h: int);
-
-cameraUpdaters :: CameraFunc.[
-    UpdateCameraCenter,
-    UpdateCameraCenterSmoothFollow,
-    UpdateCameraEvenOutOnLanding,
-    UpdateCameraPlayerBoundsPush
-];
+CameraFunc :: #type (camera: *rl.Camera2D, player: *Player, delta: float, w: int, h: int);
 
 update_bgm_volume :: () {
     using context.state;
@@ -226,14 +218,13 @@ update_and_draw :: () {
             }
         }
 
-        if IsKeyPressed(.KEY_C) cameraOption = (cameraOption + 1) % cameraUpdaters.count;
         if IsKeyPressed(.KEY_M) {
             muted = !muted;
             update_bgm_volume();
         }
 
         if context.state.editor.play_mode == .Play
-            cameraUpdaters[cameraOption](*camera, player, Time.delta_time, gameWidth, gameHeight);
+            UpdateCameraCenterSmoothFollow(*camera, player, Time.delta_time, gameWidth, gameHeight);
     }
 
     {
@@ -279,12 +270,7 @@ update_and_draw :: () {
     }
 }
 
-UpdateCameraCenter :: (using camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
-    offset = make_Vector2(width/2, height/2);
-    target = get_transform(player).position.xy;
-}
-
-UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
+UpdateCameraCenterSmoothFollow :: (camera: *rl.Camera2D, player: *Player, delta: float, width: int, height: int) {
     minSpeed :: 30.0;
     minEffectLength :: 10.0;
     fractionSpeed :: 2.9;
@@ -301,57 +287,3 @@ UpdateCameraCenterSmoothFollow :: (camera: *Camera2D, player: *Player, delta: fl
     }
 }
 
-even_out_state: struct {
-    eveningOut: int;
-    evenOutTarget: float;
-};
-
-UpdateCameraEvenOutOnLanding :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
-    using even_out_state;
-
-    evenOutSpeed :: 700;
-    
-    camera.offset = make_Vector2(width/2, height/2);
-    transform := get_transform(player);
-    camera.target.x = transform.position.x;
-    
-    if eveningOut {
-        if evenOutTarget > camera.target.y {
-            camera.target.y += evenOutSpeed*delta;
-            
-            if camera.target.y > evenOutTarget {
-                camera.target.y = evenOutTarget;
-                eveningOut = 0;
-            }
-        } else {
-            camera.target.y -= evenOutSpeed*delta;
-            
-            if camera.target.y < evenOutTarget {
-                camera.target.y = evenOutTarget;
-                eveningOut = 0;
-            }
-        }
-    } else {
-        if (player.speed.y == 0) && (transform.position.y != camera.target.y) {
-            eveningOut = 1;
-            evenOutTarget = transform.position.y;
-        }
-    }
-}
-
-UpdateCameraPlayerBoundsPush :: (camera: *Camera2D, player: *Player, delta: float, width: int, height: int) {
-    bbox :: Vector2.{ 0.2, 0.2 };
-
-    bboxWorldMin := GetScreenToWorld2D(make_Vector2((1 - bbox.x)*0.5*width, (1 - bbox.y)*0.5*height ), << camera);
-    bboxWorldMax := GetScreenToWorld2D(make_Vector2((1 + bbox.x)*0.5*width, (1 + bbox.y)*0.5*height ), << camera);
-    camera.offset = make_Vector2((1 - bbox.x)*0.5 * width, (1 - bbox.y)*0.5*height);
-
-    ok, player_entity := get_entity(player.entity);
-    assert(ok);
-    transform := get_transform(player_entity);
-
-    if transform.position.x < bboxWorldMin.x camera.target.x = transform.position.x;
-    if transform.position.y < bboxWorldMin.y camera.target.y = transform.position.y;
-    if transform.position.x > bboxWorldMax.x camera.target.x = bboxWorldMin.x + (transform.position.x - bboxWorldMax.x);
-    if transform.position.y > bboxWorldMax.y camera.target.y = bboxWorldMin.y + (transform.position.y - bboxWorldMax.y);
-}
