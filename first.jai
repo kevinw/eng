@@ -1,7 +1,5 @@
 #scope_file
 
-ENTITY_COMPONENT_SYSTEMS :: true;
-
 #import "Basic";
 #import "Compiler";
 #import "Random";
@@ -63,20 +61,22 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
         metaprogram: Metaprogram;
         metaprogram.workspace = w;
 
+        did_generate_systems := false;
+
         while true {
             message := compiler_wait_for_message();
             if !message || message.workspace != w continue;
 
-            #if ENTITY_COMPONENT_SYSTEMS {
-                if message.kind == {
-                    case .CODE_TYPECHECKED;
-                        collect_component_functions(cast(*Compiler_Message_Code_Typechecked)message, *metaprogram);
+            if message.kind == {
+                case .CODE_TYPECHECKED;
+                    collect_component_functions(cast(*Compiler_Message_Code_Typechecked)message, *metaprogram);
 
-                    case .COMPILATION_PHASE;
-                        msg := cast(*Compiler_Message_Compilation_Phase)message;
-                        if msg.phase == .ALL_SOURCE_CODE_THAT_CAN_CURRENTLY_BE_INFERRED_IS_INFERRED
-                            generate_systems(*metaprogram);
-                }
+                case .COMPILATION_PHASE;
+                    msg := cast(*Compiler_Message_Compilation_Phase)message;
+                    if !did_generate_systems && msg.phase == .ALL_SOURCE_CODE_THAT_CAN_CURRENTLY_BE_INFERRED_IS_INFERRED {
+                        did_generate_systems = true;
+                        generate_systems(*metaprogram);
+                    }
             }
 
             if message.kind == .COMPLETE {
@@ -126,8 +126,7 @@ is_argument_a_pointer_to_a_component :: (arg_decl: *Code_Declaration, metaprogra
     if arg_type_ident == null return false, "";
     if arg_type_ident.kind != .IDENT return false, "";
 
-    // TODO: should we compare pointers instead of type names here? yes. the answer is yes
-
+    // TODO: should we compare pointers instead of type names here? yes. the answer is yes.
     name := (cast(*Code_Ident)arg_type_ident).name;
     found, index := array_find(metaprogram.component_type_names, name);
     if found return true, metaprogram.component_type_names[index];
