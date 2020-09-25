@@ -13,7 +13,7 @@ SpriteRenderer :: struct {
     texture: rl.Texture;
 
     last_timer: float64; @noui @noserialize
-    canary := 42; @noui
+    canary := 42; @noui @noserialize
 
     sprite_anim: LiveSprite;
     anim_tag: string;

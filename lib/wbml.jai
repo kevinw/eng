@@ -10,21 +10,25 @@
 
 #scope_module
 
-serialize :: (value: *$Type) -> string {
-    return serialize_ti(value, type_info(Type));
+On_Serialize_Func :: #type (field: *Type_Info_Struct_Member, any: *Any);
+
+default_on_serialize: On_Serialize_Func : (field: *Type_Info_Struct_Member, any: *Any) {};
+
+serialize :: (value: *$Type, on_serialize := default_on_serialize) -> string {
+    return serialize_ti(value, type_info(Type), on_serialize);
 }
 
-serialize_ti :: (ptr: *void, ti: *Type_Info, debug_name := "") -> string {
+serialize_ti :: (ptr: *void, ti: *Type_Info, on_serialize := default_on_serialize, debug_name := "") -> string {
     sb: String_Builder;
-    serialize_string_builder_ti(ptr, ti, *sb, debug_name);
+    serialize_string_builder_ti(ptr, ti, *sb, on_serialize, debug_name);
     return builder_to_string(*sb);
 }
 
-serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builder, debug_name := "") {
-    serialize_with_type_info("", value, ti, sb, 0);
+serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builder, on_serialize := default_on_serialize, debug_name := "") {
+    serialize_with_type_info("", value, ti, sb, 0, on_serialize);
 }
 
-serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int, debug_name_ := "") {
+serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int, on_serialize := default_on_serialize, debug_name_ := "") {
     assert(ti != null);
 
     debug_name := debug_name_;
@@ -72,7 +76,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 				for i: 0..count-1 {
 					elem_data := data + ti_array.element_type.runtime_size * i;
 					print_indents(indent_level, sb);
-					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level, tprint("%[%]", debug_name, i));
+					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level, on_serialize, tprint("%[%]", debug_name, i));
 				}
 			}
 			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
@@ -84,8 +88,14 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             for * (cast(*Type_Info_Struct)ti).members {
                 if !should_serialize_struct_member(it, *seen_offsets)
                     continue;
+
+                member_any: Any;
+                member_any.value_pointer = value + it.offset_in_bytes;
+                member_any.type = it.type;
+
+                on_serialize(it, *member_any);
                 print_indents(indent_level, sb);
-                serialize_with_type_info(it.name, value + it.offset_in_bytes, it.type, sb, indent_level, tprint("%.%", debug_name, it.name));
+                serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, sb, indent_level, on_serialize, tprint("%.%", debug_name, it.name));
             }
             indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "}");
         case .POINTER;

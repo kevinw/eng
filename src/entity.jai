@@ -167,7 +167,7 @@ Entity :: struct {
     }
 
     flags: Flags;
-    name: string; @free_in_deiit
+    name: string; @free_in_deinit // TODO
 
     Component_Entry :: struct {
         component_handle: Handle_Type;
@@ -629,12 +629,57 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     return ptr;
 }
 
+save_prefab :: (filename: string) {
+    // Currently just writing out the denormalized data...not the most
+    // human-readable thing, though. Maybe that's...ok? I know trying
+    // to eyeball Unity YAML merges is a nightmare because it's a bit
+    // incomprehensible.
+
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    for * context.state.world.entities {
+        ti := type_info(type_of(<<it));
+        wbml.serialize_string_builder_ti(it, ti, *sb);
+    }
+
+    component_on_serialize :: (field: *Type_Info_Struct_Member, any: *Any) {
+        assert(any.type == field.type);
+
+        if any.type == type_info(LiveSprite) {
+            // just serialize the LiveSprite's filename
+            live_sprite := cast(*LiveSprite)any.value_pointer;
+            any.type = type_info(string);
+            any.value_pointer = *live_sprite.filename;
+        }
+    }
+
+    for bit_s64: type_info(Component_Bit).values {
+        component_bit := cast(Component_Bit)bit_s64;
+        #insert #run runtime_bit_bucket_chooser(#string END
+            for * bucket {
+                ti := type_info(type_of(<<it));
+                wbml.serialize_string_builder_ti(it, ti, *sb, component_on_serialize, tprint("%", component_bit));
+            }
+        END);
+    }
+    
+    File.write_entire_file(filename, builder_to_string(*sb));
+}
+
+get_component_in_entity_named :: (entity_name: string, $component_type: Type) -> *component_type {
+    for handles(*context.state.world.entities) {
+        ok, entity := get_entity(it);
+        assert(ok);
+        if entity.name == entity_name
+            return get_component(entity, component_type);
+    }
+
+    return null;
+}
+
 spawn_prefab :: (name: string, world_pos: rl.Vector2) -> (*Entity, Entity_Handle) {
-    world_pos_v3: rl.Vector3 = ---;
-    world_pos_v3.x = world_pos.x;
-    world_pos_v3.y = world_pos.y;
-    world_pos_v3.z = 0;
-    entity, entity_handle := spawn_prefab(name, world_pos_v3);
+    entity, entity_handle := spawn_prefab(name, v3(world_pos));
     return entity, entity_handle;
 }
 
@@ -663,8 +708,8 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
 
         // here we use the runtime type info to dynamically poke bits into the
         // struct, which we don't know the layout of at compile time.
+        // (now that I know more, the above statement is not entirely true)
         // TODO: (or do we??? in a non-development build???)
-
 
         wbml.write_value(it.object_node, comp, component_ti, component_type_name);
 
