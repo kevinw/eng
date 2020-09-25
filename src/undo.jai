@@ -200,7 +200,10 @@ free_item :: (item: Item) {
         case .Mem_Copy;
             free(item.data);
         case .Array_Replacement;
-            assert((cast(*Resizable_Array)item.pointer).data != item.resizable_array.data);
+            assert(
+                (cast(*Resizable_Array)item.pointer).data != item.resizable_array.data,
+                "the undo Item's copied data pointer shouldn't be equal to the original's"
+            );
             free(item.resizable_array.data, item.resizable_array.allocator, item.resizable_array.allocator_data);
     }
 }
