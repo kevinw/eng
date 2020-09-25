@@ -6,6 +6,8 @@
 String :: #import "String";
 Reflection :: #import "Reflection";
 
+CHECK_PATH :: "check/";
+
 module_search_paths := string.[
     "../jai-imgui",
     "../jai-raylib",
@@ -321,7 +323,6 @@ generate_systems :: (metaprogram: *Metaprogram) {
     }
     p(*sb, "}\n");
 
-
     add_build_string(builder_to_string(*sb), metaprogram.workspace);
 
     //print("created ECS code for workspace %\n", metaprogram.workspace);
@@ -333,20 +334,14 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
 
         if decl.root_expression.kind == {
           case .LITERAL;
-            //
             // here we catch the definition of the "all_component_types" array
-            //
             if decl.name == "all_component_types" || decl.name == "all_test_types" {
                 literal := cast(*Code_Literal)decl.root_expression;
                 if literal.value_type == .ARRAY {
-                    //print("name: %\n", decl.name);
-                    //print("literal array: %\n", <<literal.array_literal_info);
-                    //print("  element_type: %\n", <<literal.array_literal_info.element_type);
                     for literal.array_literal_info.array_members {
                         if it.kind == .IDENT {
                             ident := cast(*Code_Ident)it;
                             array_add(*metaprogram.component_type_names, copy_string(ident.name));
-                            //print("  %: %\n", it_index, code_node_as_string(it));
                         }
                     }
                 }
@@ -359,51 +354,17 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
 
           case .PROCEDURE_HEADER;
             header := cast(*Code_Procedure_Header) decl.root_expression;
-            if header.procedure_flags & .POLYMORPHIC continue;  // Do nothing with polymorphic procedures.
 
-            if header.arguments.count > 0 && (
-                // This must match the System_Stage enum in src/metaprogram_common.jai.
+            if header.procedure_flags & .POLYMORPHIC
+                continue;  // Do nothing with polymorphic procedures.
 
-                // TODO: metaprogram the metaprogram??!? maybe it'd be as easy
-                // as an #insert #run here...
-
-                header.name == "on_enable" ||
-                header.name == "update" ||
-                header.name == "late_update" ||
-                header.name == "draw" ||
-                header.name == "on_disable" ||
-                0
-            ) {
-                    array_add_if_unique(*metaprogram.system_funcs, header);
-                    //print("  %: %\n^^^ %\n\n", it_index, <<it, code_node_as_string(it.type_inst.pointer_to.type_valued_expression));
-                }
-                //exit(1);
-
-
-            
-            /*
-          case .PROCEDURE_BODY;
-            body := cast(*Code_Procedure_Body) decl.root_expression;
-            if body.header.procedure_flags & .POLYMORPHIC continue;  // Do nothing with polymorphic procedures.
-
-            check_print_calls(decl);
-            */
+            // Note procedures for later if they look like our special "system"
+            // procs.
+            if header.arguments.count > 0 && is_name_a_System_Stage(header.name)
+                array_add_if_unique(*metaprogram.system_funcs, header);
         }
     }
 }
-
-is_component_func :: (decl: *Code_Declaration) -> bool {
-    for decl.notes {
-        if it.text == "draw" {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-
-CHECK_PATH :: "check/";
 
 build :: () {
     DEFAULT_SRC_PLUGIN :: "game";

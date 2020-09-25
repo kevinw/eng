@@ -1,3 +1,13 @@
+is_name_a_System_Stage :: inline (name: string) -> bool{
+    // TODO: metaprogram the metaprogram??!? maybe it'd be as easy
+    // as an #insert #run here...
+    return name == "on_enable" 
+        || name == "update"
+        || name == "late_update"
+        || name == "draw"
+        || name == "on_disable";
+}
+
 System_Stage :: enum {
     on_enable;
     update;
