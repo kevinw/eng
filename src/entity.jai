@@ -174,7 +174,8 @@ Entity :: struct {
         bit: Component_Bit;
     }
 
-    components: [..]Component_Entry; // TODO: Small_Array
+    // TODO: Small_Array here could be a big win
+    components: [..]Component_Entry;  @noserialize
 }
 
 get_components :: ($component_type: Type) -> []*component_type {
@@ -447,11 +448,11 @@ create_entity :: (world: *World = null, name: string = "", id: s32 = -1,
     return e, handle;
 }
 
-get_entity_handle :: (entity: *Entity) -> Entity_Handle {
+get_entity_handle :: inline (entity: *Entity) -> Entity_Handle {
     return get_handle_for_value_ptr(*context.state.world.entities, entity);
 }
 
-destroy_entity :: (entity_ptr: *Entity, undo: *Undo.Impl = null) {
+destroy_entity :: inline (entity_ptr: *Entity, undo: *Undo.Impl = null) {
     destroy_entity(get_entity_handle(entity_ptr), undo);
 }
 
@@ -629,6 +630,54 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     return ptr;
 }
 
+component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry) {
+    if added_fields != null {
+        if any.type == type_info(Entity) {
+            entry := array_add(added_fields);
+
+            // I don't like this at all. Maybe we need a "possibly-local" Any?
+            // Or maybe the temporary allocator here is good enough.
+            my_int  := cast(*int)talloc(size_of(int));
+
+
+            // I don't like this either. Above us, when we're iterating over
+            // the entities bucket, we definitely already know the entity id.
+            // This feels like the wrong place to be looking it up again.
+            <<my_int = get_entity_handle((cast(*Entity)any.value_pointer)).id;
+
+            entry.name = "id";
+            entry.any.value_pointer = my_int;
+            entry.any.type = type_info(int);
+        }
+    }
+
+    //
+    // Used during serialization to change "in memory" data to "on disk" data.
+    //
+    if any.type == type_info(LiveSprite) {
+        // just serialize the LiveSprite's filename
+        live_sprite := cast(*LiveSprite)any.value_pointer;
+        any.type = type_info(string);
+        any.value_pointer = *live_sprite.filename;
+    }
+}
+
+load_world :: (world: *World, wbml_string: string) {
+    logprint("load_world",
+        "TODO: load the world from wbml with laas");
+}
+
+reset_world :: (world: *World) {
+    reset(*world.entities);
+
+    for bit_s64: type_info(Component_Bit).values {
+        component_bit := cast(Component_Bit)bit_s64;
+        #insert #run runtime_bit_bucket_chooser(#string END
+            reset(bucket);
+        END);
+    }
+}
+
 save_prefab :: (filename: string) {
     // Currently just writing out the denormalized data...not the most
     // human-readable thing, though. Maybe that's...ok? I know trying
@@ -638,28 +687,32 @@ save_prefab :: (filename: string) {
     sb: String_Builder;
     defer free_buffers(*sb);
 
-    for * context.state.world.entities {
-        ti := type_info(type_of(<<it));
-        wbml.serialize_string_builder_ti(it, ti, *sb);
-    }
+    for handles(*context.state.world.entities) {
+        ok, entity := get_entity(it);
+        assert(ok);
 
-    component_on_serialize :: (field: *Type_Info_Struct_Member, any: *Any) {
-        assert(any.type == field.type);
+        // TODO merge this wbml.serialize call with the one below.
+        // really we just want to serialize all the buckets!
 
-        if any.type == type_info(LiveSprite) {
-            // just serialize the LiveSprite's filename
-            live_sprite := cast(*LiveSprite)any.value_pointer;
-            any.type = type_info(string);
-            any.value_pointer = *live_sprite.filename;
-        }
+        ti := cast(*Type_Info_Struct)type_info(type_of(<<entity));
+
+        //
+        // TODO: I'm not sure that using this on_serialize function to add the 'id' field to
+        // entities is a good idea. We know that at the top level, we want entities to have
+        // an extra 'id' thing. Maybe serialize() should take an extra set of things and that's it?
+        // Then we don't pay the cost for each node.
+        //
+
+        wbml.serialize_with_type_info(ti.name, entity, ti, *sb, on_serialize=component_on_serialize);
     }
 
     for bit_s64: type_info(Component_Bit).values {
         component_bit := cast(Component_Bit)bit_s64;
         #insert #run runtime_bit_bucket_chooser(#string END
             for * bucket {
-                ti := type_info(type_of(<<it));
-                wbml.serialize_string_builder_ti(it, ti, *sb, component_on_serialize, tprint("%", component_bit));
+                ti := cast(*Type_Info_Struct)type_info(type_of(<<it));
+                wbml.serialize_with_type_info(ti.name, it, ti, *sb,
+                    on_serialize=component_on_serialize, debug_name=ti.name);
             }
         END);
     }

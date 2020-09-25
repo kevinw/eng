@@ -106,7 +106,7 @@ Editor :: struct {
         ecs_internals := false;
     };
 
-    play_mode: Play_Mode;
+    play_mode: Play_Mode = .Edit;
 
     callbacks: struct {
         did_drag: #type (rect: Rectangle);
@@ -637,12 +637,14 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
 load_scene :: (name: string) {
     filename := tprint("%.wbml", name);
 
-    str, ok := File.read_entire_file(filename);
+    wbml_str, ok := File.read_entire_file(filename);
     if !ok {
         logprint("error", "could not read '%' - load failed", filename);
         return;
     }
 
+    reset_world(*context.state.world);
+    load_world(*context.state.world, wbml_str);
     //wbml.deserialize(str, *context.state.scene);
 
     logprint("editor", "loaded %", filename);
@@ -650,10 +652,13 @@ load_scene :: (name: string) {
 
 save_scene :: (name: string) {
     filename := tprint("%.wbml", name);
+    save_prefab(filename);
+    /*
 
     //str := wbml.serialize(*context.state.scene);
     //File.write_entire_file(filename, str);
     assert(false, "TODO");
+    */
 
     logprint("editor", "saved %", filename);
 }

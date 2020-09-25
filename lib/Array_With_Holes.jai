@@ -13,7 +13,7 @@ A freelist in the empty slots keeps adding and removing fast.
 
 Handle_Type :: struct {
     id: u32;
-    generation: s32;
+    generation: s32; @noserialize
 };
 
 operator == :: (a: Handle_Type, b: Handle_Type) -> bool {
@@ -150,6 +150,21 @@ unlock_freelist :: (arr: *$A/Array_With_Holes) #expand {
 
     }
 
+}
+
+reset :: (arr: *$A/Array_With_Holes) {
+    for * arr.items {
+        if it_index > 0 {
+            it.generation = 0;
+            it.next = 0;
+        }
+    }
+
+    {
+        unlock_freelist(arr);
+        arr.items[0].next = 0;
+        arr.items[0].generation = SENTINEL_GENERATION;
+    }
 }
 
 SENTINEL_GENERATION  :: 999999;

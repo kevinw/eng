@@ -10,9 +10,14 @@
 
 #scope_module
 
-On_Serialize_Func :: #type (field: *Type_Info_Struct_Member, any: *Any);
+Added_Field_Entry :: struct {
+    name: string;
+    any: Any;
+}
 
-default_on_serialize: On_Serialize_Func : (field: *Type_Info_Struct_Member, any: *Any) {};
+On_Serialize_Func :: #type (any: *Any, added_fields: *[..]Added_Field_Entry);
+
+default_on_serialize: On_Serialize_Func : (any: *Any, added_fields: *[..]Added_Field_Entry) {};
 
 serialize :: (value: *$Type, on_serialize := default_on_serialize) -> string {
     return serialize_ti(value, type_info(Type), on_serialize);
@@ -28,20 +33,15 @@ serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builde
     serialize_with_type_info("", value, ti, sb, 0, on_serialize);
 }
 
-serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int, on_serialize := default_on_serialize, debug_name_ := "") {
+serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "") {
     assert(ti != null);
 
-    debug_name := debug_name_;
-    if debug_name.count == 0 {
+    dbgname := debug_name;
+    if dbgname.count == 0 {
         if ti.type == .STRUCT
-            debug_name = (cast(*Type_Info_Struct)ti).name;
+            dbgname = (cast(*Type_Info_Struct)ti).name;
         else
-            debug_name = tprint("%", <<ti);
-    }
-
-    print_indents :: inline (indent_level: int, sb: *String_Builder) {
-        for i: 0..indent_level-1
-            append(sb, "\t");
+            dbgname = tprint("%", <<ti);
     }
 
     name_and_space: string;
@@ -68,24 +68,35 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             print_item_to_builder(sb, name_and_space);
             print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
 		case .ARRAY;
+            ti_array := cast(*Type_Info_Array)ti;
             print_item_to_builder(sb, name_and_space);
 			print_to_builder(sb, "[\n"); indent_level += 1;
 			{
-				ti_array := cast(*Type_Info_Array)ti;
 				count, data := Reflection.get_array_count_and_data(value, ti_array);
 				for i: 0..count-1 {
 					elem_data := data + ti_array.element_type.runtime_size * i;
 					print_indents(indent_level, sb);
-					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level, on_serialize, tprint("%[%]", debug_name, i));
+					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level, on_serialize, tprint("%[%]", dbgname, i));
 				}
 			}
 			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
         case .STRUCT;
+            ti_struct := cast(*Type_Info_Struct)ti;
             print_item_to_builder(sb, name_and_space);
             print_to_builder(sb, "{\n"); indent_level += 1;
             seen_offsets: [..]int;
             seen_offsets.allocator = __temporary_allocator;
-            for * (cast(*Type_Info_Struct)ti).members {
+
+            // Allow callers to add additional fields to any struct as they wish.
+            added_struct_fields: [..]Added_Field_Entry;
+            added_struct_fields.allocator = __temporary_allocator;
+            res := on_serialize(*item, *added_struct_fields);
+            for added_struct_fields {
+                print_indents(indent_level, sb);
+                serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, sb, indent_level, on_serialize, tprint("%.%", dbgname, it.name));
+            }
+
+            for * ti_struct.members {
                 if !should_serialize_struct_member(it, *seen_offsets)
                     continue;
 
@@ -93,15 +104,15 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                 member_any.value_pointer = value + it.offset_in_bytes;
                 member_any.type = it.type;
 
-                on_serialize(it, *member_any);
+                on_serialize(*member_any, null);
                 print_indents(indent_level, sb);
-                serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, sb, indent_level, on_serialize, tprint("%.%", debug_name, it.name));
+                serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, sb, indent_level, on_serialize, tprint("%.%", dbgname, it.name));
             }
             indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "}");
         case .POINTER;
-            print("TODO: skipping wbml serialize POINTER for %\n", debug_name);
+            print("TODO: skipping wbml serialize POINTER for %\n", dbgname);
         case;
-            panic(tprint("%: % (%)", name, ti.type, debug_name));
+            panic(tprint("%: % (%)", name, ti.type, dbgname));
     }
 
     if do_newline
@@ -580,14 +591,18 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
     return escaped, length;
 }
 
-run_tests :: run_tests;
-
 #scope_file
 
 #import "Any";
 #import "Compiler";
 String :: #import "String";
 Reflection :: #import "Reflection";
+
+
+print_indents :: inline (indent_level: int, sb: *String_Builder) {
+    for i: 0..indent_level-1
+        append(sb, "\t");
+}
 
 new_clone :: inline (data: $T) -> *T {
 	ptr := cast(*T)alloc(size_of(T));
@@ -623,6 +638,8 @@ eat_newlines :: (lexer: *laas.Lexer) {
             return;
     }
 }
+
+// #run run_tests();
 
 run_tests :: () {
     len :: (a: []$A) -> int { return a.count; }
@@ -877,6 +894,21 @@ END;
         assert(m2.yes == 42);
         assert(m2.no == 0, "the 'no' field should not have been serialized b/c of note @noserialized:\n\n%", meep_str);
     }
+
+    // check that default values are skipped
+    {
+        Vec3 :: struct { x: float; y: float; z: float; }
+
+        Thing_With_Defaults :: struct {
+            a := Vec3.{0, 1, 0};
+            b := "bar";
+        }
+
+        t: Thing_With_Defaults;
+        print("%\n", serialize(*t));
+    }
+
+
 
 	print("wbml tests done!\n");
 }

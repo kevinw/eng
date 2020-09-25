@@ -154,7 +154,7 @@ Player :: struct {
     };
     //damage.damage_func = player_was_damaged;
 
-    nearest_marker: *reaper.Marker;
+    nearest_marker: *reaper.Marker; @noserialize
     beat_timer: float64; // TODO: duplicated and set from game.jai
 }
 
