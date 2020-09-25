@@ -291,6 +291,16 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
         case .POLYMORPHIC_VARIABLE;
             // @@ ??
         case .TYPE;
+            type_ti := << cast(**Type_Info)data;
+
+            sb: String_Builder;
+            sb.allocator = __temporary_allocator;
+            defer free_buffers(*sb);
+            print_type_to_builder(*sb, type_ti);
+            s := builder_to_string(*sb);
+
+            TextUnformatted(tprintz("%: Type %", to_string(name), s).data);
+
         case .OVERLOAD_SET;
             // @@
     }
