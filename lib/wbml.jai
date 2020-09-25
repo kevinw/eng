@@ -1,5 +1,9 @@
-// Ported from the MIT licensed "workbench" project by @JoshuaManton
+// originally ported from the MIT licensed "workbench" project by @JoshuaManton
 // https://github.com/JoshuaManton/workbench
+
+// TODO:
+// use initializer_of to skip writing struct field values if they are
+// still set to their defaults
 
 #import "Basic";
 #import "Hash_Table";
@@ -10,26 +14,35 @@ serialize :: (value: *$Type) -> string {
     return serialize_ti(value, type_info(Type));
 }
 
-serialize_ti :: (ptr: *void, ti: *Type_Info) -> string {
+serialize_ti :: (ptr: *void, ti: *Type_Info, debug_name := "") -> string {
     sb: String_Builder;
-    serialize_string_builder_ti(ptr, ti, *sb);
+    serialize_string_builder_ti(ptr, ti, *sb, debug_name);
     return builder_to_string(*sb);
 }
 
-serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builder) {
+serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builder, debug_name := "") {
     serialize_with_type_info("", value, ti, sb, 0);
 }
 
-serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int) {
+serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int, debug_name_ := "") {
     assert(ti != null);
+
+    debug_name := debug_name_;
+    if debug_name.count == 0 {
+        if ti.type == .STRUCT
+            debug_name = (cast(*Type_Info_Struct)ti).name;
+        else
+            debug_name = tprint("%", <<ti);
+    }
 
     print_indents :: inline (indent_level: int, sb: *String_Builder) {
         for i: 0..indent_level-1
             append(sb, "\t");
     }
 
+    name_and_space: string;
     if name != ""
-        print_to_builder(sb, tprint("% ", name));
+        name_and_space = tprint("% ", name);
 
     do_newline := true;
 
@@ -40,14 +53,18 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
     t := ti.type;
     if t == {
         case .BOOL;
+            print_item_to_builder(sb, name_and_space);
 			print_to_builder(sb, ifx (<< (cast(*bool)value)) then "true" else "false");
         case .INTEGER; #through;
         case .FLOAT; #through;
         case .ENUM;
+            print_item_to_builder(sb, name_and_space);
             print_item_to_builder(sb, tprint("%", item));
         case .STRING;
+            print_item_to_builder(sb, name_and_space);
             print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
 		case .ARRAY;
+            print_item_to_builder(sb, name_and_space);
 			print_to_builder(sb, "[\n"); indent_level += 1;
 			{
 				ti_array := cast(*Type_Info_Array)ti;
@@ -55,20 +72,30 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 				for i: 0..count-1 {
 					elem_data := data + ti_array.element_type.runtime_size * i;
 					print_indents(indent_level, sb);
-					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level);
+					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level, tprint("%[%]", debug_name, i));
 				}
 			}
 			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
         case .STRUCT;
+            print_item_to_builder(sb, name_and_space);
             print_to_builder(sb, "{\n"); indent_level += 1;
+            seen_offsets: [..]int;
+            seen_offsets.allocator = __temporary_allocator;
             for * (cast(*Type_Info_Struct)ti).members {
+                if it.flags & .CONSTANT continue;
+                if !array_add_if_unique(*seen_offsets, it.offset_in_bytes) {
+                    // we skip #place directives by ignoring fields which are at byte
+                    // offsets we've already seen.
+                    continue;
+                }
                 print_indents(indent_level, sb);
-                serialize_with_type_info(it.name, value + it.offset_in_bytes, it.type, sb, indent_level);
+                serialize_with_type_info(it.name, value + it.offset_in_bytes, it.type, sb, indent_level, tprint("%.%", debug_name, it.name));
             }
             indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "}");
+        case .POINTER;
+            print("TODO: skipping wbml serialize for %\n", debug_name);
         case;
-            panic(tprint("%: %", name, ti.type));
-
+            panic(tprint("%: % (%)", name, ti.type, debug_name));
     }
 
     if do_newline
@@ -606,7 +633,7 @@ run_tests :: () {
 		some_string: string;
 		some_float: float64;
 		some_bool: bool;
-		some_unserialized_thing: int; @wbml_noserialize
+		some_unserialized_thing: int; @noserialize
 		enum1: Int_Enum;
 		enum2: Byte_Enum;
 		some_nested_thing: struct {

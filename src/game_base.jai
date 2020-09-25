@@ -32,6 +32,7 @@ State_Base :: struct {
         now: float64;
         unscaled_now: float64;
         delta_time: float;
+        frame_count: u64;
     };
     global_time_scale:float = 1.0;
 
@@ -74,6 +75,7 @@ game_base_update :: () {
     Time.delta_time = global_time_scale * absolute_delta_time;
     Time.now += Time.delta_time;
     Time.unscaled_now = GetTime();
+    Time.frame_count += 1;
 
     editor_update(context.state);
     screenlog.update(Time.delta_time);

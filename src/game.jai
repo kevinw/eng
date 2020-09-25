@@ -3,7 +3,6 @@ GAME_NAME :: "beat_platformer";
 #import "Basic";
 #import "Sprite_Anim";
 Math :: #import "Math";
-wbml :: #import "wbml";
 reaper :: #import "reaper";
 rl :: #import "raylib";
 
@@ -26,9 +25,6 @@ State :: struct {
     nearest_marker: *reaper.Marker;
     bgm: Music;
     beat_timer: float64;
-
-    player: *Player;
-    scene: struct {};
 
     bg: struct {
         timer: float64;
@@ -71,7 +67,6 @@ set_context_funcs :: () {
     context.state.restart = restart;
 }
 
-
 on_host_did_reload_game_dll :: () {
     set_context_funcs();
     game_base_did_reload_dll();
@@ -110,17 +105,13 @@ on_host_init :: () {
     //ok, song = reaper.parse_reaper_project_file("resources/music/i-think-she-knows.rpp");
     ok, song = reaper.create_song_for_tempo(60);
     assert(ok);
-    //bgm = LoadMusicStream("resources/music/Jivasifoki.mp3");
-    //bgm = LoadMusicStream("resources/music/kick-snare-60.mp3");
     update_bgm_volume();
-    //SetMusicLoopCount(bgm, 0);
-    //PlayMusicStream(bgm);
 
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
 
     player_entity := spawn_prefab("player");
-    player = get_component(player_entity, Player);
+    player := get_component(player_entity, Player);
     player_reset(player);
 
     spawn_prefab("plant_chomper", v3(400, 197, 0));
@@ -147,7 +138,6 @@ on_host_init :: () {
     }
 }
 
-
 on_host_shutdown :: () {
     using context.state;
 
@@ -162,7 +152,10 @@ restart :: () {
 
     camera.zoom = DEFAULT_CAM_ZOOM;
     camera.target = .{0, 0};
-    get_transform(player).position = .{400, 280, 0};
+
+    player := get_component_in_entity_named("player", Player);
+    if player != null
+        get_transform(player).position = .{400, 280, 0};
 
     // Reset the song back to the beginning for now.
     seek(sound_state.bgm_voice, 0);
@@ -185,6 +178,7 @@ update_and_draw :: () {
 
     // update
     {
+        player := get_component_in_entity_named("player", Player);
         {
             // update beat
             {
@@ -195,12 +189,15 @@ update_and_draw :: () {
             beats_per_second := bgm_bpm * (1.0 / 60.0);
             found: bool;
             nearest_marker = reaper.get_nearest_marker(song, null, beat_timer);
-            player.nearest_marker = nearest_marker;
-            player.beat_timer = beat_timer;
+            if player != null {
+                player.nearest_marker = nearest_marker;
+                player.beat_timer = beat_timer;
+            }
         }
 
         bg.timer += Time.delta_time * 0.2;
 
+        //if Time.frame_count % 8 == 0 {
         set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
         set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
         set_shader_val(bg.shader, "freqX", 25.0);
@@ -209,6 +206,7 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "ampY", 5.0);
         set_shader_val(bg.shader, "speedX", 8.0);
         set_shader_val(bg.shader, "speedY", 8.0);
+        //}
        
         if context.state.editor.play_mode == .Play {
             wheel := GetMouseWheelMove();
@@ -223,7 +221,7 @@ update_and_draw :: () {
             update_bgm_volume();
         }
 
-        if context.state.editor.play_mode == .Play
+        if player != null && context.state.editor.play_mode == .Play
             UpdateCameraCenterSmoothFollow(*camera, player, Time.delta_time, gameWidth, gameHeight);
     }
 
