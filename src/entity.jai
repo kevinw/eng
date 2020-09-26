@@ -60,6 +60,7 @@ we have now, and this kind of thing...
 }
 #load "components/editor_selectable_rect.jai";
 #load "components/camera.jai";
+#load "components/follow.jai";
 
 Transform :: struct {
     using component: Component;
@@ -137,6 +138,8 @@ TRS :: Transform;
 }());
 
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
+    if entity_handle.id == 0 return false, null; // TODO: not sure if this should be down in get_item_ptr
+
     entity := get_item_ptr(*context.state.world.entities, entity_handle);
     return entity != null, entity;
 }
@@ -225,6 +228,8 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
 
 get_transform :: (component: *Component) -> *Transform { return get_component(component.entity, Transform); }
 get_transform :: (entity: *Entity) -> *Transform { return get_component(entity, Transform); }
+get_transform :: (entity_handle: Entity_Handle) -> *Transform { return get_component(entity_handle, Transform); }
+
 get_transform_or_null :: (entity_handle: Entity_Handle) -> *Transform { return get_component(entity_handle, Transform); }
 
 get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Component {
