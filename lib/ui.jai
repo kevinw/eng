@@ -23,6 +23,19 @@ imgui_raylib_new_frame :: (ui: *UI_State) {
         middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
         right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
         wheel = cast(float)GetMouseWheelMove());
+
+    add_key :: (key: s32) {
+        buf := cast(*s32)talloc(size_of(s32) + 1); // s32 + 0
+        << buf = key;
+        print("key %\n", key);
+        io := ImGui.GetIO();
+        io.AddInputCharactersUTF8(io, cast(*u8)buf);
+    }
+
+    // this only handles "unicode character" input. for arrows, backspace, etc. we'll need to use the io.KeyDown
+    key := GetKeyPressed();
+    if key > 0 add_key(key);
+
     ImGui_Impl_NewFrame(ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
 }
 

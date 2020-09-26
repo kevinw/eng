@@ -81,22 +81,24 @@ game_base_update :: () {
     screenlog.update(Time.delta_time);
     sound_update(*sound_state);
 
-    shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
-    if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
-        editor_toggle(context.state);
-    if IsKeyPressed(.KEY_R) && !shift && restart != null restart();
-    if IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
-    if IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
-    if IsKeyPressed(.KEY_D) && shift {
-        debug_draw = !debug_draw;
-        logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
-    }
-    if IsKeyPressed(.KEY_F) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
-        USE_REAL_FULLSCREEN :: false;
-        if USE_REAL_FULLSCREEN {
-            ToggleFullscreen();
-        } else {
-            ToggleFakeFullscreen();
+    if !editor.wants_keyboard {
+        shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
+        if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
+            editor_toggle(context.state);
+        if IsKeyPressed(.KEY_R) && !shift && restart != null restart();
+        if IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
+        if IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
+        if IsKeyPressed(.KEY_D) && shift {
+            debug_draw = !debug_draw;
+            logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
+        }
+        if IsKeyPressed(.KEY_F) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
+            USE_REAL_FULLSCREEN :: false;
+            if USE_REAL_FULLSCREEN {
+                ToggleFullscreen();
+            } else {
+                ToggleFakeFullscreen();
+            }
         }
     }
 

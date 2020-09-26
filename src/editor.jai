@@ -97,6 +97,8 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
 Editor :: struct {
     undo_state: Undo.Impl;
 
+    wants_keyboard: bool;
+
     tweens: Tweens;
 
     windows: struct {
@@ -378,12 +380,17 @@ editor_draw :: (state: *State) {
 editor_update :: (state: *State) {
     using context.state.editor;
 
+    defer wants_keyboard = ImGui.GetIO().WantCaptureKeyboard;
+
     if play_mode == .Play return;
 
+    ctrl_down := rl.IsKeyDown(.KEY_LEFT_CONTROL) || rl.IsKeyDown(.KEY_RIGHT_CONTROL);
+    shift_down := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
+
     // Move editor camera with WASD
-    {
+    if !ctrl_down {
         editor_cam_speed := 250.0;
-        if IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)
+        if rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT)
             editor_cam_speed *= 2;
 
         cam_movement := inp.movement(inp.Input_Type.KEYBOARD_WASD);
@@ -393,12 +400,9 @@ editor_update :: (state: *State) {
 
         state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.delta_time;
     }
-
-    ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
-    shift_down := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
     
     if !ImGui.GetIO().WantCaptureMouse { // don't let imgui clicks come through to this one.
-        if set_if_different(*mouse_pos, GetMousePosition()) {
+        if set_if_different(*mouse_pos, rl.GetMousePosition()) {
             world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
 
             hover.has_value = false;
@@ -488,6 +492,10 @@ editor_update :: (state: *State) {
 
     if ctrl_down && IsKeyPressed(.KEY_N) {
         reset_world(*state.world);
+    }
+
+    if ctrl_down && IsKeyPressed(.KEY_D) {
+        logprint("editor", "TODO: implement duplicate");
     }
 
     if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {
