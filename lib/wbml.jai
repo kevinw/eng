@@ -8,6 +8,25 @@
 #import "Basic";
 #import "Hash_Table";
 
+#scope_export
+
+get_obj :: (node: *Node, field_name: string) -> *Node {
+    return get(node, field_name, .Object);
+}
+
+get :: (node: *Node, field_name: string, node_type: Node.Type) -> *Node {
+    assert(node.type == .Object);
+    for node._object.fields {
+        if it.name == field_name {
+            assert(it.value.type == node_type);
+            val := it.value;
+            remove it; // @Leak
+            return val;
+        }
+    }
+    return null;
+}
+
 #scope_module
 
 Added_Field_Entry :: struct {

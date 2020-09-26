@@ -19,7 +19,9 @@ SpriteRenderer :: struct {
     anim_tag: string;
     
     _current_frame: Sprite_Anim.Sprite_Anim.Frame; @noserialize
-    _last_frame_index: int;
+    _last_frame_index: int; @noserialize // TODO: the underscore breaks wbml
+    //right now. we should fix that, regardless of if we want to actually
+    //serialize this field or not.
 
     mode: Mode;
 

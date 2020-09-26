@@ -662,9 +662,87 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
     }
 }
 
+
 load_world :: (world: *World, wbml_string: string) {
     logprint("load_world",
         "TODO: load the world from wbml with laas");
+
+    lexer := laas.make_lexer(wbml_string);
+
+    new_entity_handles: [..]struct { live: Entity_Handle; on_disk: u32; };
+    defer array_free(new_entity_handles);
+
+    while true {
+        while laas.is_token(*lexer, .New_Line) laas.eat(*lexer);
+
+        name_token, name_ok := laas.expect(*lexer, .Identifier);
+        if !name_ok break;
+        // TODO: nocheckin ensure we've parsed the whole text here.
+        class_name := copy_string(name_token.text);
+
+        value := wbml.parse_value(*lexer);
+        if class_name == {
+            case "Entity";
+                assert(value.type == .Object);
+                entity_id: s32 = 0;
+                entity_name: string;
+                for value._object.fields {
+                    if it.name == "id" {
+                        assert(it.value.type == .Number);
+                        entity_id = cast(s32)it.value._number.int_value;
+                        remove it; // @Leak
+                    }
+                    if it.name == "name" {
+                        assert(it.value.type == .String);
+                        entity_name = copy_string(it.value._string); // @Leak
+                        remove it; // @Leak
+                    }
+                }
+                        
+                assert(entity_id != 0);
+                new_entity_ptr, new_entity_handle := create_entity(world, entity_name, entity_id);
+                wbml.write_value(value, new_entity_ptr, "Entity");
+
+                entry := array_add(*new_entity_handles);
+                entry.live = new_entity_handle;
+                entry.on_disk = cast(u32)entity_id;
+            case;
+                // It's a component.
+                c := wbml.get_obj(value, "component");
+                e := wbml.get_obj(c, "entity");
+                id_node := wbml.get(e, "id", .Number);
+                assert(id_node != null);
+                entity_id := cast(u32)id_node._number.int_value;
+
+                found_handle: Entity_Handle;
+                for new_entity_handles {
+                    if it.on_disk == entity_id {
+                        found_handle = it.live;
+                        break;
+                    }
+                }
+                assert(found_handle.id != 0, "could not find a handle for entity_id %", entity_id);
+
+                component_bit := get_component_bit_for_name(class_name);
+                component_ti := component_bit_to_ti(component_bit);
+
+                component_ptr := add_component(found_handle, component_ti);
+                wbml.write_value(value, component_ptr, class_name);
+        }
+    }
+
+
+
+}
+
+get_component_bit_for_name :: (name: string) -> Component_Bit {
+    ti := type_info(Component_Bit);
+    for ti.names
+        if it == name
+            return cast(Component_Bit)ti.values[it_index];
+    
+    assert(false, tprint("No Component bit for name '%'", name));
+    return 0;
 }
 
 reset_world :: (world: *World) {
