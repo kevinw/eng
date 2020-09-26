@@ -669,10 +669,42 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
 }
 
 
+Entity_Handle_Map_Entry :: struct {
+    live: Entity_Handle;
+    on_disk: u32;
+}
+
+Entity_Handle_Map :: [..]Entity_Handle_Map_Entry;
+
+on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (handled: bool) {
+    assert(any != null);
+    assert(userdata != null);
+
+    if any.type.type == .STRUCT && any.type == type_info(Entity_Handle) {
+        handle_ptr := cast(*Entity_Handle)any.value_pointer;
+
+        number_node := wbml.get(node, "id", .Number, do_remove=false);
+        assert(number_node != null, "expected node id for an Entity_Handle.id to have a number");
+        wbml_entity_id := number_node._number.int_value;
+
+        for <<cast(*Entity_Handle_Map)userdata {
+            print("  % vs %\n", it.on_disk, wbml_entity_id);
+            if it.on_disk == wbml_entity_id {
+                <<handle_ptr = it.live;
+                return true;
+            }
+        }
+        print("WARNING: handle could not be remapped: %\n", <<handle_ptr);
+    }
+
+    return false;
+}
+
+
 load_world :: (world: *World, wbml_string: string) {
     lexer := laas.make_lexer(wbml_string);
 
-    new_entity_handles: [..]struct { live: Entity_Handle; on_disk: u32; };
+    new_entity_handles: Entity_Handle_Map;
     defer array_free(new_entity_handles);
 
     while true {
@@ -717,7 +749,10 @@ load_world :: (world: *World, wbml_string: string) {
                 component_ti := component_bit_to_ti(component_bit);
 
                 component_ptr := add_component(found_handle, component_ti);
-                wbml.write_value(value, component_ptr, component_ti, class_name); // , verbose=true);
+
+
+                wbml.write_value(value, component_ptr, component_ti, class_name,
+                    on_deserialize=on_component_deserialize, userdata=*new_entity_handles); // , verbose=true);
         }
     }
 

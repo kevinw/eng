@@ -31,6 +31,7 @@ State_Base :: struct {
     Time: struct {
         now: float64;
         unscaled_now: float64;
+        unscaled_delta_time: float;
         delta_time: float;
         frame_count: u64;
     };
@@ -73,6 +74,7 @@ game_base_update :: () {
 
     absolute_delta_time := GetFrameTime();
     Time.delta_time = global_time_scale * absolute_delta_time;
+    Time.unscaled_delta_time = absolute_delta_time;
     Time.now += Time.delta_time;
     Time.unscaled_now = GetTime();
     Time.frame_count += 1;

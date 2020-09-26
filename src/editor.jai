@@ -87,11 +87,16 @@ Maybe :: struct(V: Type) {
 }
 
 categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
-    if ti == type_info(Color) {
+    if ti == type_info(Color)
         return .Color_Byte4;
-    }
-
+    if ti == type_info(Entity_Handle)
+        return .Has_Custom_Control;
     return .None;
+}
+
+custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
+    if ti_struct == type_info(Entity_Handle)
+        entity_selector(name, cast(*Entity_Handle)data);
 }
 
 Editor :: struct {
@@ -100,6 +105,8 @@ Editor :: struct {
     wants_keyboard: bool;
 
     tweens: Tweens;
+
+    selector_filter: ImGui.TextFilter;
 
     windows: struct {
         undo := true;
@@ -226,9 +233,8 @@ editor_draw :: (state: *State) {
         Begin("DEBUG", *editor.windows.ecs_internals);
         defer End();
 
-        inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type);
+        inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
     }
-
 
     if editor.windows.undo {
         using context.state.editor;
@@ -387,6 +393,13 @@ editor_update :: (state: *State) {
     ctrl_down := rl.IsKeyDown(.KEY_LEFT_CONTROL) || rl.IsKeyDown(.KEY_RIGHT_CONTROL);
     shift_down := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
 
+    if rl.IsKeyPressed(.KEY_P) {
+        if context.state.global_time_scale > 0
+            context.state.global_time_scale = 0;
+        else
+            context.state.global_time_scale = 1;
+    }
+
     // Move editor camera with WASD
     if !ctrl_down {
         editor_cam_speed := 250.0;
@@ -398,7 +411,7 @@ editor_update :: (state: *State) {
         if cam_movement.x != 0 || cam_movement.y != 0
             cam_movement = normalize(cam_movement);
 
-        state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.delta_time;
+        state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
     }
     
     if !ImGui.GetIO().WantCaptureMouse { // don't let imgui clicks come through to this one.
@@ -613,7 +626,7 @@ draw_inspector :: (editor_state: *Editor) {
 
         component_ptr := get_component(entity, component_ti);
         assert(component_ptr != null);
-        inspect("", component_ptr, component_ti, classify_node, categorize_type);
+        inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl);
     }
 
     if Button("Add Component")
@@ -631,6 +644,53 @@ draw_inspector :: (editor_state: *Editor) {
     }
 }
 
+entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
+    using context.state;
+    using ImGui;
+
+    assert(entity_handle != null);
+
+    PushID(entity_handle);
+    defer PopID();
+
+    TextUnformatted(name.data);
+    SameLine();
+
+    ok, entity := get_entity(<<entity_handle);
+    
+    label: string;
+    if !ok label = "None";
+    else label = tprintz("%", entity.name);
+
+    if Button(label.data) {
+        OpenPopup("entity_selector");
+    }
+    if BeginPopup("entity_selector") {
+        defer EndPopup();
+
+        filter := *editor.selector_filter;
+        TextFilter.Draw(filter);
+
+        selected_handle: Maybe(Entity_Handle);
+        for handles(*world.entities) {
+            ok, entity := get_entity(it);
+            assert(ok);
+            if TextFilter.PassFilter(filter, entity.name.data) {
+                if (Selectable(entity.name.data)) {
+                    selected_handle.has_value = true;
+                    selected_handle.value = it;
+                }
+            }
+        }
+
+        if selected_handle.has_value {
+            <<entity_handle = selected_handle.value;
+            return true;
+        }
+    }
+
+    return false;
+}
 
 focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
     ok, entity := get_entity(entity_handle);

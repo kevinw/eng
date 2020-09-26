@@ -132,14 +132,7 @@ Player :: struct {
     grounded: bool;
     jump_count: u8;
 
-    jump_button_time: float64;
     jump_button_last_frame: bool;
-    last_jump_time:float64 = -10000;
-
-    last_attack_time:float64 = -10000;
-    attack_did_hit: bool;
-
-    last_grounded_time:float64 = -10000;
 
     horizontal_movement: float;
     last_direction: float;
@@ -152,10 +145,15 @@ Player :: struct {
     damage := Takes_Damage.{
         damage_func_type = .Player,
     };
-    //damage.damage_func = player_was_damaged;
 
-    nearest_marker: *reaper.Marker; @noserialize
-    beat_timer: float64; // TODO: duplicated and set from game.jai
+    using transient: struct {
+        last_jump_time:float64 = -10000;
+        last_attack_time:float64 = -10000;
+        attack_did_hit: bool;
+        last_grounded_time:float64 = -10000;
+        nearest_marker: *reaper.Marker;
+        beat_timer: float64; // TODO: duplicated and set from game.jai
+    }; @noserialize
 }
 
 player_reset :: (using it: *Player) {

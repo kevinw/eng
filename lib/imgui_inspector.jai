@@ -16,6 +16,8 @@ Struct_Looks_Like :: enum {
 
     Color_Float4 :: 1004;
     Color_Byte4  :: 1104;
+
+    Has_Custom_Control :: 9999;
 }
 
 should_display_struct_member :: (member: *Type_Info_Struct_Member) -> bool {
@@ -70,12 +72,13 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Cat
 
 Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
 Categorize_Type_Func :: #type (ti: *Type_Info) -> Struct_Looks_Like;
+Custom_Ctrl_Func :: #type (name: string, data: *void, ti_struct: *Type_Info_Struct);
 
-inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null) {
-    inspect(name, t, type_info(T), show_node_func, categorize_type_func);
+inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null) {
+    inspect(name, t, type_info(T), show_node_func, categorize_type_func, custom_ctrl);
 }
 
-inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null) {
+inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null) {
     using ImGui;
 
     if show_node_func != null && !show_node_func(name, data, info)
@@ -128,15 +131,12 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             next_data := <<(cast(**void)data);
 
             if next_data == null {
-                if info_pointer.pointer_to.type == .STRUCT {
+                if info_pointer.pointer_to.type == .STRUCT
                     Text("%s: (*%s)null", name, (cast(*Type_Info_Struct)info_pointer.pointer_to).name.data);
-                } else {
+                else
                     Text("%s: null", name);
-                }
-                return;
-            }
-
-            inspect(name, next_data, info_pointer.pointer_to, show_node_func, categorize_type_func);
+            } else
+                inspect(name, next_data, info_pointer.pointer_to, show_node_func, categorize_type_func, custom_ctrl);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
         case .VOID;
@@ -145,45 +145,51 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             TextUnformatted("Code");
         case .STRUCT;
             ti_struct := cast(*Type_Info_Struct) info;
-            if categorize_ti_struct(ti_struct, categorize_type_func) == {
-                case .Float2;
-                    DragFloat2(name, cast([2]float)data);
-                case .Float3;
-                    DragFloat3(name, cast([3]float)data);
-                case .Float4;
-                    DragFloat4(name, cast([4]float)data);
-                case .Color_Byte4;
-                    bytes := cast(*u8)data;
-                    floats: [4]float;
-                    for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
-                    if ColorEdit4(name, floats) {
-                        Undo.push(undo, data, 4);
-                        for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
-                    }
-                    if IsItemDeactivatedAfterEdit()
-                        Undo.commit(undo);
-                case;
-                    tree_node_str:string;
-                    if name != null && str_length(name) > 0
-                        tree_node_str = tprintz("%: %", to_string(name), ti_struct.name);
-                    else
-                        tree_node_str = ti_struct.name;
 
-                    //tree_node_flags := TreeNodeFlags.None;
-                    //tree_node_flags := TreeNodeFlags.DefaultOpen;
-                    tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
-                    PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
-                    if TreeNodeEx(tree_node_str.data, tree_node_flags) {
-                        PopStyleColor();
-                        for * member: ti_struct.members
-                            if should_display_struct_member(member)
-                                inspect(member.name.data, data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func);
+            category := categorize_ti_struct(ti_struct, categorize_type_func);
+            if category == .Has_Custom_Control && custom_ctrl != null {
+                custom_ctrl(to_string(name), data, ti_struct);
+            } else {
+                if category == {
+                    case .Float2;
+                        DragFloat2(name, cast([2]float)data);
+                    case .Float3;
+                        DragFloat3(name, cast([3]float)data);
+                    case .Float4;
+                        DragFloat4(name, cast([4]float)data);
+                    case .Color_Byte4;
+                        bytes := cast(*u8)data;
+                        floats: [4]float;
+                        for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
+                        if ColorEdit4(name, floats) {
+                            Undo.push(undo, data, 4);
+                            for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
+                        }
+                        if IsItemDeactivatedAfterEdit()
+                            Undo.commit(undo);
+                    case;
+                        tree_node_str:string;
+                        if name != null && str_length(name) > 0
+                            tree_node_str = tprintz("%: %", to_string(name), ti_struct.name);
+                        else
+                            tree_node_str = ti_struct.name;
 
-                        if tree_node_flags & .NoTreePushOnOpen == 0
-                            TreePop();
-                    } else {
-                        PopStyleColor();
-                    }
+                        //tree_node_flags := TreeNodeFlags.None;
+                        //tree_node_flags := TreeNodeFlags.DefaultOpen;
+                        tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
+                        PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
+                        if TreeNodeEx(tree_node_str.data, tree_node_flags) {
+                            PopStyleColor();
+                            for * member: ti_struct.members
+                                if should_display_struct_member(member)
+                                    inspect(member.name.data, data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func, custom_ctrl);
+
+                            if tree_node_flags & .NoTreePushOnOpen == 0
+                                TreePop();
+                        } else {
+                            PopStyleColor();
+                        }
+                }
             }
         case .ARRAY;
             info_array := cast(*Type_Info_Array) info;
@@ -194,13 +200,13 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 defer TreePop();
                 for 0..array_count-1 {
                     item_name := temp_c_string(tprint("%[%]", array_name, it));
-                    inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func, categorize_type_func);
+                    inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func, categorize_type_func, custom_ctrl);
                 }
             }
         case .ANY;
             // @@ Display type and inspect value.
             any := cast(*Any)data;
-            inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func);
+            inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func, custom_ctrl);
         case .ENUM;
             ti_enum := cast(*Type_Info_Enum) info;
             if ti_enum.enum_type_flags & .Is_Flags {

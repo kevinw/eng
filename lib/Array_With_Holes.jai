@@ -325,8 +325,10 @@ get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
     }
-    assert(handle.id > 0, "You passed an uninitialized handle to Array_With_Holes.get_item_ptr");
-    assert(handle.generation > 0);
+    if handle.id <= 0
+        assert(handle.id > 0, "You passed an uninitialized handle to Array_With_Holes.get_item_ptr");
+    if handle.generation <= 0
+        assert(handle.generation > 0, "You passed handle to get_item_ptr: %", handle);
 
     slot := *arr.items[handle.id];
     if slot.generation == handle.generation

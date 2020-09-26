@@ -14,13 +14,13 @@ get_obj :: (node: *Node, field_name: string) -> *Node {
     return get(node, field_name, .Object);
 }
 
-get :: (node: *Node, field_name: string, node_type: Node.Type) -> *Node {
+get :: (node: *Node, field_name: string, node_type: Node.Type, do_remove := true) -> *Node {
     assert(node.type == .Object);
     for node._object.fields {
         if it.name == field_name {
             assert(it.value.type == node_type);
             val := it.value;
-            remove it; // @Leak
+            if do_remove remove it; // @Leak
             return val;
         }
     }
@@ -34,9 +34,17 @@ Added_Field_Entry :: struct {
     any: Any;
 }
 
+// TODO: do we want to use *Any like this, or not?
+
 On_Serialize_Func :: #type (any: *Any, added_fields: *[..]Added_Field_Entry);
 
+On_Deserialize_Func :: #type (any: *Any, node: *Node, userdata: *void) -> (handled: bool);
+
 default_on_serialize: On_Serialize_Func : (any: *Any, added_fields: *[..]Added_Field_Entry) {};
+
+default_on_deserialize: On_Deserialize_Func : (any: *Any, node: *Node, userdata: *void) -> (handled: bool) {
+    return false;
+}
 
 serialize :: (value: *$Type, on_serialize := default_on_serialize) -> string {
     return serialize_ti(value, type_info(Type), on_serialize);
@@ -161,12 +169,12 @@ deserialize :: inline ($T: Type, data: string) -> T {
     return t;
 }
 
-deserialize :: (data: string, ptr: *$Type) {
+deserialize :: (data: string, ptr: *$Type, on_deserialize: On_Deserialize_Func = default_on_deserialize, userdata: *void = null) {
     ti := type_info(Type);
     lexer := laas.make_lexer(data);
     root := parse_value(*lexer, false);
     defer delete_node(root);
-    write_value(root, ptr, ti, "<root>");
+    write_value(root, ptr, ti, "<root>", on_deserialize=on_deserialize, userdata=userdata);
 }
 
 parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_location) -> *Node {
@@ -466,14 +474,24 @@ delete_node :: (node: *Node) {
 	free(node);
 }
 
-write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "", verbose := false) {
-    write_value(node, ptr, type_info(T), debug_string, verbose);
+write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "", verbose := false, on_deserialize: On_Deserialize_Func = default_on_deserialize, userdata: *void = null) {
+    write_value(node, ptr, type_info(T), debug_string, verbose, on_deserialize);
 }
 
-write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = "", verbose := false) {
+// TODO: this argument list is getting ridiculous and probably needs an Options
+// struct.
+write_value :: (node: *Node, ptr: *void, ti: *Type_Info,
+    debug_name: string = "",
+    verbose := false,
+    on_deserialize: On_Deserialize_Func = default_on_deserialize,
+    userdata: *void = null
+) {
     any: Any = ---;
     any.type = ti;
     any.value_pointer = ptr;
+    assert(on_deserialize != null);
+    if on_deserialize(*any, node, userdata)
+        return;
 
     if (ti.type) == {
         case .STRUCT;
@@ -482,7 +500,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                 for field: node._object.fields
                     for ti_struct.members
                         if it.name == field.name
-                            write_value(field.value, ptr + it.offset_in_bytes, it.type, tprint("%.%", debug_name, it.name), verbose);
+                            write_value(field.value, ptr + it.offset_in_bytes, it.type, tprint("%.%", debug_name, it.name), verbose, on_deserialize, userdata);
             }
 		case .ARRAY;
             if check_type(node, .Array, verbose, debug_name) {
@@ -495,7 +513,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                         assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
                             node._array.elements.count, ti_array.array_count);
                         for node._array.elements
-                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose);
+                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose, on_deserialize, userdata);
                     case .VIEW;
                         if ti_array.relative_pointer_size == {
                             case 0;
@@ -510,7 +528,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                                     assert(array.data != null);
                                     array.count = desired_items;
                                     for node._array.elements
-                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose);
+                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose, on_deserialize, userdata);
                                 }
                             case;
                                 assert(false, "TODO: relative pointer sizes for slices");
@@ -534,7 +552,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                         array.count = desired_items;
                         if desired_items > 0
                             for node._array.elements
-                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose);
+                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose, on_deserialize, userdata);
                 }
             }
         case .STRING;
@@ -569,7 +587,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                 if !did_set logprint("wbml", "WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
             }
         case;
-            print("unhandled: '%' %\n", debug_name, ti.type);
+            logprint("wbml", "unhandled: '%' %", debug_name, ti.type);
     }
 }
 
