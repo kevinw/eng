@@ -664,9 +664,6 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
 
 
 load_world :: (world: *World, wbml_string: string) {
-    logprint("load_world",
-        "TODO: load the world from wbml with laas");
-
     lexer := laas.make_lexer(wbml_string);
 
     new_entity_handles: [..]struct { live: Entity_Handle; on_disk: u32; };
@@ -684,21 +681,8 @@ load_world :: (world: *World, wbml_string: string) {
         if class_name == {
             case "Entity";
                 assert(value.type == .Object);
-                entity_id: s32 = 0;
-                entity_name: string;
-                for value._object.fields {
-                    if it.name == "id" {
-                        assert(it.value.type == .Number);
-                        entity_id = cast(s32)it.value._number.int_value;
-                        remove it; // @Leak
-                    }
-                    if it.name == "name" {
-                        assert(it.value.type == .String);
-                        entity_name = copy_string(it.value._string); // @Leak
-                        remove it; // @Leak
-                    }
-                }
-                        
+                entity_id := cast(s32)wbml.get(value, "id", .Number)._number.int_value;
+                entity_name := copy_string(wbml.get(value, "name", .String)._string); // @Leak
                 assert(entity_id != 0);
                 new_entity_ptr, new_entity_handle := create_entity(world, entity_name, entity_id);
                 wbml.write_value(value, new_entity_ptr, "Entity");
