@@ -378,95 +378,90 @@ editor_draw :: (state: *State) {
 editor_update :: (state: *State) {
     using context.state.editor;
 
-    if ImGui.GetIO().WantCaptureMouse // don't let imgui clicks come through to this one.
-        return;
-
-    if false
-        for * state.world.entities {
-            e_rect := entity_rect(it, true);
-            screenlog.world(e_rect.position, "%", e_rect);
-        }
-
-    Time := *state.Time;
     if play_mode == .Play return;
 
-    editor_cam_speed := 250.0;
-    if IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)
-        editor_cam_speed *= 2;
+    // Move editor camera with WASD
+    {
+        editor_cam_speed := 250.0;
+        if IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT)
+            editor_cam_speed *= 2;
 
-    cam_movement := inp.movement(inp.Input_Type.KEYBOARD_WASD);
-    cam_movement += Vector2_Scale(v2(1, -1), inp.movement(inp.Input_Type.GAMEPAD_RIGHT_STICK));
-    if cam_movement.x != 0 || cam_movement.y != 0
-        cam_movement = normalize(cam_movement);
+        cam_movement := inp.movement(inp.Input_Type.KEYBOARD_WASD);
+        cam_movement += Vector2_Scale(v2(1, -1), inp.movement(inp.Input_Type.GAMEPAD_RIGHT_STICK));
+        if cam_movement.x != 0 || cam_movement.y != 0
+            cam_movement = normalize(cam_movement);
 
-    state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * Time.delta_time;
+        state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.delta_time;
+    }
 
-    took_action := false;
     ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
     shift_down := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
     
-    if set_if_different(*mouse_pos, GetMousePosition()) {
-        world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
+    if !ImGui.GetIO().WantCaptureMouse { // don't let imgui clicks come through to this one.
+        if set_if_different(*mouse_pos, GetMousePosition()) {
+            world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
 
-        hover.has_value = false;
-        for handles(*state.world.entities) {
-            ok, entity := get_entity(it);
-            assert(ok);
-            e_rect := entity_rect(entity, true);
-            if overlaps(e_rect, world_mouse_pos) {
-                hover.value = it;
-                hover.has_value = true;
+            hover.has_value = false;
+            for handles(*state.world.entities) {
+                ok, entity := get_entity(it);
+                assert(ok);
+                e_rect := entity_rect(entity, true);
+                if overlaps(e_rect, world_mouse_pos) {
+                    hover.value = it;
+                    hover.has_value = true;
+                }
             }
         }
-    }
 
-    if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
-        Undo.push_array(*undo_state, *selected);
+        if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+            Undo.push_array(*undo_state, *selected);
 
-        if hover.has_value {
-            set_or_toggle_selected(hover.value);
-            took_action = true;
-        }
+            took_action := false;
+            if hover.has_value {
+                set_or_toggle_selected(hover.value);
+                took_action = true;
+            }
 
-        if !took_action
-            clear_selection();
+            if !took_action
+                clear_selection();
 
-        for * selected {
-            trs := get_transform_or_null(it.handle);
-            if trs != null
-                Undo.push(*undo_state, trs);
-        }
-
-        drag_state.dragging = true;
-        drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
-
-        if took_action {
             for * selected {
                 trs := get_transform_or_null(it.handle);
-                if trs
-                    it.original_pos = trs.position.xy;
+                if trs != null
+                    Undo.push(*undo_state, trs);
+            }
+
+            drag_state.dragging = true;
+            drag_state.origin = get_mouse_world_pos(state.camera, state.screen.texture);
+
+            if took_action {
+                for * selected {
+                    trs := get_transform_or_null(it.handle);
+                    if trs
+                        it.original_pos = trs.position.xy;
+                }
+            }
+        } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
+            if selected.count == 0 {
+                rect := rect_from_points(drag_state.origin, world_mouse_pos);
+                if rect.width > 5 && rect.height > 5 {
+                    if callbacks.did_drag != null
+                        callbacks.did_drag(rect);
+                }
+            } else
+                Undo.commit(*undo_state);
+
+            drag_state.dragging = false;
+
+        } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
+            delta := world_mouse_pos - drag_state.origin;
+            for selected {
+                trs := get_transform_or_null(it);
+                if trs != null
+                    trs.position.xy = it.original_pos + delta;
             }
         }
-    } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
-        if selected.count == 0 {
-            rect := rect_from_points(drag_state.origin, world_mouse_pos);
-            if rect.width > 5 && rect.height > 5 {
-                if callbacks.did_drag != null
-                    callbacks.did_drag(rect);
-            }
-        } else
-            Undo.commit(*undo_state);
-
-        drag_state.dragging = false;
-
-    } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
-        delta := world_mouse_pos - drag_state.origin;
-        for selected {
-            trs := get_transform_or_null(it);
-            if trs != null
-                trs.position.xy = it.original_pos + delta;
-        }
-    }
+    } // WantCaptureMouse
 
     if IsKeyPressed(.KEY_DELETE) {
         if selected.count > 0 {
@@ -489,6 +484,10 @@ editor_update :: (state: *State) {
             clear_selection();
             load_scene("1");
         }
+    }
+
+    if ctrl_down && IsKeyPressed(.KEY_N) {
+        reset_world(*state.world);
     }
 
     if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {

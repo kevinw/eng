@@ -427,7 +427,7 @@ world_draw :: (world: *World = null) {
 #placeholder run_on_enable;
 
 create_entity :: (world: *World = null, name: string = "", id: s32 = -1,
-    undo: *Undo.Impl = null
+    undo: *Undo.Impl = null, create_transform_component := true
 ) -> *Entity, Entity_Handle {
     if world == null
         world = *context.state.world;
@@ -443,7 +443,8 @@ create_entity :: (world: *World = null, name: string = "", id: s32 = -1,
 
     e.name = copy_string_z(name_to_use); // @Leak
 
-    add_component(handle, Transform, undo=undo);
+    if create_transform_component
+        add_component(handle, Transform, undo=undo);
 
     return e, handle;
 }
@@ -684,7 +685,7 @@ load_world :: (world: *World, wbml_string: string) {
                 entity_id := cast(s32)wbml.get(value, "id", .Number)._number.int_value;
                 entity_name := copy_string(wbml.get(value, "name", .String)._string); // @Leak
                 assert(entity_id != 0);
-                new_entity_ptr, new_entity_handle := create_entity(world, entity_name, entity_id);
+                new_entity_ptr, new_entity_handle := create_entity(world, entity_name, entity_id, create_transform_component=false);
                 wbml.write_value(value, new_entity_ptr, "Entity");
 
                 entry := array_add(*new_entity_handles);
@@ -711,7 +712,7 @@ load_world :: (world: *World, wbml_string: string) {
                 component_ti := component_bit_to_ti(component_bit);
 
                 component_ptr := add_component(found_handle, component_ti);
-                wbml.write_value(value, component_ptr, class_name);
+                wbml.write_value(value, component_ptr, component_ti, class_name); // , verbose=true);
         }
     }
 

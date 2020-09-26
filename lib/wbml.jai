@@ -466,28 +466,26 @@ delete_node :: (node: *Node) {
 	free(node);
 }
 
-write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "") {
-    write_value(node, ptr, type_info(T), debug_string);
+write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "", verbose := false) {
+    write_value(node, ptr, type_info(T), debug_string, verbose);
 }
 
-write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = "") {
+write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = "", verbose := false) {
     any: Any = ---;
     any.type = ti;
     any.value_pointer = ptr;
 
-    t := ti.type;
-    if t == {
+    if (ti.type) == {
         case .STRUCT;
-            if node.type == .Object {
+            if check_type(node, .Object, verbose, debug_name) {
+                ti_struct := cast(*Type_Info_Struct)ti;
                 for field: node._object.fields
-                    for (cast(*Type_Info_Struct)ti).members
-                        if it.name == field.name {
-                            field_debug_name := tprint("%.%", debug_name, it.name);
-                            write_value(field.value, ptr + it.offset_in_bytes, it.type, field_debug_name);
-                        }
+                    for ti_struct.members
+                        if it.name == field.name
+                            write_value(field.value, ptr + it.offset_in_bytes, it.type, tprint("%.%", debug_name, it.name), verbose);
             }
 		case .ARRAY;
-            if node.type == .Array {
+            if check_type(node, .Array, verbose, debug_name) {
                 ti_array := cast(*Type_Info_Array)ti;
                 elem_size := ti_array.element_type.runtime_size;
                 assert(ti_array.relative_pointer_size == 0, "TODO: implement relative pointers");
@@ -497,7 +495,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                         assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
                             node._array.elements.count, ti_array.array_count);
                         for node._array.elements
-                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose);
                     case .VIEW;
                         if ti_array.relative_pointer_size == {
                             case 0;
@@ -512,7 +510,7 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                                     assert(array.data != null);
                                     array.count = desired_items;
                                     for node._array.elements
-                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose);
                                 }
                             case;
                                 assert(false, "TODO: relative pointer sizes for slices");
@@ -536,32 +534,39 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info, debug_name: string = ""
                         array.count = desired_items;
                         if desired_items > 0
                             for node._array.elements
-                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index));
+                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose);
                 }
             }
         case .STRING;
 			// how to manage allocation? overwriting?
-            if node.type == .String {
+            if check_type(node, .String, verbose, debug_name) {
                 <<cast(*string)ptr = copy_string(node._string);
             }
         case .BOOL;
-            if node.type == .Bool {
+            if check_type(node, .Bool, verbose, debug_name) {
                 <<cast(*bool)ptr = node._bool.value;
             }
         case .INTEGER;
-            if node.type == .Number {
+            if check_type(node, .Number, verbose, debug_name) {
                 did_set := Reflection.set_value_from_string(any, node._number.value_str);
                 if !did_set print("WARNING: set_value_from_string failed for setting integer % from %\n", debug_name, node._number.value_str);
             }
         case .FLOAT;
-            if node.type == .Number {
+            if check_type(node, .Number, verbose, debug_name) {
                 did_set := Reflection.set_value_from_string(any, node._number.value_str);
                 if !did_set print("WARNING: set_value_from_string failed for setting float %\n", debug_name);
             }
 		case .ENUM;
-            if node.type == .Enum_Value {
+            if node.type == .Number {
+                // Jai printer serializes 0 valued enums as '0', even if there's a named None.
+                // we account for that here...perhaps we should only do it for zero? not sure.
+                if !Reflection.set_value_from_string(any, node._number.value_str) {
+                    if verbose
+                        logprint("wbml", "failed setting number '%' as enum %", node._number.value_str, any);
+                }
+            } else if check_type(node, .Enum_Value, verbose, debug_name) {
                 did_set := Reflection.set_value_from_string(any, node._enum);
-                if !did_set print("WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
+                if !did_set logprint("wbml", "WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
             }
         case;
             print("unhandled: '%' %\n", debug_name, ti.type);
@@ -656,6 +661,15 @@ eat_newlines :: (lexer: *laas.Lexer) {
         else
             return;
     }
+}
+
+check_type :: (node: *Node, type: Node.Type, verbose: bool, debug_name := "") -> bool {
+    if node.type == type
+        return true;
+    
+    if verbose
+        logprint("wbml", "warning: node was %, expected .% for %", node.type, type, debug_name);
+    return false;
 }
 
 // #run run_tests();
