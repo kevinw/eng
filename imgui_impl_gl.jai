@@ -372,30 +372,58 @@ get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
 ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
     assert(ctx != null, "must call create context");
     ImGui.SetCurrentContext(ctx);
+    //print("imgui version %\n", to_string(ImGui.GetVersion()));
 
-    print("imgui version %\n", to_string(ImGui.GetVersion()));
-
-    using Input.Key_Code;
     io := ImGui.GetIO();
-    io.KeyMap[ImGui.Key.Tab] = xx TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
-    io.KeyMap[ImGui.Key.LeftArrow] = xx ARROW_LEFT;
-    io.KeyMap[ImGui.Key.RightArrow] = xx ARROW_RIGHT;
-    io.KeyMap[ImGui.Key.UpArrow] = xx ARROW_UP;
-    io.KeyMap[ImGui.Key.DownArrow] = xx ARROW_DOWN;
-    io.KeyMap[ImGui.Key.PageUp] = xx PAGE_UP;
-    io.KeyMap[ImGui.Key.PageDown] = xx PAGE_DOWN;
-    io.KeyMap[ImGui.Key.Home] = xx HOME;
-    io.KeyMap[ImGui.Key.End] = xx END;
-    io.KeyMap[ImGui.Key.Delete] = xx DELETE;
-    io.KeyMap[ImGui.Key.Backspace] = xx BACKSPACE;
-    io.KeyMap[ImGui.Key.Enter] = xx ENTER;
-    io.KeyMap[ImGui.Key.Escape] = xx ESCAPE;
-    io.KeyMap[ImGui.Key.A] = xx #char "A";
-    io.KeyMap[ImGui.Key.C] = xx #char "C";
-    io.KeyMap[ImGui.Key.V] = xx #char "V";
-    io.KeyMap[ImGui.Key.X] = xx #char "X";
-    io.KeyMap[ImGui.Key.Y] = xx #char "Y";
-    io.KeyMap[ImGui.Key.Z] = xx #char "Z";
+    {
+        // raylib keys
+        using KeyboardKey;
+
+        io.KeyMap[ImGui.Key.Tab]        = xx KEY_TAB;
+        io.KeyMap[ImGui.Key.LeftArrow]  = xx KEY_LEFT;
+        io.KeyMap[ImGui.Key.RightArrow] = xx KEY_RIGHT;
+        io.KeyMap[ImGui.Key.UpArrow]    = xx KEY_UP;
+        io.KeyMap[ImGui.Key.DownArrow]  = xx KEY_DOWN;
+        io.KeyMap[ImGui.Key.Backspace]  = xx KEY_BACKSPACE;
+        io.KeyMap[ImGui.Key.PageUp]     = xx KEY_PAGE_UP;
+        io.KeyMap[ImGui.Key.PageDown]   = xx KEY_PAGE_DOWN;
+        io.KeyMap[ImGui.Key.Home]       = xx KEY_HOME;
+        io.KeyMap[ImGui.Key.End]        = xx KEY_END;
+        io.KeyMap[ImGui.Key.Delete]     = xx KEY_DELETE;
+        io.KeyMap[ImGui.Key.Backspace]  = xx KEY_BACKSPACE;
+        io.KeyMap[ImGui.Key.Enter]      = xx KEY_ENTER;
+        io.KeyMap[ImGui.Key.Escape]     = xx KEY_ESCAPE;
+        io.KeyMap[ImGui.Key.A]          = xx KEY_A;
+        io.KeyMap[ImGui.Key.C]          = xx KEY_C;
+        io.KeyMap[ImGui.Key.V]          = xx KEY_V;
+        io.KeyMap[ImGui.Key.X]          = xx KEY_X;
+        io.KeyMap[ImGui.Key.Y]          = xx KEY_Y;
+        io.KeyMap[ImGui.Key.Z]          = xx KEY_Z;
+    }
+
+    #if 0 {
+        using Input.Key_Code;
+        // these are from the Jai input library
+        io.KeyMap[ImGui.Key.Tab] = xx TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
+        io.KeyMap[ImGui.Key.LeftArrow] = xx ARROW_LEFT;
+        io.KeyMap[ImGui.Key.RightArrow] = xx ARROW_RIGHT;
+        io.KeyMap[ImGui.Key.UpArrow] = xx ARROW_UP;
+        io.KeyMap[ImGui.Key.DownArrow] = xx ARROW_DOWN;
+        io.KeyMap[ImGui.Key.PageUp] = xx PAGE_UP;
+        io.KeyMap[ImGui.Key.PageDown] = xx PAGE_DOWN;
+        io.KeyMap[ImGui.Key.Home] = xx HOME;
+        io.KeyMap[ImGui.Key.End] = xx END;
+        io.KeyMap[ImGui.Key.Delete] = xx DELETE;
+        io.KeyMap[ImGui.Key.Backspace] = xx BACKSPACE;
+        io.KeyMap[ImGui.Key.Enter] = xx ENTER;
+        io.KeyMap[ImGui.Key.Escape] = xx ESCAPE;
+        io.KeyMap[ImGui.Key.A] = xx #char "A";
+        io.KeyMap[ImGui.Key.C] = xx #char "C";
+        io.KeyMap[ImGui.Key.V] = xx #char "V";
+        io.KeyMap[ImGui.Key.X] = xx #char "X";
+        io.KeyMap[ImGui.Key.Y] = xx #char "Y";
+        io.KeyMap[ImGui.Key.Z] = xx #char "Z";
+    }
 
     // io.RenderDrawListsFn = ImGui_Impl_RenderDrawLists;   // Alternatively you can set this to NULL and call ImGui::GetDrawData() after ImGui::Render() to get the same ImGui.ImDrawData pointer.
     io.SetClipboardTextFn = ImGui_Impl_SetClipboardText;
