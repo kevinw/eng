@@ -127,7 +127,17 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
             if !skip {
                 print_item_to_builder(sb, name_and_space);
-                print_item_to_builder(sb, tprint("%", item));
+                number_as_str := tprint("%", item);
+                strip_trailing_decimal_zeros :: (s: *string) {
+                    // TODO: just format the damn float differently....
+                    // TODO: international decimal points may not be "."
+                    if String.last_index_of_char(<<s, #char ".") == -1 return;
+                    while String.ends_with(<<s, "0") s.count -= 1;
+                    if String.ends_with(<<s, ".") s.count -= 1;
+                }
+                if t == .FLOAT
+                    strip_trailing_decimal_zeros(*number_as_str);
+                print_item_to_builder(sb, number_as_str);
             }
         case .STRING;
             if default != null {
@@ -214,8 +224,9 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             if indent_level == 1 || trimmed.count > 0 {
                 print_indents(indent_level, *sub_sb);
                 print_to_builder(sb, "%{\n", name_and_space);
-                if trimmed.count > 0
+                if trimmed.count > 0 {
                     print_to_builder(sb, "%", sub_str);
+                }
             } else {
                 skip = true;
             }
@@ -782,8 +793,6 @@ check_type :: (node: *Node, type: Node.Type, verbose: bool, debug_name := "") ->
         logprint("wbml", "warning: node was %, expected .% for %", node.type, type, debug_name);
     return false;
 }
-
-// #run run_tests();
 
 run_tests :: () {
     len :: (a: []$A) -> int { return a.count; }
