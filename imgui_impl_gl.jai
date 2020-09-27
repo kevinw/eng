@@ -169,8 +169,8 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
 
 ImGui_SetMouseEvents :: (using ui_state: *UI_State, left: bool, middle: bool, right: bool, wheel: float) {
     MousePressed[0] = left;
-    MousePressed[1] = middle;
-    MousePressed[2] = right;
+    MousePressed[1] = right;
+    MousePressed[2] = middle;
     MouseWheel = wheel;
 }
 
@@ -188,14 +188,7 @@ ImGui_Impl_SetClipboardText :: (data: *void, text: *u8) #c_call {
     }
 }
 
-ImGui_SetMouseState :: (using ui_state: *UI_State, left: bool, middle: bool, right: bool, wheel: float) {
-    // TODO: this is a duplicate of SetMouseEvents above
-    MousePressed[0] = left;
-    MousePressed[1] = middle;
-    MousePressed[2] = right;
-    MouseWheel = wheel;
-}
-
+#if 0 {
 // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
@@ -227,6 +220,8 @@ ImGui_Impl_ProcessEvent :: (using ui_state: *UI_State, event: Input.Event) {
             io.AddInputCharactersUTF8(io, buf);
     }
 }
+}
+
 
 ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
     io := ImGui.GetIO();
