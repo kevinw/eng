@@ -20,6 +20,10 @@ operator == :: (a: Handle_Type, b: Handle_Type) -> bool {
     return a.id == b.id && a.generation == b.generation;
 }
 
+operator != :: (a: Handle_Type, b: Handle_Type) -> bool {
+    return a.id != b.id || a.generation != b.generation;
+}
+
 Array_With_Holes :: struct(Value: Type) {
     Handle :: Handle_Type;
     Value_Type :: Value;

@@ -298,6 +298,16 @@ editor_draw :: (state: *State) {
                     if TreeNodeEx(entity, flags, "%s", entity.name.data) {
                         defer TreePop();
                     }
+
+                    PushID(entity);
+                    if (BeginPopupContextItem("entity context menu")) {
+                        defer EndPopup();
+                        if Selectable("Save as prefab") {
+                            filename := tprint("prefabs/%.wbml", entity.name);
+                            save_prefab(filename, *it);
+                        }
+                    }
+                    defer PopID();
                 }
                 
                 if IsItemClicked() {
@@ -315,16 +325,17 @@ editor_draw :: (state: *State) {
         //}
 
         if false && ImGui.TreeNode("Advanced, with Selectable nodes") {
+            defer TreePop();
             HelpMarker("This is a more typical looking tree with selectable nodes.\nClick to select, CTRL+Click to toggle, click on arrows or double-click to open.");
-            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_OpenOnArrow",       cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.OpenOnArrow);
-            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_OpenOnDoubleClick", cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.OpenOnDoubleClick);
-            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_SpanAvailWidth",    cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.SpanAvailWidth); ImGui.SameLine(); HelpMarker("Extend hit area to all available width instead of allowing more items to be laid out after the node.");
-            ImGui.CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth",     cast(*u32)*base_flags, cast(u32)ImGui.TreeNodeFlags.SpanFullWidth);
-            ImGui.Checkbox("Align label with current X position", *align_label_with_current_x_position);
-            ImGui.Checkbox("Test tree node as drag source", *test_drag_and_drop);
-            ImGui.Text("Hello!");
+            CheckboxFlags("ImGuiTreeNodeFlags_OpenOnArrow",       cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnArrow);
+            CheckboxFlags("ImGuiTreeNodeFlags_OpenOnDoubleClick", cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnDoubleClick);
+            CheckboxFlags("ImGuiTreeNodeFlags_SpanAvailWidth",    cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanAvailWidth); ImGui.SameLine(); HelpMarker("Extend hit area to all available width instead of allowing more items to be laid out after the node.");
+            CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth",     cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanFullWidth);
+            Checkbox("Align label with current X position", *align_label_with_current_x_position);
+            Checkbox("Test tree node as drag source", *test_drag_and_drop);
+            Text("Hello!");
             if (align_label_with_current_x_position)
-                ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
+                Unindent(ImGui.GetTreeNodeToLabelSpacing());
 
             // 'selection_mask' is dumb representation of what may be user-side selection state.
             //  You may retain selection state inside or outside your objects in whatever format you see fit.
@@ -340,43 +351,42 @@ editor_draw :: (state: *State) {
                 if i < 3 {
                     // Items 0..2 are Tree Node
                     node_open:bool = ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Node %d", i);
-                    if (ImGui.IsItemClicked())
+                    if IsItemClicked()
                         node_clicked = cast(s32)i;
                     if test_drag_and_drop && ImGui.BeginDragDropSource() {
-                        ImGui.SetDragDropPayload("_TREENODE", null, 0);
-                        ImGui.Text("This is a drag and drop source");
-                        ImGui.EndDragDropSource();
+                        defer ImGui.EndDragDropSource();
+                        SetDragDropPayload("_TREENODE", null, 0);
+                        Text("This is a drag and drop source");
                     }
                     if node_open {
-                        ImGui.BulletText("Blah blah\nBlah Blah");
-                        ImGui.TreePop();
+                        BulletText("Blah blah\nBlah Blah");
+                        TreePop();
                     }
                 } else {
                     // Items 3..5 are Tree Leaves
                     // The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
                     // use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
-                    node_flags |= ImGui.TreeNodeFlags.Leaf | .NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
-                    ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Leaf %d", i);
+                    node_flags |= TreeNodeFlags.Leaf | .NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
+                    TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Leaf %d", i);
                     if ImGui.IsItemClicked()
                         node_clicked = cast(s32)i;
                     if test_drag_and_drop && ImGui.BeginDragDropSource() {
-                        ImGui.SetDragDropPayload("_TREENODE", null, 0);
-                        ImGui.Text("This is a drag and drop source");
-                        ImGui.EndDragDropSource();
+                        SetDragDropPayload("_TREENODE", null, 0);
+                        Text("This is a drag and drop source");
+                        EndDragDropSource();
                     }
                 }
             }
             if node_clicked != -1 {
                 // Update selection state
                 // (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
-                if ImGui.GetIO().KeyCtrl
+                if GetIO().KeyCtrl
                     selection_mask ^= cast(s32)(1 << node_clicked);          // CTRL+click to toggle
                 else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
                     selection_mask = cast(s32)(1 << node_clicked);           // Click to single-select
             }
             if (align_label_with_current_x_position)
-                ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
-            ImGui.TreePop();
+                Indent(ImGui.GetTreeNodeToLabelSpacing());
         }
     }
 
@@ -386,7 +396,9 @@ editor_draw :: (state: *State) {
 editor_update :: (state: *State) {
     using context.state.editor;
 
-    defer wants_keyboard = ImGui.GetIO().WantCaptureKeyboard;
+    io := ImGui.GetIO();
+
+    defer wants_keyboard = io.WantCaptureKeyboard;
 
     if play_mode == .Play return;
 
@@ -414,7 +426,7 @@ editor_update :: (state: *State) {
         state.camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
     }
     
-    if !ImGui.GetIO().WantCaptureMouse { // don't let imgui clicks come through to this one.
+    if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
             world_mouse_pos = get_mouse_world_pos(state.camera, state.screen.texture);
 
@@ -653,8 +665,6 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
     PushID(entity_handle);
     defer PopID();
 
-    TextUnformatted(name.data);
-    SameLine();
 
     ok, entity := get_entity(<<entity_handle);
     
@@ -665,16 +675,26 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
     if Button(label.data) {
         OpenPopup("entity_selector");
     }
+
+    SameLine();
+    Text(" %s", name.data);
+
     if BeginPopup("entity_selector") {
         defer EndPopup();
 
         filter := *editor.selector_filter;
         TextFilter.Draw(filter);
 
+        if Selectable("[None]") {
+            <<entity_handle = .{};
+        }
+
         selected_handle: Maybe(Entity_Handle);
         for handles(*world.entities) {
             ok, entity := get_entity(it);
             assert(ok);
+            PushID(entity);
+            defer PopID();
             if TextFilter.PassFilter(filter, entity.name.data) {
                 if (Selectable(entity.name.data)) {
                     selected_handle.has_value = true;
