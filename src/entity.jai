@@ -559,8 +559,6 @@ Prefab_Cache :: struct {
             component_type_name: string; @owned
             object_node: *wbml.Node; @owned
         };
-
-        transform_node: *wbml.Node;
     }
 
     entries: [..]Entry;
@@ -571,8 +569,6 @@ Prefab_Cache :: struct {
                 free(it.component_type_name);
                 wbml.delete_node(it.object_node);
             }
-
-            if it.transform_node wbml.delete_node(it.transform_node);
         }
     }
 }
@@ -620,16 +616,11 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
         assert(value.type == .Object);
         value = wbml.deep_copy(value);
 
-        if component_name_ident.text == "Transform" {
-            // TODO: this goes away once Transform is just another component.
-            cache_entry.transform_node = value;
-        } else {
-            ti := get_component_ti_from_name(component_name_ident.text);
+        ti := get_component_ti_from_name(component_name_ident.text);
 
-            component_cache_entry := array_add(*cache_entry.components);
-            component_cache_entry.component_type_name = copy_string(ti.name);
-            component_cache_entry.object_node = value;
-        }
+        component_cache_entry := array_add(*cache_entry.components);
+        component_cache_entry.component_type_name = copy_string(ti.name);
+        component_cache_entry.object_node = value;
     }
 
     ptr := array_add(*context.state.world.prefab_cache.entries);
@@ -782,7 +773,7 @@ reset_world :: (world: *World) {
     }
 }
 
-save_prefab :: (filename: string) {
+save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
     // Currently just writing out the denormalized data...not the most
     // human-readable thing, though. Maybe that's...ok? I know trying
     // to eyeball Unity YAML merges is a nightmare because it's a bit
@@ -795,28 +786,32 @@ save_prefab :: (filename: string) {
         ok, entity := get_entity(it);
         assert(ok);
 
+        if entity_selection != null && it != <<entity_selection
+            continue;
+
         // TODO merge this wbml.serialize call with the one below.
         // really we just want to serialize all the buckets!
-
         ti := cast(*Type_Info_Struct)type_info(type_of(<<entity));
+        entity_defaults: Entity;
 
-        //
         // TODO: I'm not sure that using this on_serialize function to add the 'id' field to
         // entities is a good idea. We know that at the top level, we want entities to have
         // an extra 'id' thing. Maybe serialize() should take an extra set of things and that's it?
-        // Then we don't pay the cost for each node.
-        //
-
-        wbml.serialize_with_type_info(ti.name, entity, ti, *sb, on_serialize=component_on_serialize);
+        // Then we don't pay the cost for each node. @Speed
+        wbml.serialize_with_type_info(ti.name, entity, ti, *sb, on_serialize=component_on_serialize, default=*entity_defaults);
     }
 
     for bit_s64: type_info(Component_Bit).values {
         component_bit := cast(Component_Bit)bit_s64;
         #insert #run runtime_bit_bucket_chooser(#string END
-            for * bucket {
-                ti := cast(*Type_Info_Struct)type_info(type_of(<<it));
+            for handles(bucket) {
+                component_ptr := get_item_ptr(bucket, it);
+                if entity_selection != null && component_ptr.entity != <<entity_selection
+                    continue;
+
+                ti := cast(*Type_Info_Struct)type_info(type_of(<<component_ptr));
                 component_defaults: Bucket_Value_Type;
-                wbml.serialize_with_type_info(ti.name, it, ti, *sb,
+                wbml.serialize_with_type_info(ti.name, component_ptr, ti, *sb,
                     on_serialize=component_on_serialize, debug_name=ti.name, default=*component_defaults);
             }
         END);
@@ -842,21 +837,17 @@ spawn_prefab :: (name: string, world_pos: rl.Vector2) -> (*Entity, Entity_Handle
 }
 
 spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Entity, Entity_Handle) {
-    VERBOSE :: true;
     filename := tprint("prefabs/%.wbml", name);
     prefab_cache_entry := get_prefab_cache_entry(filename);
 
-    // make the entitty
-    // TODO: need to actually use the entity_id paramenter here, or get rid of it.
-    entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
+    // Make the entity.
+    // TODO: need to actually use the entity_id paramenter here, or get rid of
+    // it.
+    entity, entity_handle := create_entity(*context.state.world,
+        prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
 
     transform := get_transform(entity);
     assert(transform != null);
-
-    if prefab_cache_entry.transform_node
-        wbml.write_value(prefab_cache_entry.transform_node, transform);
-
-    transform.position = world_pos;
 
     for prefab_cache_entry.components {
         component_type_name := it.component_type_name;
@@ -865,9 +856,9 @@ spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Enti
         assert(comp != null);
 
         // here we use the runtime type info to dynamically poke bits into the
-        // struct, which we don't know the layout of at compile time.
-        // (now that I know more, the above statement is not entirely true)
-        // TODO: (or do we??? in a non-development build???)
+        // struct, which we don't know the layout of at compile time.  (now
+        // that I know more, the above statement is not entirely true) TODO:
+        // (or do we??? in a non-development build???)
 
         wbml.write_value(it.object_node, comp, component_ti, component_type_name);
 
