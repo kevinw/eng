@@ -478,7 +478,7 @@ write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "", verbose
     write_value(node, ptr, type_info(T), debug_string, verbose, on_deserialize);
 }
 
-// TODO: this argument list is getting ridiculous and probably needs an Options
+// TODO: this argument list is getting too long and probably needs an Options
 // struct.
 write_value :: (node: *Node, ptr: *void, ti: *Type_Info,
     debug_name: string = "",
@@ -486,6 +486,8 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info,
     on_deserialize: On_Deserialize_Func = default_on_deserialize,
     userdata: *void = null
 ) {
+    assert(node != null, "write_value: node must be non-null");
+
     any: Any = ---;
     any.type = ti;
     any.value_pointer = ptr;
@@ -633,11 +635,14 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
     return escaped, length;
 }
 
+run_tests :: run_tests;
 #scope_file
 
 #import "Any";
 #import "Compiler";
 String :: #import "String";
+trim :: String.trim;
+trim_whitespace :: #bake_arguments trim(chars = " \t\n\r");
 Reflection :: #import "Reflection";
 
 
