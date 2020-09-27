@@ -112,7 +112,7 @@ draw :: () {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
-    starting_x :s32 = ifx context.state.editor.play_mode == .Play then cast(s32)0 else cast(s32)400;
+    starting_x := cast(s32)400;
 
     y:s32 = 0;
     font_size:s32 = 22;
