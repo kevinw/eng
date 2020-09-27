@@ -34,33 +34,35 @@ Added_Field_Entry :: struct {
     any: Any;
 }
 
-// TODO: do we want to use *Any like this, or not?
-
 On_Serialize_Func :: #type (any: *Any, added_fields: *[..]Added_Field_Entry);
+
+default_on_serialize: On_Serialize_Func : (any: *Any, added_fields: *[..]Added_Field_Entry) {
+    // do nothing
+};
 
 On_Deserialize_Func :: #type (any: *Any, node: *Node, userdata: *void) -> (handled: bool);
 
-default_on_serialize: On_Serialize_Func : (any: *Any, added_fields: *[..]Added_Field_Entry) {};
-
 default_on_deserialize: On_Deserialize_Func : (any: *Any, node: *Node, userdata: *void) -> (handled: bool) {
+    // do nothing and return false, meaning "we didn't handle it"
     return false;
 }
 
 serialize :: (value: *$Type, on_serialize := default_on_serialize) -> string {
-    return serialize_ti(value, type_info(Type), on_serialize);
+    default_val: Type; // by not using ---, we're asking Jai to give us the defaults on the stack here.
+    return serialize_ti(value, type_info(Type), on_serialize, default=*default_val);
 }
 
-serialize_ti :: (ptr: *void, ti: *Type_Info, on_serialize := default_on_serialize, debug_name := "") -> string {
+serialize_ti :: (ptr: *void, ti: *Type_Info, on_serialize := default_on_serialize, debug_name := "", default: *void = null) -> string {
     sb: String_Builder;
-    serialize_string_builder_ti(ptr, ti, *sb, on_serialize, debug_name);
+    serialize_string_builder_ti(ptr, ti, *sb, on_serialize, debug_name, default=default);
     return builder_to_string(*sb);
 }
 
-serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builder, on_serialize := default_on_serialize, debug_name := "") {
-    serialize_with_type_info("", value, ti, sb, 0, on_serialize);
+serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builder, on_serialize := default_on_serialize, debug_name := "", default: *void = null) {
+    serialize_with_type_info("", value, ti, sb, 0, on_serialize, default=default);
 }
 
-serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "") {
+serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "", default: *void = null) {
     assert(ti != null);
 
     dbgname := debug_name;
@@ -72,10 +74,9 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
     }
 
     name_and_space: string;
-    if name != ""
-        name_and_space = tprint("% ", name);
+    if name != "" name_and_space = tprint("% ", name);
 
-    do_newline := true;
+    skip := false;
 
 	item: Any;
 	item.type = ti;
@@ -84,33 +85,84 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
     t := ti.type;
     if t == {
         case .BOOL;
-            print_item_to_builder(sb, name_and_space);
-			print_to_builder(sb, ifx (<< (cast(*bool)value)) then "true" else "false");
+            if default != null {
+                default_val := <<cast(*bool)default;
+                data_val    := <<cast(*bool)value;
+                if default_val == data_val {
+                    skip = true;
+                }
+            }
+            if !skip {
+                //print_indents(indent_level, sb);
+                print_item_to_builder(sb, name_and_space);
+                print_to_builder(sb, ifx (<< (cast(*bool)value)) then "true" else "false");
+            }
         case .INTEGER; #through;
         case .FLOAT; #through;
         case .ENUM;
-            print_item_to_builder(sb, name_and_space);
-            print_item_to_builder(sb, tprint("%", item));
+            if default != null {
+                if t == .FLOAT {
+                    Math :: #import "Math";
+                    epsilon :: 0.0001;
+                    if ti.runtime_size == 4 {
+                        f32: float = <<cast(*float)value;
+                        default_val := <<cast(*float)default;
+                        if Math.abs(f32) - Math.abs(default_val) < epsilon
+                            skip = true;
+                    } else if ti.runtime_size == 8 {
+                        f64: float64 = <<cast(*float64)value;
+                        default_val := <<cast(*float64)default;
+                        if Math.abs(f64) - Math.abs(default_val) < epsilon
+                            skip = true;
+                    } else {
+                        assert(false, tprint(
+                            "Type_Info_Float had unexpected runtime size %", ti.runtime_size));
+                    }
+                } else {
+                    if memcmp(default, value, ti.runtime_size) == 0 {
+                        skip = true;
+                    }
+                }
+            }
+
+            if !skip {
+                print_item_to_builder(sb, name_and_space);
+                print_item_to_builder(sb, tprint("%", item));
+            }
         case .STRING;
-            print_item_to_builder(sb, name_and_space);
-            print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
+            if default != null {
+                default_str := cast(*string)default;
+                if <<default_str == <<cast(*string)value {
+                    skip = true;
+                }
+            }
+            if !skip {
+                //print_indents(indent_level, sb);
+                print_item_to_builder(sb, name_and_space);
+                print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
+            }
 		case .ARRAY;
             ti_array := cast(*Type_Info_Array)ti;
+            //print_indents(indent_level, sb);
             print_item_to_builder(sb, name_and_space);
 			print_to_builder(sb, "[\n"); indent_level += 1;
 			{
 				count, data := Reflection.get_array_count_and_data(value, ti_array);
 				for i: 0..count-1 {
 					elem_data := data + ti_array.element_type.runtime_size * i;
-					print_indents(indent_level, sb);
-					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level, on_serialize, tprint("%[%]", dbgname, i));
+
+                    item_default: *void;
+                    if default != null
+                        item_default = item_default + ti_array.element_type.runtime_size * i;
+
+                    print_indents(indent_level, sb);
+					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level,
+                        on_serialize, tprint("%[%]", dbgname, i), default=null);
 				}
 			}
 			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
         case .STRUCT;
             ti_struct := cast(*Type_Info_Struct)ti;
-            print_item_to_builder(sb, name_and_space);
-            print_to_builder(sb, "{\n"); indent_level += 1;
             seen_offsets: [..]int;
             seen_offsets.allocator = __temporary_allocator;
 
@@ -118,9 +170,15 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             added_struct_fields: [..]Added_Field_Entry;
             added_struct_fields.allocator = __temporary_allocator;
             res := on_serialize(*item, *added_struct_fields);
+
+            sub_sb: String_Builder;
+            defer free_buffers(*sub_sb);
+
+            indent_level += 1;
             for added_struct_fields {
-                print_indents(indent_level, sb);
-                serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, sb, indent_level, on_serialize, tprint("%.%", dbgname, it.name));
+                print_indents(indent_level, *sub_sb);
+                serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
+                    on_serialize, tprint("%.%", dbgname, it.name), default=default);
             }
 
             for * ti_struct.members {
@@ -132,17 +190,47 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                 member_any.type = it.type;
 
                 on_serialize(*member_any, null);
-                print_indents(indent_level, sb);
-                serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, sb, indent_level, on_serialize, tprint("%.%", dbgname, it.name));
+                field_default: *void;
+                if default != null
+                    field_default = default + it.offset_in_bytes;
+
+                print_indents(indent_level, *sub_sb);
+                serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
+                    on_serialize, tprint("%.%", dbgname, it.name), default=field_default);
             }
-            indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "}");
+
+            sub_str := builder_to_string(*sub_sb);
+            defer free(sub_str);
+
+            // When serializing things, we omit things entirely if they are the default.
+            // The exception here is when indent_level is 1, when we'll still emit an 
+            // empty {} brace pair.
+            //
+            // TODO: This thing where we trim the results of our recursive
+            // calls is a big @Hack. Instead we should have the child calls
+            // return whether they did any work, and if not reset the string
+            // builder position.
+            trimmed := trim_whitespace(sub_str);
+            if indent_level == 1 || trimmed.count > 0 {
+                print_indents(indent_level, *sub_sb);
+                print_to_builder(sb, "%{\n", name_and_space);
+                if trimmed.count > 0
+                    print_to_builder(sb, "%", sub_str);
+            } else {
+                skip = true;
+            }
+            indent_level -= 1; 
+            if !skip {
+                print_indents(indent_level, *sub_sb);
+                print_to_builder(sb, "}");
+            }
         case .POINTER;
             print("TODO: skipping wbml serialize POINTER for %\n", dbgname);
         case;
             panic(tprint("%: % (%)", name, ti.type, dbgname));
     }
 
-    if do_newline
+    if !skip
         print_to_builder(sb, "\n");
 }
 
@@ -173,6 +261,7 @@ deserialize :: (data: string, ptr: *$Type, on_deserialize: On_Deserialize_Func =
     ti := type_info(Type);
     lexer := laas.make_lexer(data);
     root := parse_value(*lexer, false);
+    assert(root != null, tprint("error parsing: %", data));
     defer delete_node(root);
     write_value(root, ptr, ti, "<root>", on_deserialize=on_deserialize, userdata=userdata);
 }
@@ -360,10 +449,6 @@ Node_Number :: struct {
     value_str: string;
 }
 
-Node_String :: struct {
-	value: string;
-}
-
 Node_Bool :: struct {
 	value: bool;
 }
@@ -478,13 +563,16 @@ write_value :: inline (node: *Node, ptr: *$T, debug_string: string = "", verbose
     write_value(node, ptr, type_info(T), debug_string, verbose, on_deserialize);
 }
 
-// TODO: this argument list is getting too long and probably needs an Options
-// struct.
+//
+// Given a WBML node, write its values recursively into a thing in memory.
+//
 write_value :: (node: *Node, ptr: *void, ti: *Type_Info,
     debug_name: string = "",
     verbose := false,
     on_deserialize: On_Deserialize_Func = default_on_deserialize,
     userdata: *void = null
+    // TODO: this argument list is getting too long and probably needs an Options
+    // struct.
 ) {
     assert(node != null, "write_value: node must be non-null");
 
@@ -961,10 +1049,13 @@ END;
         }
 
         t: Thing_With_Defaults;
-        print("%\n", serialize(*t));
+        t_str := serialize(*t);
+        print("Thing_With_Defaults:\n%\n", t_str);
+        assert(t_str == "{\n}\n", tprint("'%' vs '%'", t_str, "{\n}\n"));
+
+        v: Vec3 = .{ 4, 5, 6};
+        print("%\n%\n", v, serialize(*v));
     }
-
-
 
 	print("wbml tests done!\n");
 }
