@@ -337,6 +337,7 @@ runtime_bit_bucket_chooser :: (inner_code_string: string) -> string {
     for all_component_types {
         print_to_builder(*sb, "    case .%;\n", it);
         print_to_builder(*sb, "        bucket := *context.state.world._%;\n", it);
+        print_to_builder(*sb, "        Bucket_Value_Type :: %;\n", it);
         print_to_builder(*sb, "        %\n", inner_code_string);
     }
 
@@ -814,8 +815,9 @@ save_prefab :: (filename: string) {
         #insert #run runtime_bit_bucket_chooser(#string END
             for * bucket {
                 ti := cast(*Type_Info_Struct)type_info(type_of(<<it));
+                component_defaults: Bucket_Value_Type;
                 wbml.serialize_with_type_info(ti.name, it, ti, *sb,
-                    on_serialize=component_on_serialize, debug_name=ti.name);
+                    on_serialize=component_on_serialize, debug_name=ti.name, default=*component_defaults);
             }
         END);
     }
