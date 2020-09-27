@@ -27,6 +27,8 @@ State_Base :: struct {
 
     canary1 := 9999;
 
+    gameWidth  :: 640;
+    gameHeight :: 360;
     ui: UI_State;
     Time: struct {
         now: float64;
@@ -73,11 +75,15 @@ game_base_update :: () {
     imgui_raylib_new_frame(*ui);
 
     absolute_delta_time := GetFrameTime();
-    Time.delta_time = global_time_scale * absolute_delta_time;
-    Time.unscaled_delta_time = absolute_delta_time;
-    Time.now += Time.delta_time;
-    Time.unscaled_now = GetTime();
-    Time.frame_count += 1;
+
+    {
+        // update the context's Time struct
+        Time.delta_time = global_time_scale * absolute_delta_time;
+        Time.unscaled_delta_time = absolute_delta_time;
+        Time.now += Time.delta_time;
+        Time.unscaled_now = GetTime();
+        Time.frame_count += 1;
+    }
 
     editor_update(context.state);
     screenlog.update(Time.delta_time);
@@ -141,6 +147,7 @@ game_base_init :: () {
     init_world(*world);
     imgui_init(*ui);
     sound_init(*sound_state);
+    editor_init(*editor);
 }
 
 game_base_did_reload_dll :: () {

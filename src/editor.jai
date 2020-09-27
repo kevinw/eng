@@ -113,6 +113,7 @@ Editor :: struct {
         demo := true;
         entities := true;
         ecs_internals := false;
+        assets := true;
     };
 
     play_mode: Play_Mode = .Edit;
@@ -133,7 +134,47 @@ Editor :: struct {
     mouse_pos: Latch(Vector2);
 
     last_click_time: float64 = -99999;
+
+    assets: [..]Asset;
+    selected_asset: *Asset = null;
 }
+
+Asset :: struct {
+    Type :: enum u32 {
+        Prefab :: 1;
+    }
+
+    type: Type;
+    filename: string;
+    short_name: string;
+    filetime: u64;
+}
+
+File_Visit_Info :: File_Utilities.File_Visit_Info;
+
+file_list_infos :: (path: string, recursive := false, follow_symlinks := false) -> []File_Visit_Info #must {
+    infos : [..] File_Visit_Info;
+    visitor :: (info: *File_Visit_Info, user_data: *[..]File_Visit_Info) {
+        info_copy := <<info;
+        info_copy.short_name = copy_string(info.short_name);
+        info_copy.full_name = copy_string(info.full_name);
+        array_add(user_data, info_copy);
+    }
+    File_Utilities.visit_files(path, recursive, *infos, visitor, follow_symlinks=follow_symlinks);
+    return infos;
+}
+
+
+editor_init :: (editor: *Editor) {
+    for file_list_infos("prefabs", recursive=true) {
+        asset := array_add(*editor.assets);
+        asset.type = .Prefab;
+        asset.filename = it.full_name;
+        asset.short_name = it.short_name;
+        asset.filetime = it.filetime;
+    }
+}
+
 
 editor_draw_world :: (state: *State) {
     using context.state.editor;
@@ -251,6 +292,31 @@ editor_draw :: (state: *State) {
 
         SetNextItemOpen(true);
         inspect("", *state.editor.undo_state);
+    }
+
+    if editor.windows.assets {
+        Begin("assets", *editor.windows.assets);
+        defer End();
+
+        for * editor.assets {
+            assert(it != null);
+            PushID(it);
+            defer PopID();
+
+            short_name := it.short_name;
+
+            dnd := BeginDragDropSource();
+            defer { if dnd EndDragDropSource(); }
+            if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
+
+            selected := editor.selected_asset == it;
+            if Selectable(tprintz("%", short_name).data, selected) {
+                editor.selected_asset = it;
+            }
+            if selected && IsMouseDoubleClicked(0) {
+                spawn_prefab_from_filename(it.filename, v3(state.camera.target));
+            }
+        }
     }
 
     if editor.windows.entities {
@@ -766,10 +832,12 @@ HelpMarker :: (desc: string) {
 }
 
 #scope_file
+File_Utilities :: #import "File_Utilities";
 Math :: #import "Math";
 wbml :: #import "wbml";
 inp :: #import "inp";
 File :: #import "File";
+rl :: #import "raylib";
 #import "Random";
 #import "tween";
 #import "Array_With_Holes";

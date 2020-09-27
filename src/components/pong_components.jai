@@ -1,38 +1,14 @@
-#scope_file
-screenlog :: #import "screenlog";
-#import "Math";
-#scope_export
-
 Bounce :: struct {
     using component: Component;
 
-    velocity: Vector2;
+    velocity: rl.Vector2;
     speed: float = 10;
 
     dies_on_collide := false;
 }
 
-bottom :: inline (r: Rectangle) -> float { return r.y + r.height; }
-right  :: inline (r: Rectangle) -> float { return r.x + r.width; }
-
-// TODO: this can go aways
-draw :: (it: *Bounce) {
-    for *paddle: context.state.world._Pong_Paddle {
-        #import "Debug";
-
-        ok, ent_ptr := get_entity(paddle.entity);
-        if !ok continue;
-
-        box := get_component(ent_ptr, BoxCollider);
-        if box != null {
-            r := worldspace_rect(box);
-            //r := entity_rect(paddle.entity);
-            //draw_rect_outline(r, 2, GREEN);
-        }
-        //scrlog(it, "%", r);
-    }
-
-}
+bottom :: inline (r: rl.Rectangle) -> float { return r.y + r.height; }
+right  :: inline (r: rl.Rectangle) -> float { return r.x + r.width; }
 
 update :: (using it: *Bounce, transform: *Transform) {
     using context.state;
@@ -51,7 +27,7 @@ update :: (using it: *Bounce, transform: *Transform) {
 
         r := worldspace_rect(box);
 
-        if CheckCollisionCircleRec(p.xy, radius, r) {
+        if rl.CheckCollisionCircleRec(p.xy, radius, r) {
             delta := p.xy - midpoint(r);
             // this is wrong
             if abs(delta.x) > abs(delta.y) {
@@ -70,7 +46,7 @@ update :: (using it: *Bounce, transform: *Transform) {
 
         other_radius := max(other_t.scale.x, other_t.scale.y);
 
-        if CheckCollisionCircles(p.xy, radius, other_t.position.xy, other_radius) {
+        if rl.CheckCollisionCircles(p.xy, radius, other_t.position.xy, other_radius) {
             logprint("boom", "BOOM");
             other.velocity += it.velocity;
             destroy_entity(it.entity);
@@ -78,7 +54,7 @@ update :: (using it: *Bounce, transform: *Transform) {
     }
 
 
-    bounds := make_Rectangle(0, 0, gameWidth, gameHeight);
+    bounds := rl.make_Rectangle(0, 0, context.state.gameWidth, context.state.gameHeight);
 
     if p.y > bottom(bounds) {
         p.y = bottom(bounds);
@@ -104,3 +80,8 @@ update :: (using it: *Bounce, transform: *Transform) {
         else it.velocity.y *= -1;
     }
 }
+
+#scope_file
+screenlog :: #import "screenlog";
+#import "Math";
+rl :: #import "raylib";

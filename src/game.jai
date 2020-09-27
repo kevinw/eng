@@ -6,8 +6,6 @@ Math :: #import "Math";
 reaper :: #import "reaper";
 rl :: #import "raylib";
 
-gameWidth  :: 640;
-gameHeight :: 360;
 DEFAULT_CAM_ZOOM :: 1.2;
 GLSL_VERSION :: 330;
 

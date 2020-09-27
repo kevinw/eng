@@ -1,455 +1,289 @@
 Entity {
 	id 1
-	flags 0
-	name "player"
+		name "player"
+	prefab_filename "prefabs/player.wbml"
 }
 Entity {
 	id 2
-	flags 0
-	name "plant_chomper"
+		name "plant_chomper"
+	prefab_filename "prefabs/plant_chomper.wbml"
 }
 Entity {
 	id 3
-	flags 0
-	name "plant_chomper"
+		name "plant_chomper"
+	prefab_filename "prefabs/plant_chomper.wbml"
 }
 Entity {
 	id 4
-	flags 0
-	name "box"
-}
+		name "box"
+	}
 Entity {
 	id 5
-	flags 0
-	name "box"
-}
+		name "box"
+	}
 Entity {
 	id 6
-	flags 0
-	name "box"
-}
+		name "box"
+	}
 Entity {
 	id 7
-	flags 0
-	name "box"
-}
+		name "box"
+	}
 Entity {
 	id 8
 	flags Has_Component_Rect
-	name "player_dust"
+	name "paddle"
+	prefab_filename "prefabs/paddle.wbml"
 }
 BoxCollider {
 	component {
 		entity {
 			id 4
-		}
-	}
-	collision PLATFORM
-	size {
-		x 1.000000
-		y 1.000000
-	}
-	offset {
-		x 0.000000
-		y 0.000000
-	}
 }
+}
+	collision PLATFORM
+		}
 BoxCollider {
 	component {
 		entity {
 			id 5
-		}
-	}
-	collision PLATFORM
-	size {
-		x 1.000000
-		y 1.000000
-	}
-	offset {
-		x 0.000000
-		y 0.000000
-	}
 }
+}
+	collision PLATFORM
+		}
 BoxCollider {
 	component {
 		entity {
 			id 6
-		}
-	}
-	collision PLATFORM
-	size {
-		x 1.000000
-		y 1.000000
-	}
-	offset {
-		x 0.000000
-		y 0.000000
-	}
 }
+}
+	collision PLATFORM
+		}
 BoxCollider {
 	component {
 		entity {
 			id 7
-		}
-	}
-	collision PLATFORM
-	size {
-		x 1.000000
-		y 1.000000
-	}
-	offset {
-		x 0.000000
-		y 0.000000
-	}
 }
+}
+	collision PLATFORM
+		}
+BoxCollider {
+	component {
+		entity {
+			id 8
+}
+}
+		size {
+		x 220
+		y 100
+}
+	}
 Enemy {
 	component {
 		entity {
 			id 2
-		}
-	}
-	sprite_timer 0.786608
-	last_sprite_timer 0.786608
-	damage {
-		time -999999.000000
-		delta {
-			x 0.000000
-			y 0.000000
-		}
-		health 1.000000
-		damage_time 0.900000
-		damage_func_type Enemy
-	}
-	last_attack_time -9999.000000
-	last_attack_direction_right false
-	dying_timer 0.000000
-	attack_cooldown -0.786608
+}
+}
+	sprite_timer 13.880797
+	last_sprite_timer 13.880797
+					attack_cooldown -13.880725
 }
 Enemy {
 	component {
 		entity {
 			id 3
-		}
-	}
-	sprite_timer 0.786608
-	last_sprite_timer 0.786608
-	damage {
-		time -999999.000000
-		delta {
-			x 0.000000
-			y 0.000000
-		}
-		health 1.000000
-		damage_time 0.900000
-		damage_func_type Enemy
-	}
-	last_attack_time -9999.000000
-	last_attack_direction_right false
-	dying_timer 0.000000
-	attack_cooldown -0.786608
+}
+}
+	sprite_timer 13.880797
+	last_sprite_timer 13.880797
+					attack_cooldown -13.880725
 }
 Player {
 	component {
 		entity {
 			id 1
-		}
-	}
-	speed {
-		x 0.000000
-		y 0.000000
-	}
-	grounded true
-	jump_count 0
-	jump_button_time 0.000000
-	jump_button_last_frame false
-	last_jump_time -10000.000000
-	last_attack_time -10000.000000
-	attack_did_hit false
-	last_grounded_time 0.519937
-	horizontal_movement 0.000000
-	last_direction 0.000000
-	sprite_timer 0.786608
-	walk_timer 0.000000
-	last_walk_sprite_idx -1
-	damage {
-		time -999999.000000
-		delta {
-			x 0.000000
-			y 0.000000
-		}
-		health 100.000000
-		damage_time 1.000000
-		damage_func_type Player
-	}
-	beat_timer 0.610000
 }
+}
+		grounded true
+					sprite_timer 13.880797
+			}
+Pong_Paddle {
+	component {
+		entity {
+			id 8
+}
+}
+		}
 RectRenderer {
 	component {
 		entity {
 			id 4
-		}
-	}
+}
+}
 	color {
 		r 130
 		g 130
 		b 130
 		a 255
-	}
+}
 }
 RectRenderer {
 	component {
 		entity {
 			id 5
-		}
-	}
+}
+}
 	color {
 		r 130
 		g 130
 		b 130
 		a 255
-	}
+}
 }
 RectRenderer {
 	component {
 		entity {
 			id 6
-		}
-	}
+}
+}
 	color {
 		r 130
 		g 130
 		b 130
 		a 255
-	}
+}
 }
 RectRenderer {
 	component {
 		entity {
 			id 7
-		}
-	}
+}
+}
 	color {
 		r 130
 		g 130
 		b 130
 		a 255
-	}
+}
 }
 SpriteRenderer {
 	component {
 		entity {
 			id 8
-		}
-	}
-	timer 0.266670
-	fps 10
-	color {
-		r 255
-		g 255
-		b 255
-		a 255
-	}
-	sprite [
+}
+}
+	timer 3.474206
+			sprite [
 	]
-	texture {
-		id 0
-		width 0
-		height 0
-		mipmaps 0
-		format 0
-	}
-	sprite_anim "resources/sprites/blob.aseprite"
-	anim_tag "die"
-	mode Play_Once_And_Die
-	slice_mode None
+		sprite_anim "resources/sprites/tile2.aseprite"
+			slice_mode NineSlice
 	border {
-		left 0
-		top 0
-		right 0
-		bottom 0
-	}
+		left 20
+		top 20
+		right 20
+		bottom 20
+}
 }
 Transform {
 	component {
 		entity {
 			id 1
-		}
-	}
-	position {
-		x 400.000000
-		y 400.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 1.000000
-		y 1.000000
-		z 1.000000
-	}
 }
+}
+	position {
+		x 400
+		y 400
+		}
+		}
 Transform {
 	component {
 		entity {
 			id 2
-		}
-	}
-	position {
-		x 400.000000
-		y 197.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 1.000000
-		y 1.000000
-		z 1.000000
-	}
 }
+}
+	position {
+		x 400
+		y 197
+		}
+		}
 Transform {
 	component {
 		entity {
 			id 3
-		}
-	}
-	position {
-		x 600.000000
-		y 197.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 1.000000
-		y 1.000000
-		z 1.000000
-	}
 }
+}
+	position {
+		x 600
+		y 197
+		}
+		}
 Transform {
 	component {
 		entity {
 			id 4
-		}
-	}
+}
+}
 	position {
-		x 0.000000
-		y 400.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 1000.000000
-		y 200.000000
-		z 1.000000
-	}
+				y 400
+		}
+		scale {
+		x 1000
+		y 200
+		}
 }
 Transform {
 	component {
 		entity {
 			id 5
-		}
-	}
+}
+}
 	position {
-		x 300.000000
-		y 200.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 400.000000
-		y 10.000000
-		z 1.000000
-	}
+		x 300
+		y 200
+		}
+		scale {
+		x 400
+		y 10
+		}
 }
 Transform {
 	component {
 		entity {
 			id 6
-		}
-	}
+}
+}
 	position {
-		x 250.000000
-		y 300.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 100.000000
-		y 10.000000
-		z 1.000000
-	}
+		x 250
+		y 300
+		}
+		scale {
+		x 100
+		y 10
+		}
 }
 Transform {
 	component {
 		entity {
 			id 7
-		}
-	}
+}
+}
 	position {
-		x 650.000000
-		y 300.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 100.000000
-		y 10.000000
-		z 1.000000
-	}
+		x 650
+		y 300
+		}
+		scale {
+		x 100
+		y 10
+		}
 }
 Transform {
 	component {
 		entity {
 			id 8
-		}
-	}
-	position {
-		x 400.000000
-		y 400.000000
-		z 0.000000
-	}
-	rotation {
-		x 0.000000
-		y 0.000000
-		z 0.000000
-		w 1.000000
-	}
-	scale {
-		x 1.000000
-		y 1.000000
-		z 1.000000
-	}
 }
+}
+	position {
+		x 441.66687
+		y 280
+		}
+		}

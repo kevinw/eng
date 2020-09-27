@@ -31,33 +31,15 @@ we have now, and this kind of thing...
 #module_parameters(GAME_NAME := "");
 #assert(GAME_NAME.count > 0);
 
-
-
-#if GAME_NAME == "beat_platformer" {
-    #load "components/sprite_renderer.jai";
-    #load "components/box_collider.jai";
-    #load "components/rect_renderer.jai";
-    #load "components/enemy.jai";
-    #load "components/player.jai";
-    #load "components/shape_renderer.jai";
-}
-#if GAME_NAME == "pong" {
-    #load "components/sprite_renderer.jai";
-    #load "components/box_collider.jai";
-    #load "components/rect_renderer.jai";
-    #load "components/pong_paddle.jai";
-    #load "components/shape_renderer.jai";
-    #load "components/pong_components.jai";
-}
-#if GAME_NAME == "transform_test" {
-    #load "components/sprite_renderer.jai";
-    #load "components/box_collider.jai";
-    #load "components/rect_renderer.jai";
-    #load "components/enemy.jai";
-    #load "components/player.jai";
-    #load "components/shape_renderer.jai";
-    #load "components/transform_test_components.jai";
-}
+#load "components/sprite_renderer.jai";
+#load "components/box_collider.jai";
+#load "components/rect_renderer.jai";
+#load "components/enemy.jai";
+#load "components/player.jai";
+#load "components/shape_renderer.jai";
+#load "components/pong_paddle.jai";
+#load "components/pong_components.jai";
+#load "components/transform_test_components.jai";
 #load "components/editor_selectable_rect.jai";
 #load "components/camera.jai";
 #load "components/follow.jai";
@@ -171,6 +153,7 @@ Entity :: struct {
 
     flags: Flags;
     name: string; @free_in_deinit // TODO
+    prefab_filename: string; @free_in_deinit
 
     Component_Entry :: struct {
         component_handle: Handle_Type;
@@ -190,6 +173,13 @@ get_components :: ($component_type: Type) -> []*component_type {
     for * bucket array_add(*all, it);
 
     return all;
+}
+
+get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
+    ok, entity := get_entity(entity_handle);
+    if !ok return null;
+
+    return get_component(entity, component_ti);
 }
 
 get_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
@@ -432,7 +422,7 @@ world_draw :: (world: *World = null) {
 #placeholder run_all;
 #placeholder run_on_enable;
 
-create_entity :: (world: *World = null, name: string = "", id: s32 = -1,
+create_entity :: (world: *World = null, name: string = "",
     undo: *Undo.Impl = null, create_transform_component := true
 ) -> *Entity, Entity_Handle {
     if world == null
@@ -498,6 +488,9 @@ destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
 }
 
 add_or_get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
+    component_ptr := get_component(entity_handle, component_ti);
+    if component_ptr != null return component_ptr;
+
     return add_component(entity_handle, component_ti);
 }
 
@@ -631,18 +624,16 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
 component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry) {
     if added_fields != null {
         if any.type == type_info(Entity) {
-            entry := array_add(added_fields);
-
             // I don't like this at all. Maybe we need a "possibly-local" Any?
             // Or maybe the temporary allocator here is good enough.
             my_int  := cast(*int)talloc(size_of(int));
-
 
             // I don't like this either. Above us, when we're iterating over
             // the entities bucket, we definitely already know the entity id.
             // This feels like the wrong place to be looking it up again.
             <<my_int = get_entity_handle((cast(*Entity)any.value_pointer)).id;
 
+            entry := array_add(added_fields);
             entry.name = "id";
             entry.any.value_pointer = my_int;
             entry.any.type = type_info(int);
@@ -711,10 +702,31 @@ load_world :: (world: *World, wbml_string: string) {
         if class_name == {
             case "Entity";
                 assert(value.type == .Object);
+
+                prefab_filename: string;
+                {
+                    prefab_filename_val := wbml.get(value, "prefab_filename", .String, do_remove=true);
+                    if prefab_filename_val != null {
+                        defer wbml.delete_node(prefab_filename_val);
+
+                        print("entity has prefab link: %\n", prefab_filename_val._string);
+                        prefab_filename = tprint("%", prefab_filename_val._string);
+                    }
+                }
+
                 entity_id := cast(s32)wbml.get(value, "id", .Number)._number.int_value;
-                entity_name := copy_string(wbml.get(value, "name", .String)._string); // @Leak
                 assert(entity_id != 0);
-                new_entity_ptr, new_entity_handle := create_entity(world, entity_name, entity_id, create_transform_component=false);
+
+                entity_name := copy_string(wbml.get(value, "name", .String)._string); // @Leak
+
+                new_entity_ptr: *Entity;
+                new_entity_handle: Entity_Handle;
+                if prefab_filename.count > 0 {
+                    new_entity_ptr, new_entity_handle = spawn_prefab_from_filename(prefab_filename);
+                    new_entity_ptr.name = entity_name;
+                } else {
+                    new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=false);
+                }
                 wbml.write_value(value, new_entity_ptr, "Entity");
 
                 entry := array_add(*new_entity_handles);
@@ -737,12 +749,9 @@ load_world :: (world: *World, wbml_string: string) {
                 }
                 assert(found_handle.id != 0, "could not find a handle for entity_id %", entity_id);
 
-                component_bit := get_component_bit_for_name(class_name);
-                component_ti := component_bit_to_ti(component_bit);
-
-                component_ptr := add_component(found_handle, component_ti);
-
-
+                component_ti := component_bit_to_ti(get_component_bit_for_name(class_name));
+                component_ptr := add_or_get_component(found_handle, component_ti);
+                // component_ptr is *Component
                 wbml.write_value(value, component_ptr, component_ti, class_name,
                     on_deserialize=on_component_deserialize, userdata=*new_entity_handles); // , verbose=true);
         }
@@ -831,23 +840,28 @@ get_component_in_entity_named :: (entity_name: string, $component_type: Type) ->
     return null;
 }
 
-spawn_prefab :: (name: string, world_pos: rl.Vector2) -> (*Entity, Entity_Handle) {
-    entity, entity_handle := spawn_prefab(name, v3(world_pos));
+spawn_prefab :: (prefab_name: string, world_pos: rl.Vector2) -> (*Entity, Entity_Handle) {
+    entity, entity_handle := spawn_prefab(prefab_name, v3(world_pos));
     return entity, entity_handle;
 }
 
-spawn_prefab :: (name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Entity, Entity_Handle) {
-    filename := tprint("prefabs/%.wbml", name);
+spawn_prefab :: (prefab_name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) -> (*Entity, Entity_Handle) {
+    assert(prefab_name.count > 0, "cannot pass an empty string to spawn_prefab");
+    filename := tprint("prefabs/%.wbml", prefab_name);
+    entity, entity_handle := spawn_prefab_from_filename(filename, world_pos);
+    return entity, entity_handle;
+}
+
+spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}) -> (*Entity, Entity_Handle) {
     prefab_cache_entry := get_prefab_cache_entry(filename);
 
-    // Make the entity.
-    // TODO: need to actually use the entity_id paramenter here, or get rid of
-    // it.
-    entity, entity_handle := create_entity(*context.state.world,
-        prefab_cache_entry.entity_name, prefab_cache_entry.entity_id);
+    entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name);
+
+    entity.prefab_filename = copy_string(filename); // @Leak
 
     transform := get_transform(entity);
     assert(transform != null);
+    transform.position = world_pos;
 
     for prefab_cache_entry.components {
         component_type_name := it.component_type_name;

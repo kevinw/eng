@@ -3,8 +3,6 @@ GAME_NAME :: "pong";
 
 State :: struct {
     using _base: State_Base;
-    gameWidth  :: 640;
-    gameHeight :: 360;
 }
 
 update_and_draw :: () {

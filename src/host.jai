@@ -81,8 +81,7 @@ _do_recompile :: (t: *Thread) -> s64 {
     success, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
 
     if !success {
-        print("success: %\n");
-        print("exit code: %\n", exit_code);
+        print("success: %\nexit code: %\n", exit_code);
         print("output_string: %\n", output_string);
         print("error string: %\n", error_string);
     } else {
