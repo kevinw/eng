@@ -263,8 +263,6 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
                         if Selectable(to_temp_c_string(it), is_selected, size=default_size) {
                             new_val := ti_enum.values[it_index];
-                            logprint("foo", "selecting % %", it, new_val);
-                            logprint("bar", "internal type %", <<ti_enum.internal_type);
                             if ti_enum.internal_type.signed {
                                 if ti_enum.internal_type.runtime_size == {
                                     case 1;  <<cast(*s8)data = xx new_val;

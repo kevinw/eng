@@ -54,8 +54,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     return entity;
 }
 
-CameraFunc :: #type (camera: *rl.Camera2D, player: *Player, delta: float, w: int, h: int);
-
 update_bgm_volume :: () {
     using context.state;
     set_volume(sound_state.bgm_voice, ifx muted then 0.0 else 1.0);
@@ -108,17 +106,12 @@ on_host_init :: () {
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
 
-    player_entity := spawn_prefab("player");
+    player_entity, player_handle := spawn_prefab("player");
     player := get_component(player_entity, Player);
     player_reset(player);
 
     spawn_prefab("plant_chomper", v3(400, 197, 0));
     spawn_prefab("plant_chomper", v3(600, 197, 0));
-
-    camera.target = get_transform(player).position.xy;
-    camera.offset = Vector2.{ cast(float)gameWidth/2.0, cast(float)gameHeight/2.0 };
-    camera.rotation = 0.0;
-    camera.zoom = DEFAULT_CAM_ZOOM;
 
     bg.texture = LoadLiveTexture("resources/textures/space.png");
     bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
@@ -127,6 +120,12 @@ on_host_init :: () {
     envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
     envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
     envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY);
+
+    cam_e, cam_eh := create_entity(*world, "camera");
+    cam := add_component(cam_eh, Cam);
+    cam_follow := add_component(cam_eh, Cam_Follow);
+    cam_follow.target_entity = player_handle;
+    cam.zoom = DEFAULT_CAM_ZOOM;
 
     if false {
         r :: #bake_arguments random_get_within_range(min=0, max=1000);
@@ -147,9 +146,6 @@ on_host_shutdown :: () {
 
 restart :: () {
     using context.state;
-
-    camera.zoom = DEFAULT_CAM_ZOOM;
-    camera.target = .{0, 0};
 
     player := get_component_in_entity_named("player", Player);
     if player != null
@@ -206,21 +202,10 @@ update_and_draw :: () {
         set_shader_val(bg.shader, "speedY", 8.0);
         //}
        
-        if context.state.editor.play_mode == .Play {
-            wheel := GetMouseWheelMove();
-            if wheel != 0 {
-                camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
-                logprint("=camera zoom", "camera zoom %", camera.zoom);
-            }
-        }
-
         if IsKeyPressed(.KEY_M) {
             muted = !muted;
             update_bgm_volume();
         }
-
-        if player != null && context.state.editor.play_mode == .Play
-            UpdateCameraCenterSmoothFollow(*camera, player, Time.delta_time, gameWidth, gameHeight);
     }
 
     {
@@ -238,6 +223,7 @@ update_and_draw :: () {
                 DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
             }
             {
+                camera := get_main_camera();
                 // draw foreground
                 push_mode_2D(camera);
                 world_draw(*world);
@@ -263,23 +249,6 @@ update_and_draw :: () {
             editor_draw_ui();
         }
 
-    }
-}
-
-UpdateCameraCenterSmoothFollow :: (camera: *rl.Camera2D, player: *Player, delta: float, width: int, height: int) {
-    minSpeed :: 30.0;
-    minEffectLength :: 10.0;
-    fractionSpeed :: 2.9;
-    
-    camera.offset = make_Vector2(width/2, height/2);
-    diff := get_transform(player).position.xy - camera.target;
-    length := Vector2Length(diff);
-    
-    if length > minEffectLength {
-        speed := max(fractionSpeed*length, minSpeed);
-        camera.target = Vector2Add(camera.target, Vector2Scale(diff, speed*delta/length));
-        //camera.target.x = round(camera.target.x);
-        //camera.target.y = round(camera.target.y);
     }
 }
 

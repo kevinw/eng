@@ -31,6 +31,7 @@ we have now, and this kind of thing...
 #module_parameters(GAME_NAME := "");
 #assert(GAME_NAME.count > 0);
 
+#load "components/camera.jai";
 #load "components/sprite_renderer.jai";
 #load "components/box_collider.jai";
 #load "components/rect_renderer.jai";
@@ -41,7 +42,6 @@ we have now, and this kind of thing...
 #load "components/pong_components.jai";
 #load "components/transform_test_components.jai";
 #load "components/editor_selectable_rect.jai";
-#load "components/camera.jai";
 #load "components/follow.jai";
 
 Transform :: struct {
@@ -162,6 +162,13 @@ Entity :: struct {
 
     // TODO: Small_Array here could be a big win
     components: [..]Component_Entry;  @noserialize
+}
+
+find_component :: ($component_type: Type) -> *component_type {
+    bucket: *Array_With_Holes(component_type);
+    #insert #run bucket_chooser();
+    for * bucket return it;
+    return null;
 }
 
 get_components :: ($component_type: Type) -> []*component_type {

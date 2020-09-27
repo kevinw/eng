@@ -4,6 +4,10 @@ scrlog :: (id: *void, fmt: string, args: ..Any) {
     logprint(tprint("=%", id), fmt, ..args);
 }
 
+push_mode_2D :: (camera: *Camera2D) #expand {
+    if camera != null begin_mode_2D(<<camera);
+    `defer if camera != null EndMode2D();
+}
 push_mode_2D :: (camera: Camera2D) #expand {
     begin_mode_2D(camera);
     `defer EndMode2D();
@@ -348,13 +352,14 @@ rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
     return rect(x, y, width, height);
 }
 
-get_mouse_world_pos :: (camera: Camera2D, screen_texture: RenderTexture) -> Vector2 {
+get_mouse_world_pos :: (camera: *Camera2D, screen_texture: RenderTexture) -> Vector2 {
     rt_multiplier := v2(cast(float)screen_texture.texture.width / GetScreenWidth(),
                         cast(float)screen_texture.texture.height / GetScreenHeight());
 
     mouse_pos := GetMousePosition();
-    mouse_pos = v2(rt_multiplier.x * mouse_pos.x, rt_multiplier.y * mouse_pos.y);
-    world_pos := GetScreenToWorld2D(mouse_pos, camera);
+    world_pos := v2(rt_multiplier.x * mouse_pos.x, rt_multiplier.y * mouse_pos.y);
+    if camera != null
+        world_pos = GetScreenToWorld2D(mouse_pos, <<camera);
     return world_pos;
 }
 
