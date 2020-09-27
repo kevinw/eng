@@ -7,6 +7,14 @@
 - @bug saving changes sometimes results in the DLL being loaded twice.
 - Footsteps with reverb - going to need a way to do dynamic sound in this game
   about sound
+- there's a thing in Unity where you add a public field, and then suddenly all
+  of your serialized objects have the value of that field. here i'm doing a
+  different thing where you get the default. which I think is better. but
+  there's an even further thing I could do, which is...during a build, if
+  there's never anything that changes that field, why not make it a constant?
+  the code could be more efficient. I suppose it'd be tough to know 100% for
+  sure, but if that `Type_Info_Struct_Member` was never written to, and no WBML
+  that we use ever overwrites it, we should be good. right?
 
 ## general Jai research projects
 
