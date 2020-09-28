@@ -303,17 +303,24 @@ editor_draw :: (state: *State) {
             PushID(it);
             defer PopID();
 
-            short_name := it.short_name;
-
             dnd := BeginDragDropSource();
-            defer { if dnd EndDragDropSource(); }
+            defer if dnd EndDragDropSource();
             if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
 
             selected := editor.selected_asset == it;
-            if Selectable(tprintz("%", short_name).data, selected) {
+            if Selectable(tprintz("%", it.short_name).data, selected)
                 editor.selected_asset = it;
+
+            do_spawn := selected && IsMouseDoubleClicked(0);
+
+            if BeginPopupContextItem("asset context menu") {
+                editor.selected_asset = it;
+                defer EndPopup();
+                if Selectable("Spawn in scene")
+                    do_spawn = true;
             }
-            if selected && IsMouseDoubleClicked(0) {
+
+            if do_spawn {
                 pos: Vector3;
                 camera := get_main_camera();
                 if camera != null pos = v3(camera.target);
