@@ -125,7 +125,7 @@ on_host_init :: () {
     cam := add_component(cam_eh, Cam);
     cam_follow := add_component(cam_eh, Cam_Follow);
     cam_follow.target_entity = player_handle;
-    cam.zoom = DEFAULT_CAM_ZOOM;
+    cam.cam2D.zoom = DEFAULT_CAM_ZOOM;
 
     if false {
         r :: #bake_arguments random_get_within_range(min=0, max=1000);
@@ -223,12 +223,13 @@ update_and_draw :: () {
                 DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
             }
             {
-                camera := get_main_camera();
                 // draw foreground
-                push_mode_2D(camera);
+                camera := get_main_camera();
+                if camera != null begin_mode_2D(camera.cam2D);
                 world_draw(*world);
                 editor_draw_world(context.state);
                 screenlog.draw_world();
+                if camera != null EndMode2D();
             }
             editor_draw(context.state);
 

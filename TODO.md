@@ -1,5 +1,20 @@
 # TODO
 
+1. Treat this TODO list as an actual plan. That means: check it before working,
+   and after working. Mark down whether or not it was a "successful" work
+   session.
+2. Figure out what kind of thing you actually want to make. Take actions that
+   directly lead to the result you want.
+
+   For example:
+
+   - If it's an action game, play with the controller always. Come up with a
+     plan for an MVP and make it. Make someone play it. if it's fun, then keep
+     making it. If it's not, try something else.
+
+
+
+
 - `on_enable` needs to be called after all sibling components get added. Then I
   can fix Cam_Follow to set it's target position on startup.
 - The meta-program should check the type of `on_enable` and give you a helpful

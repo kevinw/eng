@@ -208,7 +208,7 @@ update :: (using player: *Player) {
     state := context.state;
 
     time_since_marker := ifx nearest_marker then beat_timer - nearest_marker.time else 0;
-    allow_all_beats := false;
+    allow_all_beats := true;
 
     if !is_being_knocked_back {
         // ATTACK
@@ -230,23 +230,30 @@ update :: (using player: *Player) {
         if !attacking && jump_button_pressed_this_frame {
             beat_match_type := nearest_marker; // && nearest_marker.beat_type == .Snare;
             matched_beat := allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type);
-            spawn_prefab("player_dust_small", <<position);
-            if matched_beat && jump_count < 2 {
-                if !grounded
+            max_jump_count := ifx allow_all_beats then 1 else 2;
+            did_jump := false;
+            if matched_beat && jump_count < max_jump_count {
+                if !grounded && !allow_all_beats
                     screenlog.world(<<position, "double jump!");
                 //logprint("player", "jump % count=%", time_since_marker, jump_count);
                 speed.y = -PLAYER_JUMP_SPD;
                 jump_count += 1;
+                did_jump = true;
             } else if grounded {
                 early_late := ifx time_since_marker > 0 then "late" else "early";
                 if !beat_match_type early_late = "wrong beat";
                 //logprint("player", "MISS % jump %", early_late, time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD * 0.25;
                 jump_count = 0;
+                did_jump = true;
             }
 
             grounded = false;
-            last_jump_time = Time.now;
+
+            if did_jump {
+                spawn_prefab("player_dust_small", <<position);
+                last_jump_time = Time.now;
+            }
         }
     }
 

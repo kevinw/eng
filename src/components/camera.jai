@@ -1,6 +1,6 @@
 Cam :: struct {
     using component: Component;
-    using cam2D: rl.Camera2D;
+    cam2D: rl.Camera2D;
 }
 
 Cam_Follow :: struct {
@@ -45,18 +45,19 @@ update :: (cam_follow: *Cam_Follow, camera: *Cam) {
 
     using context;
     using camera;
+    logprint("=cam update\n", "%", transform.position);
 
     if cam_follow.mode == {
         case .Smooth;
-            offset = rl.make_Vector2(state.gameWidth/2, state.gameHeight/2);
-            diff := transform.position.xy - target;
+            cam2D.offset = rl.make_Vector2(state.gameWidth/2, state.gameHeight/2);
+            diff := transform.position.xy - cam2D.target;
             length := Vector2Length(diff);
             if length > minEffectLength {
                 speed := max(fractionSpeed*length, minSpeed);
-                target = Vector2Add(camera.target, Vector2Scale(diff, speed*state.Time.delta_time/length));
+                cam2D.target = Vector2Add(cam2D.target, Vector2Scale(diff, speed*state.Time.delta_time/length));
             }
         case .Center;
-            target = transform.position.xy;
+            cam2D.target = transform.position.xy;
     } 
 }
 
