@@ -322,8 +322,8 @@ editor_draw :: (state: *State) {
 
             if do_spawn {
                 pos: Vector3;
-                camera := get_main_camera();
-                if camera != null pos = v3(camera.cam2D.target);
+                camera := get_main_camera_2D();
+                if camera != null pos = v3(camera.target);
                 spawn_prefab_from_filename(it.filename, pos);
             }
         }
@@ -488,7 +488,7 @@ editor_update :: (state: *State) {
             context.state.global_time_scale = 1;
     }
 
-    camera := get_main_camera();
+    camera := get_main_camera_2D();
 
     // Move editor camera with WASD
     if !ctrl_down && camera {
@@ -501,12 +501,13 @@ editor_update :: (state: *State) {
         if cam_movement.x != 0 || cam_movement.y != 0
             cam_movement = normalize(cam_movement);
 
-        camera.cam2D.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
+        camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
     }
     
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
-            world_mouse_pos = get_mouse_world_pos(*camera.cam2D, state.screen.texture);
+
+            world_mouse_pos = get_mouse_world_pos(camera, state.screen.texture);
 
             hover.has_value = false;
             for handles(*state.world.entities) {
@@ -539,7 +540,7 @@ editor_update :: (state: *State) {
             }
 
             drag_state.dragging = true;
-            drag_state.origin = get_mouse_world_pos(*camera.cam2D, state.screen.texture);
+            drag_state.origin = get_mouse_world_pos(camera, state.screen.texture);
 
             if took_action {
                 for * selected {
@@ -571,8 +572,8 @@ editor_update :: (state: *State) {
 
         wheel := GetMouseWheelMove();
         if camera != null && wheel != 0 {
-            camera.cam2D.zoom = clamp(camera.cam2D.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
-            logprint("=camera zoom", "camera zoom %", camera.cam2D.zoom);
+            camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
+            logprint("=camera zoom", "camera zoom %", camera.zoom);
         }
 
     } // WantCaptureMouse
@@ -798,15 +799,34 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
 }
 
 focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
+
+    camera := get_main_camera_2D();
+    if camera == null {
+        logprint("=editor_focus", "no camera to move");
+        return;
+    }
+
     ok, entity := get_entity(entity_handle);
-    if ok {
+    if !ok return;
+
+    pos: Maybe(Vector2);
+    r := entity_rect(entity);
+
+    if r.width > 0 && r.height > 0 {
+        pos.value = midpoint(r);
+        pos.has_value = true;
+    } else {
         trs := get_transform(entity);
         if trs != null {
-            camera := get_main_camera();
-            if camera != null
-                camera.cam2D.target = trs.position.xy;
+            pos.value = trs.position.xy;
+            pos.has_value = true;
         }
     }
+
+    if pos.has_value {
+        camera.target = pos.value;
+    }
+
 }
 
 load_scene :: (name: string) {

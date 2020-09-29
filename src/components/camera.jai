@@ -19,6 +19,14 @@ get_main_camera :: () -> *Cam {
     return find_component(Cam);
 }
 
+get_main_camera_2D :: () -> *rl.Camera2D {
+    cam := get_main_camera();
+    if cam != null
+        return *cam.cam2D;
+    else
+        return null;
+}
+
 on_enable :: (cam_follow: *Cam_Follow, entity: *Entity) {
     /*
     TODO: on_enable needs to be called after all sibling components get added.
@@ -45,8 +53,6 @@ update :: (cam_follow: *Cam_Follow, camera: *Cam) {
 
     using context;
     using camera;
-    logprint("=cam update\n", "%", transform.position);
-
     if cam_follow.mode == {
         case .Smooth;
             cam2D.offset = rl.make_Vector2(state.gameWidth/2, state.gameHeight/2);
