@@ -354,9 +354,7 @@ get_mouse_world_pos :: (camera: *Camera2D, screen_texture: RenderTexture) -> Vec
 
     mouse_pos := GetMousePosition();
     world_pos := v2(rt_multiplier.x * mouse_pos.x, rt_multiplier.y * mouse_pos.y);
-    if camera != null {
-        world_pos = GetScreenToWorld2D(mouse_pos, <<camera);
-    }
+    if camera != null world_pos = GetScreenToWorld2D(world_pos, <<camera);
     return world_pos;
 }
 
