@@ -21,7 +21,6 @@ velocity_system :: (td: *Transform, vd: *Velocity @const, n: u32, dt: float) {
     }
 }
 
-
 ...that's cool. i wonder if there's an easy way to bridge the gap between what
 we have now, and this kind of thing...
 
@@ -46,98 +45,27 @@ we have now, and this kind of thing...
 
 Transform :: struct {
     using component: Component;
-    position: rl.Vector3 = .{0, 0, 0};
+
+    position: rl.Vector3    = .{0, 0, 0};
     rotation: rl.Quaternion = .{0, 0, 0, 1};
-    scale: rl.Vector3 = .{1, 1, 1};
+    scale:    rl.Vector3    = .{1, 1, 1};
 }
 
 Link :: struct {
     using component: Component;
+
     parent: Entity_Handle;
 }
 
-TRS :: Transform;
+TRS :: Transform; // an alias until Raylib is entirely gone
 
-// goals
-
-// be able to sketch an entity real fast without making a new file; so ideally it could just start
-// as a struct with optional methods
-// then move it to a module when you want to "solidify" it
-
-// some inspiration maybe: https://github.com/skypjack/entt/wiki/Crash-Course:-entity-component-system
-
-// declare a list of all component type infos
-#insert #run (() -> string {
-    Compiler :: #import "Compiler";
-    #import "Sort";
-
-    all_components: [..]*Type_Info_Struct;
-    for Compiler.get_type_table() {
-        if Compiler.is_subclass_of(it, "Component") { // TODO: don't do this lookup by name
-            ti_struct := cast(*Type_Info_Struct)it;
-            array_add(*all_components, ti_struct);
-        }
-    }
-
-    compare_type_info_names :: (a: *Type_Info_Struct, b: *Type_Info_Struct) -> s64 {
-        return compare_strings(a.name, b.name);
-    }
-
-    // We need to sort the component names, since the compiler does not find them
-    // in a determinate order.
-    quick_sort(all_components, compare_type_info_names);
-
-    sb: String_Builder;
-    defer free_buffers(*sb);
-    p :: print_to_builder;
-    p(*sb, "all_component_types :: Type.[\n");
-    for all_components
-        p(*sb, "    %,\n", it.name);
-    p(*sb, "];\n");
-
-    // each component gets a bit.
-    p(*sb, "Component_Bit :: enum_flags {\n");
-    for all_components
-        p(*sb, "    % :: (1 << %);\n", it.name, it_index);
-    p(*sb, "}\n");
-
-    p(*sb, "component_bit_to_ti :: (bit: Component_Bit) -> *Type_Info_Struct {\n");
-    p(*sb, "    if bit == {\n");
-    for all_components
-        p(*sb, "        case .%; return type_info(%);\n", it.name, it.name);
-    p(*sb, "    }\n");
-    p(*sb, "}\n");
-
-    p(*sb, "component_ti_to_bit :: (component_ti: *Type_Info_Struct) -> Component_Bit {\n");
-    p(*sb, "    if component_ti.name == {\n");
-    for all_components
-        p(*sb, "        case \"%\"; return Component_Bit.%;\n", it.name, it.name);
-    p(*sb, "    }\n");
-    p(*sb, "}\n");
-
-
-    return builder_to_string(*sb);
-}());
+#load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
 
 get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
     if entity_handle.id == 0 return false, null; // TODO: not sure if this should be down in get_item_ptr
 
     entity := get_item_ptr(*context.state.world.entities, entity_handle);
     return entity != null, entity;
-}
-
-get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
-
-    #insert #run (() -> string {
-        cases := foreach_component_type(#string END
-            case "<type>"; return type_info(<type>);
-        END);
-        name_switch_code_str := tprint("if name == {\n%}\n", cases);
-        return name_switch_code_str;
-    }());
-
-    assert(false, tprint("no component named %", name));
-    return null;
 }
 
 Component :: struct {
@@ -300,82 +228,6 @@ entity_rect :: (entity: *Entity, verbose := false) -> rl.Rectangle {
     return rl.make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
-
-bucket_chooser :: () -> string {
-    return buf_string((sb: *String_Builder) {
-        for all_component_types
-        print_to_builder(sb, "#if component_type == % bucket = *context.state.world._%;\n", it, it);
-    });
-}
-
-foreach_component_type :: (inner_code_string: string) -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
-    for all_component_types {
-        replaced := String.replace(inner_code_string, "<type>", tprint("%", it)); // @Leak compile-time
-        defer free(replaced);
-
-        print_to_builder(*sb, "%\n", replaced);
-    }
-    return builder_to_string(*sb);
-}
-
-runtime_bit_bucket_chooser :: (inner_code_string: string) -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
-
-    print_to_builder(*sb, "if component_bit == {\n");
-    for all_component_types {
-        print_to_builder(*sb, "    case .%;\n", it);
-        print_to_builder(*sb, "        bucket := *context.state.world._%;\n", it);
-        print_to_builder(*sb, "        Bucket_Value_Type :: %;\n", it);
-        print_to_builder(*sb, "        %\n", inner_code_string);
-    }
-
-    print_to_builder(*sb, "    case; assert(false, \"unknown component bit\");\n");
-    print_to_builder(*sb, "}\n");
-
-    return builder_to_string(*sb);
-}
-
-runtime_bucket_chooser :: (inner_code_string: string) -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
-
-    for all_component_types {
-        print_to_builder(*sb, "if component_ti == type_info(%) {\n", it);
-        print_to_builder(*sb, "    bucket := *context.state.world._%;\n", it);
-        print_to_builder(*sb, "    %\n", inner_code_string);
-        print_to_builder(*sb, "}\n");
-    }
-
-    return builder_to_string(*sb);
-}
-
-_return_component_array_add :: () -> string {
-    return buf_string((sb: *String_Builder) {
-        for all_component_types {
-            maybe_else := ifx it_index > 0 then "else " else "";
-            print_to_builder(sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
-            print_to_builder(sb, "    ptr: *%;\n", it);
-            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%, undo=undo);\n", it);
-            print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
-            print_to_builder(sb, "    ptr.entity = entity_handle;\n");
-            print_to_builder(sb, "    run_on_enable(ptr, entity);\n", it);
-            print_to_builder(sb, "    c = ptr;\n", it);
-            print_to_builder(sb, "}\n", it);
-        }
-    });
-}
-
-buf_string :: (f: (sb: *String_Builder)) -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
-
-    f(*sb);
-
-    return builder_to_string(*sb);
-}
 
 Entity_Handle :: Handle_Type;
 
@@ -615,9 +467,14 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
         value := wbml.parse_value(*lexer);
         assert(value != null, "could not parse value as wbml");
         assert(value.type == .Object);
-        value = wbml.deep_copy(value);
+
+        value = wbml.deep_copy(value); // since we'll keep it around, make a deep copy
 
         ti := get_component_ti_from_name(component_name_ident.text);
+
+        // The wbml node we store has as a prototype the original defaults from the Jai code,
+        // i.e., the #initializer_of defaults.
+        value._object.prototype = get_component_initializer_wbml(ti);
 
         component_cache_entry := array_add(*cache_entry.components);
         component_cache_entry.component_type_name = copy_string(ti.name);
@@ -627,6 +484,50 @@ get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
     ptr := array_add(*context.state.world.prefab_cache.entries);
     <<ptr = cache_entry;
     return ptr;
+}
+
+//
+// Return a heap allocated block of memory that we can use as a source of the
+// #initializer_of defaults from Component subclass code.
+//
+alloc_component_defaults :: (component_ti: *Type_Info_Struct) -> Any {
+    #insert #run runtime_bucket_chooser(#string END
+        any: Any;
+        any.value_pointer = New(bucket.Value_Type, initialized=true);
+        any.type = type_info(bucket.Value_Type);
+
+        return any;
+    END);
+
+    assert(false, tprint(
+        "alloc_component_defaults did not find a component for the given Type_Info_Struct %",
+        component_ti));
+    return null;
+}
+
+get_component_initializer_wbml :: (component_ti: *Type_Info_Struct) -> *wbml.Node_Object {
+    // TODO nocheckin
+    // TODO nocheckin - we need a cache here of *Type_Info_Struct to *wbml.Node
+    // TODO nocheckin - without it this is too wasteful
+    // TODO nocheckin
+    //print("get_component_initializer_wbml(%)\n", component_ti.name);
+    any := alloc_component_defaults(component_ti);
+    //print("  defaults from #initializer_of:\n");
+    //print("    %\n", any);
+
+    //print("    any.value_pointer is %\n", any.value_pointer);
+    //print("    any.type is %\n", <<any.type);
+
+    wbml_string := wbml.serialize_ti(any.value_pointer, any.type, component_on_serialize);
+
+    lexer := laas.make_lexer(wbml_string);
+    root_node := wbml.parse_value(*lexer);
+    assert(root_node != null, "parse_value failed in get_component_initializer_wbml");
+    assert(root_node.type == .Object);
+    return *root_node._object;
+    // TODO nocheckin
+    // TODO nocheckin
+    // TODO nocheckin
 }
 
 component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry) {
@@ -654,8 +555,15 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
     if any.type == type_info(LiveSprite) {
         // just serialize the LiveSprite's filename
         live_sprite := cast(*LiveSprite)any.value_pointer;
+
         any.type = type_info(string);
-        any.value_pointer = *live_sprite.filename;
+        
+        heap_string := New(string); // @Leak
+        if has_value(<<live_sprite) {
+            <<heap_string = copy_string(get_asset_name(live_sprite.filename)); // @Leak
+        }
+
+        any.value_pointer = heap_string;
     }
 }
 
@@ -669,23 +577,38 @@ Entity_Handle_Map :: [..]Entity_Handle_Map_Entry;
 
 on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (handled: bool) {
     assert(any != null);
-    assert(userdata != null);
 
-    if any.type.type == .STRUCT && any.type == type_info(Entity_Handle) {
-        handle_ptr := cast(*Entity_Handle)any.value_pointer;
+    if any.type.type == .STRUCT {
+        if any.type == type_info(Entity_Handle) {
+            // here we're remapping entity ids since the ones stored on disk
+            // will almost certainly be different than the ones in memory.
+            handle_ptr := cast(*Entity_Handle)any.value_pointer;
 
-        number_node := wbml.get(node, "id", .Number, do_remove=false);
-        assert(number_node != null, "expected node id for an Entity_Handle.id to have a number");
-        wbml_entity_id := number_node._number.int_value;
+            number_node := wbml.get(node, "id", .Number, do_remove=false);
+            assert(number_node != null, "expected node id for an Entity_Handle.id to have a number");
+            wbml_entity_id := number_node._number.int_value;
 
-        for <<cast(*Entity_Handle_Map)userdata {
-            print("  % vs %\n", it.on_disk, wbml_entity_id);
-            if it.on_disk == wbml_entity_id {
-                <<handle_ptr = it.live;
-                return true;
+            assert(userdata != null);
+            for <<cast(*Entity_Handle_Map)userdata {
+                print("  % vs %\n", it.on_disk, wbml_entity_id);
+                if it.on_disk == wbml_entity_id {
+                    <<handle_ptr = it.live;
+                    return true;
+                }
             }
+            print("WARNING: handle could not be remapped: %\n", <<handle_ptr);
+        } else if any.type == type_info(SpriteRenderer) {
+            filename := wbml.get(node, "sprite_anim", .String);
+            //print("on_component_deserialize sprite_anim filename is %\n", filename._string);
+
+            field := get_field(cast(*Type_Info_Struct)any.type, "sprite_anim");
+            assert(field != null);
+            live_sprite_ptr := cast(*LiveSprite)(cast(*u8)any.value_pointer + field.offset_in_bytes);
+            
+            was_new: bool;
+            asset_path := tprint("resources/sprites/%.aseprite", filename._string); // TODO: move this path lookup elsewhere
+            <<live_sprite_ptr, was_new = LoadLiveSprite(asset_path);
         }
-        print("WARNING: handle could not be remapped: %\n", <<handle_ptr);
     }
 
     return false;
@@ -698,27 +621,31 @@ load_world :: (world: *World, wbml_string: string) {
     new_entity_handles: Entity_Handle_Map;
     defer array_free(new_entity_handles);
 
+    prefab_cache_entry: *Prefab_Cache.Entry;
+
     while true {
         while laas.is_token(*lexer, .New_Line) laas.eat(*lexer);
 
         name_token, name_ok := laas.expect(*lexer, .Identifier);
         if !name_ok break;
+
         // TODO: nocheckin ensure we've parsed the whole text here.
-        class_name := copy_string(name_token.text);
+        class_name := copy_string(name_token.text); // @Leak
 
         value := wbml.parse_value(*lexer);
+        assert(value.type == .Object);
         if class_name == {
             case "Entity";
-                assert(value.type == .Object);
 
-                prefab_filename: string;
+                prefab_cache_entry = null;
                 {
                     prefab_filename_val := wbml.get(value, "prefab_filename", .String, do_remove=true);
                     if prefab_filename_val != null {
                         defer wbml.delete_node(prefab_filename_val);
 
                         print("entity has prefab link: %\n", prefab_filename_val._string);
-                        prefab_filename = tprint("%", prefab_filename_val._string);
+                        prefab_filename := tprint("%", prefab_filename_val._string);
+                        prefab_cache_entry = get_prefab_cache_entry(prefab_filename);
                     }
                 }
 
@@ -729,12 +656,7 @@ load_world :: (world: *World, wbml_string: string) {
 
                 new_entity_ptr: *Entity;
                 new_entity_handle: Entity_Handle;
-                if prefab_filename.count > 0 {
-                    new_entity_ptr, new_entity_handle = spawn_prefab_from_filename(prefab_filename);
-                    new_entity_ptr.name = entity_name;
-                } else {
-                    new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=false);
-                }
+                new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=false);
                 wbml.write_value(value, new_entity_ptr, "Entity");
 
                 entry := array_add(*new_entity_handles);
@@ -759,6 +681,21 @@ load_world :: (world: *World, wbml_string: string) {
 
                 component_ti := component_bit_to_ti(get_component_bit_for_name(class_name));
                 component_ptr := add_or_get_component(found_handle, component_ti);
+
+
+                assert(value.type == .Object);
+
+                // we point the wbml's prototype field at the prefab WBML.
+                if prefab_cache_entry != null {
+                    for * prefab_cache_entry.components {
+                        if it.component_type_name == component_ti.name {
+                            value._object.prototype = *it.object_node._object;
+                            print("!!! using prototype for %\n", it.component_type_name);
+                            break;
+                        }
+                    }
+                }
+
                 // component_ptr is *Component
                 wbml.write_value(value, component_ptr, component_ti, class_name,
                     on_deserialize=on_component_deserialize, userdata=*new_entity_handles); // , verbose=true);
@@ -828,7 +765,8 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
         // entities is a good idea. We know that at the top level, we want entities to have
         // an extra 'id' thing. Maybe serialize() should take an extra set of things and that's it?
         // Then we don't pay the cost for each node. @Speed
-        wbml.serialize_with_type_info(ti.name, entity, ti, *sb, on_serialize=component_on_serialize, default=*entity_defaults);
+        wbml.serialize_with_type_info(ti.name, entity, ti, *sb,
+            on_serialize=component_on_serialize, default=null);
     }
 
     for bit_s64: type_info(Component_Bit).values {
@@ -840,23 +778,26 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
                     continue;
 
                 ti := cast(*Type_Info_Struct)type_info(type_of(<<component_ptr));
-                component_defaults: Bucket_Value_Type;
 
                 // If we have a prefab cache entry from the entity's prefab link above,
                 // we fill in the "defaults" object that we pass to wbml, so that only
                 // actual changes compared to the parent prefab are written.
+
+                defaults_node: *wbml.Node;
                 if prefab_cache_entry != null {
                     for prefab_cache_entry.components {
                         // TODO: just store component bits in the prefab cache for @Speed
                         component_type_name := it.component_type_name;
                         component_ti := get_component_ti_from_name(component_type_name);
                         if component_ti == ti {
-                            wbml.write_value(it.object_node, *component_defaults, component_ti, component_type_name);
+                            defaults_node = it.object_node;
+                            break;
                         }
                     }
                 }
+
                 wbml.serialize_with_type_info(ti.name, component_ptr, ti, *sb,
-                    on_serialize=component_on_serialize, debug_name=ti.name, default=*component_defaults);
+                    on_serialize=component_on_serialize, debug_name=ti.name, default=defaults_node);
             }
         END);
     }
@@ -899,38 +840,11 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}) -> (*En
     transform.position = world_pos;
 
     for prefab_cache_entry.components {
-        component_type_name := it.component_type_name;
-        component_ti := get_component_ti_from_name(component_type_name);
-        comp := add_or_get_component(entity_handle, component_ti);
-        assert(comp != null);
-
-        // here we use the runtime type info to dynamically poke bits into the
-        // struct, which we don't know the layout of at compile time.  (now
-        // that I know more, the above statement is not entirely true) TODO:
-        // (or do we??? in a non-development build???)
-
-        wbml.write_value(it.object_node, comp, component_ti, component_type_name);
-
-        for it.object_node._object.fields {
-            assert(it.value != null);
-
-            KEY :: "sprite_anim";
-
-            if it.name == KEY {
-                assert(it.value.type == .String);
-                assert(it.value._string.count > 0, tprint("node object string for 'sprite_anim' has empty string"));
-
-                asset_path := tprint("resources/sprites/%.aseprite", it.value._string);
-
-                field := get_field(component_ti, KEY);
-                assert(field != null);
-                live_sprite_ptr := cast(*LiveSprite)(cast(*u8)comp + field.offset_in_bytes);
-
-                was_new: bool;
-                <<live_sprite_ptr, was_new = LoadLiveSprite(asset_path);
-            }
-        }
-
+        component_ti := get_component_ti_from_name(it.component_type_name);
+        component_ptr := add_or_get_component(entity_handle, component_ti);
+        wbml.write_value(it.object_node, component_ptr, component_ti, 
+            debug_name=component_ti.name,
+            on_deserialize=on_component_deserialize);
     }
 
     return entity, entity_handle;
@@ -942,7 +856,6 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}) -> (*En
 File :: #import "File";
 wbml :: #import "wbml";
 laas :: #import "laas";
-String :: #import "String";
 Undo :: #import "undo";
 rl :: #import "raylib";
 Vector3 :: rl.Vector3;

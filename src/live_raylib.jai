@@ -1,5 +1,10 @@
 #import "Live_Types";
 
+get_asset_name :: (filename: string) -> string {
+    if filename.count == 0 return "";
+    return String.path_strip_extension(String.path_filename(filename));
+}
+
 try_reload_live_resource :: (full_name_stripped: string, extension: string) {
     did_reload := false;
     if extension == {
@@ -207,6 +212,7 @@ _to_temp_c_string :: (s: string) -> *u8 {
 
 #scope_file
 #import "toolbelt";
+String :: #import "String";
 rl :: #import "raylib";
 #import "Basic";
 #import "Sprite_Anim";
