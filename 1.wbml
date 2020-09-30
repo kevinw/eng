@@ -31,10 +31,8 @@ Entity {
 	}
 Entity {
 	id 8
-	flags Has_Component_Rect
-	name "paddle"
-	prefab_filename "prefabs/paddle.wbml"
-}
+		name "camera"
+	}
 BoxCollider {
 	component {
 		entity {
@@ -67,15 +65,32 @@ BoxCollider {
 }
 	collision PLATFORM
 		}
-BoxCollider {
+Cam {
 	component {
 		entity {
 			id 8
 }
 }
-		size {
-		x 220
-		y 100
+	cam2D {
+		offset {
+			x 320
+			y 180
+}
+		target {
+			x 386.89502
+			y 386.89502
+}
+				zoom 1.2
+}
+}
+Cam_Follow {
+	component {
+		entity {
+			id 8
+}
+}
+	target_entity {
+		id 1
 }
 	}
 Enemy {
@@ -84,9 +99,9 @@ Enemy {
 			id 2
 }
 }
-	sprite_timer 13.880797
-	last_sprite_timer 13.880797
-					attack_cooldown -13.880725
+	sprite_timer 2.769719
+	last_sprite_timer 2.769719
+					attack_cooldown -2.769718
 }
 Enemy {
 	component {
@@ -94,9 +109,9 @@ Enemy {
 			id 3
 }
 }
-	sprite_timer 13.880797
-	last_sprite_timer 13.880797
-					attack_cooldown -13.880725
+	sprite_timer 2.769719
+	last_sprite_timer 2.769719
+					attack_cooldown -2.769718
 }
 Player {
 	component {
@@ -105,15 +120,8 @@ Player {
 }
 }
 		grounded true
-					sprite_timer 13.880797
+					sprite_timer 2.769719
 			}
-Pong_Paddle {
-	component {
-		entity {
-			id 8
-}
-}
-		}
 RectRenderer {
 	component {
 		entity {
@@ -164,24 +172,6 @@ RectRenderer {
 		g 130
 		b 130
 		a 255
-}
-}
-SpriteRenderer {
-	component {
-		entity {
-			id 8
-}
-}
-	timer 3.474206
-			sprite [
-	]
-		sprite_anim "resources/sprites/tile2.aseprite"
-			slice_mode NineSlice
-	border {
-		left 20
-		top 20
-		right 20
-		bottom 20
 }
 }
 Transform {
@@ -282,8 +272,4 @@ Transform {
 			id 8
 }
 }
-	position {
-		x 441.66687
-		y 280
-		}
-		}
+			}

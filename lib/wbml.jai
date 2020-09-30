@@ -8,26 +8,98 @@
 #import "Basic";
 #import "Hash_Table";
 
-#scope_export
+#scope_module
+
+Node :: struct {
+    Type :: enum {
+        Number;
+        Bool;
+        String;
+        Nil;
+        Enum_Value;
+        Object;
+        Array;
+        Union;
+        Quat;
+    }
+    type: Type;
+	union {
+		_number: Node_Number;
+		_bool: Node_Bool;
+		_string: string;
+		_nil: struct {};
+		_enum: string;
+		_object: Node_Object;
+		_array: Node_Array;
+		_union: Node_Union;
+		_quat: Node_Quat;
+	};
+}
+
+Node_Number :: struct {
+	int_value: s64;
+	uint_value: u64;
+	float_value: float64;
+
+    value_str: string;
+}
+
+Node_Bool :: struct {
+	value: bool;
+}
+
+Node_Object :: struct {
+	fields: []Object_Field;
+    prototype: *Node_Object;
+}
+
+Object_Field :: struct {
+	name: string;
+	value: *Node;
+}
+
+Node_Array :: struct {
+	elements: []*Node;
+}
+
+Node_Union :: struct {
+	variant_name: string;
+	value: *Node;
+}
+
+Node_Quat :: struct {
+	w, x, y, z: *Node;
+}
 
 get_obj :: (node: *Node, field_name: string) -> *Node {
     return get(node, field_name, .Object);
 }
 
 get :: (node: *Node, field_name: string, node_type: Node.Type, do_remove := true) -> *Node {
-    assert(node.type == .Object);
-    for node._object.fields {
+    assert(node.type == .Object, "You must pass a wbml.Node with type .Object to 'get'");
+    return _get_from_object(*node._object, field_name, node_type, do_remove);
+}
+
+_get_from_object :: (node_object: *Node_Object, field_name: string, node_type: Node.Type, do_remove := true) -> *Node {
+    for node_object.fields {
         if it.name == field_name {
             assert(it.value.type == node_type);
             val := it.value;
-            if do_remove remove it; // @Leak
+            if do_remove {
+                print("warning: removing field % from object node\n", field_name);
+                remove it; // @Leak
+            }
             return val;
         }
     }
+
+    if node_object.prototype != null {
+        if do_remove print("warning: ignoring do_remove on prototype for field_name %\n", field_name);
+        return _get_from_object(node_object.prototype, field_name, node_type);
+    }
+
     return null;
 }
-
-#scope_module
 
 Added_Field_Entry :: struct {
     name: string;
@@ -245,23 +317,6 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
         print_to_builder(sb, "\n");
 }
 
-should_serialize_struct_member :: (it: *Type_Info_Struct_Member, seen_offsets: *[..]int) -> bool {
-    if it.flags & .CONSTANT
-        return false;
-
-    for note: it.notes
-        if note == "noserialize"
-            return false;
-
-    if !array_add_if_unique(seen_offsets, it.offset_in_bytes) {
-        // we skip #place directives by ignoring fields which are at byte
-        // offsets we've already seen.
-        return false;
-    }
-
-    return true;
-}
-
 deserialize :: inline ($T: Type, data: string) -> T {
     t: T;
     deserialize(data, *t);
@@ -345,8 +400,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 						array_add(*elements, element);
 					}
 
-                    node: Node;
-                    node.type = .Array;
+                    node := Node.{type = .Array};
                     node._array.elements = elements;
 					return new_clone(node);
 
@@ -422,79 +476,11 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 		case;
 			panic(tprint("%", root_token));
 	}
+
 	unreachable();
     return null;
 }
 
-Node :: struct {
-    Type :: enum {
-        Number;
-        Bool;
-        String;
-        Nil;
-        Enum_Value;
-        Object;
-        Array;
-        Union;
-        Quat;
-    }
-    type: Type;
-	union {
-		_number: Node_Number;
-		_bool: Node_Bool;
-		_string: string;
-		_nil: Node_Nil;
-		_enum: string;
-		_object: Node_Object;
-		_array: Node_Array;
-		_union: Node_Union;
-		_quat: Node_Quat;
-	};
-}
-
-Node_Number :: struct {
-	int_value: s64;
-	uint_value: u64;
-	float_value: float64;
-
-    value_str: string;
-}
-
-Node_Bool :: struct {
-	value: bool;
-}
-
-Node_Nil :: struct {
-}
-
-Node_Object :: struct {
-	fields: []Object_Field;
-}
-
-Object_Field :: struct {
-	name: string;
-	value: *Node;
-}
-
-make_Object_Field :: (name: string, value: *Node) -> Object_Field {
-    field: Object_Field;
-    field.name = name;
-    field.value = value;
-    return field;
-}
-
-Node_Array :: struct {
-	elements: []*Node;
-}
-
-Node_Union :: struct {
-	variant_name: string;
-	value: *Node;
-}
-
-Node_Quat :: struct {
-	w, x, y, z: *Node;
-}
 
 deep_copy :: (node: *Node) -> *Node {
     dest := New(Node);
@@ -692,6 +678,36 @@ write_value :: (node: *Node, ptr: *void, ti: *Type_Info,
     }
 }
 
+run_tests :: run_tests;
+
+#scope_file
+
+should_serialize_struct_member :: (it: *Type_Info_Struct_Member, seen_offsets: *[..]int) -> bool {
+    if it.flags & .CONSTANT
+        return false;
+
+    for note: it.notes
+        if note == "noserialize"
+            return false;
+
+    if !array_add_if_unique(seen_offsets, it.offset_in_bytes) {
+        // we skip #place directives by ignoring fields which are at byte
+        // offsets we've already seen.
+        return false;
+    }
+
+    return true;
+}
+
+
+make_Object_Field :: (name: string, value: *Node) -> Object_Field {
+    field: Object_Field;
+    field.name = name;
+    field.value = value;
+    return field;
+}
+
+
 unescape_string :: (str: string, allocator := context.allocator) -> (string, int) {
     length := str.count;
 
@@ -734,8 +750,6 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
     return escaped, length;
 }
 
-run_tests :: run_tests;
-#scope_file
 
 #import "Any";
 #import "Compiler";

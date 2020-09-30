@@ -64,9 +64,9 @@ draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: rl.Vector2, tag_na
     assert(frames.count > 0);
     assert(frames.count < MAX_FRAME_COUNT);
     ok, frame := get_frame(sprite_anim, time, tag_name);
-    if ok
+    if ok {
         draw_frame(frame, pos);
-    else
+    } else
         logprint("warning", "couldn't get frame");
 }
 
