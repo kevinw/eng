@@ -300,12 +300,6 @@ entity_rect :: (entity: *Entity, verbose := false) -> rl.Rectangle {
     return rl.make_Rectangle(pos.x, pos.y, sz.x, sz.y);
 }
 
-get_component_buckets :: () -> string {
-    return buf_string((sb: *String_Builder) {
-        for all_component_types
-        print_to_builder(sb, "_%: Array_With_Holes(%);\n", it, it);
-    });
-}
 
 bucket_chooser :: () -> string {
     return buf_string((sb: *String_Builder) {
@@ -388,8 +382,12 @@ Entity_Handle :: Handle_Type;
 World :: struct {
     canary1 := 101;
     entities: Array_With_Holes(Entity);
-    #insert #run get_component_buckets();
-
+    #insert #run (() -> string {
+        return buf_string((sb: *String_Builder) {
+            for all_component_types
+            print_to_builder(sb, "_%: Array_With_Holes(%);\n", it, it);
+        });
+    }());
 
     canary2 := 999;
 
@@ -574,6 +572,9 @@ Prefab_Cache :: struct {
 }
 
 get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
+    // TODO: this cache needs to be invalidated when the files
+    // change on disk and we're notified as such via the hotloader
+
     for * context.state.world.prefab_cache.entries
         if it.filename == filename
             return it;
@@ -798,6 +799,8 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
     sb: String_Builder;
     defer free_buffers(*sb);
 
+    prefab_cache_entry: *Prefab_Cache.Entry;
+
     for handles(*context.state.world.entities) {
         ok, entity := get_entity(it);
         assert(ok);
@@ -808,7 +811,18 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
         // TODO merge this wbml.serialize call with the one below.
         // really we just want to serialize all the buckets!
         ti := cast(*Type_Info_Struct)type_info(type_of(<<entity));
+
         entity_defaults: Entity;
+        if entity.prefab_filename.count > 0 {
+            //here's the hard work. where do we "fake instantiate"
+            //the prefab to see its defaults? they should maybe already be in memory
+            //from spawn_prefab. maybe each entity could keep a pointer to a WBML node that
+            //has its prefab defaults? then here we could write that node to the default object here...
+
+            //note! we already have the prefab cache.
+
+            prefab_cache_entry = get_prefab_cache_entry(entity.prefab_filename);
+        }
 
         // TODO: I'm not sure that using this on_serialize function to add the 'id' field to
         // entities is a good idea. We know that at the top level, we want entities to have
@@ -827,6 +841,20 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
 
                 ti := cast(*Type_Info_Struct)type_info(type_of(<<component_ptr));
                 component_defaults: Bucket_Value_Type;
+
+                // If we have a prefab cache entry from the entity's prefab link above,
+                // we fill in the "defaults" object that we pass to wbml, so that only
+                // actual changes compared to the parent prefab are written.
+                if prefab_cache_entry != null {
+                    for prefab_cache_entry.components {
+                        // TODO: just store component bits in the prefab cache for @Speed
+                        component_type_name := it.component_type_name;
+                        component_ti := get_component_ti_from_name(component_type_name);
+                        if component_ti == ti {
+                            wbml.write_value(it.object_node, *component_defaults, component_ti, component_type_name);
+                        }
+                    }
+                }
                 wbml.serialize_with_type_info(ti.name, component_ptr, ti, *sb,
                     on_serialize=component_on_serialize, debug_name=ti.name, default=*component_defaults);
             }
