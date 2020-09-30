@@ -107,7 +107,7 @@ draw :: (using it: *SpriteRenderer, transform: *Transform) {
         dest_rect := get_sprite_anim_dest_rect(it, transform);
         if #complete slice_mode == {
             case .None;
-                toolbelt.draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset);
+                toolbelt.draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
             case .NineSlice;
                 npatch_info: rl.NPatchInfo;
                 npatch_info.sourceRec = _current_frame.rect;
