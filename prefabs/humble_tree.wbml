@@ -1,0 +1,6 @@
+1 humble_tree
+
+SpriteRenderer
+{
+    sprite_anim "humble_tree"
+}
