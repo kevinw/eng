@@ -344,9 +344,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 				count, data := Reflection.get_array_count_and_data(value, ti_array);
 
                 if default != null {
-                    print("got default node in array\n");
                     default_count, default_data := Reflection.get_array_count_and_data(default, ti_array);
-                    print("default_count %, count %\n", default_count, count);
                     if default_count == 0 && count == 0
                         skip = true;
                 }
@@ -837,7 +835,7 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
 
 run_tests :: run_tests;
 
-#run run_tests(); // nocheckin
+// #run run_tests();
 
 #scope_file
 
