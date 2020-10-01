@@ -8,16 +8,16 @@ SpriteRenderer {
 	component {
 		entity {
 			id 10
-}
-}
-	timer 86.712744
-			sprite [
+		}
+	}
+	timer 96.579785
+	sprite [
 	]
-						}
+}
 Transform {
 	component {
 		entity {
 			id 10
+		}
+	}
 }
-}
-			}

@@ -229,8 +229,6 @@ serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builde
 serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "", default: *Node = null) -> (did_skip: bool) {
     assert(ti != null);
 
-    did_any_child_work := false;
-
     dbgname := debug_name;
     if dbgname.count == 0 {
         if ti.type == .STRUCT
@@ -243,6 +241,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
     if name != "" name_and_space = tprint("% ", name);
 
     skip := false;
+    any_child_worked := false;
 
 	item: Any;
 	item.type = ti;
@@ -259,7 +258,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                     skip = true;
             }
             if !skip {
-                //print_indents(indent_level, sb);
+                print_indents(indent_level, sb);
                 print_item_to_builder(sb, name_and_space);
                 print_to_builder(sb, ifx (<< (cast(*bool)value)) then "true" else "false");
             }
@@ -310,10 +309,12 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             }
 
             if !skip {
-                print_item_to_builder(sb, name_and_space);
                 number_as_str := tprint("%", item);
                 if t == .FLOAT
                     strip_trailing_decimal_zeros(*number_as_str);
+
+                print_indents(indent_level, sb);
+                print_item_to_builder(sb, name_and_space);
                 print_item_to_builder(sb, number_as_str);
             }
         case .STRING;
@@ -326,20 +327,26 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                 }
             }
             if !skip {
-                //print_indents(indent_level, sb);
+                print_indents(indent_level, sb);
                 print_item_to_builder(sb, name_and_space);
                 print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
             }
 		case .ARRAY;
             ti_array := cast(*Type_Info_Array)ti;
-            //print_indents(indent_level, sb);
-            print_item_to_builder(sb, name_and_space);
-			print_to_builder(sb, "[\n"); indent_level += 1;
+
+            sub_sb: String_Builder;
+            defer free_buffers(*sub_sb);
+
 			{
+                indent_level += 1;
+                defer indent_level -= 1;
+
 				count, data := Reflection.get_array_count_and_data(value, ti_array);
 
                 if default != null {
+                    print("got default node in array\n");
                     default_count, default_data := Reflection.get_array_count_and_data(default, ti_array);
+                    print("default_count %, count %\n", default_count, count);
                     if default_count == 0 && count == 0
                         skip = true;
                 }
@@ -349,19 +356,30 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                         elem_data := data + ti_array.element_type.runtime_size * i;
 
                         //
-                        // TODO: how to handle defaults with arrays?
+                        // TODO: how to handle defaults with arrays? the problem here is that we can't simply
+                        // skip elements if they're equal, because then things will be in the wrong order.
                         //
 
                         //item_default: *void;
                         //if default != null
                             //item_default = item_default + ti_array.element_type.runtime_size * i;
 
-                        print_indents(indent_level, sb);
-                        did_any_child_work |= serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level,
+                        any_child_worked |= serialize_with_type_info("", elem_data, ti_array.element_type, *sub_sb, indent_level,
                             on_serialize, tprint("%[%]", dbgname, i), default=null);
                     }
 			}
-			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
+
+            if !skip {
+                print_indents(indent_level, sb);
+                print_item_to_builder(sb, name_and_space);
+                print_to_builder(sb, "[\n"); 
+
+                print_to_builder(sb, "%", builder_to_string(*sub_sb));
+
+                print_indents(indent_level, sb);
+                print_to_builder(sb, "]");
+            }
+
         case .STRUCT;
             ti_struct := cast(*Type_Info_Struct)ti;
             seen_offsets: [..]int;
@@ -377,8 +395,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
             indent_level += 1;
             for added_struct_fields {
-                print_indents(indent_level, *sub_sb);
-                did_any_child_work |= serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
+                any_child_worked |= serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
                     on_serialize, tprint("%.%", dbgname, it.name), default=default);
             }
 
@@ -386,21 +403,17 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                 if !should_serialize_struct_member(it, *seen_offsets)
                     continue;
 
-                member_any: Any;
-                member_any.value_pointer = value + it.offset_in_bytes;
-                member_any.type = it.type;
-
+                member_any := make_Any(it.type, value + it.offset_in_bytes);
                 on_serialize(*member_any, null);
                 field_default: *Node;
-                if default != null {
+                if default != null
                     field_default = _get_from_object(*default._object, it.name);
-                }
 
-                print_indents(indent_level, *sub_sb);
-                did_any_child_work |= serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
+                any_child_worked |= serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
                     on_serialize, tprint("%.%", dbgname, it.name), default=field_default);
             }
 
+            indent_level -= 1;
             sub_str := builder_to_string(*sub_sb);
             defer free(sub_str);
 
@@ -412,19 +425,15 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             // calls is a big @Hack. Instead we should have the child calls
             // return whether they did any work, and if not reset the string
             // builder position.
-            trimmed := trim_whitespace(sub_str);
-            if indent_level == 1 || trimmed.count > 0 {
-                print_indents(indent_level, *sub_sb);
+            if indent_level == 0 || any_child_worked {
+                print_indents(indent_level, sb);
                 print_to_builder(sb, "%{\n", name_and_space);
-                if trimmed.count > 0 {
-                    print_to_builder(sb, "%", sub_str);
-                }
+                print_to_builder(sb, "%", sub_str);
             } else {
                 skip = true;
             }
-            indent_level -= 1; 
             if !skip {
-                print_indents(indent_level, *sub_sb);
+                print_indents(indent_level, sb);
                 print_to_builder(sb, "}");
             }
         case .POINTER;
@@ -436,7 +445,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
     if !skip
         print_to_builder(sb, "\n");
 
-    return !skip && !did_any_child_work;
+    return !skip || any_child_worked;
 }
 
 deserialize :: inline ($T: Type, data: string) -> T {
@@ -724,12 +733,8 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
     node := deep_copy(node_incoming);
     defer delete_node(node);
 
-    any: Any = ---;
-    any.type = ti;
-    any.value_pointer = ptr;
-    assert(on_deserialize != null);
-    if on_deserialize(*any, node, userdata)
-        return;
+    any := make_Any(ti, ptr);
+    if on_deserialize(*any, node, userdata) return;
 
     if (ti.type) == {
         case .STRUCT;
@@ -832,7 +837,7 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
 
 run_tests :: run_tests;
 
-// #run run_tests();
+#run run_tests(); // nocheckin
 
 #scope_file
 
@@ -962,6 +967,12 @@ check_type :: (node: *Node, type: Node.Type, verbose: bool, debug_name := "") ->
     return false;
 }
 
+make_Any :: (type: *Type_Info, value_pointer: *void) -> Any {
+    any: Any;
+    any.type = type;
+    any.value_pointer = value_pointer;
+    return any;
+}
 
 strip_trailing_decimal_zeros :: (s: *string) {
     // TODO: just format the damn float differently....
@@ -1247,6 +1258,13 @@ END;
 
         v: Vec3 = .{ 4, 5, 6};
         print("%\n%\n", v, serialize(*v));
+
+        Blah :: struct {
+            arr: [..]int;
+        }
+
+        b: Blah;
+        print("Blah: %\n", serialize(*b));
     }
 
 	print("wbml tests done!\n");
