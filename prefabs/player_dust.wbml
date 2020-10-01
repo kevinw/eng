@@ -1,7 +1,15 @@
-55 player_dust
+Entity {
+    id 1
+    name "landing dust"
+}
 
 SpriteRenderer
 {
+    component {
+        entity {
+            id 1
+        }
+    }
     sprite_anim "blob"
     anim_tag "die"
     mode Play_Once_And_Die

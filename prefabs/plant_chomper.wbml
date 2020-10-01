@@ -1,5 +1,13 @@
-59 plant_chomper
+Entity {
+    id 1
+    name "Plant"
+}
 
 Enemy
 {
+    component {
+        entity {
+            id 1
+        }
+    }
 }

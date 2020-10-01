@@ -1,5 +1,13 @@
-80 player
+Entity {
+    id 1
+    name "The Player"
+}
 
 Player
 {
+    component {
+        entity {
+            id 1
+        }
+    }
 }

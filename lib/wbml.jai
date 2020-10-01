@@ -5,10 +5,49 @@
 // use initializer_of to skip writing struct field values if they are
 // still set to their defaults
 
-#import "Basic";
-#import "Hash_Table";
-
 #scope_module
+
+node_to_string :: (node: *Node, indent := "") -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    if node == null
+        print_to_builder(*sb, "<null>");
+    else {
+        if node.type == {
+            case .Enum_Value; print_to_builder(*sb, node._enum);
+            case .Number;     print_to_builder(*sb, node._number.value_str);
+            case .String;     print_to_builder(*sb, "\"%\"", node._string);
+            case;             print_to_builder(*sb, "%", <<node);
+        }
+    }
+
+    return builder_to_string(*sb);
+
+}
+
+node_object_to_string :: (node_object: *Node_Object, indent := "") -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    if node_object == null
+        print_to_builder(*sb, "%<null>", indent);
+    else {
+        print_to_builder(*sb, "%Node_Object {\n", indent);
+        print_to_builder(*sb, "%  fields [\n", indent);
+        for * node_object.fields {
+            if it.value.type == .Object
+                print_to_builder(*sb, "%    %:\n%\n", indent, it.name, node_object_to_string(*it.value._object, tprint("%      ", indent)));
+            else
+                print_to_builder(*sb, "%    %: %\n", indent, it.name, node_to_string(it.value, tprint("%      ", indent)));
+        }
+        print_to_builder(*sb, "%  ]\n", indent);
+        print_to_builder(*sb, "%  prototype: %\n", indent, node_object_to_string(node_object.prototype), tprint("%      ", indent));
+        print_to_builder(*sb, "%}\n", indent);
+    }
+
+    return builder_to_string(*sb);
+}
 
 Node :: struct {
     Type :: enum {
@@ -102,7 +141,7 @@ _get_from_object :: (node_object: *Node_Object, field_name: string, node_type: N
             assert(it.value.type == node_type);
             val := it.value;
             if do_remove {
-                //print("warning: removing field % from object node\n", field_name); // nocheckin
+                //print("warning: removing field % from object node\n", field_name); // TODO - get rid of do_remove
                 remove it; // @Leak
             }
             return val;
@@ -110,7 +149,7 @@ _get_from_object :: (node_object: *Node_Object, field_name: string, node_type: N
     }
 
     if node_object.prototype != null {
-        // if do_remove print("warning: ignoring do_remove on prototype for field_name %\n", field_name); // nocheckin
+        // if do_remove print("warning: ignoring do_remove on prototype for field_name %\n", field_name); // TODO - get rid of do_remove
         return _get_from_object(node_object.prototype, field_name, node_type);
     }
 
@@ -142,7 +181,16 @@ Default_Node_Entry :: struct {
 
 _default_nodes: [..]Default_Node_Entry;
 
-serialize :: (value: *$Type, on_serialize := default_on_serialize) -> string {
+get_defaults_node :: (value: *$Type, on_serialize := default_on_serialize) -> *Node {
+    s := serialize(value, on_serialize, do_automatic_defaults = false);
+    assert(s.count > 0);
+    lexer := laas.make_lexer(s);
+    node := parse_value(*lexer);
+    assert(node != null);
+    return deep_copy(node);
+}
+
+serialize :: (value: *$Type, on_serialize := default_on_serialize, do_automatic_defaults := true) -> string {
     ti := type_info(Type);
     default_node: *Node;
 
@@ -150,7 +198,7 @@ serialize :: (value: *$Type, on_serialize := default_on_serialize) -> string {
         if it.type == ti
             default_node = it.node;
 
-    if default_node == null {
+    if default_node == null && do_automatic_defaults {
         default_value: Type;
 
         wbml_string := serialize_ti(*default_value, ti, on_serialize);
@@ -178,8 +226,10 @@ serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builde
     serialize_with_type_info("", value, ti, sb, 0, on_serialize, default=default);
 }
 
-serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "", default: *Node = null) {
+serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "", default: *Node = null) -> (did_skip: bool) {
     assert(ti != null);
+
+    did_any_child_work := false;
 
     dbgname := debug_name;
     if dbgname.count == 0 {
@@ -188,8 +238,6 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
         else
             dbgname = tprint("%", <<ti);
     }
-
-    print("serialize_with_type_info % %\n", name, default);
 
     name_and_space: string;
     if name != "" name_and_space = tprint("% ", name);
@@ -219,7 +267,8 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
         case .FLOAT; #through;
         case .ENUM;
             if default != null {
-                if t == .FLOAT {
+                if t == {
+                case .FLOAT;
                     Math :: #import "Math";
                     epsilon :: 0.0001;
                     if ti.runtime_size == 4 {
@@ -236,9 +285,8 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                         assert(false, tprint(
                             "Type_Info_Float had unexpected runtime size %", ti.runtime_size));
                     }
-                } else if t == .INTEGER {
-                    assert(t == .INTEGER);
-                    ti_integer := cast(*Type_Info_Integer)t;
+                case .INTEGER;
+                    ti_integer := cast(*Type_Info_Integer)ti;
                     if ti_integer.signed {
                         if default._number.int_value == get_s64_from_void_pointer(value, ti.runtime_size) {
                             skip = true;
@@ -248,19 +296,22 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                             skip = true;
                         }
                     }
+                case .ENUM;
+                    temp_val: s64;
+                    default_item: Any;
+                    default_item.type = ti;
+                    default_item.value_pointer = *temp_val;
+                    did_set := Reflection.set_value_from_string(default_item, default._enum);
+                    default_str := tprint("%", default_item); 
+                    item_str := tprint("%", item);
+                    if default_str == item_str // @Speed it's dumb to stringify the enums here to check their effective equality
+                        skip = true;
                 }
             }
 
             if !skip {
                 print_item_to_builder(sb, name_and_space);
                 number_as_str := tprint("%", item);
-                strip_trailing_decimal_zeros :: (s: *string) {
-                    // TODO: just format the damn float differently....
-                    // TODO: international decimal points may not be "."
-                    if String.last_index_of_char(<<s, #char ".") == -1 return;
-                    while String.ends_with(<<s, "0") s.count -= 1;
-                    if String.ends_with(<<s, ".") s.count -= 1;
-                }
                 if t == .FLOAT
                     strip_trailing_decimal_zeros(*number_as_str);
                 print_item_to_builder(sb, number_as_str);
@@ -269,7 +320,8 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             if default != null {
                 assert(default.type == .String);
                 default_str := default._string;
-                if default_str == <<cast(*string)value {
+                this_val := <<cast(*string)value;
+                if default_str == this_val {
                     skip = true;
                 }
             }
@@ -285,21 +337,29 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 			print_to_builder(sb, "[\n"); indent_level += 1;
 			{
 				count, data := Reflection.get_array_count_and_data(value, ti_array);
-				for i: 0..count-1 {
-					elem_data := data + ti_array.element_type.runtime_size * i;
 
-                    //
-                    // TODO: how to handle defaults with arrays?
-                    //
+                if default != null {
+                    default_count, default_data := Reflection.get_array_count_and_data(default, ti_array);
+                    if default_count == 0 && count == 0
+                        skip = true;
+                }
 
-                    //item_default: *void;
-                    //if default != null
-                        //item_default = item_default + ti_array.element_type.runtime_size * i;
+                if !skip
+                    for i: 0..count-1 {
+                        elem_data := data + ti_array.element_type.runtime_size * i;
 
-                    print_indents(indent_level, sb);
-					serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level,
-                        on_serialize, tprint("%[%]", dbgname, i), default=null);
-				}
+                        //
+                        // TODO: how to handle defaults with arrays?
+                        //
+
+                        //item_default: *void;
+                        //if default != null
+                            //item_default = item_default + ti_array.element_type.runtime_size * i;
+
+                        print_indents(indent_level, sb);
+                        did_any_child_work |= serialize_with_type_info("", elem_data, ti_array.element_type, sb, indent_level,
+                            on_serialize, tprint("%[%]", dbgname, i), default=null);
+                    }
 			}
 			indent_level -= 1; print_indents(indent_level, sb); print_to_builder(sb, "]");
         case .STRUCT;
@@ -318,7 +378,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             indent_level += 1;
             for added_struct_fields {
                 print_indents(indent_level, *sub_sb);
-                serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
+                did_any_child_work |= serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
                     on_serialize, tprint("%.%", dbgname, it.name), default=default);
             }
 
@@ -334,11 +394,10 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                 field_default: *Node;
                 if default != null {
                     field_default = _get_from_object(*default._object, it.name);
-                    print("got field default % with name %\n", it.name);
                 }
 
                 print_indents(indent_level, *sub_sb);
-                serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
+                did_any_child_work |= serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
                     on_serialize, tprint("%.%", dbgname, it.name), default=field_default);
             }
 
@@ -376,6 +435,8 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
     if !skip
         print_to_builder(sb, "\n");
+
+    return !skip && !did_any_child_work;
 }
 
 deserialize :: inline ($T: Type, data: string) -> T {
@@ -771,7 +832,7 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
 
 run_tests :: run_tests;
 
-//#run run_tests(); // nocheckin
+// #run run_tests();
 
 #scope_file
 
@@ -849,7 +910,10 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
 trim :: String.trim;
 trim_whitespace :: #bake_arguments trim(chars = " \t\n\r");
 Reflection :: #import "Reflection";
-
+laas :: #import "laas";
+String :: #import "String";
+#import "Basic";
+#import "Hash_Table";
 
 print_indents :: inline (indent_level: int, sb: *String_Builder) {
     for i: 0..indent_level-1
@@ -863,8 +927,6 @@ new_clone :: inline (data: $T) -> *T {
     }
 	return ptr;
 }
-
-laas :: #import "laas";
 
 panic :: (msg: string, args: ..Any, loc := #caller_location) { // TODO
 	print("%\n", loc);
@@ -898,6 +960,15 @@ check_type :: (node: *Node, type: Node.Type, verbose: bool, debug_name := "") ->
     if verbose
         logprint("wbml", "warning: node was %, expected .% for %", node.type, type, debug_name);
     return false;
+}
+
+
+strip_trailing_decimal_zeros :: (s: *string) {
+    // TODO: just format the damn float differently....
+    // TODO: international decimal points may not be "."
+    if String.last_index_of_char(<<s, #char ".") == -1 return;
+    while String.ends_with(<<s, "0") s.count -= 1;
+    if String.ends_with(<<s, ".") s.count -= 1;
 }
 
 run_tests :: () {
@@ -1158,16 +1229,19 @@ END;
     {
         Vec3 :: struct { x: float; y: float; z: float; }
 
+        My_Enum :: enum { ItemA :: 5004; ItemB :: 5005; }
+
         Thing_With_Defaults :: struct {
             a := Vec3.{0, 1, 0};
             b := "bar";
+            c := My_Enum.ItemA;
         }
 
         t: Thing_With_Defaults;
         t_str := serialize(*t);
         print("Thing_With_Defaults:\n%\n", t_str);
         if t_str != "{\n}\n" {
-            //assert(false);
+            assert(false);
             print("WARNING: %\n", tprint("'%' vs '%'", t_str, "{\n}\n"));
         }
 
@@ -1177,6 +1251,3 @@ END;
 
 	print("wbml tests done!\n");
 }
-
-#scope_file
-String :: #import "String";

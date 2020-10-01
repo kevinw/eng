@@ -1,6 +1,16 @@
-1 humble_tree
+Entity
+{
+    id 1
+    name "a Humble Tree"
+}
 
 SpriteRenderer
 {
+    component {
+        entity {
+            id 1
+        }
+    }
+
     sprite_anim "humble_tree"
 }

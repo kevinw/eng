@@ -114,6 +114,7 @@ Editor :: struct {
         entities := true;
         ecs_internals := false;
         assets := true;
+        prefab_cache := true;
     };
 
     play_mode: Play_Mode = .Edit;
@@ -292,6 +293,12 @@ editor_draw :: (state: *State) {
 
         SetNextItemOpen(true);
         inspect("", *state.editor.undo_state);
+    }
+
+    if editor.windows.prefab_cache {
+        Begin("prefab cache", *editor.windows.prefab_cache);
+        defer End();
+        inspect("", *context.state.world.prefab_cache);
     }
 
     if editor.windows.assets {
@@ -839,7 +846,7 @@ load_scene :: (name: string) {
     }
 
     reset_world(*context.state.world);
-    load_world(*context.state.world, wbml_str);
+    load_world(*context.state.world, wbml_str, filename);
     //wbml.deserialize(str, *context.state.scene);
 
     logprint("editor", "loaded %", filename);

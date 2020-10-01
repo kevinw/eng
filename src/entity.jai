@@ -243,12 +243,21 @@ World :: struct {
 
     canary2 := 999;
 
-    prefab_cache: Prefab_Cache;
+    prefab_cache: [..]Prefab_Cache_Entry;
 
-    deinit :: (using world: *World) {
-        Prefab_Cache.deinit(*prefab_cache);
+    defaults_nodes: [..]*wbml.Node; // in component order
+
+    deinit :: (world: *World) {
     }
 };
+
+Prefab_Cache_Entry :: struct {
+    filename: string;
+    components: [..]struct {
+        component_bit: Component_Bit;
+        object_node:   *wbml.Node;
+    };
+}
 
 init_world :: (world: *World) {
     init_array_with_holes(*world.entities, "all-entities");
@@ -259,6 +268,36 @@ init_world :: (world: *World) {
             }
         });
     }());
+
+    // Here we create empty stack variables for each component type, and then
+    // serialize them into in-memory WBML nodes. This will give us ndoes to
+    // use as "prototype" objects for when we're writing out WBML, so that
+    // we don't serialize defaults.
+    #insert #run foreach_component_type(#string END
+        {
+            component_on_stack: <type>;
+            defaults_node := wbml.get_defaults_node(*component_on_stack, component_on_serialize);
+            assert(defaults_node != null);
+            default_obj_str := wbml.node_object_to_string(*defaults_node._object);
+            File.write_entire_file(
+                tprint("temp/%.wbml", <type>),
+                default_obj_str);
+
+            array_add(*world.defaults_nodes, defaults_node);
+        }
+    END);
+}
+
+get_defaults_node_for_component_bit :: (world: *World, component_bit: Component_Bit) -> *wbml.Node {
+    index := -1;
+    for type_info(Component_Bit).values {
+        if component_bit == cast(Component_Bit)it
+            index = it_index;
+    }
+
+    assert(index != -1);
+
+    return world.defaults_nodes[index];
 }
 
 world_update :: (world: *World, delta_time: float) {
@@ -396,96 +435,6 @@ add_component :: (entity_handle: Entity_Handle, $component_type: Type, undo: *Un
     return c;
 }
 
-Prefab_Cache :: struct {
-    Entry :: struct {
-        // key
-        filename: string; @owned
-
-        // value
-        entity_name: string; @owned
-        entity_id: s32;
-
-        components: [..]struct {
-            component_type_name: string; @owned
-            object_node: *wbml.Node; @owned
-        };
-    }
-
-    entries: [..]Entry;
-
-    deinit :: (using self: *Prefab_Cache) { // TODO: autogen this function from @owned
-        for entries {
-            for it.components {
-                free(it.component_type_name);
-                wbml.delete_node(it.object_node);
-            }
-        }
-    }
-}
-
-get_prefab_cache_entry :: (filename: string) -> *Prefab_Cache.Entry {
-    // TODO: this cache needs to be invalidated when the files
-    // change on disk and we're notified as such via the hotloader
-
-    for * context.state.world.prefab_cache.entries
-        if it.filename == filename
-            return it;
-
-    entity_file_text, ok := File.read_entire_file(filename);
-    if !ok {
-        logprint("error", "no prefab at %", filename);
-        return null;
-    }
-    defer free(entity_file_text);
-    print("read % bytes from '%'\n", entity_file_text.count, filename);
-
-    // entity id
-    lexer := laas.make_lexer(entity_file_text);
-    entity_id_token, ok2 := laas.expect(*lexer, .Number);
-    assert(ok2, "did not find an entity id");
-    entity_id := cast(s32)string_to_int(entity_id_token.text);
-
-    // entity name
-    name_token, name_ok := laas.expect(*lexer, .Identifier);
-    assert(name_ok);
-    entity_name := copy_string(name_token.text);
-
-    cache_entry: Prefab_Cache.Entry;
-    cache_entry.filename = copy_string(filename);
-    cache_entry.entity_name = entity_name;
-    cache_entry.entity_id   = entity_id;
-
-    // load the component data
-    while true {
-        while laas.is_token(*lexer, .New_Line) laas.eat(*lexer);
-        component_name_ident, component_name_ok := laas.expect(*lexer, .Identifier);
-        if !component_name_ok break;
-
-        nl, nl_ok := laas.expect(*lexer, .New_Line);
-        assert(nl_ok, "expected a newline after the component name '%'", component_name_ident.text);
-
-        value := wbml.parse_value(*lexer);
-        assert(value != null, "could not parse value as wbml");
-        assert(value.type == .Object);
-
-        value = wbml.deep_copy(value); // since we'll keep it around, make a deep copy
-
-        ti := get_component_ti_from_name(component_name_ident.text);
-
-        // The wbml node we store has as a prototype the original defaults from the Jai code,
-        // i.e., the #initializer_of defaults.
-        value._object.prototype = get_component_initializer_wbml(ti);
-
-        component_cache_entry := array_add(*cache_entry.components);
-        component_cache_entry.component_type_name = copy_string(ti.name);
-        component_cache_entry.object_node = value;
-    }
-
-    ptr := array_add(*context.state.world.prefab_cache.entries);
-    <<ptr = cache_entry;
-    return ptr;
-}
-
 //
 // Return a heap allocated block of memory that we can use as a source of the
 // #initializer_of defaults from Component subclass code.
@@ -503,31 +452,6 @@ alloc_component_defaults :: (component_ti: *Type_Info_Struct) -> Any {
         "alloc_component_defaults did not find a component for the given Type_Info_Struct %",
         component_ti));
     return null;
-}
-
-get_component_initializer_wbml :: (component_ti: *Type_Info_Struct) -> *wbml.Node_Object {
-    // TODO nocheckin
-    // TODO nocheckin - we need a cache here of *Type_Info_Struct to *wbml.Node
-    // TODO nocheckin - without it this is too wasteful
-    // TODO nocheckin
-    //print("get_component_initializer_wbml(%)\n", component_ti.name);
-    any := alloc_component_defaults(component_ti);
-    //print("  defaults from #initializer_of:\n");
-    //print("    %\n", any);
-
-    //print("    any.value_pointer is %\n", any.value_pointer);
-    //print("    any.type is %\n", <<any.type);
-
-    wbml_string := wbml.serialize_ti(any.value_pointer, any.type, component_on_serialize);
-
-    lexer := laas.make_lexer(wbml_string);
-    root_node := wbml.parse_value(*lexer);
-    assert(root_node != null, "parse_value failed in get_component_initializer_wbml");
-    assert(root_node.type == .Object);
-    return *root_node._object;
-    // TODO nocheckin
-    // TODO nocheckin
-    // TODO nocheckin
 }
 
 component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry) {
@@ -599,29 +523,39 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
             print("WARNING: handle could not be remapped: %\n", <<handle_ptr);
         } else if any.type == type_info(SpriteRenderer) {
             filename := wbml.get(node, "sprite_anim", .String);
-            //print("on_component_deserialize sprite_anim filename is %\n", filename._string);
+            if filename != null && filename._string.count > 0 {
+                //print("on_component_deserialize sprite_anim filename is %\n", filename._string);
 
-            field := get_field(cast(*Type_Info_Struct)any.type, "sprite_anim");
-            assert(field != null);
-            live_sprite_ptr := cast(*LiveSprite)(cast(*u8)any.value_pointer + field.offset_in_bytes);
-            
-            was_new: bool;
-            asset_path := tprint("resources/sprites/%.aseprite", filename._string); // TODO: move this path lookup elsewhere
-            <<live_sprite_ptr, was_new = LoadLiveSprite(asset_path);
+                field := get_field(cast(*Type_Info_Struct)any.type, "sprite_anim");
+                assert(field != null);
+                live_sprite_ptr := cast(*LiveSprite)(cast(*u8)any.value_pointer + field.offset_in_bytes);
+                
+                was_new: bool;
+                asset_path := tprint("resources/sprites/%.aseprite", filename._string); // TODO: move this path lookup elsewhere
+                <<live_sprite_ptr, was_new = LoadLiveSprite(asset_path);
+            }
         }
     }
 
     return false;
 }
 
-
-load_world :: (world: *World, wbml_string: string) {
+load_world :: (world: *World, wbml_string: string, filename: string, create_transform := false, save_in_cache := false) -> [..]Entity_Handle {
     lexer := laas.make_lexer(wbml_string);
 
     new_entity_handles: Entity_Handle_Map;
     defer array_free(new_entity_handles);
+    prefab_cache_entry: *Prefab_Cache_Entry;
 
-    prefab_cache_entry: *Prefab_Cache.Entry;
+    if save_in_cache {
+        for world.prefab_cache {
+            if it.filename == filename {
+                // don't need to save again if we've already got the thing in cache
+                save_in_cache = false;
+                break;
+            }
+        }
+    }
 
     while true {
         while laas.is_token(*lexer, .New_Line) laas.eat(*lexer);
@@ -634,34 +568,60 @@ load_world :: (world: *World, wbml_string: string) {
 
         value := wbml.parse_value(*lexer);
         assert(value.type == .Object);
+
+
         if class_name == {
             case "Entity";
-
-                prefab_cache_entry = null;
+                prefab_filename: string;
                 {
                     prefab_filename_val := wbml.get(value, "prefab_filename", .String, do_remove=true);
                     if prefab_filename_val != null {
                         defer wbml.delete_node(prefab_filename_val);
-
-                        print("entity has prefab link: %\n", prefab_filename_val._string);
-                        prefab_filename := tprint("%", prefab_filename_val._string);
-                        prefab_cache_entry = get_prefab_cache_entry(prefab_filename);
+                        if prefab_filename_val._string.count > 0 {
+                            print("entity has prefab link: %\n", prefab_filename_val._string);
+                            prefab_filename = tprint("%", prefab_filename_val._string);
+                        }
                     }
                 }
 
                 entity_id := cast(s32)wbml.get(value, "id", .Number)._number.int_value;
                 assert(entity_id != 0);
 
-                entity_name := copy_string(wbml.get(value, "name", .String)._string); // @Leak
+                entity_name: string;
+                string_node := wbml.get(value, "name", .String);
+                if string_node != null {
+                    entity_name = copy_string(string_node._string); // @Leak
+                } else {
+                    entity_name = copy_string("unnamed"); // @Leak
+                }
+
 
                 new_entity_ptr: *Entity;
                 new_entity_handle: Entity_Handle;
-                new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=false);
+                if prefab_filename.count > 0 {
+                    new_entity_ptr, new_entity_handle = spawn_prefab_from_filename(prefab_filename);
+                    new_entity_ptr.name = entity_name;
+                } else {
+                    new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=create_transform);
+                }
                 wbml.write_value(value, new_entity_ptr, "Entity");
+
+                // TODO: this should just be done by the write_value above.
+                // it requires changing the wbml.get for prefab_filename to
+                // do_remove=false
+                if prefab_filename.count > 0 
+                    new_entity_ptr.prefab_filename = copy_string(prefab_filename);
 
                 entry := array_add(*new_entity_handles);
                 entry.live = new_entity_handle;
                 entry.on_disk = cast(u32)entity_id;
+
+                prefab_cache_entry = null;
+                if save_in_cache {
+                    prefab_cache_entry = array_add(*world.prefab_cache);
+                    prefab_cache_entry.filename = copy_string(filename);
+                    print("added new prefab cache entry for '%'\n", filename);
+                }
             case;
                 // It's a component.
                 c := wbml.get_obj(value, "component");
@@ -679,31 +639,27 @@ load_world :: (world: *World, wbml_string: string) {
                 }
                 assert(found_handle.id != 0, "could not find a handle for entity_id %", entity_id);
 
-                component_ti := component_bit_to_ti(get_component_bit_for_name(class_name));
+                component_bit := get_component_bit_for_name(class_name);
+                component_ti := component_bit_to_ti(component_bit);
                 component_ptr := add_or_get_component(found_handle, component_ti);
 
-
-                assert(value.type == .Object);
-
-                // we point the wbml's prototype field at the prefab WBML.
-                if prefab_cache_entry != null {
-                    for * prefab_cache_entry.components {
-                        if it.component_type_name == component_ti.name {
-                            value._object.prototype = *it.object_node._object;
-                            print("!!! using prototype for %\n", it.component_type_name);
-                            break;
-                        }
-                    }
+                if save_in_cache && prefab_cache_entry != null {
+                    entry := array_add(*prefab_cache_entry.components);
+                    entry.component_bit = component_bit;
+                    entry.object_node = wbml.deep_copy(value);
+                    entry.object_node._object.prototype = *get_defaults_node_for_component_bit(world, component_bit)._object;
                 }
 
-                // component_ptr is *Component
+                assert(value.type == .Object);
                 wbml.write_value(value, component_ptr, component_ti, class_name,
-                    on_deserialize=on_component_deserialize, userdata=*new_entity_handles); // , verbose=true);
+                    on_deserialize=on_component_deserialize, userdata=*new_entity_handles);
         }
     }
 
 
-
+    handles: [..]Entity_Handle;
+    for new_entity_handles array_add(*handles, it.live);
+    return handles;
 }
 
 get_component_bit_for_name :: (name: string) -> Component_Bit {
@@ -733,12 +689,12 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
     // to eyeball Unity YAML merges is a nightmare because it's a bit
     // incomprehensible.
 
+    world := *context.state.world;
+
     sb: String_Builder;
     defer free_buffers(*sb);
 
-    prefab_cache_entry: *Prefab_Cache.Entry;
-
-    for handles(*context.state.world.entities) {
+    for handles(*world.entities) {
         ok, entity := get_entity(it);
         assert(ok);
 
@@ -757,8 +713,6 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
             //has its prefab defaults? then here we could write that node to the default object here...
 
             //note! we already have the prefab cache.
-
-            prefab_cache_entry = get_prefab_cache_entry(entity.prefab_filename);
         }
 
         // TODO: I'm not sure that using this on_serialize function to add the 'id' field to
@@ -778,21 +732,35 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
                     continue;
 
                 ti := cast(*Type_Info_Struct)type_info(type_of(<<component_ptr));
+                component_bit := get_component_bit_for_name(ti.name);
 
                 // If we have a prefab cache entry from the entity's prefab link above,
                 // we fill in the "defaults" object that we pass to wbml, so that only
                 // actual changes compared to the parent prefab are written.
 
                 defaults_node: *wbml.Node;
-                if prefab_cache_entry != null {
-                    for prefab_cache_entry.components {
-                        // TODO: just store component bits in the prefab cache for @Speed
-                        component_type_name := it.component_type_name;
-                        component_ti := get_component_ti_from_name(component_type_name);
-                        if component_ti == ti {
-                            defaults_node = it.object_node;
-                            break;
+
+                ok, my_ent := get_entity(component_ptr.entity);
+                assert(ok);
+                print("serializing %.% (prefab_filename=%)\n", my_ent.name, component_bit, my_ent.prefab_filename);
+
+                if my_ent.prefab_filename.count > 0 {
+                    for * world.prefab_cache {
+                        if it.filename == my_ent.prefab_filename { // @Slow @Speed
+                            print("found cache entry for %\n", it.filename);
+                            for * it.components {
+                                if it.component_bit == component_bit {
+                                    assert(it.object_node != null);
+                                    defaults_node = it.object_node;
+                                }
+                            }
+                            if defaults_node == null {
+                                defaults_node = get_defaults_node_for_component_bit(world, component_bit);
+                            }
                         }
+                    }
+                    if defaults_node == null {
+                        logprint("ent", "error: no cache entry for %", my_ent.prefab_filename);
                     }
                 }
 
@@ -829,25 +797,26 @@ spawn_prefab :: (prefab_name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) ->
 }
 
 spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}) -> (*Entity, Entity_Handle) {
-    prefab_cache_entry := get_prefab_cache_entry(filename);
+    entity_file_text, ok := File.read_entire_file(filename);
+    if !ok {
+        logprint("error", "no prefab at %", filename);
+        return null, .{};
+    }
+    defer free(entity_file_text);
+    print("read % bytes from '%'\n", entity_file_text.count, filename);
 
-    entity, entity_handle := create_entity(*context.state.world, prefab_cache_entry.entity_name);
+    new_handles := load_world(*context.state.world, entity_file_text, filename, create_transform=true, save_in_cache=true);
+    assert(new_handles.count == 1, tprint("expecting exactly one handle from a prefab file, got %: %", new_handles.count, filename));
 
-    entity.prefab_filename = copy_string(filename); // @Leak
+    e_ok, entity := get_entity(new_handles[0]);
+    assert(e_ok);
 
-    transform := get_transform(entity);
-    assert(transform != null);
-    transform.position = world_pos;
-
-    for prefab_cache_entry.components {
-        component_ti := get_component_ti_from_name(it.component_type_name);
-        component_ptr := add_or_get_component(entity_handle, component_ti);
-        wbml.write_value(it.object_node, component_ptr, component_ti, 
-            debug_name=component_ti.name,
-            on_deserialize=on_component_deserialize);
+    trs := get_transform(entity);
+    if trs != null {
+        trs.position = world_pos;
     }
 
-    return entity, entity_handle;
+    return entity, new_handles[0];
 }
 
 #scope_file
@@ -859,6 +828,7 @@ laas :: #import "laas";
 Undo :: #import "undo";
 rl :: #import "raylib";
 Vector3 :: rl.Vector3;
+Debug :: #import "Debug";
 
 #import "live_raylib";
 

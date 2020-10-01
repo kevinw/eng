@@ -1,7 +1,15 @@
-55 player_dust
+Entity {
+    id 1
+    name "Little Hop Dust"
+}
 
 SpriteRenderer
 {
+    component {
+        entity {
+            id 1
+        }
+    }
     sprite_anim "little_hop_dust"
     mode Play_Once_And_Die
 }
