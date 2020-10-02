@@ -42,6 +42,7 @@ we have now, and this kind of thing...
 #load "components/transform_test_components.jai";
 #load "components/editor_selectable_rect.jai";
 #load "components/follow.jai";
+#load "components/Simple_Image_Renderer.jai";
 
 Transform :: struct {
     using component: Component;

@@ -16,21 +16,19 @@ make_ImVec2 :: ImGui.make_ImVec2;
 UI_State :: struct {
     ctx: *ImGui.Context;
 
-    Time: float64 = 0.0;
-    MousePressed: [3]bool = .[false, false, false];
-    MouseWheel: float = 0.0;
-    FontTexture: GLuint = 0;
-    ShaderHandle: GLuint = 0;
-    VertHandle: GLuint = 0;
-    FragHandle: GLuint = 0;
-    AttribLocationTex: GLint = 0;
-    AttribLocationProjMtx: GLint = 0;
-    AttribLocationPosition: GLuint = 0;
-    AttribLocationUV: GLuint = 0;
-    AttribLocationColor: GLuint = 0;
-    VboHandle: GLuint = 0;
-    VaoHandle: GLuint = 0;
-    ElementsHandle: GLuint = 0;
+    Time: float64;
+    MousePressed: [3]bool;
+    MouseWheel: float;
+    FontTexture: GLuint;
+    ShaderHandle: GLuint;
+    AttribLocationTex: GLint;
+    AttribLocationProjMtx: GLint;
+    AttribLocationPosition: GLuint;
+    AttribLocationUV: GLuint;
+    AttribLocationColor: GLuint;
+    VboHandle: GLuint;
+    VaoHandle: GLuint;
+    ElementsHandle: GLuint;
 };
 
 imgui_alloc_context: Context;
@@ -235,11 +233,10 @@ ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
     pixels: *u8 = null;
     width, height: s32;
     assert(io.Fonts != null);
-    io.Fonts.GetTexDataAsAlpha8(io.Fonts, *pixels, *width, *height);
+    io.Fonts.GetTexDataAsRGBA32(io.Fonts, *pixels, *width, *height);
     assert(pixels != null);
     assert(width > 0);
     assert(height > 0);
-    //io.Fonts.GetTexDataAsRGBA32(io.Fonts, *pixels, *width, *height);
 
     // Upload texture to graphics system
     last_texture: GLuint;
@@ -250,8 +247,7 @@ ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, xx width, xx height, 0, GL_RED, GL_UNSIGNED_BYTE, pixels);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx width, xx height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xx width, xx height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     // Store our identifier
     io.Fonts.TexID = xx FontTexture;
@@ -260,6 +256,52 @@ ImGui_Impl_CreateFontsTexture :: (using ui_state: *UI_State) -> bool {
     glBindTexture(GL_TEXTURE_2D, last_texture);
 
     return true;
+}
+
+get_shader_program :: (shader_vertex : string, shader_fragment : string) -> GLuint {
+    make_shader_object :: (shader : string, shader_type : GLenum) -> GLuint {
+        shader_object := glCreateShader(shader_type);
+
+        //shader_str := temp_c_string(shader);
+		length : GLint = xx shader.count;
+        glShaderSource(shader_object, 1, *shader.data, *length);
+
+        glCompileShader(shader_object);
+
+        success : GLint;
+        glGetShaderiv(shader_object, GL_COMPILE_STATUS, *success);
+
+        if !success then {
+            log : [512] u8;
+            glGetShaderInfoLog(shader_object, 512, null, log.data);
+            print("[Shader] %\n", to_string(log.data));
+        }
+
+        return shader_object;
+    }
+
+    shader_v := make_shader_object(shader_vertex, GL_VERTEX_SHADER);
+    shader_f := make_shader_object(shader_fragment, GL_FRAGMENT_SHADER);
+    shader_p := glCreateProgram();
+
+    glAttachShader(shader_p, shader_v);
+    glAttachShader(shader_p, shader_f);
+    glLinkProgram(shader_p);
+
+    success : GLint = 0;
+    glGetProgramiv(shader_p, GL_LINK_STATUS, *success);
+
+    if !success then {
+        BUFFER_SIZE_LOG :: 512;
+        log : [BUFFER_SIZE_LOG] u8;
+        glGetProgramInfoLog(shader_p, BUFFER_SIZE_LOG, null, log.data);
+        print("[Shader] %\n", to_string(log.data));
+    } 
+
+    glDeleteShader(shader_v);
+    glDeleteShader(shader_f);
+
+    return shader_p;
 }
 
 ImGui_Impl_CreateDeviceObjects :: (using ui_state: *UI_State) -> bool {
@@ -291,20 +333,11 @@ ImGui_Impl_CreateDeviceObjects :: (using ui_state: *UI_State) -> bool {
         in vec4 Frag_Color;
         out vec4 Out_Color;
         void main() {
-           Out_Color = Frag_Color * texture( Texture, Frag_UV.st).r;
+           Out_Color = Frag_Color * texture(Texture, Frag_UV.st);
         }
     END
 
-    ShaderHandle = glCreateProgram();
-    VertHandle = glCreateShader(GL_VERTEX_SHADER);
-    FragHandle = glCreateShader(GL_FRAGMENT_SHADER);
-    _glShaderSource(VertHandle, vertex_shader);
-    _glShaderSource(FragHandle, fragment_shader);
-    glCompileShader(VertHandle);
-    glCompileShader(FragHandle);
-    glAttachShader(ShaderHandle, VertHandle);
-    glAttachShader(ShaderHandle, FragHandle);
-    glLinkProgram(ShaderHandle);
+    ShaderHandle = get_shader_program(vertex_shader, fragment_shader);
 
     AttribLocationTex = glGetUniformLocation(ShaderHandle, "Texture");
     AttribLocationProjMtx = glGetUniformLocation(ShaderHandle, "ProjMtx");

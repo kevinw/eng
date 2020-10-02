@@ -89,7 +89,9 @@ Maybe :: struct(V: Type) {
 categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
     if ti == type_info(Color)
         return .Color_Byte4;
-    if ti == type_info(Entity_Handle)
+    else if ti == type_info(Entity_Handle)
+        return .Has_Custom_Control;
+    else if ti == type_info(LiveTexture)
         return .Has_Custom_Control;
     return .None;
 }
@@ -97,6 +99,19 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
 custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
     if ti_struct == type_info(Entity_Handle)
         entity_selector(name, cast(*Entity_Handle)data);
+    else if ti_struct == type_info(LiveTexture) 
+        live_image_editor(<<cast(*LiveTexture)data);
+}
+
+live_image_editor :: (live_texture: LiveTexture) {
+    using ImGui;
+    if !has_value(live_texture)
+        Button("No Image Selected");
+    else {
+        tex := live_texture.resource;
+        sz := make_ImVec2(cast(float)tex.width, cast(float)tex.height);
+        Image(cast(*void)tex.id, sz);
+    }
 }
 
 Editor :: struct {
@@ -206,12 +221,11 @@ selection_mask: s32 = (1 << 2);
 
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
+    render_imgui(state);
+}
 
+render_imgui :: (state: *State) {
     using state;
-
-    color := YELLOW;
-    color.a = cast(u8)(255 * (Math.sin(Time.now * 10) + 2) * 0.5);
-    DrawText("editing", 275, 330, 16, color);
 
     // dockspace
     fullscreen :: true;
@@ -680,13 +694,6 @@ editor_toggle :: (using s: *State) {
     print("entering mode %\n", play_mode);
 }
 
-editor_draw_ui :: () {
-    using context.state.editor;
-    if play_mode == .Play return;
-
-    DrawText(tprint("% %", cast(int)world_mouse_pos.x, cast(int)world_mouse_pos.y), 0, 0, 0, BLUE);
-}
-
 #scope_file 
 
 draw_inspector :: (editor_state: *Editor) {
@@ -890,3 +897,4 @@ rl :: #import "raylib";
 #import "Random";
 #import "tween";
 #import "Array_With_Holes";
+#import "Live_Types";

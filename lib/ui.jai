@@ -1,7 +1,34 @@
 #load "../imgui_impl_gl.jai";
 
+gl_debug_context: Context;
+
+
+DEBUG_SEVERITY_NOTIFICATION:GLenum: 0x826B;
+
+gl_debug_proc :: (
+    source: GLenum,
+    type: GLenum,
+    id: GLuint,
+    severity: GLenum,
+    length: GLsizei,
+    message: *u8,
+    userdata: *void) #c_call
+{
+    if severity == DEBUG_SEVERITY_NOTIFICATION return;
+
+    ctx := cast(*Context)userdata;
+    push_context <<ctx {
+        print("GL ERROR: severity: % --- %\n", severity, to_string(message));
+    }
+}
+
 imgui_init :: (ui: *UI_State) {
     gl_load(*gl);
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    gl_debug_context = context;
+    glDebugMessageCallback(gl_debug_proc, *gl_debug_context);
+
     ImGui_Impl_CreateContext(ui);
     ImGui.StyleColorsDark();
     style := ImGui.GetStyle();

@@ -1,8 +1,12 @@
 ## worklog
 
+2020-10-02
+    +1 checked TODO
+    +1 got image drawing in IMGUI to work by having the shader not just sample the red channel
 2020-09-29
     +1 fixed a new editor camera selection bug
     -3 did NOT check TODO
+
 
 # META
 
@@ -31,6 +35,7 @@
 - In the UI, the color field should have a different background color to
   indicate that the prefab is overridden. As a first attempt at implementing
   this.
+
 
 # TODO (backburner)
 

@@ -61,6 +61,7 @@ update_bgm_volume :: () {
 
 set_context_funcs :: () {
     context.state.restart = restart;
+    context.state.editor.callbacks.did_drag = editor_did_drag;
 }
 
 on_host_did_reload_game_dll :: () {
@@ -80,7 +81,6 @@ editor_did_drag :: (rect: Rectangle) {
 on_host_init :: () {
     using context.state;
     set_context_funcs();
-    editor.callbacks.did_drag = editor_did_drag;
 
     game_base_init();
     // print("host inited. state at %. world.entities at %\n", context.state, context.state.world.entities);
@@ -231,23 +231,14 @@ update_and_draw :: () {
                 screenlog.draw_world();
                 if camera != null EndMode2D();
             }
-            editor_draw(context.state);
 
-            // Update beats
-            if false  && nearest_marker != null {
-                time_since_marker := beat_timer - context.state.nearest_marker.time;
-                alpha := max(cast(float64)0.0, 1.0 - Math.abs(time_since_marker));
-                color := Vector4.{1, 1, 1, 1};
-                if time_since_marker < 0 color = Vector4.{0, 0, 0, 1};
-                color.w = cast(float32)alpha;
-                draw_text(tprint("%", nearest_marker.beat_type), 596, 5, 20, ColorFromNormalized(color));
-            }
+
         }
 
         {
             PushShaderMode(screen.shader);
             blit_render_texture_to_screen(screen.texture);
-            editor_draw_ui();
+            editor_draw(context.state);
         }
 
     }
