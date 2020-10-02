@@ -24,8 +24,8 @@ cmdline_args: struct {
 
 GUARD_ALLOCATOR :: true;
 
-WINDOW_WIDTH :: 1200;
-WINDOW_HEIGHT :: 675;
+WINDOW_WIDTH :: 1280;
+WINDOW_HEIGHT :: 720;
 ALWAYS_ON_TOP :: true;
 
 #add_context state: *void;
