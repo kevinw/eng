@@ -100,17 +100,32 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
     if ti_struct == type_info(Entity_Handle)
         entity_selector(name, cast(*Entity_Handle)data);
     else if ti_struct == type_info(LiveTexture) 
-        live_image_editor(<<cast(*LiveTexture)data);
+        live_image_editor(cast(*LiveTexture)data);
 }
 
-live_image_editor :: (live_texture: LiveTexture) {
+live_image_editor :: (live_texture_ptr: *LiveTexture) {
     using ImGui;
-    if !has_value(live_texture)
-        Button("No Image Selected");
-    else {
-        tex := live_texture.resource;
-        sz := make_ImVec2(cast(float)tex.width, cast(float)tex.height);
-        Image(cast(*void)tex.id, sz);
+    live_texture := <<live_texture_ptr;
+    if !has_value(live_texture) {
+        PushID("null image");
+        defer PopID();
+        if Button("No Image Selected") {
+            set_image_selector_visible(live_texture_ptr);
+        }
+    } else {
+        PushStyleColor(.Button, .{0, 0, 0, 0});
+        defer PopStyleColor();
+        tex_id, size := imtex(live_texture_ptr);
+        PushID(tex_id);
+        defer PopID();
+        MAX_HEIGHT :: 150;
+        if size.y > MAX_HEIGHT {
+            size.x /= size.y / MAX_HEIGHT;
+            size.y /= size.y / MAX_HEIGHT;
+        }
+        if ImageButton(tex_id, size) {
+            set_image_selector_visible(live_texture_ptr);
+        }
     }
 }
 
@@ -130,6 +145,10 @@ Editor :: struct {
         ecs_internals := false;
         assets := true;
         prefab_cache := true;
+        image_selector: struct {
+            visible := false;
+            live_tex: *LiveTexture;
+        };
     };
 
     play_mode: Play_Mode = .Edit;
@@ -157,13 +176,16 @@ Editor :: struct {
 
 Asset :: struct {
     Type :: enum u32 {
-        Prefab :: 1;
+        Prefab  :: 1;
+        Texture :: 2;
     }
 
     type: Type;
     filename: string;
     short_name: string;
     filetime: u64;
+
+    live_texture: LiveTexture;
 }
 
 File_Visit_Info :: File_Utilities.File_Visit_Info;
@@ -188,6 +210,16 @@ editor_init :: (editor: *Editor) {
         asset.filename = it.full_name;
         asset.short_name = it.short_name;
         asset.filetime = it.filetime;
+    }
+    for file_list_infos("resources", recursive=true) {
+        ext := String.path_extension(it.full_name);
+        if ext == "png" || ext == "jpg" {
+            asset := array_add(*editor.assets);
+            asset.type = .Texture;
+            asset.filename = it.full_name;
+            asset.short_name = it.short_name;
+            asset.filetime = it.filetime;
+        }
     }
 }
 
@@ -222,6 +254,91 @@ selection_mask: s32 = (1 << 2);
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
     render_imgui(state);
+}
+
+set_image_selector_visible :: (live_texture_ptr: *LiveTexture) {
+    using context.state.editor.windows.image_selector;
+    visible = true;
+    live_tex = live_texture_ptr;
+}
+
+render_image_selector :: (window_open: *bool) {
+    using ImGui;
+
+    using context.state.editor.windows.image_selector;
+
+    Begin("Image Selector", window_open);
+    defer End();
+
+    // Manually wrapping
+    // (we should eventually provide this as an automatic layout feature, but for now you can do it manually)
+    Text("Manually wrapping:");
+    style := GetStyle();
+    buttons_count := 20;
+
+
+    {
+        // selecting None as an image. should probably be merged with below.
+
+        null_selected := !has_value(<<live_tex);
+        if !null_selected PushStyleColor(.Button, .{0, 0, 0, 0});
+        defer { if !null_selected PopStyleColor(); }
+        if ImageButton(null, make_ImVec2(100, 100)) {
+            Undo.push(*context.state.editor.undo_state, live_tex);
+            <<live_tex = LiveTexture.Empty;
+            Undo.commit(*context.state.editor.undo_state);
+        }
+        SameLine();
+    }
+        
+
+    for * context.state.editor.assets {
+        if it.type != .Texture continue;
+
+        if !has_value(it.live_texture)
+            it.live_texture = LoadLiveTexture(it.filename);
+
+        selected_tex_id, selected_tex_size := imtex(live_tex);
+
+        if has_value(it.live_texture) {
+            tex_id, size := imtex(*it.live_texture);
+
+            selected := tex_id == selected_tex_id;
+
+            if !selected PushStyleColor(.Button, .{0, 0, 0, 0});
+            defer { if !selected PopStyleColor(); }
+
+            if ImageButton(tex_id, size) {
+                Undo.push(*context.state.editor.undo_state, live_tex);
+                <<live_tex = it.live_texture;
+                Undo.commit(*context.state.editor.undo_state);
+            }
+            SameLine();
+        }
+    }
+
+    // TODO: the stuff below relies on methods that the new ImGui wrapper hasn't correctly bound yet.
+    // specifically functions whose ABI is weird because of the return value optimization in C++.
+    // once we can call GetWindowPos() without crashing this will work.
+
+    //window_pos := ImGui.GetWindowPos();
+    //print("window pos %\n", window_pos);
+    //window_visible_x2 := window_pos.x;
+
+    /*
+    window_visible_x2: float = GetWindowPos().x + GetWindowContentRegionMax().x;
+    button_sz :: ImVec2.{40, 40};
+    for n: 0..buttons_count - 1 {
+        PushID(cast(*void)n);
+        defer PopID();
+
+        Button("Box", button_sz);
+        last_button_x2 := GetItemRectMax().x;
+        next_button_x2 := last_button_x2 + style.ItemSpacing.x + button_sz.x; // Expected position if next button was on same line
+        if n + 1 < buttons_count && next_button_x2 < window_visible_x2
+            SameLine();
+    }
+    */
 }
 
 render_imgui :: (state: *State) {
@@ -274,6 +391,9 @@ render_imgui :: (state: *State) {
             HelpMarker("Some example help text goes here.");
         }
     }
+
+    if editor.windows.image_selector.visible
+        render_image_selector(*editor.windows.image_selector.visible);
 
     if editor.windows.demo
         ShowDemoWindow(*editor.windows.demo);
@@ -344,8 +464,23 @@ render_imgui :: (state: *State) {
             if do_spawn {
                 pos: Vector3;
                 camera := get_main_camera_2D();
-                if camera != null pos = v3(camera.target);
-                spawn_prefab_from_filename(it.filename, pos);
+                if camera != null {
+                    pos = v3(camera.target);
+                    logprint("ed", "% and %", camera.target, pos);
+                }
+
+                if it.type == {
+                    case .Prefab;
+                        spawn_prefab_from_filename(it.filename, pos);
+                    case .Texture;
+                        e, e_h := create_entity(*context.state.world, it.short_name,
+                            undo=*editor.undo_state, world_pos=pos);
+                        img := add_component(e_h, Simple_Image_Renderer);
+                        img.texture = LoadLiveTexture(it.filename);
+                        Undo.push_array(*editor.undo_state, *editor.selected);
+                        set_selected(e_h);
+                        Undo.commit(*editor.undo_state);
+                }
             }
         }
     }
@@ -696,6 +831,19 @@ editor_toggle :: (using s: *State) {
 
 #scope_file 
 
+imtex :: (live_texture: *LiveTexture) -> (*void, ImGui.ImVec2) {
+    // A shortcut for getting the things you need to render an image in ImGui
+    // from a LiveTexture (namely, a void pointer to the GL texture ID, and an
+    // ImVec2 for the size).
+
+    if !has_value(<<live_texture) return null, .{100, 100};
+
+    tex := live_texture.resource;
+    size := make_ImVec2(cast(float)tex.width, cast(float)tex.height);
+    return cast(*void)tex.id, size;
+}
+
+
 draw_inspector :: (editor_state: *Editor) {
     using editor_state;
 
@@ -894,6 +1042,7 @@ wbml :: #import "wbml";
 inp :: #import "inp";
 File :: #import "File";
 rl :: #import "raylib";
+String :: #import "String";
 #import "Random";
 #import "tween";
 #import "Array_With_Holes";

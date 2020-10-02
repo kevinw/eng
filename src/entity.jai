@@ -320,7 +320,7 @@ world_draw :: (world: *World = null) {
 #placeholder run_on_enable;
 
 create_entity :: (world: *World = null, name: string = "",
-    undo: *Undo.Impl = null, create_transform_component := true
+    undo: *Undo.Impl = null, create_transform_component := true, world_pos: Vector3 = .{}
 ) -> *Entity, Entity_Handle {
     if world == null
         world = *context.state.world;
@@ -336,8 +336,10 @@ create_entity :: (world: *World = null, name: string = "",
 
     e.name = copy_string_z(name_to_use); // @Leak
 
-    if create_transform_component
-        add_component(handle, Transform, undo=undo);
+    if create_transform_component {
+        trs := add_component(handle, Transform, undo=undo);
+        trs.position = world_pos;
+    }
 
     return e, handle;
 }
