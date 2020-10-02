@@ -477,7 +477,17 @@ ImGui_ImplSdl_Shutdown :: (ui_state: *UI_State) {
     ui_state.ctx = null;
 }
 
+
+ImGui_Impl_SetupGLContext :: () {
+    gl_load(*gl);
+    glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    gl_debug_context = context;
+    glDebugMessageCallback(gl_debug_proc, *gl_debug_context);
+}
+
 ImGui_Impl_DLL_Was_Reloaded :: (ui_state: *UI_State) {
+    ImGui_Impl_SetupGLContext();
     _SetAllocators();
     ui_state.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
 

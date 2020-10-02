@@ -147,7 +147,6 @@ game_base_init :: () {
 }
 
 game_base_did_reload_dll :: () {
-    gl_load(*gl);
     ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
 }

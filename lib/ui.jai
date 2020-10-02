@@ -23,11 +23,7 @@ gl_debug_proc :: (
 }
 
 imgui_init :: (ui: *UI_State) {
-    gl_load(*gl);
-    glEnable(GL_DEBUG_OUTPUT);
-    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    gl_debug_context = context;
-    glDebugMessageCallback(gl_debug_proc, *gl_debug_context);
+    ImGui_Impl_SetupGLContext();
 
     ImGui_Impl_CreateContext(ui);
     ImGui.StyleColorsDark();
