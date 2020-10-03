@@ -139,19 +139,6 @@ Editor :: struct {
     selector_filter: ImGui.TextFilter;
     asset_selector_filter: ImGui.TextFilter;
 
-    windows: struct {
-        undo_internals := false;
-        demo := true;
-        entities := true;
-        ecs_internals := false;
-        assets := true;
-        prefab_cache := false;
-        image_selector: struct {
-            visible := false;
-            live_tex: *LiveTexture;
-        };
-    };
-
     play_mode: Play_Mode = .Edit;
 
     callbacks: struct {
@@ -173,6 +160,20 @@ Editor :: struct {
 
     assets: [..]Asset;
     selected_asset: *Asset = null;
+
+    windows: struct {
+        undo_internals := false;
+        demo := true;
+        entities := true;
+        ecs_internals := false;
+        assets := true;
+        prefab_cache := false;
+        image_selector: struct {
+            visible := false;
+            live_tex: *LiveTexture;
+        };
+    };
+
 }
 
 Asset :: struct {

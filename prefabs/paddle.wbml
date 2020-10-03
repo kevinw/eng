@@ -1,7 +1,11 @@
-69 paddle
+Entity {
+    name "player paddle"
+    id 1
+}
 
 Transform
 {
+    component { entity { id 1 } }
     scale {
         x 0.4
         y 0.2
@@ -11,10 +15,12 @@ Transform
 
 Pong_Paddle
 {
+    component { entity { id 1 } }
 }
 
 SpriteRenderer
 {
+    component { entity { id 1 } }
     sprite_anim "tile2"
 
     border {
@@ -29,6 +35,7 @@ SpriteRenderer
 
 BoxCollider
 {
+    component { entity { id 1 } }
     size {
         x 220
         y 100

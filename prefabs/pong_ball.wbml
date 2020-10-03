@@ -1,7 +1,12 @@
-69 PongBall
+Entity {
+    name "pong ball"
+    id 1
+}
 
 Transform
 {
+    component { entity { id 1 } }
+
     scale {
         x 15
         y 15
@@ -11,6 +16,8 @@ Transform
 
 Bounce
 {
+    component { entity { id 1 } }
+
     velocity {
         x 20
         y 20
@@ -19,6 +26,8 @@ Bounce
 
 Shape_Renderer
 {
+    component { entity { id 1 } }
+
     shape Circle
     color {
         r 255

@@ -11,8 +11,6 @@ GAME_NAME :: "transform_test";
 
 State :: struct {
     using _base: State_Base;
-    gameWidth  :: 640;
-    gameHeight :: 360;
 }
 
 update_and_draw :: () {
@@ -30,7 +28,6 @@ update_and_draw :: () {
             ClearBackground(RED);
 
             {
-                push_mode_2D(camera);
                 world_draw();
                 editor_draw_world(context.state);
                 screenlog.draw_world();
@@ -58,14 +55,14 @@ on_host_init :: () {
 
     e, handle := create_entity(*world);
     trs := get_transform(e);
-    trs.scale = v3(100, 100, 1);
-    trs.position = v3(200, 200, 0);
+    trs.scale = rl.make_Vector3(100, 100, 1);
+    trs.position = rl.make_Vector3(200, 200, 0);
 
     shape_r := add_component(handle, Shape_Renderer);
     shape_r.shape = .Square;
 
     r := add_component(handle, Rotater);
-    r.speed = v3(0, 0, 100);
+    r.speed = rl.make_Vector3(0, 0, 100);
 }
 
 on_host_did_reload_game_dll :: () {
@@ -77,3 +74,7 @@ on_host_shutdown :: () {
     game_base_shutdown();
 }
 
+
+
+#scope_file
+rl :: #import "raylib";

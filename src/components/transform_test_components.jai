@@ -1,6 +1,6 @@
 Rotater :: struct {
     using component: Component;
-    speed: Vector3;
+    speed: rl.Vector3;
     count := 10;
 }
 
@@ -10,3 +10,6 @@ update :: (using it: *Rotater, transform: *Transform) {
         print("TODO: rotate!\n");
     }
 }
+
+#scope_file
+rl :: #import "raylib";
