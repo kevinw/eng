@@ -304,26 +304,7 @@ add_item :: (arr: *$A/Array_With_Holes, value: A.Value_Type) -> A.Handle {
     return handle;
 }
 
-/*
-get_item :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> (bool, A.Value_Type) {
-    assert(arr.items.data != null, "Array_With_Holes was not initialized");
-    {
-        unlock_freelist(arr);
-        assert(arr.items[0].generation == SENTINEL_GENERATION);
-    }
-
-    assert(handle.id > 0);
-    assert(handle.generation > 0);
-
-    slot := arr.items[handle.id];
-    if slot.generation == handle.generation
-        return true, slot.value;
-    
-    return false, .{};
-}
-*/
-
-get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
+get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle, $check_count := false) -> *A.Value_Type {
     assert(arr.items.data != null, "Array_With_Holes was not initialized");
     {
         unlock_freelist(arr);
@@ -333,6 +314,11 @@ get_item_ptr :: (arr: *$A/Array_With_Holes, handle: A.Handle) -> *A.Value_Type {
         assert(handle.id > 0, "You passed an uninitialized handle to Array_With_Holes.get_item_ptr");
     if handle.generation <= 0
         assert(handle.generation > 0, "You passed handle to get_item_ptr: %", handle);
+
+    #if check_count {
+        if handle.id >= arr.items.count
+            return null;
+    }
 
     slot := *arr.items[handle.id];
     if slot.generation == handle.generation

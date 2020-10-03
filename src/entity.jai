@@ -62,10 +62,10 @@ TRS :: Transform; // an alias until Raylib is entirely gone
 
 #load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
 
-get_entity :: (entity_handle: Entity_Handle) -> (bool, *Entity) {
+get_entity :: (entity_handle: Entity_Handle, $check_count := false) -> (bool, *Entity) {
     if entity_handle.id == 0 return false, null; // TODO: not sure if this should be down in get_item_ptr
 
-    entity := get_item_ptr(*context.state.world.entities, entity_handle);
+    entity := get_item_ptr(*context.state.world.entities, entity_handle, check_count);
     return entity != null, entity;
 }
 

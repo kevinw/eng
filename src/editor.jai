@@ -240,7 +240,7 @@ editor_draw_world :: (state: *State) {
     }
 
     if hover.has_value {
-        ok, entity := get_entity(hover);
+        ok, entity := get_entity(hover, check_count = true);
         if ok
             DrawRectangleLinesEx(entity_rect(entity), 1, Color.{200, 200, 255, 128});
     }
@@ -769,16 +769,20 @@ editor_update :: (state: *State) {
 
     if IsKeyPressed(.KEY_DELETE) {
         if selected.count > 0 {
+            Undo.push_array(*undo_state, *selected);
+
             for selected {
-                if hover == it.handle
+                if hover.value == it.handle {
+                    Undo.push(*undo_state, *hover);
                     hover.has_value = false;
+                }
 
                 destroy_entity(it, undo=*undo_state);
             }
 
+            clear_selection();
             Undo.commit(*undo_state);
         }
-        clear_selection();
     }
 
     if IsKeyPressed(.KEY_ONE) {
