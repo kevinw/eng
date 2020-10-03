@@ -137,14 +137,15 @@ Editor :: struct {
     tweens: Tweens;
 
     selector_filter: ImGui.TextFilter;
+    asset_selector_filter: ImGui.TextFilter;
 
     windows: struct {
-        undo := true;
+        undo_internals := false;
         demo := true;
         entities := true;
         ecs_internals := false;
         assets := true;
-        prefab_cache := true;
+        prefab_cache := false;
         image_selector: struct {
             visible := false;
             live_tex: *LiveTexture;
@@ -270,12 +271,15 @@ render_image_selector :: (window_open: *bool) {
     Begin("Image Selector", window_open);
     defer End();
 
-    // Manually wrapping
-    // (we should eventually provide this as an automatic layout feature, but for now you can do it manually)
-    Text("Manually wrapping:");
-    style := GetStyle();
-    buttons_count := 20;
+    filter := *context.state.editor.asset_selector_filter;
+    TextFilter.Draw(filter, "##image selector filter text");
 
+    assets: [..]*Asset;
+    assets.allocator = __temporary_allocator;
+    array_add(*assets, null);
+    for * context.state.editor.assets
+        array_add(*assets, it);
+        /*
 
     {
         // selecting None as an image. should probably be merged with below.
@@ -290,31 +294,55 @@ render_image_selector :: (window_open: *bool) {
         }
         SameLine();
     }
+    */
         
 
-    for * context.state.editor.assets {
-        if it.type != .Texture continue;
+    for assets {
+        filename_z:*u8 = "None";
+        if it != null {
+            sans_ext := String.path_strip_extension(it.short_name);
+            filename_z = tprintz("%", sans_ext).data;
 
-        if !has_value(it.live_texture)
-            it.live_texture = LoadLiveTexture(it.filename);
+            if it.type != .Texture
+                continue;
+
+            if !TextFilter.PassFilter(filter, filename_z)
+                continue;
+
+            // TODO: this is requesting we load the image. we should probably
+            // have a background task, or a "pending image loads" queue or
+            // something...
+            if !has_value(it.live_texture)
+                it.live_texture = LoadLiveTexture(it.filename);
+        }
 
         selected_tex_id, selected_tex_size := imtex(live_tex);
 
-        if has_value(it.live_texture) {
-            tex_id, size := imtex(*it.live_texture);
+        entry_tex := ifx it == null then *LiveTexture.Empty else *it.live_texture;
 
-            selected := tex_id == selected_tex_id;
+        tex_id, size := imtex(entry_tex, make_ImVec2(MAX_HEIGHT, MAX_HEIGHT));
+        MAX_HEIGHT :: 200;
+        if size.y > MAX_HEIGHT {
+            size.x /= size.y / MAX_HEIGHT;
+            size.y /= size.y / MAX_HEIGHT;
+        }
 
-            if !selected PushStyleColor(.Button, .{0, 0, 0, 0});
-            defer { if !selected PopStyleColor(); }
+        selected := tex_id == selected_tex_id;
 
+        if !selected PushStyleColor(.Button, .{0, 0, 0, 0});
+        defer { if !selected PopStyleColor(); }
+
+        {
+            BeginGroup();
+            defer EndGroup();
             if ImageButton(tex_id, size) {
                 Undo.push(*context.state.editor.undo_state, live_tex);
-                <<live_tex = it.live_texture;
+                <<live_tex = <<entry_tex;
                 Undo.commit(*context.state.editor.undo_state);
             }
-            SameLine();
+            Text(filename_z);
         }
+        SameLine();
     }
 
     // TODO: the stuff below relies on methods that the new ImGui wrapper hasn't correctly bound yet.
@@ -326,6 +354,8 @@ render_image_selector :: (window_open: *bool) {
     //window_visible_x2 := window_pos.x;
 
     /*
+    style := GetStyle();
+    buttons_count := 20;
     window_visible_x2: float = GetWindowPos().x + GetWindowContentRegionMax().x;
     button_sz :: ImVec2.{40, 40};
     for n: 0..buttons_count - 1 {
@@ -412,9 +442,9 @@ render_imgui :: (state: *State) {
         inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
     }
 
-    if editor.windows.undo {
+    if editor.windows.undo_internals {
         using context.state.editor;
-        Begin("Undo", *editor.windows.undo);
+        Begin("Undo", *editor.windows.undo_internals);
         defer End();
 
         if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
@@ -537,6 +567,10 @@ render_imgui :: (state: *State) {
                         if Selectable("Save as prefab") {
                             filename := tprint("prefabs/%.wbml", entity.name);
                             save_prefab(filename, *it);
+                        }
+                        if Selectable("Delete") {
+                            destroy_entity(it, undo=*editor.undo_state);
+                            Undo.commit(*editor.undo_state);
                         }
                     }
                     defer PopID();
@@ -831,12 +865,12 @@ editor_toggle :: (using s: *State) {
 
 #scope_file 
 
-imtex :: (live_texture: *LiveTexture) -> (*void, ImGui.ImVec2) {
+imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> (*void, ImGui.ImVec2) {
     // A shortcut for getting the things you need to render an image in ImGui
     // from a LiveTexture (namely, a void pointer to the GL texture ID, and an
     // ImVec2 for the size).
 
-    if !has_value(<<live_texture) return null, .{100, 100};
+    if !has_value(<<live_texture) return null, empty_size;
 
     tex := live_texture.resource;
     size := make_ImVec2(cast(float)tex.width, cast(float)tex.height);

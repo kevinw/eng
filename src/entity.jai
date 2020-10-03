@@ -386,11 +386,16 @@ destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
     assert(did_delete, "delete_item for entity failed");
 }
 
-add_or_get_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct) -> *Component {
-    component_ptr := get_component(entity_handle, component_ti);
+add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct) -> *Component {
+    component_ptr := get_component(entity_or_handle, component_ti);
     if component_ptr != null return component_ptr;
+    return add_component(entity_or_handle, component_ti);
+}
 
-    return add_component(entity_handle, component_ti);
+add_or_get_component :: (entity_or_handle: $E, $component_type: Type) -> *Component {
+    component_ptr := get_component(entity_or_handle, component_type);
+    if component_ptr != null return component_ptr;
+    return add_component(entity_or_handle, component_type);
 }
 
 add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct, undo: *Undo.Impl=null) -> *Component {
