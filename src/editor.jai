@@ -494,22 +494,33 @@ render_imgui :: (state: *State) {
 
             if do_spawn {
                 pos: Vector3;
-                camera := get_main_camera_2D();
-                if camera != null {
-                    pos = v3(camera.target);
-                }
+                camera := get_main_camera();
+                if camera != null { pos = get_worldspace_center(camera); }
 
                 if it.type == {
                     case .Prefab;
-                        spawn_prefab_from_filename(it.filename, pos);
+                        e, e_h := spawn_prefab_from_filename(it.filename, pos, undo=*editor.undo_state);
+                        trs := get_transform(e_h);
+                        if trs {
+                            r := entity_rect(e);
+                            trs.position.xy -= r.size * 0.5;
+                        }
+                        Undo.push_array(*editor.undo_state, *editor.selected);
+                        set_selected(e_h);
+                        Undo.commit(*editor.undo_state);
 
                     case .Texture;
                         e, e_h := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
                         img := add_component(e_h, Simple_Image_Renderer);
                         img.texture = LoadLiveTexture(it.filename);
+                        trs := get_transform(e_h);
+                        if trs trs.position.xy -= 0.5 * v2(img.texture.width, img.texture.height);
                         Undo.push_array(*editor.undo_state, *editor.selected);
                         set_selected(e_h);
                         Undo.commit(*editor.undo_state);
+
+                    case;
+                        logprint("editor", "WARNING: %", it.type);
                 }
             }
         }

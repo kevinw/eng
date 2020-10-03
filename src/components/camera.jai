@@ -27,6 +27,11 @@ get_main_camera_2D :: () -> *rl.Camera2D {
         return null;
 }
 
+get_worldspace_center :: (cam: *Cam) -> rl.Vector3 {
+    return v3(cam.cam2D.target +
+        rl.make_Vector2(context.state.gameWidth/2.0, context.state.gameHeight/2.0));
+}
+
 on_enable :: (cam_follow: *Cam_Follow, entity: *Entity) {
     /*
     TODO: on_enable needs to be called after all sibling components get added.

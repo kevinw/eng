@@ -1,6 +1,11 @@
-69 pong_bullet
+Entity {
+    id 1
+    name "pong bullet"
+}
 
 Shape_Renderer
 {
+    component { entity { id 1 } }
+
     shape Circle
 }

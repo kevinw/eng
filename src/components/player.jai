@@ -13,17 +13,6 @@ JUMP_FLOAT_POW :: 1.1;
 
 player_was_damaged :: (damage: *Takes_Damage) -> bool { return false; }
 
-#import "toolbelt";
-#import "game_sound_soloud";
-#import "Basic";
-rl :: #import "raylib";
-Color :: rl.Color;
-Vector2 :: rl.Vector2;
-inp :: #import "inp";
-Math :: #import "Math";
-reaper :: #import "reaper";
-screenlog :: #import "screenlog";
-
 // TODO: get rid of these. use LiveTextures, LiveSprites. something.
 gino: LiveTexture;
 gino_sprites: struct {
@@ -310,6 +299,15 @@ update :: (using player: *Player) {
     // GRAVITY
     if !hitObstacle {
         position.y += speed.y * Time.delta_time;
+        MAX_Y :: 5000;
+        if position.y > MAX_Y {
+            logprint("player", "reseting player position");
+            position.y = 0;
+            position.x = 50;
+            speed.y = 0;
+        }
+
+
         drag := G * Time.delta_time;
         if speed.y < 0 && jump_button_this_frame
             drag = Math.pow(drag * JUMP_FLOAT, JUMP_FLOAT_POW);
@@ -501,3 +499,16 @@ player_attack_rect :: (using it: *Player, transform: *Transform) -> rl.Rectangle
     x_off := ifx it.last_direction < 0 then -33 else 4;
     return rect(transform.position.x + x_off, transform.position.y - 25, 30, 20);
 }
+
+#scope_file
+#import "toolbelt";
+#import "game_sound_soloud";
+#import "Basic";
+rl :: #import "raylib";
+Color :: rl.Color;
+Vector2 :: rl.Vector2;
+inp :: #import "inp";
+Math :: #import "Math";
+reaper :: #import "reaper";
+screenlog :: #import "screenlog";
+

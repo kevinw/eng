@@ -386,10 +386,10 @@ destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
     assert(did_delete, "delete_item for entity failed");
 }
 
-add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct) -> *Component {
+add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct, undo:*Undo.Impl=null) -> *Component {
     component_ptr := get_component(entity_or_handle, component_ti);
     if component_ptr != null return component_ptr;
-    return add_component(entity_or_handle, component_ti);
+    return add_component(entity_or_handle, component_ti, undo=undo);
 }
 
 add_or_get_component :: (entity_or_handle: $E, $component_type: Type) -> *Component {
@@ -567,7 +567,8 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
     return false;
 }
 
-load_world :: (world: *World, wbml_string: string, filename: string, create_transform := false, save_in_cache := false) -> [..]Entity_Handle {
+load_world :: (world: *World, wbml_string: string, filename: string,
+    create_transform := false, save_in_cache := false, undo:*Undo.Impl = null) -> [..]Entity_Handle {
     lexer := laas.make_lexer(wbml_string);
 
     new_entity_handles: Entity_Handle_Map;
@@ -626,10 +627,10 @@ load_world :: (world: *World, wbml_string: string, filename: string, create_tran
                 new_entity_ptr: *Entity;
                 new_entity_handle: Entity_Handle;
                 if prefab_filename.count > 0 {
-                    new_entity_ptr, new_entity_handle = spawn_prefab_from_filename(prefab_filename);
+                    new_entity_ptr, new_entity_handle = spawn_prefab_from_filename(prefab_filename, undo=undo);
                     new_entity_ptr.name = entity_name;
                 } else {
-                    new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=create_transform);
+                    new_entity_ptr, new_entity_handle = create_entity(world, entity_name, create_transform_component=create_transform, undo=undo);
                 }
                 wbml.write_value(value, new_entity_ptr, "Entity");
 
@@ -668,7 +669,7 @@ load_world :: (world: *World, wbml_string: string, filename: string, create_tran
 
                 component_bit := get_component_bit_for_name(class_name);
                 component_ti := component_bit_to_ti(component_bit);
-                component_ptr := add_or_get_component(found_handle, component_ti);
+                component_ptr := add_or_get_component(found_handle, component_ti, undo=undo);
 
                 if save_in_cache && prefab_cache_entry != null {
                     entry := array_add(*prefab_cache_entry.components);
@@ -823,7 +824,7 @@ spawn_prefab :: (prefab_name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) ->
     return entity, entity_handle;
 }
 
-spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}) -> (*Entity, Entity_Handle) {
+spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}, undo:*Undo.Impl = null) -> (*Entity, Entity_Handle) {
     entity_file_text, ok := File.read_entire_file(filename);
     if !ok {
         logprint("error", "no prefab at %", filename);
@@ -832,7 +833,8 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}) -> (*En
     defer free(entity_file_text);
     print("read % bytes from '%'\n", entity_file_text.count, filename);
 
-    new_handles := load_world(*context.state.world, entity_file_text, filename, create_transform=true, save_in_cache=true);
+    new_handles := load_world(*context.state.world, entity_file_text, filename,
+        create_transform=true, save_in_cache=true, undo=undo);
     assert(new_handles.count == 1, tprint("expecting exactly one handle from a prefab file, got %: %", new_handles.count, filename));
 
     e_ok, entity := get_entity(new_handles[0]);
