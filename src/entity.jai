@@ -496,6 +496,16 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
         }
 
         any.value_pointer = heap_string;
+    } else if any.type == type_info(LiveTexture) {
+        live_texture := cast(*LiveTexture)any.value_pointer;
+
+        any.type = type_info(string);
+        heap_string := New(string); // @Leak
+        if has_value(<<live_texture) {
+            <<heap_string = copy_string(live_texture.filename); // @Leak
+        }
+
+        any.value_pointer = heap_string;
     }
 }
 
@@ -541,6 +551,15 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
                 was_new: bool;
                 asset_path := tprint("resources/sprites/%.aseprite", filename._string); // TODO: move this path lookup elsewhere
                 <<live_sprite_ptr, was_new = LoadLiveSprite(asset_path);
+            }
+        } else if any.type == type_info(LiveTexture) {
+            if node.type == .String {
+                live_texture_ptr := cast(*LiveTexture)any.value_pointer;
+                if node._string.count > 0 {
+                    <<live_texture_ptr = LoadLiveTexture(node._string);
+                } else {
+                    <<live_texture_ptr = LiveTexture.Empty;
+                }
             }
         }
     }

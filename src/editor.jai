@@ -496,15 +496,14 @@ render_imgui :: (state: *State) {
                 camera := get_main_camera_2D();
                 if camera != null {
                     pos = v3(camera.target);
-                    logprint("ed", "% and %", camera.target, pos);
                 }
 
                 if it.type == {
                     case .Prefab;
                         spawn_prefab_from_filename(it.filename, pos);
+
                     case .Texture;
-                        e, e_h := create_entity(*context.state.world, it.short_name,
-                            undo=*editor.undo_state, world_pos=pos);
+                        e, e_h := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
                         img := add_component(e_h, Simple_Image_Renderer);
                         img.texture = LoadLiveTexture(it.filename);
                         Undo.push_array(*editor.undo_state, *editor.selected);

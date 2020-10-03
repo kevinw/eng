@@ -35,7 +35,6 @@ update :: (using it: *Simple_Image_Renderer, transform: *Transform, esr: *Editor
           DoExpensiveOperation();
           lastMyThing = MyThing;
       }
-       
     */
    
 
