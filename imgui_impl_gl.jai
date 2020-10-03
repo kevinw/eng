@@ -488,11 +488,23 @@ ImGui_Impl_SetupGLContext :: () {
 
 ImGui_Impl_DLL_Was_Reloaded :: (ui_state: *UI_State) {
     ImGui_Impl_SetupGLContext();
+
     _SetAllocators();
     ui_state.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
 
     assert(context.state.ui.ctx != null);
     ImGui.SetCurrentContext(context.state.ui.ctx);
+
+    {
+        // The DLL initializes these by default to strings in its data segment,
+        // so when we reload we get a crash unless we make them valid again.
+        // note that they can be set to null to indicate that you want to
+        // handle saving/loading yourself; see the docs.
+        io := ImGui.GetIO();
+        io.IniFilename = "imgui.ini";
+        io.LogFilename = "imgui_log.txt";
+    }
+
 }
 
 ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {
