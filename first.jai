@@ -18,8 +18,9 @@ module_search_paths := string.[
 
 Build_Flags :: enum_flags {
     None       :: 0;
-    Check_Only :: (1 << 0);
-    Reload     :: (1 << 1);
+    Check_Only :: 1 << 0;
+    Reload     :: 1 << 1;
+    Release    :: 1 << 2;
 }
 
 #load "src/compiler_util.jai";
@@ -28,6 +29,7 @@ Build_Flags :: enum_flags {
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);
 
+    // Don't generate an executable for this build script.
     opts := get_build_options();
     opts.output_type = .NO_OUTPUT;
     set_build_options(opts);
@@ -55,6 +57,12 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
         } else {
             opts.output_executable_name = game_dll_source_name;
         }
+
+        if build_flags & .Release {
+            print("RELEASE MODE\n");
+            set_optimization_level(*opts, opt_level=3, size_level=1);
+        }
+
         set_build_options(opts, w);
 
         source_file := tprint("src/%.jai", game_dll_source_name);
@@ -371,8 +379,8 @@ build :: () {
 
     args := compiler_get_command_line_arguments();
     is_reload := false;
+    flags := Build_Flags.None;
     if args.count > 0 {
-        flags := Build_Flags.None;
         if args[0] == "reload" {
             args.data = args.data + 1;
             args.count -= 1;
@@ -397,7 +405,7 @@ build :: () {
 
     // With no command line arugments, just build the plugin specified by
     // DEFAULT_SRC_PLUGIN.
-    build_plugin(.None, DEFAULT_SRC_PLUGIN);
+    build_plugin(flags, DEFAULT_SRC_PLUGIN);
 }
 
 #run build();
