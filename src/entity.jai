@@ -151,6 +151,19 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     return null;
 }
 
+remove_component :: (component_ptr: *Component) {
+    assert(component_ptr != null);
+
+    ok, entity := get_entity(component_ptr.entity);
+    if !ok {
+        logprint("entity", "error: trying to remove_component but the entity is already dead");
+        return;
+    }
+
+    logprint("entity", "TODO: actually implement remove component");
+
+}
+
 
 get_transform :: (component: *Component) -> *Transform { return get_component(component.entity, Transform); }
 get_transform :: (entity: *Entity) -> *Transform { return get_component(entity, Transform); }

@@ -32,6 +32,10 @@ get_worldspace_center :: (cam: *Cam) -> rl.Vector3 {
         rl.make_Vector2(context.state.gameWidth/2.0, context.state.gameHeight/2.0));
 }
 
+set_worldspace_center :: (cam: *Cam, position: rl.Vector2) {
+    cam.cam2D.target = position - v2(context.state.gameWidth/2.0, context.state.gameHeight/2.0);
+}
+
 on_enable :: (cam_follow: *Cam_Follow, entity: *Entity) {
     /*
     TODO: on_enable needs to be called after all sibling components get added.

@@ -1,5 +1,11 @@
 ## worklog
 
+2020-10-03
+    -3 did NOT check TODO
+    +1 made image selector work well
+    +1 added a smaller font
+    +1 fix an entity handle crash
+    +1 fix an imgui crash
 2020-10-02
     +1 checked TODO
     +1 got image drawing in IMGUI to work by having the shader not just sample the red channel
@@ -22,8 +28,9 @@
      plan for an MVP and make it. Make someone play it. if it's fun, then keep
      making it. If it's not, try something else.
 
-# TODO (URGENT)
+# TODO
 
+- Figure out how Link should work and make it work!
 * Draw a dumb animated tree in Aseprite.
 * Hand code a tree prefab.
 * Place several in the scene, changing their color tint.
@@ -31,7 +38,6 @@
   - First do the dumbest thing possible. When calculating the "default" when
   serializing the WBML for an instantiated prefab, load the prefab! And use
   those bytes for comparison!
-
 - In the UI, the color field should have a different background color to
   indicate that the prefab is overridden. As a first attempt at implementing
   this.
@@ -39,6 +45,8 @@
 
 # TODO (backburner)
 
+- ImGui bindings need a coherent string interface. Ideally, taking strings
+  everywhere would be good.
 - `on_enable` needs to be called after all sibling components get added. Then I
   can fix `Cam_Follow` to set it's target position on startup.
 - The meta-program should check the type of `on_enable` and give you a helpful
@@ -66,3 +74,30 @@
       re-entry.
     - a `loglocals()` function which would be a quick way to throw local
       variables onto the screen.
+
+# DONE
+
+prefabs and undo
+- prefab is 
+```
+{
+    prefab_link "prefab_unique_name"
+
+    // and overridden properties...
+    x 42
+    y 99
+
+}
+```
+
+Making undoing a delete of an entity would mean exactly the same thing as
+serializing an object as a prefab, and instantiating it.  Perhaps ids in the
+context of serialized WBML can just be saved as they are in memory. but then
+when instantiating them, they may get "reassigned". or is it simpler than that?
+If undoing the deleting of an entity is just writing bytes again...
+
+What are the simplest possible operations? Make an object. Save out the type
+info. (hash the type info? and save that? and then be able to reference it
+forever?)
+
+

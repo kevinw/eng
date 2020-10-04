@@ -1,13 +1,6 @@
-
+//
 // an imgui "implementation" based on builtin modules
 //
-#import "Basic";
-#import "Window_Creation";
-#import "Math";
-#import "GL";
-Clipboard :: #import "Clipboard";
-Input :: #import "Input";
-
 
 ImGui :: #import "imgui";
 ImDrawIdx :: ImGui.ImDrawIdx;
@@ -15,6 +8,8 @@ make_ImVec2 :: ImGui.make_ImVec2;
 
 UI_State :: struct {
     ctx: *ImGui.Context;
+
+    small_font: *ImGui.ImFont;
 
     Time: float64;
     MousePressed: [3]bool;
@@ -539,3 +534,16 @@ ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, displa
     // Start the frame. This call will update the io.WantCaptureMouse, io.WantCaptureKeyboard flag that you can use to dispatch inputs (or not) to your application.
     ImGui.NewFrame();
 }
+
+#scope_file
+
+#import "Basic";
+#import "Window_Creation";
+#import "Math";
+#import "Compiler";
+#import "GL";
+#run compiler_set_type_info_flags(GL_Procedures, .NO_SIZE_COMPLAINT);
+Clipboard :: #import "Clipboard";
+Input :: #import "Input";
+
+

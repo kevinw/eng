@@ -35,7 +35,8 @@ imgui_init :: (ui: *UI_State) {
     font_file :: "resources/fonts/Roboto-Regular.ttf"; font_size :: 20;
 
     io := ImGui.GetIO();
-    io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, font_size);
+    io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 20);
+    ui.small_font = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 16);
 
     ImGui_Impl_Init(ui, GetWindowHandle());
 }

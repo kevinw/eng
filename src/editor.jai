@@ -1,27 +1,5 @@
 /*
 
-prefabs and undo
-- prefab is 
-{
-    prefab_link "prefab_unique_name"
-
-    // and overridden properties...
-    x 42
-    y 99
-
-}
-
-making undoing a delete of an entity would mean exactly the same thing as
-serializing an object as a prefab, and instantiating it.  perhaps ids in the
-context of serialized wbml can just be saved as they are in memory. but then
-when instantiating them, they may get "reassigned". or is it simpler than that?
-if undoing the deleting of an entity is just writing bytes again...
-
-what are the simplest possible operations? make an object. save out the type
-info. (hash the type info? and save that? and then be able to reference it
-forever?)
-
-
 how do "changes" work in the editor compared to unity?
 or are these questions too early? instead it might be good
 to focus in on this particular game. or at least to think
@@ -59,7 +37,6 @@ timers are key:
 
 edit a prefab
 place a prefab
-
 
 idea: animate the changes from a prefab to the current instance to show the difference
 use the animation to "go back" to the prefab when you zoom in on it
@@ -180,14 +157,17 @@ Asset :: struct {
     Type :: enum u32 {
         Prefab  :: 1;
         Texture :: 2;
+        Sprite  :: 3;
     }
 
     type: Type;
     filename: string;
     short_name: string;
     filetime: u64;
-
-    live_texture: LiveTexture;
+    union {
+        live_texture: LiveTexture;
+        live_sprite: LiveSprite;
+    }
 }
 
 File_Visit_Info :: File_Utilities.File_Visit_Info;
@@ -206,21 +186,27 @@ file_list_infos :: (path: string, recursive := false, follow_symlinks := false) 
 
 
 editor_init :: (editor: *Editor) {
+    copy_File_Visit_Info :: (asset: *Asset, file_visit_info: File_Visit_Info) {
+        asset.filename = file_visit_info.full_name;
+        asset.short_name = file_visit_info.short_name;
+        asset.filetime = file_visit_info.filetime;
+    }
+
     for file_list_infos("prefabs", recursive=true) {
         asset := array_add(*editor.assets);
         asset.type = .Prefab;
-        asset.filename = it.full_name;
-        asset.short_name = it.short_name;
-        asset.filetime = it.filetime;
+        copy_File_Visit_Info(asset, it);
     }
     for file_list_infos("resources", recursive=true) {
         ext := String.path_extension(it.full_name);
         if ext == "png" || ext == "jpg" {
             asset := array_add(*editor.assets);
             asset.type = .Texture;
-            asset.filename = it.full_name;
-            asset.short_name = it.short_name;
-            asset.filetime = it.filetime;
+            copy_File_Visit_Info(asset, it);
+        } else if ext == "aseprite" || ext == "ase" {
+            asset := array_add(*editor.assets);
+            asset.type = .Sprite;
+            copy_File_Visit_Info(asset, it);
         }
     }
 }
@@ -280,34 +266,14 @@ render_image_selector :: (window_open: *bool) {
     array_add(*assets, null);
     for * context.state.editor.assets
         array_add(*assets, it);
-        /*
-
-    {
-        // selecting None as an image. should probably be merged with below.
-
-        null_selected := !has_value(<<live_tex);
-        if !null_selected PushStyleColor(.Button, .{0, 0, 0, 0});
-        defer { if !null_selected PopStyleColor(); }
-        if ImageButton(null, make_ImVec2(100, 100)) {
-            Undo.push(*context.state.editor.undo_state, live_tex);
-            <<live_tex = LiveTexture.Empty;
-            Undo.commit(*context.state.editor.undo_state);
-        }
-        SameLine();
-    }
-    */
         
-
     for assets {
         filename_z:*u8 = "None";
         if it != null {
             sans_ext := String.path_strip_extension(it.short_name);
             filename_z = tprintz("%", sans_ext).data;
 
-            if it.type != .Texture
-                continue;
-
-            if !TextFilter.PassFilter(filter, filename_z)
+            if it.type != .Texture || !TextFilter.PassFilter(filter, filename_z)
                 continue;
 
             // TODO: this is requesting we load the image. we should probably
@@ -483,7 +449,7 @@ render_imgui :: (state: *State) {
             if Selectable(tprintz("%", it.short_name).data, selected)
                 editor.selected_asset = it;
 
-            do_spawn := selected && IsMouseDoubleClicked(0);
+            do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
 
             if BeginPopupContextItem("asset context menu") {
                 editor.selected_asset = it;
@@ -497,30 +463,40 @@ render_imgui :: (state: *State) {
                 camera := get_main_camera();
                 if camera != null { pos = get_worldspace_center(camera); }
 
+                entity_handle: Entity_Handle;
+                entity: *Entity;
+                offset: rl.Vector2;
+
                 if it.type == {
                     case .Prefab;
-                        e, e_h := spawn_prefab_from_filename(it.filename, pos, undo=*editor.undo_state);
-                        trs := get_transform(e_h);
-                        if trs {
-                            r := entity_rect(e);
-                            trs.position.xy -= r.size * 0.5;
-                        }
-                        Undo.push_array(*editor.undo_state, *editor.selected);
-                        set_selected(e_h);
-                        Undo.commit(*editor.undo_state);
+                        entity, entity_handle = spawn_prefab_from_filename(it.filename, pos, undo=*editor.undo_state);
+                        offset = entity_rect(entity).size * 0.5;
 
                     case .Texture;
-                        e, e_h := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
-                        img := add_component(e_h, Simple_Image_Renderer);
-                        img.texture = LoadLiveTexture(it.filename);
-                        trs := get_transform(e_h);
-                        if trs trs.position.xy -= 0.5 * v2(img.texture.width, img.texture.height);
-                        Undo.push_array(*editor.undo_state, *editor.selected);
-                        set_selected(e_h);
-                        Undo.commit(*editor.undo_state);
+                        entity, entity_handle = create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
+                        img := add_component(entity_handle, Simple_Image_Renderer);
+                        img.texture = it.live_texture;
+                        offset = 0.5 * v2(img.texture.width, img.texture.height);
+
+                    case .Sprite;
+                        entity, entity_handle := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
+                        spr := add_component(entity_handle, SpriteRenderer);
+                        spr.sprite_anim = it.live_sprite;
+                        offset = 0.5 * entity_rect(entity_handle).size;
 
                     case;
-                        logprint("editor", "WARNING: %", it.type);
+                        logprint("editor", "WARNING: unhandled asset type %", it.type);
+                }
+
+                // Select the new object if we made one.
+                if entity != null {
+                    trs := get_transform(entity_handle);
+                    if trs
+                        trs.position.xy -= entity_rect(entity).size * 0.5;
+
+                    Undo.push_array(*editor.undo_state, *editor.selected);
+                    set_selected(entity_handle);
+                    Undo.commit(*editor.undo_state);
                 }
             }
         }
@@ -530,11 +506,14 @@ render_imgui :: (state: *State) {
         Begin("entities", *editor.windows.entities);
         defer End();
 
+        PushFont(context.state.ui.small_font);
         if Button("New") {
+            PopFont();
             entity_ptr, entity_handle := create_entity(undo=*editor.undo_state);
             set_selected(entity_handle);
             Undo.commit(*editor.undo_state);
-        }
+        } else
+            PopFont();
 
         //Text("%d total", count_items(*world.entities));
 
@@ -797,12 +776,14 @@ editor_update :: (state: *State) {
         }
     }
 
-    if IsKeyPressed(.KEY_ONE) {
-        if shift_down {
-            save_scene("1");
-        } else {
-            clear_selection();
-            load_scene("1");
+    if !io.WantCaptureKeyboard {
+        if IsKeyPressed(.KEY_ONE) {
+            if shift_down {
+                save_scene("1");
+            } else {
+                clear_selection();
+                load_scene("1");
+            }
         }
     }
 
@@ -929,17 +910,36 @@ draw_inspector :: (editor_state: *Editor) {
         return;
     }
 
+    component_ptr_to_delete: *Component;
     for entity.components {
         component_ti := component_bit_to_ti(it.bit);
         assert(component_ti != null);
 
         component_ptr := get_component(entity, component_ti);
         assert(component_ptr != null);
+        PushFont(context.state.ui.small_font);
+        defer PopFont();
         inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl);
+        PushID(cast(*void)it_index);
+        defer PopID();
+        if BeginPopupContextItem("component context menu") {
+            defer EndPopup();
+            if Selectable(tprintz("Delete %", component_ti.name).data) {
+                component_ptr_to_delete = component_ptr;
+            }
+        }
     }
 
-    if Button("Add Component")
-        OpenPopup("add_component_popup");
+    if component_ptr_to_delete
+        remove_component(component_ptr_to_delete);
+
+    {
+        PushFont(context.state.ui.small_font);
+        defer PopFont();
+        if Button("Add Component")
+            OpenPopup("add_component_popup");
+    }
+
     if BeginPopup("add_component_popup") {
         defer EndPopup();
 
@@ -1011,7 +1011,7 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
 
 focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
 
-    camera := get_main_camera_2D();
+    camera := get_main_camera();
     if camera == null {
         logprint("=editor_focus", "no camera to move");
         return;
@@ -1034,9 +1034,8 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
         }
     }
 
-    if pos.has_value {
-        camera.target = pos.value;
-    }
+    if pos.has_value
+        set_worldspace_center(camera, pos.value);
 
 }
 
