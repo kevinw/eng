@@ -1250,8 +1250,8 @@ END;
         t_str := serialize(*t);
         print("Thing_With_Defaults:\n%\n", t_str);
         if t_str != "{\n}\n" {
+            print("ERROR: %\n", tprint("'%' vs '%'", t_str, "{\n}\n"));
             assert(false);
-            print("WARNING: %\n", tprint("'%' vs '%'", t_str, "{\n}\n"));
         }
 
         v: Vec3 = .{ 4, 5, 6};

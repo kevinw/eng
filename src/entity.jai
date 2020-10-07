@@ -62,6 +62,13 @@ TRS :: Transform; // an alias until Raylib is entirely gone
 
 #load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
 
+get_entity :: (component: *Component) -> (bool, *Entity) {
+    assert(component != null);
+
+    ok, entity := get_entity(component.entity);
+    return ok, entity;
+}
+
 get_entity :: (entity_handle: Entity_Handle, $check_count := false) -> (bool, *Entity) {
     if entity_handle.id == 0 return false, null; // TODO: not sure if this should be down in get_item_ptr
 
@@ -259,7 +266,14 @@ World :: struct {
 
     prefab_cache: [..]Prefab_Cache_Entry;
 
-    defaults_nodes: [..]*wbml.Node; // in component order
+    defaults_nodes: struct {
+        entity: *wbml.Node; /* TODO: techncially we don't need this entity *Node here, since
+                               WBML keeps a set of default nodes for polymorphic types on its own. we
+                               just don't have a convenient serialize_XXX overload() for when we're
+                               serializing Entitys elsewhere in this file... */
+
+        components: [..]*wbml.Node; // in component order
+    };
 
     deinit :: (world: *World) {
     }
@@ -286,32 +300,30 @@ init_world :: (world: *World) {
     // Here we create empty stack variables for each component type, and then
     // serialize them into in-memory WBML nodes. This will give us ndoes to
     // use as "prototype" objects for when we're writing out WBML, so that
-    // we don't serialize defaults.
+    // we don't write text out for field values that haven't been modified from
+    // their default "initializer" values.
     #insert #run foreach_component_type(#string END
         {
             component_on_stack: <type>;
             defaults_node := wbml.get_defaults_node(*component_on_stack, component_on_serialize);
             assert(defaults_node != null);
-            default_obj_str := wbml.node_object_to_string(*defaults_node._object);
-            File.write_entire_file(
-                tprint("temp/%.wbml", <type>),
-                default_obj_str);
-
-            array_add(*world.defaults_nodes, defaults_node);
+            array_add(*world.defaults_nodes.components, defaults_node);
         }
     END);
+
+
+    {
+        empty_entity: Entity;
+        defaults_node := wbml.get_defaults_node(*empty_entity);
+        assert(defaults_node != null);
+        world.defaults_nodes.entity = defaults_node;
+    }
 }
 
 get_defaults_node_for_component_bit :: (world: *World, component_bit: Component_Bit) -> *wbml.Node {
-    index := -1;
-    for type_info(Component_Bit).values {
-        if component_bit == cast(Component_Bit)it
-            index = it_index;
-    }
-
-    assert(index != -1);
-
-    return world.defaults_nodes[index];
+    found, index := array_find(type_info(Component_Bit).values, cast(s64)component_bit);
+    assert(found);
+    return world.defaults_nodes.components[index];
 }
 
 world_update :: (world: *World, delta_time: float) {
@@ -730,11 +742,15 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
     // to eyeball Unity YAML merges is a nightmare because it's a bit
     // incomprehensible.
 
-    world := *context.state.world;
-
     sb: String_Builder;
     defer free_buffers(*sb);
+    save_prefab(*sb, entity_selection);
+    File.write_entire_file(filename, builder_to_string(*sb, __temporary_allocator));
+}
 
+
+save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
+    world := *context.state.world;
     for handles(*world.entities) {
         ok, entity := get_entity(it);
         assert(ok);
@@ -760,8 +776,8 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
         // entities is a good idea. We know that at the top level, we want entities to have
         // an extra 'id' thing. Maybe serialize() should take an extra set of things and that's it?
         // Then we don't pay the cost for each node. @Speed
-        wbml.serialize_with_type_info(ti.name, entity, ti, *sb,
-            on_serialize=component_on_serialize, default=null);
+        wbml.serialize_with_type_info(ti.name, entity, ti, sb,
+            on_serialize=component_on_serialize, default=world.defaults_nodes.entity);
     }
 
     for bit_s64: type_info(Component_Bit).values {
@@ -783,7 +799,7 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
 
                 ok, my_ent := get_entity(component_ptr.entity);
                 assert(ok);
-                print("serializing %.% (prefab_filename=%)\n", my_ent.name, component_bit, my_ent.prefab_filename);
+                //print("serializing %.% (prefab_filename=%)\n", my_ent.name, component_bit, my_ent.prefab_filename);
 
                 if my_ent.prefab_filename.count > 0 {
                     for * world.prefab_cache {
@@ -795,23 +811,22 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
                                     defaults_node = it.object_node;
                                 }
                             }
-                            if defaults_node == null {
-                                defaults_node = get_defaults_node_for_component_bit(world, component_bit);
-                            }
                         }
                     }
-                    if defaults_node == null {
+
+                    if defaults_node == null
                         logprint("ent", "error: no cache entry for %", my_ent.prefab_filename);
-                    }
                 }
 
-                wbml.serialize_with_type_info(ti.name, component_ptr, ti, *sb,
+                if defaults_node == null
+                    defaults_node = get_defaults_node_for_component_bit(world, component_bit);
+
+                wbml.serialize_with_type_info(ti.name, component_ptr, ti, sb,
                     on_serialize=component_on_serialize, debug_name=ti.name, default=defaults_node);
             }
         END);
     }
     
-    File.write_entire_file(filename, builder_to_string(*sb));
 }
 
 get_component_in_entity_named :: (entity_name: string, $component_type: Type) -> *component_type {

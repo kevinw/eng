@@ -475,13 +475,13 @@ render_imgui :: (state: *State) {
                     case .Texture;
                         entity, entity_handle = create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
                         img := add_component(entity_handle, Simple_Image_Renderer);
-                        img.texture = it.live_texture;
+                        img.texture = LoadLiveTexture(it.filename);
                         offset = 0.5 * v2(img.texture.width, img.texture.height);
 
                     case .Sprite;
                         entity, entity_handle := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
                         spr := add_component(entity_handle, SpriteRenderer);
-                        spr.sprite_anim = it.live_sprite;
+                        spr.sprite_anim = LoadLiveSprite(it.filename);
                         offset = 0.5 * entity_rect(entity_handle).size;
 
                     case;
@@ -660,6 +660,17 @@ editor_update :: (state: *State) {
 
     ctrl_down := rl.IsKeyDown(.KEY_LEFT_CONTROL) || rl.IsKeyDown(.KEY_RIGHT_CONTROL);
     shift_down := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
+
+    if rl.IsKeyPressed(.KEY_T) {
+        print("test\n");
+        p := find_component(Player);
+        if p {
+            sb: String_Builder;
+            defer free_buffers(*sb);
+            save_prefab(*sb, *p.entity);
+            logprint("editor", builder_to_string(*sb, __temporary_allocator));
+        }
+    }
 
     if rl.IsKeyPressed(.KEY_P) {
         if context.state.global_time_scale > 0
@@ -1036,7 +1047,6 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
 
     if pos.has_value
         set_worldspace_center(camera, pos.value);
-
 }
 
 load_scene :: (name: string) {
@@ -1058,12 +1068,10 @@ load_scene :: (name: string) {
 save_scene :: (name: string) {
     filename := tprint("%.wbml", name);
     save_prefab(filename);
-    /*
 
-    //str := wbml.serialize(*context.state.scene);
+    /* str := wbml.serialize(*context.state.scene);
     //File.write_entire_file(filename, str);
-    assert(false, "TODO");
-    */
+    assert(false, "TODO"); */
 
     logprint("editor", "saved %", filename);
 }

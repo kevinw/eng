@@ -1,23 +1,335 @@
 Entity {
 	id 10
-	flags Has_Component_Rect
-	name "humble_tree"
-	prefab_filename "prefabs/humble_tree.wbml"
+	name "The Player"
 }
-SpriteRenderer {
+Entity {
+	id 11
+	name "Plant"
+}
+Entity {
+	id 12
+	name "box"
+}
+Entity {
+	id 13
+	name "box"
+}
+Entity {
+	id 14
+	name "box"
+}
+Entity {
+	id 15
+	name "box"
+}
+Entity {
+	id 16
+	name "camera"
+}
+Entity {
+	id 17
+	flags Has_Component_Rect
+	name "a Humble Tree"
+}
+Entity {
+	id 18
+	flags Has_Component_Rect
+	name "a Humble Tree"
+}
+Entity {
+	id 19
+	flags Has_Component_Rect
+	name "a Humble Tree"
+}
+BoxCollider {
+	component {
+		entity {
+			id 12
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 13
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 14
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 15
+		}
+	}
+	collision PLATFORM
+}
+Cam {
+	component {
+		entity {
+			id 16
+		}
+	}
+	cam2D {
+		offset {
+			x 320
+			y 180
+		}
+		target {
+			x 473.806793
+			y 190.393509
+		}
+		zoom 1.2
+	}
+}
+Cam_Follow {
+	component {
+		entity {
+			id 16
+		}
+	}
+	target_entity {
+		id 10
+	}
+}
+Enemy {
+	component {
+		entity {
+			id 11
+		}
+	}
+	sprite_timer 92.542671
+	last_sprite_timer 92.542671
+	attack_cooldown -92.542885
+}
+Player {
 	component {
 		entity {
 			id 10
 		}
 	}
-	timer 96.579785
+	grounded true
+	last_direction -1
+	sprite_timer 28.501192
+	walk_timer 4.605974
+	last_walk_sprite_idx 1
+}
+RectRenderer {
+	component {
+		entity {
+			id 12
+		}
+	}
+	color {
+		r 130
+		g 130
+		b 130
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 13
+		}
+	}
+	color {
+		r 130
+		g 130
+		b 130
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 14
+		}
+	}
+	color {
+		r 130
+		g 130
+		b 130
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 15
+		}
+	}
+	color {
+		r 130
+		g 130
+		b 130
+		a 255
+	}
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 17
+		}
+	}
+	timer 80.546501
 	sprite [
 	]
+	sprite_anim "humble_tree"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 18
+		}
+	}
+	timer 67.38565
+	sprite [
+	]
+	sprite_anim "humble_tree"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 19
+		}
+	}
+	timer 58.751694
+	color {
+		g 121
+		b 121
+	}
+	sprite [
+	]
+	sprite_anim "humble_tree"
 }
 Transform {
 	component {
 		entity {
 			id 10
 		}
+	}
+	position {
+		x 472.309692
+		y 200
+	}
+}
+Transform {
+	component {
+		entity {
+			id 11
+		}
+	}
+	position {
+		x 400
+		y 197
+	}
+}
+Transform {
+	component {
+		entity {
+			id 12
+		}
+	}
+	position {
+		y 400
+	}
+	scale {
+		x 1000
+		y 200
+	}
+}
+Transform {
+	component {
+		entity {
+			id 13
+		}
+	}
+	position {
+		x 300
+		y 200
+	}
+	scale {
+		x 400
+		y 10
+	}
+}
+Transform {
+	component {
+		entity {
+			id 14
+		}
+	}
+	position {
+		x 250
+		y 300
+	}
+	scale {
+		x 100
+		y 10
+	}
+}
+Transform {
+	component {
+		entity {
+			id 15
+		}
+	}
+	position {
+		x 650
+		y 300
+	}
+	scale {
+		x 100
+		y 10
+	}
+}
+Transform {
+	component {
+		entity {
+			id 16
+		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 17
+		}
+	}
+	position {
+		x 290.833344
+		y 73.125
+	}
+}
+Transform {
+	component {
+		entity {
+			id 18
+		}
+	}
+	position {
+		x 425.081177
+		y 74.791664
+	}
+}
+Transform {
+	component {
+		entity {
+			id 19
+		}
+	}
+	position {
+		x 617.916504
+		y 73.560272
 	}
 }
