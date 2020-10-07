@@ -74,6 +74,14 @@ Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
 Categorize_Type_Func :: #type (ti: *Type_Info) -> Struct_Looks_Like;
 Custom_Ctrl_Func :: #type (name: string, data: *void, ti_struct: *Type_Info_Struct);
 
+push_or_commit_item :: (data: *void, size_in_bytes: int) {
+    impl := *context.state.editor.undo_state;
+    if ImGui.IsItemActivated()
+        Undo.push(impl, data, size_in_bytes);
+    if ImGui.IsItemDeactivatedAfterEdit()
+        Undo.commit(impl);
+}
+
 inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null) {
     inspect(name, t, type_info(T), show_node_func, categorize_type_func, custom_ctrl);
 }
@@ -153,10 +161,13 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 if category == {
                     case .Float2;
                         DragFloat2(name, cast([2]float)data);
+                        push_or_commit_item(data, size_of(float) * 2);
                     case .Float3;
                         DragFloat3(name, cast([3]float)data);
+                        push_or_commit_item(data, size_of(float) * 3);
                     case .Float4;
                         DragFloat4(name, cast([4]float)data);
+                        push_or_commit_item(data, size_of(float) * 4);
                     case .Color_Byte4;
                         bytes := cast(*u8)data;
                         floats: [4]float;
