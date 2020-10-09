@@ -52,7 +52,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
 
         if build_flags & .Reload {
             output_exe := tprint("%_reloaded_%", game_dll_source_name, random_get());
-            print("reloading...changing DLL output to %\n", output_exe);
+            //print("reloading...changing DLL output to %\n", output_exe);
             opts.output_executable_name = output_exe;
         } else {
             opts.output_executable_name = game_dll_source_name;

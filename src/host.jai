@@ -78,26 +78,21 @@ _do_recompile :: (t: *Thread) -> s64 {
     defer free(cmd_string);
     print("Running jai compiler: %\n", cmd_string);
 
-    success, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
+    successfully_launched, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
+    // @Leak
 
-    if !success {
-        print("success: %\nexit code: %\n", exit_code);
-        print("output_string: %\n", output_string);
-        print("error string: %\n", error_string);
-    } else {
-        // HACK: the jai compiler is not returning an error value on the console??
-        if String.contains(output_string, " Error: ") {
-            success = false;
-        }
+    print("[exit_code] %\n", exit_code);
+    print("%\n", output_string);
+    if error_string.count > 0 print("[stderr] %", error_string);
 
-        print("%", output_string);
-        if error_string && error_string.count {
-            print("[stderr] %", error_string);
-        }
-    }
-    host_state.jai_compiler_did_error = !success;
+    host_state.jai_compiler_did_error = !successfully_launched || exit_code != 0;
 
-    return ifx success 0 else -1;
+    //free(host_state.jai_compiler_error_string);
+    host_state.jai_compiler_error_string = sprint("% %", output_string, error_string);
+
+    File.write_entire_file(".compiler_errors", output_string);
+
+    return exit_code;
 }
 
 on_asset_change :: (using asset_change: *Asset_Change) {

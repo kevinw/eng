@@ -10,6 +10,7 @@ UI_State :: struct {
     ctx: *ImGui.Context;
 
     small_font: *ImGui.ImFont;
+    monospace_font: *ImGui.ImFont;
 
     Time: float64;
     MousePressed: [3]bool;

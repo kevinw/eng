@@ -347,45 +347,48 @@ render_imgui :: (state: *State) {
 
     menubar :: false;
 
-    window_flags := ImGui.WindowFlags.NoDocking;
-    if menubar window_flags |= .MenuBar;
 
     using ImGui;
 
-    if fullscreen {
-        viewport := GetMainViewport();
-        SetNextWindowPos(viewport.GetWorkPos(viewport));
-        SetNextWindowSize(viewport.GetWorkSize(viewport));
-        SetNextWindowViewport(viewport.ID_);
-        PushStyleVar(.WindowRounding, 0);
-        PushStyleVar(.WindowBorderSize, 0);
-        window_flags |= WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
-                        .NoBringToFrontOnFocus | .NoNavFocus;
-    }
-    window_flags |= .NoBackground;
-    open := true;
     {
-        if !padding PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
-        Begin("DockSpace Demo", *open, window_flags);
-        defer End();
-        if !padding PopStyleVar();
+        window_flags := ImGui.WindowFlags.NoDocking;
+        if menubar window_flags |= .MenuBar;
 
-        if fullscreen PopStyleVar(2);
+        if fullscreen {
+            viewport := GetMainViewport();
+            SetNextWindowPos(viewport.GetWorkPos(viewport));
+            SetNextWindowSize(viewport.GetWorkSize(viewport));
+            SetNextWindowViewport(viewport.ID_);
+            PushStyleVar(.WindowRounding, 0);
+            PushStyleVar(.WindowBorderSize, 0);
+            window_flags |= WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
+                            .NoBringToFrontOnFocus | .NoNavFocus;
+        }
+        window_flags |= .NoBackground;
+        open := true;
+        {
+            if !padding PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
+            Begin("DockSpace Demo", *open, window_flags);
+            defer End();
+            if !padding PopStyleVar();
 
-        assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
+            if fullscreen PopStyleVar(2);
 
-        // dockspace
-        dockspace_flags := DockNodeFlags.PassthruCentralNode;
-        DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
+            assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
 
-        if menubar {
-            BeginMenuBar();
-            EndMenuBar();
-            if  BeginMenu("Options") {
-                defer EndMenu();
+            // dockspace
+            dockspace_flags := DockNodeFlags.PassthruCentralNode;
+            DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
 
+            if menubar {
+                BeginMenuBar();
+                EndMenuBar();
+                if  BeginMenu("Options") {
+                    defer EndMenu();
+
+                }
+                HelpMarker("Some example help text goes here.");
             }
-            HelpMarker("Some example help text goes here.");
         }
     }
 
@@ -407,6 +410,33 @@ render_imgui :: (state: *State) {
         defer End();
 
         inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
+    }
+
+
+    // Overlay showing compiler error
+    has_compile_error, err_str := get_plugin_compile_error();
+    if has_compile_error {
+        {
+            DISTANCE:float = 80.0;
+            viewport         := GetMainViewport();
+            work_area_pos    := viewport.GetWorkPos(viewport);   // Instead of using viewport->Pos we use GetWorkPos() to avoid menu bars, if any!
+            work_area_size   := viewport.GetWorkSize(viewport);
+            window_pos       := make_ImVec2(work_area_pos.x + DISTANCE, work_area_pos.y + DISTANCE);
+            window_pos_pivot := make_ImVec2(0, 0);
+            SetNextWindowPos(window_pos, .Always, window_pos_pivot);
+            SetNextWindowViewport(viewport.ID_);
+        }
+        SetNextWindowBgAlpha(0.99); // Transparent background
+        window_flags :: WindowFlags.NoDecoration | .NoMove | .NoDocking | .AlwaysAutoResize | .NoSavedSettings | .NoFocusOnAppearing | .NoNav;
+        defer End();
+        if Begin("compiler error overlay", null, window_flags) {
+            if err_str.count > 0 {
+                PushFont(context.state.ui.monospace_font);
+                defer PopFont();
+                PushTextWrapPos(ImGui.GetFontSize() * 55.0);
+                Text(tprintz("%", err_str).data);
+            }
+        }
     }
 
     if editor.windows.undo_internals {
