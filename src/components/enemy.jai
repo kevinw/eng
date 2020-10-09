@@ -67,11 +67,11 @@ Enemy :: struct {
 
     padding: [30]u8; @noserialize
 
-    //editor_rect: *Editor_Selectable_Rect;
+    editor_rect: *Editor_Selectable_Rect;
 }
 
 on_enable :: (using it: *Enemy, parent_entity: *Entity) {
-    //editor_rect = add_component(it.entity, Editor_Selectable_Rect);
+    editor_rect = add_component(it.entity, Editor_Selectable_Rect);
 }
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: rl.Vector2) {
@@ -173,7 +173,7 @@ enemy_update_all :: () {
     for * context.state.world._Enemy {
     //for * state.enemies {
         transform := get_transform(it);
-        //it.editor_rect.rect = enemy_rect(it, get_transform(it));
+        it.editor_rect.rect = enemy_rect(it, get_transform(it));
 
         using it;
         if dying_timer > 0 {

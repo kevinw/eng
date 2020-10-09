@@ -124,16 +124,16 @@ Player :: struct {
     jump_button_last_frame: bool;
 
     horizontal_movement: float;
-    last_direction: float;
+    last_direction: float; @noui
 
     sprite_timer: float64;
     walk_timer: float64;
 
-    last_walk_sprite_idx: s16 = -1;
+    last_walk_sprite_idx: s16 = -1; @noui
 
     damage := Takes_Damage.{
-        damage_func_type = .Player,
-    };
+        damage_func_type = .Player
+    }; @noui
 
     using transient: struct {
         last_jump_time:float64 = -10000;
@@ -142,7 +142,9 @@ Player :: struct {
         last_grounded_time:float64 = -10000;
         nearest_marker: *reaper.Marker;
         beat_timer: float64; // TODO: duplicated and set from game.jai
-    }; @noserialize
+    }; @noserialize @noui
+
+    editor_rect: *Editor_Selectable_Rect; @noserialize @noui
 }
 
 player_reset :: (using it: *Player) {
@@ -152,6 +154,10 @@ player_reset :: (using it: *Player) {
 
 player_has_been_damaged :: (using player: *Player) -> bool {
     return context.state.Time.now - damage.time < DAMAGE_TIME;
+}
+
+on_enable :: (using it: *Player, in_entity: *Entity) {
+    editor_rect = add_component(it.entity, Editor_Selectable_Rect);
 }
 
 update :: (using player: *Player) {
@@ -177,6 +183,11 @@ update :: (using player: *Player) {
 
     transform := get_transform(player);
     position := *transform.position;
+
+    if editor_rect {
+        editor_rect.rect = player_rect(player, transform);
+        editor_rect.rect.position -= position.xy;
+    }
 
     position.x += horizontal_movement * PLAYER_HOR_SPD * Time.delta_time;
     if Math.abs(horizontal_movement) > 0

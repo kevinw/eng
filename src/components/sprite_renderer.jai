@@ -5,7 +5,7 @@ toolbelt :: #import "toolbelt";
 SpriteRenderer :: struct {
     using component: Component;
 
-    timer: float64;
+    timer: float64; @noui
     fps: int = 10; // TODO: no
     color := rl.WHITE;
 
@@ -18,8 +18,8 @@ SpriteRenderer :: struct {
     sprite_anim: LiveSprite;
     anim_tag: string;
     
-    _current_frame: Sprite_Anim.Sprite_Anim.Frame; @noserialize
-    _last_frame_index: int; @noserialize // TODO: the underscore breaks wbml
+    _current_frame: Sprite_Anim.Sprite_Anim.Frame; @noserialize @noui
+    _last_frame_index: int; @noserialize @noui // TODO: the underscore breaks wbml
     //right now. we should fix that, regardless of if we want to actually
     //serialize this field or not.
 
@@ -59,8 +59,17 @@ get_entity_rect :: (using it: *SpriteRenderer) -> (bool, rl.Rectangle) {
         r, offset, idx := sprite_get_rect(sprite, 0, 0);
         return true, rl.make_Rectangle(pos.x + offset.x, pos.y + offset.y, r.width, r.height);
     }
-    if has_value(sprite_anim)
-        return true, get_sprite_anim_dest_rect(it, transform);
+    if has_value(sprite_anim) {
+        r := get_sprite_anim_dest_rect(it, transform);
+
+        ok, _current_frame, index := Sprite_Anim.get_frame(sprite_anim._entry, timer, anim_tag);
+        if ok {
+            r.position -= Vector2Scale(_current_frame.offset, transform.scale.xy);
+        }
+
+        return true, r;
+    }
+
 
     return false, .{};
 }
