@@ -114,6 +114,14 @@ get_obj :: (node: *Node, field_name: string) -> *Node {
     return get(node, field_name, .Object);
 }
 
+get_string :: (node: *Node, field_name: string) -> string {
+    assert(node.type == .Object);
+    s := _get_from_object(*node._object, field_name);
+    if s == null return "";
+    assert(s.type == .String);
+    return s._string;
+}
+
 get :: (node: *Node, field_name: string) -> *Node {
     assert(node.type == .Object, "You must pass a wbml.Node with type .Object to 'get'");
     return _get_from_object(*node._object, field_name);

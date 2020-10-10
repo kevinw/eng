@@ -46,6 +46,21 @@ use the animation to "go back" to the prefab when you zoom in on it
 
 Undo :: #import "undo";
 
+PushGroup :: () #expand {
+    ImGui.BeginGroup();
+    `defer ImGui.EndGroup();
+}
+
+PushPopID :: (id_str: string) #expand {
+    ImGui.PushID(id_str);
+    `defer ImGui.PopID();
+}
+
+PushPopID :: (id_ptr: *void) #expand {
+    ImGui.PushID(id_ptr);
+    `defer ImGui.PopID();
+}
+
 Play_Mode :: enum {
     Play;
     Edit;
@@ -64,11 +79,14 @@ Maybe :: struct(V: Type) {
 }
 
 categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
+    // TODO: this should just go away and merge with `custom_ctrl` below.
     if ti == type_info(Color)
         return .Color_Byte4;
     else if ti == type_info(Entity_Handle)
         return .Has_Custom_Control;
     else if ti == type_info(LiveTexture)
+        return .Has_Custom_Control;
+    else if ti == type_info(LiveShader)
         return .Has_Custom_Control;
     return .None;
 }
@@ -78,6 +96,26 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
         entity_selector(name, cast(*Entity_Handle)data);
     else if ti_struct == type_info(LiveTexture) 
         live_image_editor(cast(*LiveTexture)data);
+    else if ti_struct == type_info(LiveShader)
+        live_shader_editor(name, cast(*LiveShader)data);
+}
+
+live_shader_editor :: (name: string, live_shader_ptr: *LiveShader) {
+    using ImGui;
+
+    live_shader := <<live_shader_ptr;
+    if !has_value(live_shader) {
+        PushPopID("null shader");
+        if Button("No Shader Selected")
+            set_asset_selector_visible(live_shader_ptr);
+    } else {
+        if Button("TODO: shadername here") {
+            set_asset_selector_visible(live_shader_ptr);
+            SetWindowFocus(ASSET_SELECTOR_WINDOW_NAME);
+        }
+        SameLine();
+        TextUnformatted(tprintz("%", name).data);
+    }
 }
 
 live_image_editor :: (live_texture_ptr: *LiveTexture) {
@@ -87,7 +125,7 @@ live_image_editor :: (live_texture_ptr: *LiveTexture) {
         PushID("null image");
         defer PopID();
         if Button("No Image Selected") {
-            set_image_selector_visible(live_texture_ptr);
+            set_asset_selector_visible(live_texture_ptr);
         }
     } else {
         PushStyleColor(.Button, .{0, 0, 0, 0});
@@ -101,7 +139,7 @@ live_image_editor :: (live_texture_ptr: *LiveTexture) {
             size.y /= size.y / MAX_HEIGHT;
         }
         if ImageButton(tex_id, size) {
-            set_image_selector_visible(live_texture_ptr);
+            set_asset_selector_visible(live_texture_ptr);
         }
     }
 }
@@ -145,9 +183,13 @@ Editor :: struct {
         ecs_internals := false;
         assets := true;
         prefab_cache := false;
-        image_selector: struct {
+        asset_selector: struct {
             visible := false;
-            live_tex: *LiveTexture;
+            selected_asset_type: Asset.Type;
+            selected_asset: union {
+                tex: *LiveTexture;
+                shader: *LiveShader;
+            };
         };
     };
 
@@ -158,6 +200,7 @@ Asset :: struct {
         Prefab  :: 1;
         Texture :: 2;
         Sprite  :: 3;
+        Shader  :: 4;
     }
 
     type: Type;
@@ -167,6 +210,7 @@ Asset :: struct {
     union {
         live_texture: LiveTexture;
         live_sprite: LiveSprite;
+        live_shader: LiveShader;
     }
 }
 
@@ -199,15 +243,21 @@ editor_init :: (editor: *Editor) {
     }
     for file_list_infos("resources", recursive=true) {
         ext := String.path_extension(it.full_name);
+        asset: *Asset;
         if ext == "png" || ext == "jpg" {
-            asset := array_add(*editor.assets);
+            asset = array_add(*editor.assets);
             asset.type = .Texture;
-            copy_File_Visit_Info(asset, it);
         } else if ext == "aseprite" || ext == "ase" {
-            asset := array_add(*editor.assets);
+            asset = array_add(*editor.assets);
             asset.type = .Sprite;
-            copy_File_Visit_Info(asset, it);
+        } else if ext == "fs" {
+            asset = array_add(*editor.assets);
+            asset.type = .Shader;
+        } else {
+            continue;
         }
+
+        copy_File_Visit_Info(asset, it);
     }
 }
 
@@ -244,22 +294,32 @@ editor_draw :: (state: *State) {
     render_imgui(state);
 }
 
-set_image_selector_visible :: (live_texture_ptr: *LiveTexture) {
-    using context.state.editor.windows.image_selector;
+set_asset_selector_visible :: (live_texture_ptr: *LiveTexture) {
+    using context.state.editor.windows.asset_selector;
     visible = true;
-    live_tex = live_texture_ptr;
+    selected_asset_type = .Texture;
+    selected_asset.tex = live_texture_ptr;
 }
 
-render_image_selector :: (window_open: *bool) {
+set_asset_selector_visible :: (live_shader_ptr: *LiveShader) {
+    using context.state.editor.windows.asset_selector;
+    visible = true;
+    selected_asset_type = .Shader;
+    selected_asset.shader = live_shader_ptr;
+}
+
+ASSET_SELECTOR_WINDOW_NAME :: "Assets##Selector";
+
+render_asset_selector :: (window_open: *bool) {
     using ImGui;
 
-    using context.state.editor.windows.image_selector;
+    using context.state.editor.windows.asset_selector;
 
-    Begin("Image Selector", window_open);
+    Begin(ASSET_SELECTOR_WINDOW_NAME, window_open);
     defer End();
 
     filter := *context.state.editor.asset_selector_filter;
-    TextFilter.Draw(filter, "##image selector filter text");
+    TextFilter.Draw(filter, "##asset selector filter text");
 
     assets: [..]*Asset;
     assets.allocator = __temporary_allocator;
@@ -273,43 +333,60 @@ render_image_selector :: (window_open: *bool) {
             sans_ext := String.path_strip_extension(it.short_name);
             filename_z = tprintz("%", sans_ext).data;
 
-            if it.type != .Texture || !TextFilter.PassFilter(filter, filename_z)
+            if it.type != selected_asset_type || !TextFilter.PassFilter(filter, filename_z)
                 continue;
 
             // TODO: this is requesting we load the image. we should probably
             // have a background task, or a "pending image loads" queue or
             // something...
-            if !has_value(it.live_texture)
+            if it.type == .Texture && !has_value(it.live_texture)
                 it.live_texture = LoadLiveTexture(it.filename);
         }
 
-        selected_tex_id, selected_tex_size := imtex(live_tex);
-
-        entry_tex := ifx it == null then *LiveTexture.Empty else *it.live_texture;
-
-        tex_id, size := imtex(entry_tex, make_ImVec2(MAX_HEIGHT, MAX_HEIGHT));
-        MAX_HEIGHT :: 200;
-        if size.y > MAX_HEIGHT {
-            size.x /= size.y / MAX_HEIGHT;
-            size.y /= size.y / MAX_HEIGHT;
-        }
-
-        selected := tex_id == selected_tex_id;
-
-        if !selected PushStyleColor(.Button, .{0, 0, 0, 0});
-        defer { if !selected PopStyleColor(); }
-
-        {
-            BeginGroup();
-            defer EndGroup();
-            if ImageButton(tex_id, size) {
-                Undo.push(*context.state.editor.undo_state, live_tex);
-                <<live_tex = <<entry_tex;
-                Undo.commit(*context.state.editor.undo_state);
+        if selected_asset_type == {
+        case .Texture;
+            live_tex := selected_asset.tex;
+            selected_tex_id, selected_tex_size := imtex(live_tex);
+            entry_tex := ifx it == null then *LiveTexture.Empty else *it.live_texture;
+            tex_id, size := imtex(entry_tex, make_ImVec2(MAX_HEIGHT, MAX_HEIGHT));
+            MAX_HEIGHT :: 200;
+            if size.y > MAX_HEIGHT {
+                size.x /= size.y / MAX_HEIGHT;
+                size.y /= size.y / MAX_HEIGHT;
             }
-            Text(filename_z);
+
+            selected := tex_id == selected_tex_id;
+
+            if !selected PushStyleColor(.Button, .{0, 0, 0, 0});
+            defer { if !selected PopStyleColor(); }
+
+            {
+                PushGroup();
+                if ImageButton(tex_id, size) {
+                    Undo.push(*context.state.editor.undo_state, live_tex);
+                    <<live_tex = <<entry_tex;
+                    Undo.commit(*context.state.editor.undo_state);
+                }
+                Text(filename_z);
+            }
+            SameLine();
+        case .Shader;
+            label: string;
+            if it == null {
+                label = "None";
+            } else {
+                label = it.short_name;
+            }
+            live_shader := selected_asset.shader;
+            PushPopID(live_shader);
+            if Button(tprintz("%", label).data) {
+                if it == null {
+                    <<selected_asset.shader = LiveShader.Empty;
+                } else {
+                    <<selected_asset.shader = LoadLiveShader("", it.filename);
+                }
+            }
         }
-        SameLine();
     }
 
     // TODO: the stuff below relies on methods that the new ImGui wrapper hasn't correctly bound yet.
@@ -392,8 +469,8 @@ render_imgui :: (state: *State) {
         }
     }
 
-    if editor.windows.image_selector.visible
-        render_image_selector(*editor.windows.image_selector.visible);
+    if editor.windows.asset_selector.visible
+        render_asset_selector(*editor.windows.asset_selector.visible);
 
     if editor.windows.demo
         ShowDemoWindow(*editor.windows.demo);

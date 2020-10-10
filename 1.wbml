@@ -1,9 +1,11 @@
 Entity {
 	id 10
+	flags Has_Component_Rect
 	name "The Player"
 }
 Entity {
 	id 11
+	flags Has_Component_Rect
 	name "Plant"
 }
 Entity {
@@ -40,6 +42,22 @@ Entity {
 	id 19
 	flags Has_Component_Rect
 	name "a Humble Tree"
+}
+Entity {
+	id 20
+	name "Unnamed Entity"
+}
+Background {
+	component {
+		entity {
+			id 20
+		}
+	}
+	timer 6.980333
+	texture "resources/textures/space.png"
+	shader {
+		fs_filename "resources/shaders/glsl330/wave.fs"
+	}
 }
 BoxCollider {
 	component {
@@ -101,15 +119,68 @@ Cam_Follow {
 		id 10
 	}
 }
+Editor_Selectable_Rect {
+	component {
+		entity {
+			id 11
+		}
+	}
+	rect {
+		x 391.5
+		y 162
+		width 17
+		height 35
+	}
+}
+Editor_Selectable_Rect {
+	component {
+		entity {
+			id 10
+		}
+	}
+	rect {
+		x -9
+		y -30
+		width 18
+		height 30
+	}
+}
+Editor_Selectable_Rect {
+	component {
+		entity {
+			id 11
+		}
+	}
+	rect {
+		x 391.5
+		y 162
+		width 17
+		height 35
+	}
+}
+Editor_Selectable_Rect {
+	component {
+		entity {
+			id 10
+		}
+	}
+	rect {
+		x -9
+		y -30
+		width 18
+		height 30
+	}
+}
 Enemy {
 	component {
 		entity {
 			id 11
 		}
 	}
-	sprite_timer 92.542671
-	last_sprite_timer 92.542671
-	attack_cooldown -92.542885
+	sprite_timer 132.268135
+	last_sprite_timer 132.268135
+	attack_cooldown -132.273804
+
 }
 Player {
 	component {
@@ -119,7 +190,7 @@ Player {
 	}
 	grounded true
 	last_direction -1
-	sprite_timer 28.501192
+	sprite_timer 68.226654
 	walk_timer 4.605974
 	last_walk_sprite_idx 1
 }
@@ -181,7 +252,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 80.546501
+	timer 120.271965
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -192,7 +263,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 67.38565
+	timer 107.111115
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -203,7 +274,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 58.751694
+	timer 98.477158
 	color {
 		g 121
 		b 121
@@ -331,5 +402,12 @@ Transform {
 	position {
 		x 617.916504
 		y 73.560272
+	}
+}
+Transform {
+	component {
+		entity {
+			id 20
+		}
 	}
 }

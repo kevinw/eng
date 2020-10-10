@@ -214,7 +214,9 @@ update_and_draw :: () {
 
         {
             PushTextureMode(screen.texture);
-            {
+            ClearBackground(MAGENTA);
+            world_predraw(*world);
+            if 0 {
                 // draw background
                 PushShaderMode(bg.shader.resource);
                 DrawTexture(bg.texture, 0, 0, WHITE);

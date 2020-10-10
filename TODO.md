@@ -18,6 +18,12 @@
 # TODO
 
 ## Right Now
+- change level layout
+- use a different background (flipping through images)
+- change the UV bg shader a bit...
+- add some grass decorations
+- show demo of picking up player, moving the plant
+- POST ON HANDMADE DISCORD
 
 ## High Priority
 - Sort this list (difficulty? MVP for shippable thing?)

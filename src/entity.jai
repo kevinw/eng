@@ -43,6 +43,7 @@ we have now, and this kind of thing...
 #load "components/editor_selectable_rect.jai";
 #load "components/follow.jai";
 #load "components/Simple_Image_Renderer.jai";
+#load "components/background.jai";
 
 Transform :: struct {
     using component: Component;
@@ -332,6 +333,8 @@ world_update :: (world: *World, delta_time: float) {
     run_all(world, .update);
 }
 
+world_predraw :: (world: *World) { run_all(world, .pre_draw); }
+
 world_draw :: (world: *World = null) {
     if world == null world = *context.state.world;
 
@@ -531,7 +534,22 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
         }
 
         any.value_pointer = heap_string;
+    } else if any.type == type_info(LiveShader) {
+        live_shader := cast(*LiveShader)any.value_pointer;
+
+        any.type = type_info(LiveShader_Serialized);
+        heap_val := New(LiveShader_Serialized);
+        if has_value(<<live_shader) {
+            if live_shader.vs_filename.count > 0 heap_val.vs_filename = copy_string(live_shader.vs_filename);
+            if live_shader.fs_filename.count > 0 heap_val.fs_filename = copy_string(live_shader.fs_filename);
+        }
+        any.value_pointer = heap_val;
     }
+}
+
+LiveShader_Serialized :: struct {
+    vs_filename: string;
+    fs_filename: string;
 }
 
 
@@ -586,6 +604,10 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
                     <<live_texture_ptr = LiveTexture.Empty;
                 }
             }
+        } else if any.type == type_info(LiveShader) {
+            fs_filename := wbml.get_string(node, "fs_filename");
+            vs_filename := wbml.get_string(node, "vs_filename");
+            <<(cast(*LiveShader)any.value_pointer) = LoadLiveShader(vs_filename, fs_filename);
         }
     }
 

@@ -47,3 +47,4 @@ LiveShaderEntry :: struct {
 #scope_file
 rl :: #import "raylib";
 #import "Sprite_Anim";
+#import "Basic";

@@ -1,17 +1,23 @@
-is_name_a_System_Stage :: inline (name: string) -> bool{
-    // TODO: metaprogram the metaprogram??!? maybe it'd be as easy
-    // as an #insert #run here...
-    return name == "on_enable" 
-        || name == "update"
-        || name == "late_update"
-        || name == "draw"
-        || name == "on_disable";
+is_name_a_System_Stage :: inline (name: string) -> bool    {
+    #insert #run (() -> string {
+        sb: String_Builder;
+        defer free_buffers(*sb);
+
+        print_to_builder(*sb, "return ");
+        for type_info(System_Stage).names
+            print_to_builder(*sb, "name == \"%\" || ", it);
+        print_to_builder(*sb, "0;\n");
+            
+
+        return builder_to_string(*sb);
+    }());
 }
 
 System_Stage :: enum {
     on_enable;
     update;
     late_update;
+    pre_draw;
     draw;
     on_disable;
 
