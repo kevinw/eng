@@ -142,6 +142,20 @@ live_image_editor :: (live_texture_ptr: *LiveTexture) {
             set_asset_selector_visible(live_texture_ptr);
         }
     }
+
+    // Allow user to drop colors into each palette entry. Note that ColorButton() is already a
+    // drag source by default, unless specifying the ImGuiColorEditFlags_NoDragDrop flag.
+    if BeginDragDropTarget() {
+        defer EndDragDropTarget();
+
+
+        /*
+        if payload := AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F)
+            memcpy((float*)*saved_palette[n], payload->Data, sizeof(float) * 3);
+        if payload := AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F)
+            memcpy((float*)*saved_palette[n], payload->Data, sizeof(float) * 4);
+        */
+    }
 }
 
 Editor :: struct {
