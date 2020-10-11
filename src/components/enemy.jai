@@ -67,7 +67,7 @@ Enemy :: struct {
 
     padding: [30]u8; @noserialize
 
-    editor_rect: *Editor_Selectable_Rect;
+    editor_rect: *Editor_Selectable_Rect; @noserialize
 }
 
 on_enable :: (using it: *Enemy, parent_entity: *Entity) {

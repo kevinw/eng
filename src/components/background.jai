@@ -26,8 +26,6 @@ update :: (using it: *Background) {
 }
 
 pre_draw :: (using it: *Background) {
-    logprint("=wat", "wat");
-
     if has_value(shader)
         rl.BeginShaderMode(shader.resource);
 

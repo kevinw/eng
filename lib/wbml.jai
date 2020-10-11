@@ -267,7 +267,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             }
             if !skip {
                 print_indents(indent_level, sb);
-                print_item_to_builder(sb, name_and_space);
+                append(sb, name_and_space);
                 print_to_builder(sb, ifx (<< (cast(*bool)value)) then "true" else "false");
             }
         case .INTEGER; #through;
@@ -322,8 +322,8 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                     strip_trailing_decimal_zeros(*number_as_str);
 
                 print_indents(indent_level, sb);
-                print_item_to_builder(sb, name_and_space);
-                print_item_to_builder(sb, number_as_str);
+                append(sb, name_and_space);
+                append(sb, number_as_str);
             }
         case .STRING;
             if default != null {
@@ -336,8 +336,8 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             }
             if !skip {
                 print_indents(indent_level, sb);
-                print_item_to_builder(sb, name_and_space);
-                print_item_to_builder(sb, tprint("\"%\"", item)); // TODO: actually escape quotes in the string
+                append(sb, name_and_space);
+                print_item_to_builder(sb, item); // will quote for us
             }
 		case .ARRAY;
             ti_array := cast(*Type_Info_Array)ti;
@@ -377,7 +377,7 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
 
             if !skip {
                 print_indents(indent_level, sb);
-                print_item_to_builder(sb, name_and_space);
+                append(sb, name_and_space);
                 print_to_builder(sb, "[\n"); 
 
                 print_to_builder(sb, "%", builder_to_string(*sub_sb));
