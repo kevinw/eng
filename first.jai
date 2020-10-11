@@ -163,11 +163,11 @@ generate_systems :: (metaprogram: *Metaprogram) {
 
     for metaprogram.system_funcs {
         if it.body_or_null == null {
-            print("WARNING: system function has null body_or_null\n");
+            print("WARNING: system function has null body_or_null: %\n", <<it);
             continue;
         }
         if it.arguments.count == 0 {
-            print("WARNING: system function has zero args\n");
+            print("WARNING: system function has zero args: %\n", <<it);
             continue;
         }
 
