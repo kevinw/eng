@@ -13,19 +13,11 @@ GLSL_VERSION :: 330;
 State :: struct {
     using _base: State_Base;
 
-    start_canary: u32; @noui // = 0xBEEFBEEF;
-
     muted := true;
-    sprites: struct {
-        test_ase: Sprite_Anim;
-    };
-
     song: reaper.Song;
     nearest_marker: *reaper.Marker;
     bgm: Music;
     beat_timer: float64;
-
-    end_canary: u32; @noui // = 0xBEEFBEEF;
 };
 
 envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color, is_editor: bool = false) -> *Entity {
@@ -87,9 +79,6 @@ on_host_init :: () {
         bgm_voice = Soloud_play(soloud, bgm);
     }
 
-    start_canary = 0xBEEFBEEF;
-    end_canary =   0xDEADBEEF;
-
     // load textures and sprites
 
     ok: bool;
@@ -148,14 +137,6 @@ restart :: () {
 
 update_and_draw :: () {
     using context.state;
-
-    #if HOTLOADING_ENABLED {
-        assert(start_canary == 0xBEEFBEEF);
-        if end_canary != 0xDEADBEEF {
-            logprint("gamestruct", "warning: State struct changed size\n");
-            end_canary = 0xDEADBEEF;
-        }
-    }
 
     game_base_update();
 
