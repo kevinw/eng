@@ -80,6 +80,7 @@ update :: (cam_follow: *Cam_Follow, camera: *Cam) {
 #scope_file
 
 rl :: #import "raylib";
+#import "raymath";
 Vector2 :: rl.Vector2;
 
 /*
