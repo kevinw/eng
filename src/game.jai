@@ -1,4 +1,5 @@
 GAME_NAME :: "beat_platformer";
+
 #load "game_base.jai";
 #import "Basic";
 #import "Sprite_Anim";
@@ -23,12 +24,6 @@ State :: struct {
     nearest_marker: *reaper.Marker;
     bgm: Music;
     beat_timer: float64;
-
-    bg: struct {
-        timer: float64;
-        texture: LiveTexture;
-        shader: LiveShader;
-    };
 
     end_canary: u32; @noui // = 0xBEEFBEEF;
 };
@@ -113,9 +108,6 @@ on_host_init :: () {
     spawn_prefab("plant_chomper", v3(400, 197, 0));
     spawn_prefab("plant_chomper", v3(600, 197, 0));
 
-    bg.texture = LoadLiveTexture("resources/textures/space.png");
-    bg.shader = LoadLiveShader("", tprint("resources/shaders/glsl%/wave.fs", GLSL_VERSION));
-
     envitem(*world, 0,   400, 1000, 200, .PLATFORM, GRAY);
     envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
     envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
@@ -137,9 +129,6 @@ on_host_init :: () {
 
 on_host_shutdown :: () {
     using context.state;
-
-    UnloadLiveTexture(bg.texture);
-    UnloadShader(bg.shader.resource);
 
     game_base_shutdown();
 }
@@ -189,19 +178,6 @@ update_and_draw :: () {
             }
         }
 
-        bg.timer += Time.delta_time * 0.2;
-
-        //if Time.frame_count % 8 == 0 {
-        set_shader_val(bg.shader, "secondes", cast(float)bg.timer);
-        set_shader_val(bg.shader, "size", make_Vector2(gameWidth, gameHeight));
-        set_shader_val(bg.shader, "freqX", 25.0);
-        set_shader_val(bg.shader, "freqY", 25.0);
-        set_shader_val(bg.shader, "ampX", 5.0);
-        set_shader_val(bg.shader, "ampY", 5.0);
-        set_shader_val(bg.shader, "speedX", 8.0);
-        set_shader_val(bg.shader, "speedY", 8.0);
-        //}
-       
         if IsKeyPressed(.KEY_M) {
             muted = !muted;
             update_bgm_volume();
@@ -216,14 +192,6 @@ update_and_draw :: () {
             PushTextureMode(screen.texture);
             ClearBackground(MAGENTA);
             world_predraw(*world);
-            if 0 {
-                // draw background
-                PushShaderMode(bg.shader.resource);
-                DrawTexture(bg.texture, 0, 0, WHITE);
-                DrawTexture(bg.texture, bg.texture.width, 0, WHITE);
-                DrawTexture(bg.texture, 0, bg.texture.height, WHITE);
-                DrawTexture(bg.texture, bg.texture.width, bg.texture.height, WHITE);
-            }
             {
                 // draw foreground
                 camera := get_main_camera();
