@@ -30,7 +30,7 @@
     sb: String_Builder;
     defer free_buffers(*sb);
     p :: print_to_builder;
-    p(*sb, "all_component_types :: Type.[\n");
+    p(*sb, "#scope_export; all_component_types :: Type.[\n");
     for all_components
         p(*sb, "    %,\n", it.name);
     p(*sb, "];\n");
