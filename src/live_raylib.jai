@@ -96,7 +96,7 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
         new_entry := array_add(*context.state.live.textures);
         assert(old_pointer == null || context.state.live.textures.data == old_pointer, "moved!?");
         new_entry.filename = copy_string(filename);
-        new_entry.resource = rl.LoadTexture(constant_or_temp_cstring(filename));
+        new_entry.resource = load_raylib_texture(filename);
         obj._entry = new_entry;
     }
 
@@ -104,6 +104,34 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
     return obj;
 }
 
+load_raylib_texture :: (filename: string) -> rl.Texture {
+    if String.ends_with_nocase(filename, ".jpeg") || String.ends_with_nocase(filename, ".jpg") {
+        // for now, our raylib build doesn't support JPEGs, so we'll use
+        // Jai's builtin STB image to do it. @Bloat
+
+        Render :: #import "Render";
+
+        bitmap: Render.Bitmap;
+        if !Render.bitmap_load(*bitmap, filename) {
+            logprint("loader", "error: could not load JPEG from %", filename);
+            return .{};
+        }
+
+        rl_format: rl.PixelFormat;
+        if bitmap.format == {
+            case .R8;    rl_format = .UNCOMPRESSED_GRAYSCALE;
+            case .RG8;    rl_format = .UNCOMPRESSED_GRAY_ALPHA;
+            case .RGB8;  rl_format = .UNCOMPRESSED_R8G8B8;
+            case .RGBA8; rl_format = .UNCOMPRESSED_R8G8B8A8;
+            case; assert(false, "TODO: implement conversion here for format %", bitmap.format);
+        }
+
+        img := rl.LoadImagePro(bitmap.data, bitmap.width, bitmap.height, cast(s32)rl_format);
+        return rl.LoadTextureFromImage(img);
+    } else {
+        return rl.LoadTexture(constant_or_temp_cstring(filename));
+    }
+}
 
 LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
     using context.state;
@@ -176,7 +204,7 @@ TryReloadLiveTexturePath :: (filename: string) -> bool {
     for * context.state.live.textures {
         if it.filename == filename {
             rl.UnloadTexture(it.resource);
-            it.resource = rl.LoadTexture(_to_temp_c_string(it.filename));
+            it.resource = load_raylib_texture(it.filename);
             found = true;
         }
     }
