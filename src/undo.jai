@@ -26,13 +26,19 @@ Item :: struct {
     size: int;      // size in bytes of the data
 
     data: *void;    // copy of the data before it was modified
-    resizable_array: Resizable_Array; // used for Array_Replacement
+    union {
+        resizable_array: Resizable_Array; // used for Array_Replacement
+        str: string; // used for String_Replacement
+    }
+
+    source_code_location: Source_Code_Location;
 }
 
 Action :: enum u8 {
     End_Of_Sequence :: 0;
     Mem_Copy :: 1;
     Array_Replacement :: 2;
+    String_Replacement :: 3;
 }
 
 can_undo :: (impl: *Impl) -> bool {
@@ -43,18 +49,40 @@ can_redo :: (impl: *Impl) -> bool {
     return impl.redo.count > 0;
 }
 
-push_array :: (using impl: *Impl, array: *[..]$T) {
+add_temp_item :: (temp: *[..]Item, action: Action, data_pointer: *void, loc := #caller_location) -> *Item {
+    item := array_add(temp);
+    item.action = action;
+    item.pointer = data_pointer;
+    item.source_code_location = loc;
+    return item;
+}
+
+push_string :: (using impl: *Impl, str: *string, loc := #caller_location) {
+    assert(str != null);
+
+    for temp if it.pointer == str {
+        assert(it.action == .String_Replacement);
+        return;
+    }
+
+    item := add_temp_item(*temp, .String_Replacement, str, loc=loc);
+    item.size = str.count;
+    item.source_code_location = loc;
+    item.str = <<str;
+    
+    item.str.data = alloc(item.str.count);
+    memcpy(item.str.data, str.data, str.count);
+}
+
+push_array :: (using impl: *Impl, array: *[..]$T, loc := #caller_location) {
     // don't push more than once for the same array.
-    for temp
-        if it.pointer == array && it.action == .Array_Replacement
-            return;
+    for temp if it.pointer == array {
+        assert(it.action == .Array_Replacement);
+        return;
+    }
 
-    item := array_add(*temp);
-
-    item.action = .Array_Replacement;
-    item.pointer = array;
+    item := add_temp_item(*temp, .Array_Replacement, array, loc=loc);
     item.size = size_of(T);
-
     item.resizable_array = <<cast(*Resizable_Array)array;
     assert(item.resizable_array.allocated == array.allocated);
 
@@ -100,14 +128,14 @@ array_reset :: (using impl: *Impl, array: *[..]$T) {
     //print_hex_bytes(array.data, array.count * item.size);
 }
 
-push :: (impl: *Impl, obj: *$T) {
+push :: (impl: *Impl, obj: *$T, loc := #caller_location) {
     // This undo.push() overload accepts a pointer to any type, and will get
     // the Type_Info's runtime size for you.
 
-    push(impl, obj, type_info(T).runtime_size);
+    push(impl, obj, type_info(T).runtime_size, loc=loc);
 }
 
-push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int) {
+push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int, loc := #caller_location) {
     // The undo.push() function takes a pointer and size value. When it is
     // called the temp stack is first scanned to check if we already have an
     // item for the given data block — if so the function already has the
@@ -118,21 +146,18 @@ push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int) {
 
     assert(obj_data != null, "undo.push given a null pointer");
     
-    for temp {
+    for * temp {
         if it.action == .Mem_Copy && obj_data == it.pointer {
-            assert(it.size == size_in_bytes, "You gave two different sizes for the same undo data pointer");
-
-            // We can return without doing anything, since we already noted the state.
-            return;
+            if it.size < size_in_bytes
+                it.size = size_in_bytes; // it is legal to push the same pointer, with a bigger size.
+            return; // We can return without doing anything, since we already noted the state.
         }
     }
 
-    item := array_add(*temp);
+    item := add_temp_item(*temp, .Mem_Copy, obj_data, loc=loc);
     item.data = alloc(size_in_bytes);
     memcpy(item.data, obj_data, size_in_bytes);
-    item.pointer = obj_data;
     item.size = size_in_bytes;
-    item.action = .Mem_Copy;
 }
 
 commit :: (using impl: *Impl) {
@@ -176,6 +201,17 @@ commit :: (using impl: *Impl) {
 
                 //print("committing Array_Replacement % %\n", temp_arr.count * temp_item.size, arr.data);
 
+            case .String_Replacement;
+                str := cast(*string)temp_item.pointer;
+                temp_str := temp_item.str;
+                assert(temp_str.data != str.data);
+                if temp_str.count == str.count &&
+                    (<<str) == temp_str {
+
+                    free_item(temp_item);
+                    continue;
+                }
+
             case .End_Of_Sequence;
                 assert(false, "not sure what to do here");
         }
@@ -205,6 +241,10 @@ free_item :: (item: Item) {
                 "the undo Item's copied data pointer shouldn't be equal to the original's"
             );
             free(item.resizable_array.data, item.resizable_array.allocator, item.resizable_array.allocator_data);
+        case .String_Replacement;
+            assert(
+                (cast(*string)item.pointer).data != item.str.data,
+                "the undo Item's copied data pointer shouldn't be equal to the original string's");
     }
 }
 
@@ -312,13 +352,26 @@ pop_apply_and_push :: (from_stack: *[..]Item, to_stack: *[..]Item) {
 
                 //print("reverting Array_Replacement % bytes from % into %\n",
                     //arr.count * item.size, item.resizable_array.data, arr.data);
-
                 //print("restoring (size=%) count % and data ptr % to array %\n", item.size, item.resizable_array.count, item.resizable_array.data, arr);
-
                 //print_hex_bytes(arr.data, arr.count * item.size);
 
                 // The redo (or undo, if we're redoing) stack will get the current item.
                 item.resizable_array = saved_array;
+
+            case .String_Replacement;
+                str := cast(*string)item.pointer;
+
+                // Note the current state of the string.
+                saved_str := <<str;
+
+                // Restore the old string state.
+                <<str = item.str;
+
+                // @Leak SHOULD THIS BE REALLOC?
+                str.data = alloc(str.count);
+                memcpy(str.data, item.str.data, str.count);
+
+                item.str = saved_str;
         }
 
         array_add(to_stack, item);
