@@ -572,7 +572,7 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
 
             assert(userdata != null);
             for <<cast(*Entity_Handle_Map)userdata {
-                print("  % vs %\n", it.on_disk, wbml_entity_id);
+                //print("  % vs %\n", it.on_disk, wbml_entity_id);
                 if it.on_disk == wbml_entity_id {
                     <<handle_ptr = it.live;
                     return true;

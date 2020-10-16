@@ -1206,29 +1206,20 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
 
 load_scene :: (name: string) {
     filename := tprint("%.wbml", name);
-
     wbml_str, ok := File.read_entire_file(filename);
     if !ok {
         logprint("error", "could not read '%' - load failed", filename);
         return;
     }
-
     reset_world(*context.state.world);
     load_world(*context.state.world, wbml_str, filename);
-    //wbml.deserialize(str, *context.state.scene);
-
-    logprint("editor", "loaded %", filename);
+    logprint("editor", "loaded scene '%'", filename);
 }
 
 save_scene :: (name: string) {
     filename := tprint("%.wbml", name);
     save_prefab(filename);
-
-    /* str := wbml.serialize(*context.state.scene);
-    //File.write_entire_file(filename, str);
-    assert(false, "TODO"); */
-
-    logprint("editor", "saved %", filename);
+    logprint("editor", "saved scene '%'", filename);
 }
 
 HelpMarker :: (desc: string) {

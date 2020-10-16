@@ -1,6 +1,3 @@
-#scope_file
-rl :: #import "raylib";
-#scope_export
 
 Shape_Renderer :: struct {
     using component: Component;
@@ -30,3 +27,7 @@ draw :: (using shape_renderer: *Shape_Renderer, transform: *Transform) {
 on_enable :: (it: *Shape_Renderer, entity: *Entity) {
     entity.flags |= .Pivot_Center;
 }
+
+#scope_file
+Render :: #import "Render";
+rl :: #import "raylib";
