@@ -1,59 +1,104 @@
 Entity {
-	id 23
+	id 10
 	flags Has_Component_Rect
 	name "The Player"
 }
 Entity {
-	id 24
+	id 11
 	flags Has_Component_Rect
 	name "Plant"
 }
 Entity {
-	id 25
+	id 12
 	name "box"
 }
 Entity {
-	id 26
+	id 13
 	name "box"
 }
 Entity {
-	id 27
+	id 14
 	name "box"
 }
 Entity {
-	id 28
+	id 15
 	name "box"
 }
 Entity {
-	id 29
+	id 16
 	name "camera"
 }
 Entity {
-	id 30
+	id 17
 	flags Has_Component_Rect
 	name "a Humble Tree"
 }
 Entity {
-	id 31
+	id 18
 	flags Has_Component_Rect
 	name "a Humble Tree"
 }
 Entity {
-	id 32
+	id 19
 	flags Has_Component_Rect
 	name "a Humble Tree"
 }
 Entity {
-	id 33
-	name "Unnamed Entity"
+	id 20
+	name "background"
+}
+Entity {
+	id 21
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 22
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 23
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 24
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 25
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 26
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 27
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 28
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
+}
+Entity {
+	id 29
+	flags Has_Component_Rect
+	name "grass_small.aseprite"
 }
 Background {
 	component {
 		entity {
-			id 33
+			id 20
 		}
 	}
-	timer 12.083292
+	timer 22.84065
 	texture "resources/textures/space.png"
 	shader {
 		fs_filename "resources/shaders/glsl330/wave.fs"
@@ -62,7 +107,7 @@ Background {
 BoxCollider {
 	component {
 		entity {
-			id 25
+			id 12
 		}
 	}
 	collision PLATFORM
@@ -70,7 +115,7 @@ BoxCollider {
 BoxCollider {
 	component {
 		entity {
-			id 26
+			id 13
 		}
 	}
 	collision PLATFORM
@@ -78,7 +123,7 @@ BoxCollider {
 BoxCollider {
 	component {
 		entity {
-			id 27
+			id 14
 		}
 	}
 	collision PLATFORM
@@ -86,7 +131,7 @@ BoxCollider {
 BoxCollider {
 	component {
 		entity {
-			id 28
+			id 15
 		}
 	}
 	collision PLATFORM
@@ -94,7 +139,7 @@ BoxCollider {
 Cam {
 	component {
 		entity {
-			id 29
+			id 16
 		}
 	}
 	cam2D {
@@ -103,8 +148,8 @@ Cam {
 			y 180
 		}
 		target {
-			x 503.74472
-			y 191.894943
+			x 568.8526
+			y 207.126266
 		}
 		zoom 1.2
 	}
@@ -112,17 +157,17 @@ Cam {
 Cam_Follow {
 	component {
 		entity {
-			id 29
+			id 16
 		}
 	}
 	target_entity {
-		id 23
+		id 10
 	}
 }
 Editor_Selectable_Rect {
 	component {
 		entity {
-			id 24
+			id 11
 		}
 	}
 	rect {
@@ -135,7 +180,7 @@ Editor_Selectable_Rect {
 Editor_Selectable_Rect {
 	component {
 		entity {
-			id 23
+			id 10
 		}
 	}
 	rect {
@@ -148,7 +193,7 @@ Editor_Selectable_Rect {
 Editor_Selectable_Rect {
 	component {
 		entity {
-			id 24
+			id 11
 		}
 	}
 	rect {
@@ -161,7 +206,7 @@ Editor_Selectable_Rect {
 Editor_Selectable_Rect {
 	component {
 		entity {
-			id 23
+			id 10
 		}
 	}
 	rect {
@@ -174,23 +219,25 @@ Editor_Selectable_Rect {
 Enemy {
 	component {
 		entity {
-			id 24
+			id 11
 		}
 	}
-	sprite_timer 21.916201
-	last_sprite_timer 21.916201
-	attack_cooldown -20.716171
-
+	sprite_timer 75.702993
+	last_sprite_timer 75.702993
+	attack_cooldown -74.504059
 }
 Player {
 	component {
 		entity {
-			id 23
+			id 10
 		}
+	}
+	speed {
+		y 19.166704
 	}
 	grounded true
 	last_direction -1
-	sprite_timer 93.741445
+	sprite_timer 147.528242
 	walk_timer 7.206046
 	last_walk_sprite_idx 1
 	damage {
@@ -203,7 +250,7 @@ Player {
 RectRenderer {
 	component {
 		entity {
-			id 25
+			id 12
 		}
 	}
 	color {
@@ -216,7 +263,7 @@ RectRenderer {
 RectRenderer {
 	component {
 		entity {
-			id 26
+			id 13
 		}
 	}
 	color {
@@ -229,7 +276,7 @@ RectRenderer {
 RectRenderer {
 	component {
 		entity {
-			id 27
+			id 14
 		}
 	}
 	color {
@@ -242,7 +289,7 @@ RectRenderer {
 RectRenderer {
 	component {
 		entity {
-			id 28
+			id 15
 		}
 	}
 	color {
@@ -255,10 +302,10 @@ RectRenderer {
 SpriteRenderer {
 	component {
 		entity {
-			id 30
+			id 17
 		}
 	}
-	timer 145.786756
+	timer 199.573545
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -266,10 +313,10 @@ SpriteRenderer {
 SpriteRenderer {
 	component {
 		entity {
-			id 31
+			id 18
 		}
 	}
-	timer 132.625906
+	timer 186.412687
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -277,10 +324,10 @@ SpriteRenderer {
 SpriteRenderer {
 	component {
 		entity {
-			id 32
+			id 19
 		}
 	}
-	timer 123.991949
+	timer 177.778745
 	color {
 		g 121
 		b 121
@@ -289,10 +336,109 @@ SpriteRenderer {
 	]
 	sprite_anim "humble_tree"
 }
-Transform {
+SpriteRenderer {
+	component {
+		entity {
+			id 21
+		}
+	}
+	timer 42.736115
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 22
+		}
+	}
+	timer 42.736115
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
 	component {
 		entity {
 			id 23
+		}
+	}
+	timer 42.736114
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 24
+		}
+	}
+	timer 42.736115
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 25
+		}
+	}
+	timer 42.736115
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 26
+		}
+	}
+	timer 42.736114
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 27
+		}
+	}
+	timer 42.736115
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 28
+		}
+	}
+	timer 42.736114
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+SpriteRenderer {
+	component {
+		entity {
+			id 29
+		}
+	}
+	timer 42.736114
+	sprite [
+	]
+	sprite_anim "grass_small"
+}
+Transform {
+	component {
+		entity {
+			id 10
 		}
 	}
 	position {
@@ -303,7 +449,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 24
+			id 11
 		}
 	}
 	position {
@@ -314,7 +460,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 25
+			id 12
 		}
 	}
 	position {
@@ -328,7 +474,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 26
+			id 13
 		}
 	}
 	position {
@@ -343,7 +489,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 27
+			id 14
 		}
 	}
 	position {
@@ -358,7 +504,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 28
+			id 15
 		}
 	}
 	position {
@@ -373,14 +519,14 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 29
+			id 16
 		}
 	}
 }
 Transform {
 	component {
 		entity {
-			id 30
+			id 17
 		}
 	}
 	position {
@@ -391,7 +537,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 31
+			id 18
 		}
 	}
 	position {
@@ -402,7 +548,7 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 32
+			id 19
 		}
 	}
 	position {
@@ -413,7 +559,106 @@ Transform {
 Transform {
 	component {
 		entity {
-			id 33
+			id 20
 		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 21
+		}
+	}
+	position {
+		x 538.12262
+		y 171.689178
+	}
+}
+Transform {
+	component {
+		entity {
+			id 22
+		}
+	}
+	position {
+		x 556.87262
+		y 170.439178
+	}
+}
+Transform {
+	component {
+		entity {
+			id 23
+		}
+	}
+	position {
+		x 574.37262
+		y 174.60585
+	}
+}
+Transform {
+	component {
+		entity {
+			id 24
+		}
+	}
+	position {
+		x 599.37262
+		y 171.272522
+	}
+}
+Transform {
+	component {
+		entity {
+			id 25
+		}
+	}
+	position {
+		x 625.205933
+		y 172.522522
+	}
+}
+Transform {
+	component {
+		entity {
+			id 26
+		}
+	}
+	position {
+		x 642.705933
+		y 170.022522
+	}
+}
+Transform {
+	component {
+		entity {
+			id 27
+		}
+	}
+	position {
+		x 664.789307
+		y 174.189194
+	}
+}
+Transform {
+	component {
+		entity {
+			id 28
+		}
+	}
+	position {
+		x 458.539337
+		y 177.105865
+	}
+}
+Transform {
+	component {
+		entity {
+			id 29
+		}
+	}
+	position {
+		x 391.455994
+		y 172.939178
 	}
 }

@@ -1,0 +1,147 @@
+Entity {
+	id 10
+	name "Camera"
+}
+Entity {
+	id 11
+	flags Pivot_Center
+	name "platform"
+}
+Entity {
+	id 12
+	name "background"
+}
+Entity {
+	id 13
+	flags Has_Component_Rect
+	name "player"
+}
+Background {
+	component {
+		entity {
+			id 12
+		}
+	}
+	timer 49.221725
+	texture "resources/textures/Crumpled Foil.jpg"
+	shader {
+		fs_filename "resources/shaders/glsl330/swirl.fs"
+	}
+	mode Swirl
+}
+BoxCollider {
+	component {
+		entity {
+			id 11
+		}
+	}
+	collision PLATFORM
+}
+Cam {
+	component {
+		entity {
+			id 10
+		}
+	}
+	cam2D {
+		target {
+			x -421.089905
+			y -236.5
+		}
+		zoom 1
+	}
+}
+Editor_Selectable_Rect {
+	component {
+		entity {
+			id 13
+		}
+	}
+	rect {
+		x -9
+		y -30
+		width 18
+		height 30
+	}
+}
+Editor_Selectable_Rect {
+	component {
+		entity {
+			id 13
+		}
+	}
+	rect {
+		x -9
+		y -30
+		width 18
+		height 30
+	}
+}
+Player {
+	component {
+		entity {
+			id 13
+		}
+	}
+	speed {
+		y 19.168659
+	}
+	grounded true
+	last_direction 1
+	sprite_timer 8.200603
+	walk_timer 0.983377
+	last_walk_sprite_idx 1
+}
+Shape_Renderer {
+	component {
+		entity {
+			id 11
+		}
+	}
+	shape Square
+	color {
+		r 62
+		g 57
+		b 62
+	}
+}
+Transform {
+	component {
+		entity {
+			id 10
+		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 11
+		}
+	}
+	position {
+		x -111
+		y 37
+	}
+	scale {
+		x 93
+		y 157
+	}
+}
+Transform {
+	component {
+		entity {
+			id 12
+		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 13
+		}
+	}
+	position {
+		x -101.089912
+		y -41.5
+	}
+}

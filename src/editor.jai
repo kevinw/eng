@@ -44,6 +44,81 @@ use the animation to "go back" to the prefab when you zoom in on it
 
 Undo :: #import "undo";
 
+Editor :: struct {
+    undo_state: Undo.Impl;
+
+    wants_keyboard: bool;
+
+    tweens: Tweens;
+
+    selector_filter: ImGui.TextFilter;
+    asset_selector_filter: ImGui.TextFilter;
+
+    play_mode: Play_Mode = .Edit;
+    fading_to_play: bool;
+
+    callbacks: struct {
+        did_drag: #type (rect: Rectangle);
+    };
+
+    drag_state: struct {
+        dragging: bool;
+        origin: Vec2;
+    };
+
+    selected: [..]Selected_Object;
+    hover: Maybe(Entity_Handle);
+
+    editing_entity_name: Maybe(Entity_Handle);
+    editing_entity_grab_focus := false;
+
+    world_mouse_pos: Vector2;
+    mouse_pos: Latch(Vector2);
+
+    last_click_time: float64 = -99999;
+
+    assets: [..]Asset;
+    selected_asset: *Asset = null;
+
+    windows: struct {
+        undo_internals := false;
+        demo := true;
+        entities := true;
+        ecs_internals := false;
+        assets := true;
+        prefab_cache := false;
+        asset_selector: struct {
+            visible := false;
+            selected_asset_type: Asset.Type;
+            selected_asset: union {
+                tex: *LiveTexture;
+                shader: *LiveShader;
+            };
+        };
+    };
+
+}
+
+Asset :: struct {
+    Type :: enum u32 {
+        Prefab  :: 1;
+        Texture :: 2;
+        Sprite  :: 3;
+        Shader  :: 4;
+    }
+
+    type: Type;
+    filename: string;
+    short_name: string;
+    filetime: u64;
+    union {
+        live_texture: LiveTexture;
+        live_sprite: LiveSprite;
+        live_shader: LiveShader;
+    }
+}
+
+
 Play_Mode :: enum {
     Play;
     Edit;
@@ -60,6 +135,39 @@ Maybe :: struct(V: Type) {
     using value: V;
     has_value: bool;
 }
+
+InputTextStr :: (str: *string) -> bool {
+    MAX_SIZE :: 200;
+    assert(str.count < MAX_SIZE);
+
+    buf := cast(*u8)talloc(MAX_SIZE + 1);
+    memcpy(buf, str.data, str.count);
+    buf[str.count] = #char "\0";
+
+    res:bool = ImGui.InputText("", buf, MAX_SIZE);
+    if res {
+        new_len := str_length(buf);
+        
+        // @Leak
+        // @Leak
+        // @Leak
+        // @Leak
+        // @Leak
+        // @Leak
+        // @Leak
+        // @Leak
+
+        if new_len != str.count {
+            str.data = alloc(new_len); // @Leak
+            str.count = new_len;
+        }
+
+        memcpy(str.data, buf, new_len);
+    }
+
+    return res;
+}
+
 
 categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
     // TODO: this should just go away and merge with `custom_ctrl` below.
@@ -133,76 +241,6 @@ live_image_editor :: (live_texture_ptr: *LiveTexture) {
         if payload := AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F)
             memcpy((float*)*saved_palette[n], payload->Data, sizeof(float) * 4);
         */
-    }
-}
-
-Editor :: struct {
-    undo_state: Undo.Impl;
-
-    wants_keyboard: bool;
-
-    tweens: Tweens;
-
-    selector_filter: ImGui.TextFilter;
-    asset_selector_filter: ImGui.TextFilter;
-
-    play_mode: Play_Mode = .Edit;
-
-    callbacks: struct {
-        did_drag: #type (rect: Rectangle);
-    };
-
-    drag_state: struct {
-        dragging: bool;
-        origin: Vec2;
-    };
-
-    selected: [..]Selected_Object;
-    hover: Maybe(Entity_Handle);
-
-    world_mouse_pos: Vector2;
-    mouse_pos: Latch(Vector2);
-
-    last_click_time: float64 = -99999;
-
-    assets: [..]Asset;
-    selected_asset: *Asset = null;
-
-    windows: struct {
-        undo_internals := false;
-        demo := true;
-        entities := true;
-        ecs_internals := false;
-        assets := true;
-        prefab_cache := false;
-        asset_selector: struct {
-            visible := false;
-            selected_asset_type: Asset.Type;
-            selected_asset: union {
-                tex: *LiveTexture;
-                shader: *LiveShader;
-            };
-        };
-    };
-
-}
-
-Asset :: struct {
-    Type :: enum u32 {
-        Prefab  :: 1;
-        Texture :: 2;
-        Sprite  :: 3;
-        Shader  :: 4;
-    }
-
-    type: Type;
-    filename: string;
-    short_name: string;
-    filetime: u64;
-    union {
-        live_texture: LiveTexture;
-        live_sprite: LiveSprite;
-        live_shader: LiveShader;
     }
 }
 
@@ -283,7 +321,7 @@ selection_mask: s32 = (1 << 2);
 
 editor_draw :: (state: *State) {
     if state.editor.play_mode == .Play return;
-    render_imgui(state);
+    render_imgui_to_drawlists(state);
 }
 
 set_asset_selector_visible :: (live_texture_ptr: *LiveTexture) {
@@ -406,7 +444,15 @@ render_asset_selector :: (window_open: *bool) {
     */
 }
 
-render_imgui :: (state: *State) {
+edit_entity_name :: (handle: Entity_Handle) {
+    using context.state.editor;
+
+    editing_entity_name.has_value = true;
+    editing_entity_name.value = handle;
+    editing_entity_grab_focus = true;
+}
+
+render_imgui_to_drawlists :: (state: *State) {
     using state;
 
     // dockspace
@@ -417,6 +463,27 @@ render_imgui :: (state: *State) {
 
 
     using ImGui;
+
+    {
+        // fade the editor in and out when toggling between edit and play mode.
+        using state.editor;
+        if play_mode == .Edit {
+            style := GetStyle();
+            ALPHA_CHANGE_SPEED :: 9.0;
+            if fading_to_play {
+                style.Alpha -= Time.delta_time * ALPHA_CHANGE_SPEED;
+                if style.Alpha <= 0 {
+                    fading_to_play = false;
+                    style.Alpha = 0;
+                    play_mode = .Play;
+                }
+            } else {
+                if style.Alpha < 1 {
+                    style.Alpha = clamp(style.Alpha + Time.delta_time * ALPHA_CHANGE_SPEED, 0, 1);
+                }
+            }
+        }
+    }
 
     {
         window_flags := ImGui.WindowFlags.NoDocking;
@@ -608,8 +675,6 @@ render_imgui :: (state: *State) {
         PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
         defer PopStyleVar();
 
-        ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
-        defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
 
         //if TreeNodeEx("Entities", .DefaultOpen) {
             //defer TreePop();
@@ -631,15 +696,37 @@ render_imgui :: (state: *State) {
 
                 ok, entity := get_entity(it);
                 if ok {
-                    //dnd := BeginDragDropSource();
-                    //defer { if dnd EndDragDropSource(); }
+                    PushPopID(entity);
 
-                    //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
-                    if TreeNodeEx(entity, flags, "%s", entity.name.data) {
-                        defer TreePop();
+                    using state.editor;
+                    if editing_entity_name.has_value && editing_entity_name.value == it {
+                        // Inline text editor for the entity name. Use by clicking once to select, and then
+                        // single clicking again on an entity.
+                        if editing_entity_grab_focus {
+                            editing_entity_grab_focus = false;
+                            Undo.push_string(*undo_state, *entity.name);
+                            SetKeyboardFocusHere();
+                        }
+
+                        InputTextStr(*entity.name);
+
+                        if IsItemDeactivated() {
+                            editing_entity_grab_focus = false;
+                            editing_entity_name.has_value = false;
+                            Undo.commit(*undo_state);
+                        }
+                    } else {
+                        //dnd := BeginDragDropSource();
+                        //defer { if dnd EndDragDropSource(); }
+
+                        //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
+                        ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
+                        defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
+                        if TreeNodeEx(entity, flags, "%s", entity.name.data) {
+                            defer TreePop();
+                        }
                     }
 
-                    PushPopID(entity);
                     if BeginPopupContextItem("entity context menu") {
                         defer EndPopup();
                         if Selectable("Save as prefab") {
@@ -660,9 +747,14 @@ render_imgui :: (state: *State) {
             }
 
             if node_clicked.has_value {
+                using state.editor;
+                was_selected := selected.count == 1 && selected[0].handle == node_clicked.value;
                 set_or_toggle_selected(node_clicked.value);
                 if IsMouseDoubleClicked(0)
                     focus_editor_camera_on_entity(node_clicked.value);
+                else if IsMouseClicked(0) && was_selected {
+                    edit_entity_name(node_clicked.value);
+                }
             }
 
         //}
@@ -730,6 +822,14 @@ render_imgui :: (state: *State) {
             }
             if (align_label_with_current_x_position)
                 Indent(ImGui.GetTreeNodeToLabelSpacing());
+
+            // Pressing F2 will edit the selected entity's name.
+            using context.state.editor;
+            if rl.IsKeyPressed(.KEY_F2)
+                logprint("editor", "F2 was pressed!");
+            if !editing_entity_name.has_value && rl.IsKeyPressed(.KEY_F2) && selected.count == 1 {
+                edit_entity_name(selected[0].handle);
+            }
         }
     }
 
@@ -754,28 +854,19 @@ editor_update :: (state: *State) {
     ctrl_down := rl.IsKeyDown(.KEY_LEFT_CONTROL) || rl.IsKeyDown(.KEY_RIGHT_CONTROL);
     shift_down := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
 
-    if rl.IsKeyPressed(.KEY_T) {
-        print("test\n");
-        p := find_component(Player);
-        if p {
-            sb: String_Builder;
-            defer free_buffers(*sb);
-            save_prefab(*sb, *p.entity);
-            logprint("editor", builder_to_string(*sb, __temporary_allocator));
+    if !io.WantTextInput {
+        if rl.IsKeyPressed(.KEY_P) {
+            if context.state.global_time_scale > 0
+                context.state.global_time_scale = 0;
+            else
+                context.state.global_time_scale = 1;
         }
-    }
-
-    if rl.IsKeyPressed(.KEY_P) {
-        if context.state.global_time_scale > 0
-            context.state.global_time_scale = 0;
-        else
-            context.state.global_time_scale = 1;
     }
 
     camera := get_main_camera_2D();
 
     // Move editor camera with WASD
-    if !ctrl_down && camera {
+    if !ctrl_down && camera && !io.WantTextInput {
         editor_cam_speed := 250.0;
         if rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT)
             editor_cam_speed *= 2;
@@ -973,16 +1064,15 @@ toggle_selection :: (entity_handle: Entity_Handle) -> bool {
 
 editor_toggle :: (using s: *State) {
     using editor;
-    if play_mode == {
-        case .Play;
-            play_mode = .Edit;
-        case .Edit;
-            play_mode = .Play;
-        case;
-            print("error: unknown play_mode '%'\n", play_mode);
-            return;
+
+    if play_mode == .Play || (play_mode == .Edit && fading_to_play) {
+        fading_to_play = false;
+        play_mode = .Edit;
+    } else if play_mode == .Edit {
+        fading_to_play = true;
+    } else {
+        logprint("editor", "error: unknown play_mode '%'", play_mode);
     }
-    print("entering mode %\n", play_mode);
 }
 
 #scope_file 
