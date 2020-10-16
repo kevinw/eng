@@ -673,7 +673,7 @@ render_imgui :: (state: *State) {
                     }
 
                     PushID(entity);
-                    if (BeginPopupContextItem("entity context menu")) {
+                    if BeginPopupContextItem("entity context menu") {
                         defer EndPopup();
                         if Selectable("Save as prefab") {
                             filename := tprint("prefabs/%.wbml", entity.name);

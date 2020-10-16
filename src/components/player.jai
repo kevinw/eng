@@ -213,16 +213,9 @@ update :: (using player: *Player) {
     if !is_being_knocked_back {
         // ATTACK
         if (rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
-            attack_offset :: Vector2.{0, -20};
-            if nearest_marker && (allow_all_beats || (Math.abs(time_since_marker) < .2 && nearest_marker.beat_type == .Kick)) {
-                last_attack_time = Time.now;
-                attack_did_hit = true;
-                sprite_timer = 0;
-            } else {
-                last_attack_time = Time.now;
-                attack_did_hit = false;
-                sprite_timer = 0;
-            }
+            attack_did_hit = allow_all_beats || (nearest_marker && (Math.abs(time_since_marker) < .2 && nearest_marker.beat_type == .Kick));
+            sprite_timer = 0;
+            last_attack_time = Time.now;
             play_sfx("sword_swing");
         }
 
