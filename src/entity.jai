@@ -1,5 +1,4 @@
 /*
-
 TODO
 
 the our machinery blog mentions an interesting fact in this post --
@@ -23,8 +22,6 @@ velocity_system :: (td: *Transform, vd: *Velocity @const, n: u32, dt: float) {
 
 ...that's cool. i wonder if there's an easy way to bridge the gap between what
 we have now, and this kind of thing...
-
-
 */
 
 #module_parameters(GAME_NAME := "");
@@ -614,8 +611,10 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
     return false;
 }
 
-load_world :: (world: *World, wbml_string: string, filename: string,
+load_world :: (world: *World, wbml_string: string, filename: string = "",
     create_transform := false, save_in_cache := false, undo:*Undo.Impl = null) -> [..]Entity_Handle {
+    assert(world != null);
+
     lexer := laas.make_lexer(wbml_string);
 
     new_entity_handles: Entity_Handle_Map;
@@ -758,6 +757,23 @@ reset_world :: (world: *World) {
     }
 }
 
+duplicate_entity :: (entity_handle: Entity_Handle, undo: *Undo.Impl = null) -> Entity_Handle {
+    ok, entity := get_entity(entity_handle);
+    if !ok {
+        logprint("entity", "trying to duplicate an invalid entity handle");
+        return .{};
+    }
+
+    sb: String_Builder;
+    defer free_buffers(*sb);
+    save_prefab(*sb, *entity_handle);
+    new_entities := load_world(*context.state.world, builder_to_string(*sb, allocator=__temporary_allocator), undo=undo);
+
+    assert(new_entities.count == 1, "expected one new entity to be made by load_world in duplicate_entity");
+
+    return new_entities[0];
+}
+
 save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
     // Currently just writing out the denormalized data...not the most
     // human-readable thing, though. Maybe that's...ok? I know trying
@@ -769,7 +785,6 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
     save_prefab(*sb, entity_selection);
     File.write_entire_file(filename, builder_to_string(*sb, __temporary_allocator));
 }
-
 
 save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
     world := *context.state.world;

@@ -61,6 +61,11 @@ PushPopID :: (id_ptr: *void) #expand {
     `defer ImGui.PopID();
 }
 
+PushPopStyleColor :: (idx: ImGui.Col, col: ImGui.ImVec4) #expand {
+    ImGui.PushStyleColor(idx, col);
+    `defer ImGui.PopStyleColor();
+}
+
 Play_Mode :: enum {
     Play;
     Edit;
@@ -768,6 +773,14 @@ render_imgui :: (state: *State) {
     }
 
     draw_inspector(*state.editor);
+
+    {
+        Begin("Debug Internals");
+        defer End();
+
+        io := ImGui.GetIO();
+        Text("IniFilename: %s", io.IniFilename);
+    }
 }
 
 editor_update :: (state: *State) {
@@ -909,12 +922,16 @@ editor_update :: (state: *State) {
     }
 
     if !io.WantCaptureKeyboard {
-        if IsKeyPressed(.KEY_ONE) {
-            if shift_down {
-                save_scene("1");
-            } else {
-                clear_selection();
-                load_scene("1");
+        for i: 0..9 {
+            name := tprint("%", (i + 1));
+            key_code := cast(KeyboardKey)(cast(s32)KeyboardKey.KEY_ONE + i);
+            if IsKeyPressed(key_code) {
+                if shift_down {
+                    save_scene(name);
+                } else {
+                    clear_selection();
+                    load_scene(name);
+                }
             }
         }
     }
@@ -924,7 +941,14 @@ editor_update :: (state: *State) {
     }
 
     if ctrl_down && IsKeyPressed(.KEY_D) {
-        logprint("editor", "TODO: implement duplicate");
+        new_handles: [..]Entity_Handle;
+        new_handles.allocator = __temporary_allocator;
+
+        Undo.push_array(*undo_state, *selected);
+        for selected
+            array_add(*new_handles, duplicate_entity(it.handle, undo=*undo_state));
+        set_selected(new_handles);
+        Undo.commit(*undo_state);
     }
 
     if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {
@@ -946,6 +970,17 @@ set_or_toggle_selected :: (entity_handle:  Entity_Handle) {
     ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
     if ctrl_down toggle_selection(entity_handle);
     else set_selected(entity_handle);
+}
+
+set_selected :: (entity_handles: [..]Entity_Handle, commit_undo := false) {
+    using context.state.editor;
+
+    array_reset(*selected);
+    for entity_handles
+        array_add(*selected).handle = it;
+
+    if commit_undo
+        Undo.commit(*undo_state);
 }
 
 set_selected :: (entity_handle: Entity_Handle, commit_undo := false) {
@@ -1036,8 +1071,7 @@ draw_inspector :: (editor_state: *Editor) {
     }
 
     if entity == null {
-        PushStyleColor(.Text, .{.35, .35, .35, 1});
-        defer PopStyleColor();
+        PushPopStyleColor(.Text, .{.35, .35, .35, 1});
         Text("Nothing selected.");
         return;
     }
