@@ -41,6 +41,7 @@ we have now, and this kind of thing...
 #load "components/follow.jai";
 #load "components/Simple_Image_Renderer.jai";
 #load "components/background.jai";
+#load "components/parallax_background.jai";
 
 Transform :: struct {
     using component: Component;

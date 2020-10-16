@@ -1,26 +1,9 @@
-# Work Log
-
-2020-10-05
-    +1 added TODO list from email
-2020-10-03
-    -3 did NOT check TODO
-    +1 made image selector work well
-    +1 added a smaller font
-    +1 fix an entity handle crash
-    +1 fix an imgui crash
-2020-10-02
-    +1 checked TODO
-    +1 got image drawing in IMGUI to work by having the shader not just sample the red channel
-2020-09-29
-    +1 fixed a new editor camera selection bug
-    -3 did NOT check TODO
-
 # TODO
 
 ## Right Now
 - change level layout
 - use a different background (flipping through images)
-- change the UV bg shader a bit...
+- change the UV background shader a bit
 - add some grass decorations
 - show demo of picking up player, moving the plant
 - POST ON HANDMADE DISCORD

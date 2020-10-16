@@ -42,34 +42,7 @@ idea: animate the changes from a prefab to the current instance to show the diff
 use the animation to "go back" to the prefab when you zoom in on it
 */
 
-#load "../lib/imgui_inspector.jai";
-
 Undo :: #import "undo";
-
-PushGroup :: () #expand {
-    ImGui.BeginGroup();
-    `defer ImGui.EndGroup();
-}
-
-PushPopID :: (id_str: string) #expand {
-    ImGui.PushID(id_str);
-    `defer ImGui.PopID();
-}
-
-PushPopID :: (id_ptr: *void) #expand {
-    ImGui.PushID(id_ptr);
-    `defer ImGui.PopID();
-}
-
-BeginEnd :: (name: string, open: *bool = null, window_flags: ImGui.WindowFlags = .None) #expand {
-    ImGui.Begin(name, open, window_flags);
-    `defer ImGui.End();
-}
-
-PushPopStyleColor :: (idx: ImGui.Col, col: ImGui.ImVec4) #expand {
-    ImGui.PushStyleColor(idx, col);
-    `defer ImGui.PopStyleColor();
-}
 
 Play_Mode :: enum {
     Play;
@@ -132,17 +105,13 @@ live_image_editor :: (live_texture_ptr: *LiveTexture) {
     using ImGui;
     live_texture := <<live_texture_ptr;
     if !has_value(live_texture) {
-        PushID("null image");
-        defer PopID();
-        if Button("No Image Selected") {
+        PushPopID("null image");
+        if Button("No Image Selected")
             set_asset_selector_visible(live_texture_ptr);
-        }
     } else {
-        PushStyleColor(.Button, .{0, 0, 0, 0});
-        defer PopStyleColor();
+        PushPopStyleColor(.Button, .{0, 0, 0, 0});
         tex_id, size := imtex(live_texture_ptr);
-        PushID(tex_id);
-        defer PopID();
+        PushPopID(tex_id);
         MAX_HEIGHT :: 150;
         if size.y > MAX_HEIGHT {
             size.x /= size.y / MAX_HEIGHT;
@@ -157,7 +126,6 @@ live_image_editor :: (live_texture_ptr: *LiveTexture) {
     // drag source by default, unless specifying the ImGuiColorEditFlags_NoDragDrop flag.
     if BeginDragDropTarget() {
         defer EndDragDropTarget();
-
 
         /*
         if payload := AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F)
@@ -528,8 +496,7 @@ render_imgui :: (state: *State) {
         defer End();
         if Begin("compiler error overlay", null, window_flags) {
             if err_str.count > 0 {
-                PushFont(context.state.ui.monospace_font);
-                defer PopFont();
+                PushPopFont(context.state.ui.monospace_font);
                 PushTextWrapPos(ImGui.GetFontSize() * 55.0);
                 Text(tprintz("%", err_str).data);
             }
@@ -561,8 +528,7 @@ render_imgui :: (state: *State) {
 
         for * editor.assets {
             assert(it != null);
-            PushID(it);
-            defer PopID();
+            PushPopID(it);
 
             //dnd := BeginDragDropSource();
             //defer { if dnd EndDragDropSource(); }
@@ -673,7 +639,7 @@ render_imgui :: (state: *State) {
                         defer TreePop();
                     }
 
-                    PushID(entity);
+                    PushPopID(entity);
                     if BeginPopupContextItem("entity context menu") {
                         defer EndPopup();
                         if Selectable("Save as prefab") {
@@ -685,7 +651,6 @@ render_imgui :: (state: *State) {
                             Undo.commit(*editor.undo_state);
                         }
                     }
-                    defer PopID();
                 }
                 
                 if IsItemClicked() {
@@ -1074,8 +1039,7 @@ draw_inspector :: (editor_state: *Editor) {
 
         component_ptr := get_component(entity, component_ti);
         assert(component_ptr != null);
-        PushFont(context.state.ui.small_font);
-        defer PopFont();
+        PushPopFont(context.state.ui.small_font);
         inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl);
         PushID(cast(*void)it_index);
         defer PopID();
@@ -1091,8 +1055,7 @@ draw_inspector :: (editor_state: *Editor) {
         remove_component(component_ptr_to_delete);
 
     {
-        PushFont(context.state.ui.small_font);
-        defer PopFont();
+        PushPopFont(context.state.ui.small_font);
         if Button("Add Component")
             OpenPopup("add_component_popup");
     }
@@ -1229,6 +1192,11 @@ HelpMarker :: (desc: string) {
 }
 
 #scope_file
+
+#load "../lib/imgui_inspector.jai";
+#load "../lib/imgui_macros.jai";
+
+
 File_Utilities :: #import "File_Utilities";
 Math :: #import "Math";
 wbml :: #import "wbml";
