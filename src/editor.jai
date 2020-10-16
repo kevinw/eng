@@ -61,6 +61,11 @@ PushPopID :: (id_ptr: *void) #expand {
     `defer ImGui.PopID();
 }
 
+BeginEnd :: (name: string, open: *bool = null, window_flags: ImGui.WindowFlags = .None) #expand {
+    ImGui.Begin(name, open, window_flags);
+    `defer ImGui.End();
+}
+
 PushPopStyleColor :: (idx: ImGui.Col, col: ImGui.ImVec4) #expand {
     ImGui.PushStyleColor(idx, col);
     `defer ImGui.PopStyleColor();
@@ -334,8 +339,7 @@ render_asset_selector :: (window_open: *bool) {
 
     using context.state.editor.windows.asset_selector;
 
-    Begin(ASSET_SELECTOR_WINDOW_NAME, window_open);
-    defer End();
+    BeginEnd(ASSET_SELECTOR_WINDOW_NAME, window_open);
 
     filter := *context.state.editor.asset_selector_filter;
     TextFilter.Draw(filter, "##asset selector filter text");
@@ -464,8 +468,7 @@ render_imgui :: (state: *State) {
         open := true;
         {
             if !padding PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
-            Begin("DockSpace Demo", *open, window_flags);
-            defer End();
+            BeginEnd("DockSpace Demo", *open, window_flags);
             if !padding PopStyleVar();
 
             if fullscreen PopStyleVar(2);
@@ -502,9 +505,7 @@ render_imgui :: (state: *State) {
     }
 
     if editor.windows.ecs_internals {
-        Begin("DEBUG", *editor.windows.ecs_internals);
-        defer End();
-
+        BeginEnd("DEBUG", *editor.windows.ecs_internals);
         inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
     }
 
@@ -537,9 +538,7 @@ render_imgui :: (state: *State) {
 
     if editor.windows.undo_internals {
         using context.state.editor;
-        Begin("Undo", *editor.windows.undo_internals);
-        defer End();
-
+        BeginEnd("Undo", *editor.windows.undo_internals);
         if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
             Undo.undo(*undo_state);
 
@@ -553,14 +552,12 @@ render_imgui :: (state: *State) {
     }
 
     if editor.windows.prefab_cache {
-        Begin("prefab cache", *editor.windows.prefab_cache);
-        defer End();
+        BeginEnd("prefab cache", *editor.windows.prefab_cache);
         inspect("", *context.state.world.prefab_cache);
     }
 
     if editor.windows.assets {
-        Begin("assets", *editor.windows.assets);
-        defer End();
+        BeginEnd("assets", *editor.windows.assets);
 
         for * editor.assets {
             assert(it != null);
@@ -629,8 +626,7 @@ render_imgui :: (state: *State) {
     }
 
     if editor.windows.entities {
-        Begin("entities", *editor.windows.entities);
-        defer End();
+        BeginEnd("entities", *editor.windows.entities);
 
         PushFont(context.state.ui.small_font);
         if Button("New") {
@@ -775,9 +771,7 @@ render_imgui :: (state: *State) {
     draw_inspector(*state.editor);
 
     {
-        Begin("Debug Internals");
-        defer End();
-
+        BeginEnd("Debug Internals");
         io := ImGui.GetIO();
         Text("IniFilename: %s", io.IniFilename);
     }
@@ -1046,10 +1040,7 @@ draw_inspector :: (editor_state: *Editor) {
 
     using ImGui;
 
-    Begin("Inspector");
-    defer End();
-
-
+    BeginEnd("Inspector");
     entity: *Entity;
     entity_handle: Entity_Handle;
     if editor_state.selected.count == {
