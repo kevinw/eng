@@ -92,6 +92,9 @@ imgui_raylib_new_frame :: (ui: *UI_State) {
 }
 
 imgui_render :: (ui: *UI_State) {
+    cursor := ImGui.GetMouseCursor();
+    logprint("=foob", "%", cursor);
+
     ImGui.Render();
     ImGui_Impl_RenderDrawData(ui, ImGui.GetDrawData());
 }

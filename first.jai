@@ -128,6 +128,33 @@ build_host :: (check := false) {
     }
 };
 
+
+build_forge_host :: (check := false) {
+    set_working_directory(#filepath);
+
+    opts := get_build_options();
+    opts.output_type = .NO_OUTPUT;
+    set_build_options(opts);
+
+    w := compiler_create_workspace("build");
+    {
+        compiler_begin_intercept(w);
+        defer compiler_end_intercept(w);
+
+        array_add(*opts.modules_search_path_array, ..module_search_paths);
+        opts.output_type = .EXECUTABLE;
+        if check opts.output_path = CHECK_PATH;
+        set_build_options(opts, w);
+        add_build_file("src/forge_host.jai", w);
+
+        while true {
+            message := compiler_wait_for_message();
+            if !message || message.workspace != w continue;
+            if message.kind == .COMPLETE break;
+        }
+    }
+};
+
 is_argument_a_pointer_to_a_component :: (arg_decl: *Code_Declaration, metaprogram: *Metaprogram) -> (is_component: bool, component_name: string) {
     if arg_decl.type_inst == null return false, "";
     if arg_decl.type_inst.pointer_to == null return false, "";
@@ -392,6 +419,8 @@ build :: () {
                 build_plugin(flags, DEFAULT_SRC_PLUGIN);
             case "host";
                 build_host();
+            case "forge_host";
+                build_forge_host();
             case "check";
                 build_host(check=true);
                 flags |= .Check_Only;

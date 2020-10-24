@@ -5,6 +5,7 @@ GAME_NAME :: "beat_platformer";
 #import "Sprite_Anim";
 Math :: #import "Math";
 reaper :: #import "reaper";
+Render :: #import "Render";
 rl :: #import "raylib";
 
 DEFAULT_CAM_ZOOM :: 1.2;
@@ -54,6 +55,7 @@ set_context_funcs :: () {
 on_host_did_reload_game_dll :: () {
     set_context_funcs();
     game_base_did_reload_dll();
+    Render.im_init_gl();
 }
 
 editor_did_drag :: (rect: Rectangle) {
@@ -69,7 +71,9 @@ on_host_init :: () {
     using context.state;
     set_context_funcs();
 
+
     game_base_init();
+    Render.im_init_gl();
     // print("host inited. state at %. world.entities at %\n", context.state, context.state.world.entities);
 
     {
@@ -174,6 +178,9 @@ update_and_draw :: () {
             ClearBackground(MAGENTA);
             world_predraw(*world);
             {
+                //Render.im_draw_setup_gl();
+                //Render.im_set_viewport_transform(2.0/cast(float)screen.texture.texture.width, 2.0/cast(float)screen.texture.texture.height, -1, -1);
+                //Render.im_draw_rect(10, 10, 240, 100, c=xyzw(1,1,1,1));
                 // draw foreground
                 camera := get_main_camera();
                 if camera != null begin_mode_2D(camera.cam2D);
@@ -181,6 +188,7 @@ update_and_draw :: () {
                 editor_draw_world(context.state);
                 screenlog.draw_world();
                 if camera != null EndMode2D();
+                //Render.im_flush();
             }
 
 

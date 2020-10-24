@@ -25,6 +25,8 @@ UI_State :: struct {
     VboHandle: GLuint;
     VaoHandle: GLuint;
     ElementsHandle: GLuint;
+
+    LastMouseCursor := ImGui.MouseCursor.COUNT;
 };
 
 imgui_alloc_context: Context;
@@ -390,8 +392,56 @@ get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
     return point.x, point.y;
 }
 
+ImGui_ImplWin32_UpdateMouseCursor :: () -> bool {
+    using Win32;
+
+    user32 :: #foreign_system_library "user32";
+    SetCursor :: (cursor: HCURSOR) -> HCURSOR #foreign user32;
+
+    IDC_APPSTARTING :: 32650;
+    IDC_CROSS :: 32515;
+    IDC_IBEAM :: 32513;
+    IDC_ICON :: 32641;
+    IDC_NO :: 32648;
+    IDC_SIZE :: 32640;
+    IDC_SIZEALL :: 32646;
+    IDC_SIZENESW :: 32643;
+    IDC_SIZENS :: 32645;
+    IDC_SIZENWSE :: 32642;
+    IDC_SIZEWE :: 32644;
+    IDC_UPARROW :: 32516;
+    IDC_WAIT :: 32514;
+
+    io := ImGui.GetIO();
+    if io.ConfigFlags_ & .NoMouseCursorChange
+        return false;
+
+    imgui_cursor := ImGui.GetMouseCursor();
+    if imgui_cursor == .None || io.MouseDrawCursor {
+        // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
+        SetCursor(null);
+    } else {
+        // Show OS mouse cursor
+        win32_cursor := IDC_ARROW;
+        logprint("=fdaj", "showing cursor %", imgui_cursor);
+        if imgui_cursor == {
+            case .Arrow;        win32_cursor = IDC_ARROW;
+            case .TextInput;    win32_cursor = IDC_IBEAM;
+            case .ResizeAll;    win32_cursor = IDC_SIZEALL;
+            case .ResizeEW;     win32_cursor = IDC_SIZEWE;
+            case .ResizeNS;     win32_cursor = IDC_SIZENS;
+            case .ResizeNESW;   win32_cursor = IDC_SIZENESW;
+            case .ResizeNWSE;   win32_cursor = IDC_SIZENWSE;
+            case .Hand;         win32_cursor = IDC_HAND;
+            case .NotAllowed;   win32_cursor = IDC_NO;
+        }
+
+        SetCursor(LoadCursorW(null, cast(*u8)win32_cursor));
+    }
+    return true;
 }
 
+}
 
 ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
     assert(ctx != null, "must call create context");
@@ -399,6 +449,7 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     //print("imgui version %\n", to_string(ImGui.GetVersion()));
 
     io := ImGui.GetIO();
+    io.BackendFlags_ |= .HasMouseCursors;
     {
         // raylib keys
         using KeyboardKey;
@@ -528,6 +579,17 @@ ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, displa
 
     io.MouseWheel = MouseWheel;
     MouseWheel = 0.0;
+
+    #if OS == .WINDOWS {
+        // Update OS mouse cursor with the cursor requested by imgui
+        mouse_cursor := ifx io.MouseDrawCursor then ImGui.MouseCursor.None else ImGui.GetMouseCursor();
+        if ui_state.LastMouseCursor != mouse_cursor {
+            ui_state.LastMouseCursor = mouse_cursor;
+            logprint("editor", "mouse_cursor %", mouse_cursor);
+
+            ImGui_ImplWin32_UpdateMouseCursor();
+        }
+    }
 
     // Hide OS mouse cursor if ImGui is drawing it
     // TODO: cursors

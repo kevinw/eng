@@ -1,0 +1,14 @@
+date       time     [thread name/id ]                   file:line    v |
+2020-10-23 19:08:58 [MainThread     ]                Log.cpp:185   INFO| Opened log file Transforms.log
+2020-10-23 19:08:58 [MainThread     ]          NvApiHelper.h:38    INFO| NVIDIA Display Driver Version 45638
+2020-10-23 19:08:58 [MainThread     ]          NvApiHelper.h:39    INFO| NVIDIA Build Branch r456_26
+2020-10-23 19:08:58 [MainThread     ]         FileSystem.cpp:301    ERR| Trying to get an unset resource directory '8', make sure the resourceDirectory is set on start of the application
+2020-10-23 19:08:59 [MainThread     ]         FileSystem.cpp:301    ERR| Trying to get an unset resource directory '8', make sure the resourceDirectory is set on start of the application
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1594  INFO| GPU[0] detected. Vendor ID: 10de, Model ID: 1c20, Revision ID: a1, Preset: low, GPU Name: NVIDIA GeForce GTX 1060
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1594  INFO| GPU[1] detected. Vendor ID: 8086, Model ID: 591b, Revision ID: 4, Preset: low, GPU Name: Intel(R) HD Graphics 630
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1619  INFO| GPU[0] is selected as default GPU
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1620  INFO| Name of selected gpu: NVIDIA GeForce GTX 1060
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1621  INFO| Vendor id of selected gpu: 0x10de
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1622  INFO| Model id of selected gpu: 0x1c20
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1623  INFO| Revision id of selected gpu: 0xa1
+2020-10-23 19:08:59 [MainThread     ]         Direct3D12.cpp:1624  INFO| Preset of selected gpu: low
