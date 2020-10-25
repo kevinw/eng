@@ -27,6 +27,8 @@ State_Base :: struct {
 
     canary1 := 9999;
 
+    physics_2d_state: Physics_2D_State;
+
     gameWidth  :: 640;
     gameHeight :: 360;
     ui: UI_State;
@@ -149,4 +151,12 @@ game_base_init :: () {
 game_base_did_reload_dll :: () {
     ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
     logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
+}
+
+#scope_file
+
+cp :: #import "Chipmunk";
+
+Physics_2D_State :: struct {
+    space: *cp.Space;
 }

@@ -1,0 +1,250 @@
+Entity {
+	id 10
+	flags Pivot_Center
+	name "circle"
+}
+Entity {
+	id 11
+	name "cam"
+}
+Entity {
+	id 12
+	flags Pivot_Center
+	name "circle"
+}
+Entity {
+	id 13
+	flags Pivot_Center
+	name "circle"
+}
+Entity {
+	id 14
+	name "box"
+}
+Entity {
+	id 15
+	name "box"
+}
+Entity {
+	id 16
+	name "box"
+}
+BoxCollider {
+	component {
+		entity {
+			id 14
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 15
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 16
+		}
+	}
+	collision PLATFORM
+}
+Cam {
+	component {
+		entity {
+			id 11
+		}
+	}
+	cam2D {
+		target {
+			x -315.332672
+			y -179.5
+		}
+		zoom 1
+	}
+}
+Circle_Collider_2D {
+	component {
+		entity {
+			id 12
+		}
+	}
+
+
+}
+RectRenderer {
+	component {
+		entity {
+			id 14
+		}
+	}
+	color {
+		r 230
+		g 41
+		b 125
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 15
+		}
+	}
+	color {
+		r 230
+		g 41
+		b 140
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 16
+		}
+	}
+	color {
+		r 230
+		g 41
+		b 167
+		a 255
+	}
+}
+Shape_Renderer {
+	component {
+		entity {
+			id 10
+		}
+	}
+	color {
+		r 179
+		g 43
+		b 97
+	}
+}
+Shape_Renderer {
+	component {
+		entity {
+			id 12
+		}
+	}
+	color {
+		r 172
+		g 109
+		b 133
+	}
+}
+Shape_Renderer {
+	component {
+		entity {
+			id 13
+		}
+	}
+	color {
+		r 172
+		g 109
+		b 133
+	}
+}
+Transform {
+	component {
+		entity {
+			id 10
+		}
+	}
+	position {
+		x 114
+		y -80.75
+	}
+	scale {
+		x 73
+		y 67
+	}
+}
+Transform {
+	component {
+		entity {
+			id 11
+		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 12
+		}
+	}
+	position {
+		x -125.25
+		y -6.5
+	}
+	scale {
+		x 73
+		y 67
+	}
+}
+Transform {
+	component {
+		entity {
+			id 13
+		}
+	}
+	position {
+		x 70.75
+		y 103.5
+	}
+	scale {
+		x 73
+		y 67
+	}
+}
+Transform {
+	component {
+		entity {
+			id 14
+		}
+	}
+	position {
+		x -235.332672
+		y -140.5
+	}
+	scale {
+		x 101
+		y 117.75
+	}
+}
+Transform {
+	component {
+		entity {
+			id 15
+		}
+	}
+	position {
+		x -68.832672
+		y -102.5
+	}
+	scale {
+		x 15.75
+		y 127.75
+	}
+}
+Transform {
+	component {
+		entity {
+			id 16
+		}
+	}
+	position {
+		x 7.917328
+		y -137.75
+	}
+	scale {
+		x 87.5
+		y 287.5
+	}
+}

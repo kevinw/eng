@@ -125,20 +125,24 @@ runtime_bucket_chooser :: (inner_code_string: string) -> string {
     return builder_to_string(*sb);
 }
 
-_return_component_array_add :: () -> string {
-    return buf_string((sb: *String_Builder) {
-        for all_component_types {
-            maybe_else := ifx it_index > 0 then "else " else "";
-            print_to_builder(sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
-            print_to_builder(sb, "    ptr: *%;\n", it);
-            print_to_builder(sb, "    component_handle, ptr = allocate_slot(*context.state.world._%, undo=undo);\n", it);
-            print_to_builder(sb, "    component_type_info = type_info(%);\n", it);
-            print_to_builder(sb, "    ptr.entity = entity_handle;\n");
-            print_to_builder(sb, "    run_on_enable(ptr, entity);\n", it);
-            print_to_builder(sb, "    c = ptr;\n", it);
-            print_to_builder(sb, "}\n", it);
-        }
-    });
+_return_component_array_add :: (insert_run_on_enable: bool) -> string {
+    sb: String_Builder;
+    defer free_buffers(*sb);
+
+    for all_component_types {
+        maybe_else := ifx it_index > 0 then "else " else "";
+        print_to_builder(*sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
+        print_to_builder(*sb, "    ptr: *%;\n", it);
+        print_to_builder(*sb, "    component_handle, ptr = allocate_slot(*context.state.world._%, undo=undo);\n", it);
+        print_to_builder(*sb, "    component_type_info = type_info(%);\n", it);
+        print_to_builder(*sb, "    ptr.entity = entity_handle;\n");
+        if insert_run_on_enable
+            print_to_builder(*sb, "    run_on_enable(ptr, entity);\n", it);
+        print_to_builder(*sb, "    c = ptr;\n", it);
+        print_to_builder(*sb, "}\n", it);
+    }
+
+    return builder_to_string(*sb);
 }
 
 buf_string :: (f: (sb: *String_Builder)) -> string {

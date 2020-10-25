@@ -298,7 +298,33 @@ generate_systems :: (metaprogram: *Metaprogram) {
         }
 
         p(*sb, "    }\n");
+        p(*sb, "}\n");
 
+        p(*sb, "run_% :: (component_ptr: *Component, component_bit: Component_Bit) {\n", System_Stage_ti.names[enum_index]);
+        p(*sb, "    ok, entity_ptr := get_entity(component_ptr);\n"); // TODO @Speed maybe we should pass this in.
+        p(*sb, "    assert(ok);\n");
+        p(*sb, "    if component_bit == {\n");
+        for * entry: by_stage {
+            if entry.stage == enum_stage {
+                if entry.component_names.count != 1 continue;
+
+
+                call_args := Temp_Resizable_Array(string);
+                first_component_name: string;
+                for entry.component_names {
+                    first_component_name = it;
+                    varname := tprint("cast(*%)component_ptr", it);
+                    array_add(*call_args, varname);
+                }
+
+                if entry.needs_entity_at_end
+                    array_add(*call_args, "entity_ptr");
+
+                p(*sb, "        case .%; %(%);\n", first_component_name, entry.stage, String.join(..call_args, separator=", "));
+            }
+        }
+        p(*sb, "        case; // do nothing, there is no % function for this component\n", System_Stage_ti.names[enum_index]);
+        p(*sb, "    }\n");
         p(*sb, "}\n");
     }
 

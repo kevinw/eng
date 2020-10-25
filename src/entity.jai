@@ -42,6 +42,7 @@ we have now, and this kind of thing...
 #load "components/Simple_Image_Renderer.jai";
 #load "components/background.jai";
 #load "components/parallax_background.jai";
+#load "components/physics_2d.jai";
 
 Transform :: struct {
     using component: Component;
@@ -412,10 +413,10 @@ destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
     assert(did_delete, "delete_item for entity failed");
 }
 
-add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct, undo:*Undo.Impl=null) -> *Component {
+add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct, undo:*Undo.Impl=null, $run_on_enable := true) -> (*Component, did_add: bool) {
     component_ptr := get_component(entity_or_handle, component_ti);
-    if component_ptr != null return component_ptr;
-    return add_component(entity_or_handle, component_ti, undo=undo);
+    if component_ptr != null return component_ptr, false;
+    return add_component(entity_or_handle, component_ti, undo=undo, on_enable=run_on_enable), true;
 }
 
 add_or_get_component :: (entity_or_handle: $E, $component_type: Type) -> *Component {
@@ -424,7 +425,7 @@ add_or_get_component :: (entity_or_handle: $E, $component_type: Type) -> *Compon
     return add_component(entity_or_handle, component_type);
 }
 
-add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct, undo: *Undo.Impl=null) -> *Component {
+add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct, undo: *Undo.Impl=null, $on_enable := true) -> *Component {
     ok, entity := get_entity(entity_handle);
     assert(ok);
 
@@ -432,7 +433,7 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct,
     component_type_info: *Type_Info_Struct;
     component_handle: Handle_Type;
 
-    #insert #run _return_component_array_add();
+    #insert #run _return_component_array_add(insert_run_on_enable=on_enable);
     assert(component_type_info != null);
     assert(component_handle.id >= 0);
     assert(component_handle.generation >= 0);
@@ -632,6 +633,12 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
         }
     }
 
+    on_enable_later: [..]struct {
+        bit: Component_Bit;
+        ptr: *Component;
+    };
+    on_enable_later.allocator = __temporary_allocator;
+
     while true {
         while laas.is_token(*lexer, .New_Line) laas.eat(*lexer);
 
@@ -643,6 +650,7 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
 
         value := wbml.parse_value(*lexer);
         assert(value.type == .Object);
+
 
 
         if class_name == {
@@ -716,7 +724,12 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
 
                 component_bit := get_component_bit_for_name(class_name);
                 component_ti := component_bit_to_ti(component_bit);
-                component_ptr := add_or_get_component(found_handle, component_ti, undo=undo);
+                component_ptr, did_add := add_or_get_component(found_handle, component_ti, undo=undo, run_on_enable=false);
+                if did_add {
+                    entry := array_add(*on_enable_later);
+                    entry.bit = component_bit;
+                    entry.ptr = component_ptr;
+                }
 
                 if save_in_cache && prefab_cache_entry != null {
                     entry := array_add(*prefab_cache_entry.components);
@@ -729,6 +742,10 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
                 wbml.write_value(value, component_ptr, component_ti, class_name,
                     on_deserialize=on_component_deserialize, userdata=*new_entity_handles);
         }
+    }
+
+    for on_enable_later {
+        run_on_enable(it.ptr, it.bit);
     }
 
 
