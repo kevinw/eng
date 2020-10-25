@@ -8,6 +8,9 @@
 - show demo of picking up player, moving the plant
 - POST ON HANDMADE DISCORD
 
+- hlsl shaders from https://github.com/microsoft/ShaderConductor
+- delta time fix https://blogs.unity3d.com/2020/10/01/fixing-time-deltatime-in-unity-2020-2-for-smoother-gameplay-what-did-it-take/
+
 ## High Priority
 - Sort this list (difficulty? MVP for shippable thing?)
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams
