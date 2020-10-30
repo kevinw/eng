@@ -20,7 +20,7 @@ State :: struct {
     beat_timer: float64;
 };
 
-envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color, is_editor: bool = false) -> *Entity {
+envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
     undo: *Undo.Impl;
     if is_editor undo = *context.state.editor.undo_state;
 
@@ -38,7 +38,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     renderer := add_component(entity_handle, RectRenderer, undo=undo);
     renderer.color = color;
 
-    return entity;
+    return entity, entity_handle;
 }
 
 update_bgm_volume :: () {
@@ -59,9 +59,12 @@ on_host_did_reload_game_dll :: () {
 editor_did_drag :: (rect: Rectangle) {
     color := RED;
     color.b = cast(u8)random_get_within_range(100, 255);
-    block := envitem(*context.state.world,
+    block, block_h := envitem(*context.state.world,
         rect.x, rect.y, rect.width, rect.height,
         .PLATFORM, color, is_editor=true);
+
+    Undo.push_array(*context.state.editor.undo_state, *context.state.editor.selected);
+    set_selected(block_h);
     Undo.commit(*context.state.editor.undo_state);
 }
 
