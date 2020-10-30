@@ -29,6 +29,10 @@ Entity {
 	id 16
 	name "box"
 }
+Entity {
+	id 17
+	name "box"
+}
 BoxCollider {
 	component {
 		entity {
@@ -49,6 +53,14 @@ BoxCollider {
 	component {
 		entity {
 			id 16
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 17
 		}
 	}
 	collision PLATFORM
@@ -112,6 +124,19 @@ RectRenderer {
 		r 230
 		g 41
 		b 167
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 17
+		}
+	}
+	color {
+		r 230
+		g 41
+		b 125
 		a 255
 	}
 }
@@ -246,5 +271,20 @@ Transform {
 	scale {
 		x 87.5
 		y 287.5
+	}
+}
+Transform {
+	component {
+		entity {
+			id 17
+		}
+	}
+	position {
+		x -233.582672
+		y 119.75
+	}
+	scale {
+		x 372.25
+		y 46
 	}
 }

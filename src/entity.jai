@@ -345,6 +345,7 @@ world_draw :: (world: *World = null) {
 
 #placeholder run_all;
 #placeholder run_on_enable;
+#placeholder run_on_disable;
 
 create_entity :: (world: *World = null, name: string = "",
     undo: *Undo.Impl = null, create_transform_component := true, world_pos: Vector3 = .{}
@@ -765,14 +766,20 @@ get_component_bit_for_name :: (name: string) -> Component_Bit {
 }
 
 reset_world :: (world: *World) {
-    reset(*world.entities);
-
     for bit_s64: type_info(Component_Bit).values {
         component_bit := cast(Component_Bit)bit_s64;
         #insert #run runtime_bit_bucket_chooser(#string END
+            for * bucket {
+                ok, entity := get_entity(it);
+                assert(ok);
+                run_on_disable(it, entity);
+            }
+
             reset(bucket);
         END);
     }
+
+    reset(*world.entities);
 }
 
 duplicate_entity :: (entity_handle: Entity_Handle, undo: *Undo.Impl = null) -> Entity_Handle {

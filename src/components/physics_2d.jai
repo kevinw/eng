@@ -29,14 +29,31 @@ on_enable :: (using col: *Circle_Collider_2D, parent_entity: *Entity) {
     cp.ShapeSetFriction(shape, 0.7);
 }
 
+updated_this_frame := -1;
+
 update :: (using collider: *Circle_Collider_2D, transform: *Transform) {
+    using context.state;
+
+    if cast(s64)Time.frame_count != updated_this_frame {
+        updated_this_frame = cast(s64)Time.frame_count;
+
+        cp.SpaceStep(physics_2d_state.space, 1.0/60.0);
+        logprint("=fadjskl", "updating step %", Time.frame_count);
+    }
+
     if body != null {
         pos := cp.BodyGetPosition(body);
         transform.position.xy = v2(pos.x, pos.y);
     }
 }
 
-on_disable :: (using rb: *Circle_Collider_2D) {
+on_disable :: (using rb: *Circle_Collider_2D, parent_entity: *Entity) {
+    logprint("fadjkl", "circle collider 2d on_disable %", rb);
+    if shape != null {
+        cp.ShapeFree(shape);
+        shape = null;
+    }
+
     if body != null {
         cp.BodyFree(body);
         body = null;
@@ -47,10 +64,14 @@ on_disable :: (using rb: *Circle_Collider_2D) {
 
 #scope_file
 
-ensure_space_created :: (space: **cp.Space) {
-    if <<space == null {
-        <<space = cp.SpaceNew();
-    }
+ensure_space_created :: (space_ptr: **cp.Space) {
+    if <<space_ptr != null
+        return;
+
+    space := cp.SpaceNew();
+    cp.SpaceSetGravity(space, cp.v(0, 300));
+
+    <<space_ptr = space;
 }
 
 cp :: #import "Chipmunk";

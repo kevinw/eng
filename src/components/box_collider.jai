@@ -1,6 +1,7 @@
 Collision_Type :: enum_flags u8 {
     NONE     :: 0;
-    PLATFORM :: 1;
+    PLATFORM :: (1 << 0);
+    PHYSICAL :: (1 << 1);
 }
 
 BoxCollider :: struct {
