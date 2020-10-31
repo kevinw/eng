@@ -28,6 +28,8 @@ SpaceAddShape      :: (space: *Space, shape: *Shape) -> *Shape #foreign chipmunk
 SpaceGetStaticBody :: (space: *Space) -> *Body #foreign chipmunk_lib "cpSpaceGetStaticBody";
 SpaceAddBody       :: (space: *Space, body: *Body) -> *Body #foreign chipmunk_lib "cpSpaceAddBody";
 SpaceStep          :: (space: *Space, time_step: float64) #foreign chipmunk_lib "cpSpaceStep";
+SpaceRemoveShape   :: (space: *Space, shape: *Shape) #foreign chipmunk_lib "cpSpaceRemoveShape";
+SpaceRemoveBody    :: (space: *Space, body: *Body) #foreign chipmunk_lib "cpSpaceRemoveBody";
 
 //
 

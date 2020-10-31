@@ -48,13 +48,16 @@ update :: (using collider: *Circle_Collider_2D, transform: *Transform) {
 }
 
 on_disable :: (using rb: *Circle_Collider_2D, parent_entity: *Entity) {
-    logprint("fadjkl", "circle collider 2d on_disable %", rb);
+    space := context.state.physics_2d_state.space;
+
     if shape != null {
+        cp.SpaceRemoveShape(space, shape);
         cp.ShapeFree(shape);
         shape = null;
     }
 
     if body != null {
+        cp.SpaceRemoveBody(space, body);
         cp.BodyFree(body);
         body = null;
     }
