@@ -47,9 +47,11 @@ SegmentShapeNew :: (body: *Body, prev: $V/interface Vect, next: V, radius: float
     return _SegmentShapeNew(body, prev, next, radius);
 }
 CircleShapeNew :: (body: *Body, radius: float64, offset: Vect) -> *Shape #foreign chipmunk_lib "cpCircleShapeNew";
+BoxShapeNew      :: (body: *Body, width: float64, height: float64, radius: float64) -> *Shape #foreign chipmunk_lib "cpBoxShapeNew";
 ShapeFree        :: (shape: *Shape) #foreign chipmunk_lib "cpShapeFree";
 ShapeSetFriction :: (shape: *Shape, friction: float64) #foreign chipmunk_lib "cpShapeSetFriction";
 
 //
 
 MomentForCircle :: (m: float64, r1: float64, r2: float64, offset: Vect) -> float64 #foreign chipmunk_lib "cpMomentForCircle";
+MomentForBox    :: (mass: float64, width: float64, height: float64) -> float64 #foreign chipmunk_lib "cpMomentForBox";
