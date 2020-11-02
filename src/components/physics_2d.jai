@@ -21,26 +21,28 @@ BoxCollider :: struct {
 
 
 physics_2d_draw_debug :: () {
-    using context.state.physics_2d_state;
+    if 0 {
+        using context.state.physics_2d_state;
 
-    debug_draw_context = context;
-	drawOptions := cp.SpaceDebugDrawOptions.{
-		DrawCircle,
-		DrawSegment,
-		DrawFatSegment,
-		DrawPolygon,
-		DrawDot,
-		
-		cp.SpaceDebugDrawFlags.SHAPES | .CONSTRAINTS | .COLLISION_POINTS,
-		
-		.{0xEE/255.0, 0xE8/255.0, 0xD5/255.0, 1.0}, // Outline color
-		ColorForShape,
-		.{0.0, 0.75, 0.0, 1.0}, // Constraint color
-		.{1.0, 0.0, 0.0, 1.0}, // Collision point color
-		*debug_draw_context,
-	};
-	
-	cp.SpaceDebugDraw(space, *drawOptions);
+        debug_draw_context = context;
+        drawOptions := cp.SpaceDebugDrawOptions.{
+            DrawCircle,
+            DrawSegment,
+            DrawFatSegment,
+            DrawPolygon,
+            DrawDot,
+            
+            cp.SpaceDebugDrawFlags.SHAPES | .CONSTRAINTS | .COLLISION_POINTS,
+            
+            .{0xEE/255.0, 0xE8/255.0, 0xD5/255.0, 1.0}, // Outline color
+            ColorForShape,
+            .{0.0, 0.75, 0.0, 1.0}, // Constraint color
+            .{1.0, 0.0, 0.0, 1.0}, // Collision point color
+            *debug_draw_context,
+        };
+        
+        cp.SpaceDebugDraw(space, *drawOptions);
+    }
 }
 
 remove_physics_object :: (using physics_object: *Physics_Object) {
