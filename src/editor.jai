@@ -835,7 +835,7 @@ render_imgui_to_drawlists :: (state: *State) {
 
     draw_inspector(*state.editor);
 
-    {
+    if 0 {
         BeginEnd("Debug Internals");
         io := ImGui.GetIO();
         Text("IniFilename: %s", io.IniFilename);

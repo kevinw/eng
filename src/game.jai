@@ -181,6 +181,7 @@ update_and_draw :: () {
                 camera := get_main_camera();
                 if camera != null begin_mode_2D(camera.cam2D);
                 world_draw(*world);
+                physics_2d_draw_debug();
                 editor_draw_world(context.state);
                 screenlog.draw_world();
                 if camera != null EndMode2D();
@@ -194,7 +195,6 @@ update_and_draw :: () {
             blit_render_texture_to_screen(screen.texture);
             editor_draw(context.state);
         }
-
     }
 }
 
