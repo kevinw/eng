@@ -16,11 +16,11 @@ State :: struct {
     muted := true;
     song: reaper.Song;
     nearest_marker: *reaper.Marker;
-    bgm: Music;
+    bgm: rl.Music;
     beat_timer: float64;
 };
 
-envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
+envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: rl.Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
     undo: *Undo.Impl;
     if is_editor undo = *context.state.editor.undo_state;
 
@@ -30,7 +30,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     transform := get_component(entity, TRS);
     assert(transform != null);
     transform.position.xy = v2(x, y);
-    transform.scale = make_Vector3(width, height, 1);
+    transform.scale = rl.make_Vector3(width, height, 1);
 
     box := add_component(entity_handle, BoxCollider, undo=undo);
     box.collision = .PLATFORM;
@@ -56,8 +56,8 @@ on_host_did_reload_game_dll :: () {
     game_base_did_reload_dll();
 }
 
-editor_did_drag :: (rect: Rectangle) {
-    color := RED;
+editor_did_drag :: (rect: rl.Rectangle) {
+    color := rl.RED;
     color.b = cast(u8)random_get_within_range(100, 255);
     block, block_h := envitem(*context.state.world,
         rect.x, rect.y, rect.width, rect.height,
@@ -90,8 +90,8 @@ on_host_init :: () {
     assert(ok);
     update_bgm_volume();
 
-    screen.texture = LoadRenderTexture(gameWidth, gameHeight);
-    screen.shader = LoadShader(null, null);
+    screen.texture = rl.LoadRenderTexture(gameWidth, gameHeight);
+    screen.shader = rl.LoadShader(null, null);
 
     player_entity, player_handle := spawn_prefab("player");
     player := get_component(player_entity, Player);
@@ -100,10 +100,10 @@ on_host_init :: () {
     spawn_prefab("plant_chomper", v3(400, 197, 0));
     spawn_prefab("plant_chomper", v3(600, 197, 0));
 
-    envitem(*world, 0,   400, 1000, 200, .PLATFORM, GRAY);
-    envitem(*world, 300, 200, 400, 10, .PLATFORM, GRAY);
-    envitem(*world, 250, 300, 100, 10, .PLATFORM, GRAY);
-    envitem(*world, 650, 300, 100, 10, .PLATFORM, GRAY);
+    envitem(*world, 0,   400, 1000, 200, .PLATFORM, rl.GRAY);
+    envitem(*world, 300, 200, 400,   10, .PLATFORM, rl.GRAY);
+    envitem(*world, 250, 300, 100,   10, .PLATFORM, rl.GRAY);
+    envitem(*world, 650, 300, 100,   10, .PLATFORM, rl.GRAY);
 
     cam_e, cam_eh := create_entity(*world, "camera");
     cam := add_component(cam_eh, Cam);
@@ -115,7 +115,7 @@ on_host_init :: () {
         r :: #bake_arguments random_get_within_range(min=0, max=1000);
         rc :: #bake_arguments random_get_within_range(min=0, max=255);
         for i: 0..100
-            envitem(*world, r(), r(), r(), r(), .PLATFORM, make_Color(rc(), rc(), rc(), 255));
+            envitem(*world, r(), r(), r(), r(), .PLATFORM, rl.make_Color(rc(), rc(), rc(), 255));
     }
 }
 
@@ -162,7 +162,7 @@ update_and_draw :: () {
             }
         }
 
-        if IsKeyPressed(.KEY_M) {
+        if rl.IsKeyPressed(.KEY_M) {
             muted = !muted;
             update_bgm_volume();
         }
@@ -173,8 +173,8 @@ update_and_draw :: () {
         game_base_push_drawing();
 
         {
-            PushTextureMode(screen.texture);
-            ClearBackground(MAGENTA);
+            rl.PushTextureMode(screen.texture);
+            rl.ClearBackground(rl.MAGENTA);
             world_predraw(*world);
             {
                 // draw foreground
@@ -184,14 +184,12 @@ update_and_draw :: () {
                 physics_2d_draw_debug();
                 editor_draw_world(context.state);
                 screenlog.draw_world();
-                if camera != null EndMode2D();
+                if camera != null rl.EndMode2D();
             }
-
-
         }
 
         {
-            PushShaderMode(screen.shader);
+            rl.PushShaderMode(screen.shader);
             blit_render_texture_to_screen(screen.texture);
             editor_draw(context.state);
         }

@@ -401,7 +401,7 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     io := ImGui.GetIO();
     {
         // raylib keys
-        using KeyboardKey;
+        using rl.KeyboardKey;
 
         io.KeyMap[ImGui.Key.Tab]        = xx KEY_TAB;
         io.KeyMap[ImGui.Key.LeftArrow]  = xx KEY_LEFT;

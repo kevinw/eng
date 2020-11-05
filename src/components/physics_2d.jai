@@ -5,7 +5,7 @@ Physics_Object :: struct {
 
 Circle_Collider_2D :: struct {
     using component: Component;
-    using physics_object: Physics_Object; @no_serialize @noui
+    using physics_object: Physics_Object; @noserialize @noui
 }
 
 BoxCollider :: struct {

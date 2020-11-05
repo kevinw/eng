@@ -58,12 +58,12 @@ Editor :: struct {
     fading_to_play: bool;
 
     callbacks: struct {
-        did_drag: #type (rect: Rectangle);
+        did_drag: #type (rect: rl.Rectangle);
     };
 
     drag_state: struct {
         dragging: bool;
-        origin: Vec2;
+        origin: rl.Vector2;
     };
 
     selected: [..]Selected_Object;
@@ -72,8 +72,8 @@ Editor :: struct {
     editing_entity_name: Maybe(Entity_Handle);
     editing_entity_grab_focus := false;
 
-    world_mouse_pos: Vector2;
-    mouse_pos: Latch(Vector2);
+    world_mouse_pos: rl.Vector2;
+    mouse_pos: Latch(rl.Vector2);
 
     last_click_time: float64 = -99999;
 
@@ -128,7 +128,7 @@ Vec2 :: Vector2;
 
 Selected_Object :: struct {
     using handle: Entity_Handle;
-    original_pos: Vector2;
+    original_pos: rl.Vector2;
 }
 
 Maybe :: struct(V: Type) {
@@ -171,13 +171,15 @@ InputTextStr :: (str: *string) -> bool {
 
 categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
     // TODO: this should just go away and merge with `custom_ctrl` below.
-    if ti == type_info(Color)
+    if ti == type_info(rl.Color)
         return .Color_Byte4;
     else if ti == type_info(Entity_Handle)
         return .Has_Custom_Control;
     else if ti == type_info(LiveTexture)
         return .Has_Custom_Control;
     else if ti == type_info(LiveShader)
+        return .Has_Custom_Control;
+    else if ti == type_info(Transform)
         return .Has_Custom_Control;
     return .None;
 }
@@ -189,6 +191,80 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
         live_image_editor(cast(*LiveTexture)data);
     else if ti_struct == type_info(LiveShader)
         live_shader_editor(name, cast(*LiveShader)data);
+    else if ti_struct == type_info(Transform) {
+
+        /*
+        TODO it would be nice to have the metaprogram notice an "editor" function like this...
+
+        inspect_transform :: (transform: *Transform) { 
+            // and then automatically call them all here...
+        } @inspector
+        */
+
+        using ImGui;
+
+        // roll, pitch, yaw
+
+        copysign :: (x: $A, y: A) -> A {
+          if (x < 0 && y > 0) || (x > 0 && y < 0)
+            return -x;
+          return x;
+        }
+
+        quaternion_to_euler :: (q: Vector4) -> Vector3 {
+            angles: Vector3;
+
+            // roll (x-axis rotation)
+            sinr_cosp := 2.0 * (q.w * q.x + q.y * q.z);
+            cosr_cosp := 1.0 - 2.0 * (q.x * q.x + q.y * q.y);
+            angles.x = Math.atan2(sinr_cosp, cosr_cosp);
+
+            // pitch (y-axis rotation)
+            sinp := 2.0 * (q.w * q.y - q.z * q.x);
+            if Math.abs(sinp) >= 1
+                angles.y = copysign(Math.PI / 2.0, sinp); // use 90 degrees if out of range
+            else
+                angles.y = Math.asin(sinp);
+
+            // yaw (z-axis rotation)
+            siny_cosp := 2 * (q.w * q.z + q.x * q.y);
+            cosy_cosp := 1 - 2 * (q.y * q.y + q.z * q.z);
+            angles.z = Math.atan2(siny_cosp, cosy_cosp);
+
+            return angles;
+        }
+
+        euler_to_quaternion :: (yaw: float, pitch: float, roll: float) -> Vector4 { // yaw (Z), pitch (Y), roll (X)
+            // Abbreviations for the various angular functions
+            cy := Math.cos(yaw * 0.5);
+            sy := Math.sin(yaw * 0.5);
+            cp := Math.cos(pitch * 0.5);
+            sp := Math.sin(pitch * 0.5);
+            cr := Math.cos(roll * 0.5);
+            sr := Math.sin(roll * 0.5);
+
+            q: Vector4;
+            q.w = cr * cp * cy + sr * sp * sy;
+            q.x = sr * cp * cy - cr * sp * sy;
+            q.y = cr * sp * cy + sr * cp * sy;
+            q.z = cr * cp * sy - sr * sp * cy;
+
+            return q;
+        }
+
+        xrs := cast(*Transform)data;
+        DragFloat3("pos", cast([3]float)*xrs.position);
+        DragFloat3("scl", cast([3]float)*xrs.scale);
+
+        quat := cast(*Vector4)*xrs.rotation;
+        euler := quaternion_to_euler(<<quat);
+        if DragFloat3("rotation", cast([3]float)*euler.x) {
+            <<quat = euler_to_quaternion(euler.x, euler.y, euler.z);
+            logprint("=quat", "changed euler % to quat %", euler, <<quat);
+        }
+
+        DragFloat4("quat", cast([4]float)quat);
+    }
 }
 
 live_shader_editor :: (name: string, live_shader_ptr: *LiveShader) {
@@ -205,7 +281,7 @@ live_shader_editor :: (name: string, live_shader_ptr: *LiveShader) {
             SetWindowFocus(ASSET_SELECTOR_WINDOW_NAME);
         }
         SameLine();
-        TextUnformatted(tprintz("%", name).data);
+        TextUnformatted(tprint("%\0", name).data);
     }
 }
 
@@ -300,16 +376,16 @@ editor_draw_world :: (state: *State) {
     if selected.count > 0 {
         for selected {
             ok, entity := get_entity(it);
-            if ok DrawRectangleLinesEx(entity_rect(entity), 2, WHITE);
+            if ok rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE);
         }
     } else if drag_state.dragging {
-        DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, RED);
+        rl.DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, rl.RED);
     }
 
     if hover.has_value {
         ok, entity := get_entity(hover, check_count = true);
         if ok
-            DrawRectangleLinesEx(entity_rect(entity), 1, Color.{200, 200, 255, 128});
+            rl.DrawRectangleLinesEx(entity_rect(entity), 1, rl.Color.{200, 200, 255, 128});
     }
 
 }
@@ -360,7 +436,7 @@ render_asset_selector :: (window_open: *bool) {
         filename_z:*u8 = "None";
         if it != null {
             sans_ext := String.path_strip_extension(it.short_name);
-            filename_z = tprintz("%", sans_ext).data;
+            filename_z = tprint("%\0", sans_ext).data;
 
             if it.type != selected_asset_type || !TextFilter.PassFilter(filter, filename_z)
                 continue;
@@ -408,7 +484,7 @@ render_asset_selector :: (window_open: *bool) {
             }
             live_shader := selected_asset.shader;
             PushPopID(live_shader);
-            if Button(tprintz("%", label).data) {
+            if Button(tprint("%\0", label).data) {
                 if it == null {
                     <<selected_asset.shader = LiveShader.Empty;
                 } else {
@@ -496,7 +572,7 @@ render_imgui_to_drawlists :: (state: *State) {
             SetNextWindowViewport(viewport.ID_);
             PushStyleVar(.WindowRounding, 0);
             PushStyleVar(.WindowBorderSize, 0);
-            window_flags |= WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
+            window_flags |= ImGui.WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
                             .NoBringToFrontOnFocus | .NoNavFocus;
         }
         window_flags |= .NoBackground;
@@ -559,13 +635,13 @@ render_imgui_to_drawlists :: (state: *State) {
             SetNextWindowViewport(viewport.ID_);
         }
         SetNextWindowBgAlpha(0.99); // Transparent background
-        window_flags :: WindowFlags.NoDecoration | .NoMove | .NoDocking | .AlwaysAutoResize | .NoSavedSettings | .NoFocusOnAppearing | .NoNav;
+        window_flags :: ImGui.WindowFlags.NoDecoration | .NoMove | .NoDocking | .AlwaysAutoResize | .NoSavedSettings | .NoFocusOnAppearing | .NoNav;
         defer End();
         if Begin("compiler error overlay", null, window_flags) {
             if err_str.count > 0 {
                 PushPopFont(context.state.ui.monospace_font);
                 PushTextWrapPos(ImGui.GetFontSize() * 55.0);
-                Text(tprintz("%", err_str).data);
+                Text(tprint("%\0", err_str).data);
             }
         }
     }
@@ -602,7 +678,7 @@ render_imgui_to_drawlists :: (state: *State) {
             //if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
 
             selected := editor.selected_asset == it;
-            if Selectable(tprintz("%", it.short_name).data, selected)
+            if Selectable(tprint("%\0", it.short_name).data, selected)
                 editor.selected_asset = it;
 
             do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
@@ -615,7 +691,7 @@ render_imgui_to_drawlists :: (state: *State) {
             }
 
             if do_spawn {
-                pos: Vector3;
+                pos: rl.Vector3;
                 camera := get_main_camera();
                 if camera != null { pos = get_worldspace_center(camera); }
 
@@ -896,7 +972,7 @@ editor_update :: (state: *State) {
             }
         }
 
-        if IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+        if rl.IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
             Undo.push_array(*undo_state, *selected);
 
             took_action := false;
@@ -924,7 +1000,7 @@ editor_update :: (state: *State) {
                         it.original_pos = trs.position.xy;
                 }
             }
-        } else if (drag_state.dragging && !IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
+        } else if (drag_state.dragging && !rl.IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
             if selected.count == 0 {
                 rect := rect_from_points(drag_state.origin, world_mouse_pos);
                 if rect.width > 5 && rect.height > 5 {
@@ -936,7 +1012,7 @@ editor_update :: (state: *State) {
 
             drag_state.dragging = false;
 
-        } else if drag_state.dragging && IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
+        } else if drag_state.dragging && rl.IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
             delta := world_mouse_pos - drag_state.origin;
             for selected {
                 trs := get_transform_or_null(it);
@@ -945,7 +1021,7 @@ editor_update :: (state: *State) {
             }
         }
 
-        wheel := GetMouseWheelMove();
+        wheel := rl.GetMouseWheelMove();
         if camera != null && wheel != 0 {
             camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
             logprint("=camera zoom", "camera zoom %", camera.zoom);
@@ -953,7 +1029,7 @@ editor_update :: (state: *State) {
 
     } // WantCaptureMouse
 
-    if IsKeyPressed(.KEY_DELETE) {
+    if rl.IsKeyPressed(.KEY_DELETE) {
         if selected.count > 0 {
             Undo.push_array(*undo_state, *selected);
 
@@ -974,8 +1050,8 @@ editor_update :: (state: *State) {
     if !io.WantCaptureKeyboard {
         for i: 0..9 {
             name := tprint("%", (i + 1));
-            key_code := cast(KeyboardKey)(cast(s32)KeyboardKey.KEY_ONE + i);
-            if IsKeyPressed(key_code) {
+            key_code := cast(rl.KeyboardKey)(cast(s32)rl.KeyboardKey.KEY_ONE + i);
+            if rl.IsKeyPressed(key_code) {
                 if shift_down {
                     save_scene(name);
                 } else {
@@ -986,11 +1062,11 @@ editor_update :: (state: *State) {
         }
     }
 
-    if ctrl_down && IsKeyPressed(.KEY_N) {
+    if ctrl_down && rl.IsKeyPressed(.KEY_N) {
         reset_world(*state.world);
     }
 
-    if ctrl_down && IsKeyPressed(.KEY_D) {
+    if ctrl_down && rl.IsKeyPressed(.KEY_D) {
         new_handles: [..]Entity_Handle;
         new_handles.allocator = __temporary_allocator;
 
@@ -1001,10 +1077,10 @@ editor_update :: (state: *State) {
         Undo.commit(*undo_state);
     }
 
-    if ctrl_down && IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {
+    if ctrl_down && rl.IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {
         Undo.undo(*undo_state);
     }
-    if ctrl_down && IsKeyPressed(.KEY_Y) && Undo.can_redo(*undo_state)
+    if ctrl_down && rl.IsKeyPressed(.KEY_Y) && Undo.can_redo(*undo_state)
         Undo.redo(*undo_state);
 }
 
@@ -1017,7 +1093,7 @@ clear_selection :: () {
 }
 
 set_or_toggle_selected :: (entity_handle:  Entity_Handle) {
-    ctrl_down := IsKeyDown(.KEY_LEFT_CONTROL) || IsKeyDown(.KEY_RIGHT_CONTROL);
+    ctrl_down := rl.IsKeyDown(.KEY_LEFT_CONTROL) || rl.IsKeyDown(.KEY_RIGHT_CONTROL);
     if ctrl_down toggle_selection(entity_handle);
     else set_selected(entity_handle);
 }
@@ -1135,7 +1211,7 @@ draw_inspector :: (editor_state: *Editor) {
         defer PopID();
         if BeginPopupContextItem("component context menu") {
             defer EndPopup();
-            if Selectable(tprintz("Delete %", component_ti.name).data) {
+            if Selectable(tprint("Delete %\0", component_ti.name).data) {
                 component_ptr_to_delete = component_ptr;
             }
         }
@@ -1177,7 +1253,7 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
     
     label: string;
     if !ok label = "None";
-    else label = tprintz("%", entity.name);
+    else label = tprint("%\0", entity.name);
 
     if Button(label.data) {
         OpenPopup("entity_selector");
@@ -1230,7 +1306,7 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
     ok, entity := get_entity(entity_handle);
     if !ok return;
 
-    pos: Maybe(Vector2);
+    pos: Maybe(rl.Vector2);
     r := entity_rect(entity);
 
     if r.width > 0 && r.height > 0 {
@@ -1277,7 +1353,7 @@ HelpMarker :: (desc: string) {
         PushTextWrapPos(ImGui.GetFontSize() * 35.0);
         defer PopTextWrapPos();
 
-        TextUnformatted(tprintz(desc).data);
+        TextUnformatted(tprint("%\0", desc).data);
     }
 }
 

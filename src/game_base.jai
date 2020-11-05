@@ -1,5 +1,4 @@
 #import "Basic";
-#import "raylib";
 #import "raymath";
 #import "toolbelt";
 screenlog :: #import "screenlog";
@@ -53,8 +52,8 @@ State_Base :: struct {
     canary2 := 4000;
 
     screen: struct {
-        shader: Shader;
-        texture: RenderTexture;
+        shader: rl.Shader;
+        texture: rl.RenderTexture;
     };
 
     restart: ();
@@ -73,14 +72,14 @@ game_base_update :: () {
 
     imgui_raylib_new_frame(*ui);
 
-    absolute_delta_time := GetFrameTime();
+    absolute_delta_time := rl.GetFrameTime();
 
     {
         // update the context's Time struct
         Time.delta_time = global_time_scale * absolute_delta_time;
         Time.unscaled_delta_time = absolute_delta_time;
         Time.now += Time.delta_time;
-        Time.unscaled_now = GetTime();
+        Time.unscaled_now = rl.GetTime();
         Time.frame_count += 1;
     }
 
@@ -89,20 +88,20 @@ game_base_update :: () {
     sound_update(*sound_state);
 
     if !editor.wants_keyboard {
-        shift := IsKeyDown(.KEY_LEFT_SHIFT) || IsKeyDown(.KEY_RIGHT_SHIFT);
-        if IsKeyPressed(.KEY_TAB) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
+        shift := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
+        if rl.IsKeyPressed(.KEY_TAB) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
             editor_toggle(context.state);
-        if IsKeyPressed(.KEY_R) && !shift && restart != null restart();
-        if IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
-        if IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
-        if IsKeyPressed(.KEY_D) && shift {
+        if rl.IsKeyPressed(.KEY_R) && !shift && restart != null restart();
+        if rl.IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
+        if rl.IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
+        if rl.IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
         }
-        if IsKeyPressed(.KEY_F) || IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
+        if rl.IsKeyPressed(.KEY_F) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
             USE_REAL_FULLSCREEN :: false;
             if USE_REAL_FULLSCREEN {
-                ToggleFullscreen();
+                rl.ToggleFullscreen();
             } else {
                 ToggleFakeFullscreen();
             }
@@ -126,13 +125,13 @@ change_global_time_scale :: (delta: float) {
 }
 
 game_base_push_drawing :: () #expand {
-    BeginDrawing();
+    rl.BeginDrawing();
     `defer {
-        rlglDraw();
+        rl.rlglDraw();
         imgui_render(*context.state.ui);
         screenlog.draw();
         host_debug_draw();
-        EndDrawing();
+        rl.EndDrawing();
     }
     // TODO: @Speed the EndDrawing implied by PushDrawing is calling
     // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary
@@ -150,7 +149,7 @@ game_base_init :: () {
 
 game_base_did_reload_dll :: () {
     ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
-    logprint("game", "game dll reloaded at % secs", cast(int)GetTime());
+    logprint("game", "game dll reloaded at % secs", cast(int)rl.GetTime());
 }
 
 #scope_file

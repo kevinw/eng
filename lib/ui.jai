@@ -38,10 +38,10 @@ imgui_init :: (ui: *UI_State) {
     ui.small_font = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 16);
     ui.monospace_font = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file_mono, 18);
 
-    ImGui_Impl_Init(ui, GetWindowHandle());
+    ImGui_Impl_Init(ui, rl.GetWindowHandle());
 }
 
-control_keys :: KeyboardKey.[
+control_keys :: rl.KeyboardKey.[
     .KEY_TAB,
     .KEY_LEFT,
     .KEY_RIGHT,
@@ -66,10 +66,10 @@ control_keys :: KeyboardKey.[
 
 imgui_raylib_new_frame :: (ui: *UI_State) {
     ImGui_SetMouseEvents(ui,
-        left = IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
-        middle = IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
-        right = IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
-        wheel = cast(float)GetMouseWheelMove());
+        left = rl.IsMouseButtonDown(.MOUSE_LEFT_BUTTON),
+        middle = rl.IsMouseButtonDown(.MOUSE_MIDDLE_BUTTON),
+        right = rl.IsMouseButtonDown(.MOUSE_RIGHT_BUTTON),
+        wheel = cast(float)rl.GetMouseWheelMove());
 
     add_key :: (key: s32) {
         buf := cast(*s32)talloc(size_of(s32) + 1); // s32 + 0
@@ -79,16 +79,16 @@ imgui_raylib_new_frame :: (ui: *UI_State) {
     }
 
     // this only handles "unicode character" input. for arrows, backspace, etc. we'll need to use the io.KeyDown
-    key := GetKeyPressed();
+    key := rl.GetKeyPressed();
     if key > 0 add_key(key);
 
     io := ImGui.GetIO();
 
     // send control keys from raylib to imgui (note they get mapped through io.KeyMap
     // which is setup in the impl
-    for control_keys io.KeysDown[cast(int)it] = IsKeyDown(it);
+    for control_keys io.KeysDown[cast(int)it] = rl.IsKeyDown(it);
 
-    ImGui_Impl_NewFrame(ui, GetWindowHandle(), GetScreenWidth(), GetScreenHeight());
+    ImGui_Impl_NewFrame(ui, rl.GetWindowHandle(), rl.GetScreenWidth(), rl.GetScreenHeight());
 }
 
 imgui_render :: (ui: *UI_State) {

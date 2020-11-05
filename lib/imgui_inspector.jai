@@ -133,9 +133,6 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             info_pointer := cast(*Type_Info_Pointer) info;
             assert(info_pointer.relative_pointer_size == 0, "implement relative pointers");
 
-            // TODO: show visually somehow that we're following a pointer, and not displaying a direct member field.
-            //name_with_pointer := tprintz("*%", to_string(name)).data; 
-
             next_data := <<(cast(**void)data);
 
             if next_data == null {
@@ -181,7 +178,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     case;
                         tree_node_str:string;
                         if name != null && str_length(name) > 0
-                            tree_node_str = tprintz("%: %", to_string(name), ti_struct.name);
+                            tree_node_str = tprint("%: %\0", to_string(name), ti_struct.name);
                         else
                             tree_node_str = ti_struct.name;
 
@@ -234,7 +231,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     print_item_to_builder(*sb, any);
                     as_str := builder_to_string(*sb);
 
-                    z := tprintz("%: %", to_string(name), as_str);
+                    z := tprint("%: %\0", to_string(name), as_str);
                     TextUnformatted(z.data);
 
                     for ti_enum.values {
@@ -314,7 +311,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             print_type_to_builder(*sb, type_ti);
             s := builder_to_string(*sb);
 
-            TextUnformatted(tprintz("%: Type %", to_string(name), s).data);
+            TextUnformatted(tprint("%: Type %\0", to_string(name), s).data);
 
         case .OVERLOAD_SET;
             // @@

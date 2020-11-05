@@ -247,7 +247,7 @@ main :: () {
     native_window_handle := rl.GetWindowHandle();
     window_was_active := platform.is_window_active(native_window_handle);
 
-    rl.SetTargetFPS(60);
+    rl.SetTargetFPS(30);
     frame_count := 0;
 
     while !rl.WindowShouldClose() {

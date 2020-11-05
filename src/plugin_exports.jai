@@ -76,10 +76,10 @@ plugin_tick :: (host_state: Host_State) {
 host_debug_draw :: () {
     // Draw a very visible red outline if the jai compiler failed trying to recompile the game dll.
     if _local_host_state.jai_compiler_did_error {
-        rect := make_Rectangle(0, 0, GetScreenWidth(), GetScreenHeight());
-        outline_width := cast(s32)(max(GetScreenWidth(), GetScreenHeight()) * 0.03);
-        color := make_Color(255, 40, 40, cast(u8)(255.0 * ((Math.sin(GetTime() * 5) + 1.0) / 4.0 + 0.3)));
-        DrawRectangleLinesEx(rect, outline_width, color);
+        rect := rl.make_Rectangle(0, 0, rl.GetScreenWidth(), rl.GetScreenHeight());
+        outline_width := cast(s32)(max(rl.GetScreenWidth(), rl.GetScreenHeight()) * 0.03);
+        color := rl.make_Color(255, 40, 40, cast(u8)(255.0 * ((Math.sin(rl.GetTime() * 5) + 1.0) / 4.0 + 0.3)));
+        rl.DrawRectangleLinesEx(rect, outline_width, color);
     }
 }
 

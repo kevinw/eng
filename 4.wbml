@@ -1,0 +1,56 @@
+Entity {
+	id 10
+	name "Unnamed Entity"
+}
+Entity {
+	id 11
+	flags Pivot_Center
+	name "Unnamed Entity"
+}
+Cam {
+	component {
+		entity {
+			id 10
+		}
+	}
+	cam2D {
+		target {
+			x -303
+			y -180
+		}
+		zoom 1.55
+	}
+}
+Shape_Renderer {
+	component {
+		entity {
+			id 11
+		}
+	}
+	color {
+		r 127
+		g 107
+		b 176
+	}
+}
+Transform {
+	component {
+		entity {
+			id 10
+		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 11
+		}
+	}
+	position {
+		x 17
+	}
+	scale {
+		x 79
+		y 92
+	}
+}
