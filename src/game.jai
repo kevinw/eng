@@ -181,6 +181,7 @@ update_and_draw :: () {
                 camera := get_main_camera();
                 if camera != null begin_mode_2D(camera.cam2D);
                 world_draw(*world);
+                draw_all_drawables(*world);
                 physics_2d_draw_debug();
                 editor_draw_world(context.state);
                 screenlog.draw_world();

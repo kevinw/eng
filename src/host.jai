@@ -341,4 +341,6 @@ main :: () {
         defer free(output);
         File.write_entire_file(host_config_name, output);
     }
+
+    print("exit OK.\n");
 }

@@ -345,6 +345,9 @@ handles :: (arr: *$A/Array_With_Holes) -> HandleIterator(A) {
     return iter;
 }
 
+//
+// Iterate through the non-dead handles in the bucket.
+//
 for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, reverse: bool) #expand {
     arr := handles.arr;
     assert(arr != null);
@@ -376,6 +379,9 @@ for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, rever
     }
 }
 
+//
+// Iterate through the non-dead values of the bucket.
+//
 for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
     assert(arr.items.data != null);
     {

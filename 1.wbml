@@ -98,7 +98,7 @@ Background {
 			id 20
 		}
 	}
-	timer 22.84065
+	timer 29.859809
 	texture "resources/textures/space.png"
 	shader {
 		fs_filename "resources/shaders/glsl330/wave.fs"
@@ -148,8 +148,8 @@ Cam {
 			y 180
 		}
 		target {
-			x 568.8526
-			y 207.126266
+			x 497.012421
+			y 191.520721
 		}
 		zoom 1.2
 	}
@@ -222,9 +222,9 @@ Enemy {
 			id 11
 		}
 	}
-	sprite_timer 75.702993
-	last_sprite_timer 75.702993
-	attack_cooldown -74.504059
+	sprite_timer 110.798789
+	last_sprite_timer 110.798789
+	attack_cooldown -109.599243
 }
 Player {
 	component {
@@ -232,14 +232,11 @@ Player {
 			id 10
 		}
 	}
-	speed {
-		y 19.166704
-	}
 	grounded true
-	last_direction -1
-	sprite_timer 147.528242
-	walk_timer 7.206046
-	last_walk_sprite_idx 1
+	last_direction 1
+	sprite_timer 182.624038
+	walk_timer 9.972793
+	last_walk_sprite_idx 5
 	damage {
 		delta {
 			x 28.698395
@@ -272,6 +269,7 @@ RectRenderer {
 		b 130
 		a 255
 	}
+	sorting_layer 5
 }
 RectRenderer {
 	component {
@@ -305,7 +303,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 199.573545
+	timer 234.669341
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -316,7 +314,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 186.412687
+	timer 221.508483
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -327,7 +325,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 177.778745
+	timer 212.874541
 	color {
 		g 121
 		b 121
@@ -342,7 +340,7 @@ SpriteRenderer {
 			id 21
 		}
 	}
-	timer 42.736115
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -353,7 +351,7 @@ SpriteRenderer {
 			id 22
 		}
 	}
-	timer 42.736115
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -364,7 +362,7 @@ SpriteRenderer {
 			id 23
 		}
 	}
-	timer 42.736114
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -375,7 +373,7 @@ SpriteRenderer {
 			id 24
 		}
 	}
-	timer 42.736115
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -386,7 +384,7 @@ SpriteRenderer {
 			id 25
 		}
 	}
-	timer 42.736115
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -397,7 +395,7 @@ SpriteRenderer {
 			id 26
 		}
 	}
-	timer 42.736114
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -408,7 +406,7 @@ SpriteRenderer {
 			id 27
 		}
 	}
-	timer 42.736115
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -419,7 +417,7 @@ SpriteRenderer {
 			id 28
 		}
 	}
-	timer 42.736114
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -430,7 +428,7 @@ SpriteRenderer {
 			id 29
 		}
 	}
-	timer 42.736114
+	timer 77.831908
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -442,7 +440,7 @@ Transform {
 		}
 	}
 	position {
-		x 509.417969
+		x 502.078461
 		y 200
 	}
 }
@@ -478,7 +476,7 @@ Transform {
 		}
 	}
 	position {
-		x 300
+		x 299.791626
 		y 200
 	}
 	scale {

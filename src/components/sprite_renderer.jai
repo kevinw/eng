@@ -2,6 +2,8 @@
 toolbelt :: #import "toolbelt";
 #scope_export
 
+Sorting_Layer :: u8;
+
 SpriteRenderer :: struct {
     using component: Component;
 
@@ -17,6 +19,8 @@ SpriteRenderer :: struct {
 
     sprite_anim: LiveSprite;
     anim_tag: string;
+
+    sorting_layer: Sorting_Layer;
     
     _current_frame: Sprite_Anim.Sprite_Anim.Frame; @noserialize @noui
     _last_frame_index: int; @noserialize @noui // TODO: the underscore breaks wbml
@@ -95,7 +99,37 @@ update :: (using it: *SpriteRenderer) {
 DEPRECATED_draw_old_sprite :: () {
 }
 
-draw :: (using it: *SpriteRenderer, transform: *Transform) {
+Drawable_Layer :: struct {
+    spriterenderers: [..]*SpriteRenderer;
+    rectrenderers:   [..]*RectRenderer;
+}
+
+draw_all_drawables :: (world: *World) {
+    by_layer: [256]Drawable_Layer;
+
+    highest_layer: Sorting_Layer = 0;
+    highest_layer = max(highest_layer, queue_all_drawable(*world._SpriteRenderer, by_layer));
+    highest_layer = max(highest_layer, queue_all_drawable(*world._RectRenderer, by_layer));
+
+    for l: 0..highest_layer {
+        layer := *by_layer[l];
+        for layer.rectrenderers
+            _draw(it);
+        for layer.spriterenderers
+            _draw(it, get_transform(it));
+    }
+}
+
+queue_all_drawable :: (sprites: *Array_With_Holes(SpriteRenderer), by_layer: [256]Drawable_Layer) -> (highest_layer: Sorting_Layer) {
+    highest_layer: Sorting_Layer;
+    for * sprites {
+        array_add(*by_layer[it.sorting_layer].spriterenderers, it);
+        highest_layer = max(highest_layer, it.sorting_layer);
+    }
+    return highest_layer;
+}
+
+_draw :: (using it: *SpriteRenderer, transform: *Transform) {
     assert(entity.id > 0);
     position := *transform.position;
 
