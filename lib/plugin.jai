@@ -1,9 +1,3 @@
-#import "Basic";
-#import "Windows";
-#import "File";
-#import "Windows_Utf8";
-#import "File_Utilities";
-
 Module :: struct {
     filename: string;
     native_module: HMODULE;
@@ -14,7 +8,10 @@ Module :: struct {
 load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     temp_path: string;
     if COPY_TO_TEMP_PATH {
+        pdb_filename := tprint("%.pdb", path_strip_extension(filename));
+
         temp_path = copy_string(tprint("bin\\temp\\temp_%_%.dll", filename, plugin.count));
+        temp_pdb_path := tprint("bin\\temp\\temp_%_%.pdb", filename, plugin.count);
         plugin.count += 1;
 
         if plugin.count > 5 plugin.count = 0; // a hacky way to rotate the DLLs we're writing to...
@@ -27,6 +24,11 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
             print("could not copy % to %\n", filename, temp_path);
             return false;
         }
+
+        if file_exists(pdb_filename) {
+            _copy_file(pdb_filename, temp_pdb_path);
+        }
+
     } else {
         temp_path = filename;
     }
@@ -186,3 +188,11 @@ _copy_file :: (src: string, dest: string) -> bool {
 
     return 0 != res;
 }
+
+
+#import "Basic";
+#import "Windows";
+#import "File";
+#import "Windows_Utf8";
+#import "File_Utilities";
+#import "String";
