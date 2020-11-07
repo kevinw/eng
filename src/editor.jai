@@ -547,7 +547,7 @@ render_imgui_to_drawlists :: (state: *State) {
             style := GetStyle();
             ALPHA_CHANGE_SPEED :: 9.0;
             if fading_to_play {
-                style.Alpha -= Time.delta_time * ALPHA_CHANGE_SPEED;
+                style.Alpha -= Time.unscaled_delta_time * ALPHA_CHANGE_SPEED;
                 if style.Alpha <= 0 {
                     fading_to_play = false;
                     style.Alpha = 0;
@@ -555,7 +555,7 @@ render_imgui_to_drawlists :: (state: *State) {
                 }
             } else {
                 if style.Alpha < 1 {
-                    style.Alpha = clamp(style.Alpha + Time.delta_time * ALPHA_CHANGE_SPEED, 0, 1);
+                    style.Alpha = clamp(style.Alpha + Time.unscaled_delta_time * ALPHA_CHANGE_SPEED, 0, 1);
                 }
             }
         }
