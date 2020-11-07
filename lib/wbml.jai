@@ -5,6 +5,10 @@
 // use initializer_of to skip writing struct field values if they are
 // still set to their defaults
 
+#scope_file
+
+BUILD_DEBUG_NAMES :: false; // causes a lot of tprint-ing to track a debug string showing the context of the serialization
+
 #scope_module
 
 node_to_string :: (node: *Node, indent := "") -> string {
@@ -243,11 +247,13 @@ serialize_with_type_info :: (
     assert(ti != null);
 
     dbgname := debug_name;
-    if dbgname.count == 0 {
-        if ti.type == .STRUCT
-            dbgname = (cast(*Type_Info_Struct)ti).name;
-        else
-            dbgname = tprint("%", <<ti);
+    #if BUILD_DEBUG_NAMES {
+        if dbgname.count == 0 {
+            if ti.type == .STRUCT
+                dbgname = (cast(*Type_Info_Struct)ti).name;
+            else
+                dbgname = tprint("%", <<ti);
+        }
     }
 
     name_and_space: string;
@@ -375,20 +381,23 @@ serialize_with_type_info :: (
                         //if default != null
                             //item_default = item_default + ti_array.element_type.runtime_size * i;
 
+                        child_debug_name := debug_name;
+                        #if BUILD_DEBUG_NAMES
+                            child_debug_name = tprint("%[%]", dbgname, i);
                         any_child_worked |= serialize_with_type_info("", elem_data, ti_array.element_type, *sub_sb, indent_level,
-                            on_serialize, tprint("%[%]", dbgname, i), default=null);
+                            on_serialize, child_debug_name, default=null);
                     }
 			}
 
             if !skip {
                 print_indents(indent_level, sb);
                 append(sb, name_and_space);
-                print_to_builder(sb, "[\n"); 
+                append(sb, "[\n"); 
 
-                print_to_builder(sb, "%", builder_to_string(*sub_sb));
+                append(sb, builder_to_string(*sub_sb));
 
                 print_indents(indent_level, sb);
-                print_to_builder(sb, "]");
+                append(sb, "]");
             }
 
         case .STRUCT;
@@ -406,8 +415,11 @@ serialize_with_type_info :: (
 
             indent_level += 1;
             for added_struct_fields {
+                child_debug_name := dbgname;
+                #if BUILD_DEBUG_NAMES
+                    child_debug_name = tprint("%.%", dbgname, it.name);
                 any_child_worked |= serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
-                    on_serialize, tprint("%.%", dbgname, it.name), default=default);
+                    on_serialize, child_debug_name, default=default);
             }
 
             for * ti_struct.members {
@@ -420,8 +432,9 @@ serialize_with_type_info :: (
                 if default != null
                     field_default = _get_from_object(*default._object, it.name);
 
-                child_debug_name := tprint("%.%", dbgname, it.name);
-
+                child_debug_name := dbgname;
+                #if BUILD_DEBUG_NAMES
+                    child_debug_names = tprint("%.%", dbgname, it.name);
                 any_child_worked |= serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
                     on_serialize, child_debug_name, default=field_default);
             }
@@ -435,8 +448,9 @@ serialize_with_type_info :: (
             // empty {} brace pair.
             if indent_level == 0 || any_child_worked {
                 print_indents(indent_level, sb);
-                print_to_builder(sb, "%{\n", name_and_space);
-                print_to_builder(sb, "%", sub_str);
+                append(sb, name_and_space);
+                append(sb, "{\n");
+                append(sb, sub_str);
             } else {
                 skip = true;
             }
@@ -466,7 +480,9 @@ deserialize :: (data: string, ptr: *$Type, on_deserialize: On_Deserialize_Func =
     ti := type_info(Type);
     lexer := laas.make_lexer(data);
     root := parse_value(*lexer, false);
-    assert(root != null, tprint("error parsing: %", data));
+    if root == null {
+        assert(root != null, tprint("error parsing: %", data));
+    }
 
     defer delete_node(root);
     write_value(root, ptr, ti, "<root>", on_deserialize=on_deserialize, userdata=userdata);
@@ -507,8 +523,10 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 						ok := laas.get_next_token(lexer, *var_name_token);
 						assert(ok, "end of text from within object");
 						assert(lexer.lex_idx < lexer.lexer_text.count);
-						assert(var_name_token.kind == .Identifier,
-							tprint("expected an Identifier but got %\n%", var_name_token, <<lexer));
+                        if var_name_token.kind != .Identifier {
+                            assert(var_name_token.kind == .Identifier,
+                                tprint("expected an Identifier but got %\n%", var_name_token, <<lexer));
+                        }
 
 						value := parse_value(lexer);
 
@@ -750,9 +768,13 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                 ti_struct := cast(*Type_Info_Struct)ti;
                 for field: fields_with_prototype(*node._object)
                     for ti_struct.members
-                        if it.name == field.name
+                        if it.name == field.name {
+                            child_debug_name := debug_name;
+                            #if BUILD_DEBUG_NAMES
+                                child_debug_name = tprint("%.%", debug_name, it.name);
                             write_value(field.value, ptr + it.offset_in_bytes, it.type,
-                                tprint("%.%", debug_name, it.name), verbose, on_deserialize, userdata);
+                                child_debug_name, verbose, on_deserialize, userdata);
+                        }
 
 		case .ARRAY;
             if check_type(node, .Array, verbose, debug_name) {
@@ -764,8 +786,11 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                         assert(ti_array.array_count != -1);
                         assert(node._array.elements.count == ti_array.array_count, "expected array count to match: % vs %",
                             node._array.elements.count, ti_array.array_count);
-                        for node._array.elements
-                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose, on_deserialize, userdata);
+                        for node._array.elements {
+                            child_debug_name := debug_name;
+                            #if BUILD_DEBUG_NAMES child_debug_name = tprint("%[%]", debug_name, it_index);
+                            write_value(it, ptr + it_index * elem_size, ti_array.element_type, child_debug_name, verbose, on_deserialize, userdata);
+                        }
                     case .VIEW;
                         if ti_array.relative_pointer_size == {
                             case 0;
@@ -779,8 +804,11 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                                     array.data = cast(*void) realloc(array.data, desired_items * elem_size, array.count * elem_size);
                                     assert(array.data != null);
                                     array.count = desired_items;
-                                    for node._array.elements
-                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose, on_deserialize, userdata);
+                                    for node._array.elements {
+                                        child_debug_name := debug_name;
+                                        #if BUILD_DEBUG_NAMES child_debug_name = tprint("%[%]", debug_name, it_index);
+                                        write_value(it, array.data + it_index * elem_size, ti_array.element_type, child_debug_name, verbose, on_deserialize, userdata);
+                                    }
                                 }
                             case;
                                 assert(false, "TODO: relative pointer sizes for slices");
@@ -803,8 +831,11 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                         }
                         array.count = desired_items;
                         if desired_items > 0
-                            for node._array.elements
-                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, tprint("%[%]", debug_name, it_index), verbose, on_deserialize, userdata);
+                            for node._array.elements {
+                                child_debug_name := debug_name;
+                                #if BUILD_DEBUG_NAMES child_debug_name = tprint("%[%]", debug_name, it_index);
+                                write_value(it, array.data + it_index * elem_size, ti_array.element_type, child_debug_name, verbose, on_deserialize, userdata);
+                            }
                 }
             }
         case .STRING;
