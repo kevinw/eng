@@ -12,7 +12,7 @@ SpriteRenderer :: struct {
     color := rl.WHITE;
 
     sprite: []Sprite;
-    texture: rl.Texture;
+    texture: rl.Texture; @noui  // deprecated
 
     last_timer: float64; @noui @noserialize
     canary := 42; @noui @noserialize

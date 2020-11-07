@@ -18,6 +18,7 @@ node_to_string :: (node: *Node, indent := "") -> string {
             case .Enum_Value; print_to_builder(*sb, node._enum);
             case .Number;     print_to_builder(*sb, node._number.value_str);
             case .String;     print_to_builder(*sb, "\"%\"", node._string);
+            case .Object;     print_to_builder(*sb, node_object_to_string(*node._object, indent));
             case;             print_to_builder(*sb, "%", <<node);
         }
     }
@@ -234,7 +235,11 @@ serialize_string_builder_ti :: (value: *void, ti: *Type_Info, sb: *String_Builde
     serialize_with_type_info("", value, ti, sb, 0, on_serialize, default=default);
 }
 
-serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0, on_serialize := default_on_serialize, debug_name := "", default: *Node = null) -> (did_skip: bool) {
+serialize_with_type_info :: (
+    name: string, value: *void, ti: *Type_Info, sb: *String_Builder, indent_level: int = 0,
+    on_serialize := default_on_serialize, debug_name := "", default: *Node = null
+) -> (did_skip: bool)
+{
     assert(ti != null);
 
     dbgname := debug_name;
@@ -281,12 +286,12 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                     if ti.runtime_size == 4 {
                         f32: float = <<cast(*float)value;
                         default_val := default._number.float_value;
-                        if Math.abs(f32) - Math.abs(default_val) < epsilon
+                        if Math.abs(f32 - default_val) < epsilon
                             skip = true;
                     } else if ti.runtime_size == 8 {
                         f64: float64 = <<cast(*float64)value;
                         default_val := cast(float64)default._number.float_value; // TODO: this could be a loss of precision? we should probably just store 64 bit floats in the wbml node always...
-                        if Math.abs(f64) - Math.abs(default_val) < epsilon
+                        if Math.abs(f64 - default_val) < epsilon
                             skip = true;
                     } else {
                         assert(false, tprint(
@@ -415,8 +420,10 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
                 if default != null
                     field_default = _get_from_object(*default._object, it.name);
 
+                child_debug_name := tprint("%.%", dbgname, it.name);
+
                 any_child_worked |= serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
-                    on_serialize, tprint("%.%", dbgname, it.name), default=field_default);
+                    on_serialize, child_debug_name, default=field_default);
             }
 
             indent_level -= 1;
@@ -426,11 +433,6 @@ serialize_with_type_info :: (name: string, value: *void, ti: *Type_Info, sb: *St
             // When serializing things, we omit things entirely if they are the default.
             // The exception here is when indent_level is 1, when we'll still emit an 
             // empty {} brace pair.
-            //
-            // TODO: This thing where we trim the results of our recursive
-            // calls is a big @Hack. Instead we should have the child calls
-            // return whether they did any work, and if not reset the string
-            // builder position.
             if indent_level == 0 || any_child_worked {
                 print_indents(indent_level, sb);
                 print_to_builder(sb, "%{\n", name_and_space);
@@ -918,8 +920,6 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
 
 #import "Any";
 #import "Compiler";
-trim :: String.trim;
-trim_whitespace :: #bake_arguments trim(chars = " \t\n\r");
 Reflection :: #import "Reflection";
 laas :: #import "laas";
 String :: #import "String";

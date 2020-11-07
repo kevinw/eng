@@ -288,6 +288,8 @@ Prefab_Cache_Entry :: struct {
 }
 
 init_world :: (world: *World) {
+    array_reserve(*context.state.live.textures, 50);
+
     init_array_with_holes(*world.entities, "all-entities");
     #insert #run(() -> string {
         return buf_string((sb: *String_Builder) {
@@ -851,7 +853,7 @@ save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
                     continue;
 
                 ti := cast(*Type_Info_Struct)type_info(type_of(<<component_ptr));
-                component_bit := get_component_bit_for_name(ti.name);
+                component_bit := get_component_bit_for_name(ti.name); // TODO @Speed we should already know the bit from the bucket, no?
 
                 // If we have a prefab cache entry from the entity's prefab link above,
                 // we fill in the "defaults" object that we pass to wbml, so that only

@@ -1181,6 +1181,7 @@ draw_inspector :: (editor_state: *Editor) {
             ok: bool;
             entity_handle = editor_state.selected[0].handle;
             ok, entity = get_entity(entity_handle);
+            if ok Text(tprint("Entity %\0", entity_handle.id).data);
         case;
             Text("Multiple objects are selected.");
             return;
@@ -1207,8 +1208,7 @@ draw_inspector :: (editor_state: *Editor) {
         assert(component_ptr != null);
         PushPopFont(context.state.ui.small_font);
         inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl);
-        PushID(cast(*void)it_index);
-        defer PopID();
+        PushPopID(cast(*void)it_index);
         if BeginPopupContextItem("component context menu") {
             defer EndPopup();
             if Selectable(tprint("Delete %\0", component_ti.name).data) {
