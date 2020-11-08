@@ -167,6 +167,9 @@ reset :: (arr: *$A/Array_With_Holes) {
         arr.items[0].next = 0;
         arr.items[0].generation = SENTINEL_GENERATION;
     }
+
+    arr.count = 0;
+    arr.items.count = 1;
 }
 
 SENTINEL_GENERATION  :: 999999;
@@ -177,11 +180,7 @@ allocate_slot :: (arr: *$A/Array_With_Holes, undo: *Undo.Impl = null) -> (A.Hand
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION);
-
-        if undo != null {
-            if undo Undo.push(undo, *arr.items[0]);
-        }
-            
+        if undo Undo.push(undo, *arr.items[0]);
         slot_index = arr.items[0].next;
         arr.items[0].next = arr.items[slot_index].next;
     }
