@@ -1,16 +1,18 @@
 Entity {
-    id 1
-    name "landing dust"
+	id 56
+	flags Has_Component_Rect
+	name "landing dust"
 }
-
-SpriteRenderer
-{
-    component {
-        entity {
-            id 1
-        }
-    }
-    sprite_anim "blob"
-    anim_tag "die"
-    mode Play_Once_And_Die
+SpriteRenderer {
+	component {
+		entity {
+			id 56
+		}
+	}
+	sprite [
+	]
+	sprite_anim "blob"
+	anim_tag "die"
+	sorting_layer 100
+	mode Play_Once_And_Die
 }

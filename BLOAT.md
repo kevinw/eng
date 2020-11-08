@@ -1,9 +1,5 @@
 # bloat
 
-- the tprints for debug names in wbml serialization and entity stuff get run A
-  LOT. maybe we need a "devprint" which is effectively a no-op on release (or
-  even most dev?) builds
-
 - from imconfig.h
 
 ```

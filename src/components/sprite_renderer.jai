@@ -58,6 +58,11 @@ get_entity_rect :: (using it: *SpriteRenderer) -> (bool, rl.Rectangle) {
     if !ok return false, .{};
     transform := get_transform(it);
 
+    default_transform: Transform;
+    if !transform
+        transform = *default_transform;
+        
+
     if sprite.count > 0 {
         pos := transform.position.xy;
         r, offset, idx := sprite_get_rect(sprite, 0, 0);
@@ -131,6 +136,10 @@ queue_all_drawable :: (sprites: *Array_With_Holes(SpriteRenderer), by_layer: [25
 
 _draw :: (using it: *SpriteRenderer, transform: *Transform) {
     assert(entity.id > 0);
+
+    default_transform: Transform;
+    if transform == null
+        transform = *default_transform;
     position := *transform.position;
 
     // DEPRECATED - this is the old atlas parsing sprite thing. prefer aseprite and 'sprite_anim' now!

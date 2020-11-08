@@ -112,7 +112,7 @@ on_host_init :: () {
     cam.cam2D.zoom = DEFAULT_CAM_ZOOM;
 
     if false {
-        r :: #bake_arguments random_get_within_range(min=0, max=1000);
+        r  :: #bake_arguments random_get_within_range(min=0, max=1000);
         rc :: #bake_arguments random_get_within_range(min=0, max=255);
         for i: 0..100
             envitem(*world, r(), r(), r(), r(), .PLATFORM, rl.make_Color(rc(), rc(), rc(), 255));
@@ -174,7 +174,7 @@ update_and_draw :: () {
 
         {
             rl.PushTextureMode(screen.texture);
-            rl.ClearBackground(rl.MAGENTA);
+            rl.ClearBackground(rl.GRAY);
             world_predraw(*world);
             {
                 // draw foreground

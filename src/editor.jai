@@ -80,6 +80,8 @@ Editor :: struct {
     assets: [..]Asset;
     selected_asset: *Asset = null;
 
+    last_loaded_scene_filename: string; @owned
+
     windows: struct {
         undo_internals := false;
         demo := true;
@@ -682,12 +684,15 @@ render_imgui_to_drawlists :: (state: *State) {
                 editor.selected_asset = it;
 
             do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
+            do_edit_as_scene := false;
 
             if BeginPopupContextItem("asset context menu") {
                 editor.selected_asset = it;
                 defer EndPopup();
                 if Selectable("Spawn in scene")
                     do_spawn = true;
+                if Selectable("Edit as scene")
+                    do_edit_as_scene = true;
             }
 
             if do_spawn {
@@ -730,6 +735,11 @@ render_imgui_to_drawlists :: (state: *State) {
                     set_selected(entity_handle);
                     Undo.commit(*editor.undo_state);
                 }
+            }
+
+            if do_edit_as_scene {
+                context.state.global_time_scale = 0;
+                load_scene(it.filename);
             }
         }
     }
@@ -1056,9 +1066,15 @@ editor_update :: (state: *State) {
                     save_scene(name);
                 } else {
                     clear_selection();
-                    load_scene(name);
+
+                    filename := tprint("%.wbml", name);
+                    load_scene(filename);
                 }
             }
+        }
+
+        if rl.IsKeyPressed(.KEY_S) && ctrl_down {
+            save_scene();
         }
     }
 
@@ -1245,9 +1261,7 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
 
     assert(entity_handle != null);
 
-    PushID(entity_handle);
-    defer PopID();
-
+    PushPopID(entity_handle);
 
     ok, entity := get_entity(<<entity_handle);
     
@@ -1324,8 +1338,7 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
         set_worldspace_center(camera, pos.value);
 }
 
-load_scene :: (name: string) {
-    filename := tprint("%.wbml", name);
+load_scene :: (filename: string) {
     wbml_str, ok := File.read_entire_file(filename);
     if !ok {
         logprint("error", "could not read '%' - load failed", filename);
@@ -1334,12 +1347,41 @@ load_scene :: (name: string) {
     reset_world(*context.state.world);
     load_world(*context.state.world, wbml_str, filename);
     logprint("editor", "loaded scene '%'", filename);
+
+    using context.state.editor;
+    set_owned_string(*last_loaded_scene_filename, filename);
+
+    cam := find_component(Cam);
+    if !cam {
+        entity, entity_handle := create_entity(*context.state.world, "Editor Camera", undo=*context.state.editor.undo_state);
+        entity.flags |= Entity.Flags.Hide_In_Inspector | .Dont_Save;
+
+        cam = add_component(entity_handle, Cam);
+    }
+}
+
+set_owned_string :: (str: *string, new_value: string) {
+    assert(str != null);
+    free(str.data);
+    <<str = copy_string(new_value);
 }
 
 save_scene :: (name: string) {
     filename := tprint("%.wbml", name);
     save_prefab(filename);
     logprint("editor", "saved scene '%'", filename);
+}
+
+save_scene :: () {
+    using context.state.editor;
+
+    if last_loaded_scene_filename.count == 0 {
+        logprint("editor", "error: no last loaded scene filename");
+        return;
+    }
+
+    save_prefab(last_loaded_scene_filename);
+    logprint("editor", "saved '%'", last_loaded_scene_filename);
 }
 
 HelpMarker :: (desc: string) {

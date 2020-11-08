@@ -1,6 +1,7 @@
 Cam :: struct {
     using component: Component;
     cam2D: rl.Camera2D;
+    cam2D.zoom = 1.2;
 }
 
 Cam_Follow :: struct {

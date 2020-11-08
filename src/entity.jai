@@ -85,6 +85,8 @@ Entity :: struct {
         None               :: (0 << 0);
         Has_Component_Rect :: (1 << 0);
         Pivot_Center       :: (1 << 1);
+        Hide_In_Inspector  :: (1 << 2);
+        Dont_Save          :: (1 << 3);
     }
 
     flags: Flags;
@@ -821,6 +823,8 @@ save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
 
         if entity_selection != null && it != <<entity_selection
             continue;
+        if entity.flags & .Dont_Save != 0
+            continue;
 
         // TODO merge this wbml.serialize call with the one below.
         // really we just want to serialize all the buckets!
@@ -864,6 +868,9 @@ save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
                 ok, my_ent := get_entity(component_ptr.entity);
                 assert(ok);
                 //print("serializing %.% (prefab_filename=%)\n", my_ent.name, component_bit, my_ent.prefab_filename);
+
+                if my_ent.flags & .Dont_Save != 0
+                    continue;
 
                 if my_ent.prefab_filename.count > 0 {
                     for * world.prefab_cache {
