@@ -672,8 +672,11 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
                     }
                 }
 
-                entity_id := cast(s32)wbml.get(value, "id", .Number)._number.int_value;
-                assert(entity_id != 0);
+                id_number := wbml.get(value, "id", .Number);
+                assert(id_number != null, "expected value at % to have an 'id' number field");
+
+                entity_id := cast(s32)id_number._number.int_value;
+                assert(entity_id != 0, "wbml entity id was zero");
 
                 entity_name: string;
                 string_node := wbml.get(value, "name", .String);
