@@ -21,6 +21,7 @@ uniform float ampX;
 uniform float ampY;
 uniform float speedX;
 uniform float speedY;
+uniform vec2 camPosition;
 
 void main() {
 	float pixelWidth = 1.0 / size.x;
@@ -30,8 +31,8 @@ void main() {
 	float boxTop = 0.0;
 
 	vec2 p = fragTexCoord;
-	p.x += cos((fragTexCoord.y - boxTop) * freqX / ( pixelWidth * 750.0) + (secondes * speedX)) * ampX * pixelWidth;
+	p.x += tan(1/(fragTexCoord.y - boxTop) * freqX / ( pixelWidth * 750.0) + (secondes * speedX)) * ampX * pixelWidth;
 	p.y += sin((fragTexCoord.x - boxLeft) * freqY * aspect / ( pixelHeight * 750.0) + (secondes * speedY)) * ampY * pixelHeight;
 
-	finalColor = texture(texture0, p)*colDiffuse*fragColor;
+	finalColor = texture(texture0, p + camPosition)*colDiffuse*fragColor;
 }
