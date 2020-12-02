@@ -100,6 +100,7 @@ on_asset_change :: (using asset_change: *Asset_Change) {
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
         #import "Thread";
+        logprint("host", "recompiling for %", full_name);
         do_recompile();
     } else if extension == "dll" && begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
         reload_new_dll_filename = full_name;
@@ -296,7 +297,12 @@ main :: () {
                 needs_complete_reload = true;
             }
 
-            if _recompile_thread == null && frame_count % 2 == 0 && (Plugin.should_reload(*module) || reload_new_dll_filename.count > 0) {
+            if _recompile_thread == null && (frame_count % 2 == 0) && (
+                Plugin.should_reload(*module) || reload_new_dll_filename.count > 0
+            ) {
+                if Plugin.should_reload(*module) logprint("host", "Plugin.should_reload(*module) was true");
+                if reload_new_dll_filename.count > 0 logprint("host", "reload_new_dll_filename was %", reload_new_dll_filename);
+
                 old_state := plugin_deinit(shutting_down = false);
 
                 force_reload := false;
@@ -308,6 +314,7 @@ main :: () {
                 if !Plugin.reload(*module, force_reload) // TODO: this calls file_modtime for a second time and doesn't need to.
                     panic("couldn't reload module");
                 assert(module.native_module != null);
+                assert(!Plugin.should_reload(*module));
 
                 get_func_ptrs_from_dll(*module);
 
@@ -322,6 +329,7 @@ main :: () {
                     old_state = null;
                 }
 
+                logprint("host", "calling plugin_init");
                 plugin_init(old_state, host_state);
             }
         }

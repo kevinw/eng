@@ -23,7 +23,7 @@ try_reload_live_resource :: (full_name_stripped: string, extension: string) {
     }
 
     if did_reload
-        logprint("live", "reloaded %", full_name_stripped);
+        logprint("live", "reloaded asset %", full_name_stripped);
 }
 
 

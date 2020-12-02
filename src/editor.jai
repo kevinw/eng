@@ -120,7 +120,6 @@ Asset :: struct {
     }
 }
 
-
 Play_Mode :: enum {
     Play;
     Edit;
@@ -131,11 +130,6 @@ Vec2 :: Vector2;
 Selected_Object :: struct {
     using handle: Entity_Handle;
     original_pos: rl.Vector2;
-}
-
-Maybe :: struct(V: Type) {
-    using value: V;
-    has_value: bool;
 }
 
 InputTextStr :: (str: *string) -> bool {
@@ -283,7 +277,7 @@ live_shader_editor :: (name: string, live_shader_ptr: *LiveShader) {
             SetWindowFocus(ASSET_SELECTOR_WINDOW_NAME);
         }
         SameLine();
-        TextUnformatted(tprint("%\0", name).data);
+        TextUnformatted(tprint("%\0", name));
     }
 }
 
@@ -435,10 +429,10 @@ render_asset_selector :: (window_open: *bool) {
         array_add(*assets, it);
         
     for assets {
-        filename_z:*u8 = "None";
+        filename_z:string = "None";
         if it != null {
             sans_ext := String.path_strip_extension(it.short_name);
-            filename_z = tprint("%\0", sans_ext).data;
+            filename_z = tprint("%\0", sans_ext);
 
             if it.type != selected_asset_type || !TextFilter.PassFilter(filter, filename_z)
                 continue;
@@ -581,6 +575,7 @@ render_imgui_to_drawlists :: (state: *State) {
         open := true;
         {
             if !padding PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
+
             BeginEnd("DockSpace Demo", *open, window_flags);
             if !padding PopStyleVar();
 
@@ -745,7 +740,7 @@ render_imgui_to_drawlists :: (state: *State) {
     }
 
     if editor.windows.entities {
-        BeginEnd("entities", *editor.windows.entities);
+        BeginEnd("Entities", *editor.windows.entities);
 
         PushFont(context.state.ui.small_font);
         if Button("New") {
@@ -767,9 +762,12 @@ render_imgui_to_drawlists :: (state: *State) {
 
             node_clicked: Maybe(Entity_Handle);
             for handles(*world.entities) {
+                parent := get_parent(it);
+                if parent != .{}
+                    continue;
+
                 flags := TreeNodeFlags.SpanAvailWidth;
                 // flags |= .OpenOnArrow;
-
                 flags |= .Leaf;
 
                 ///
@@ -808,7 +806,9 @@ render_imgui_to_drawlists :: (state: *State) {
                         //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
                         ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
                         defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
-                        if TreeNodeEx(entity, flags, "%s", entity.name.data) {
+
+                        name_label := tprint("% - %\0", entity.name, child_count(it));
+                        if TreeNodeEx(entity, flags, name_label.data) {
                             defer TreePop();
                         }
                     }
@@ -822,6 +822,14 @@ render_imgui_to_drawlists :: (state: *State) {
                         if Selectable("Delete") {
                             destroy_entity(it, undo=*editor.undo_state);
                             Undo.commit(*editor.undo_state);
+                        }
+
+                        if Selectable("Make child") {
+                            found, prev_sibling := get_previous_sibling(it);
+                            if found {
+                                set_parent(it, prev_sibling);
+                                logprint("editor", "make child: %\n", it);
+                            }
                         }
                     }
                 }
@@ -924,7 +932,7 @@ render_imgui_to_drawlists :: (state: *State) {
     if 0 {
         BeginEnd("Debug Internals");
         io := ImGui.GetIO();
-        Text("IniFilename: %s", io.IniFilename);
+        TextUnformatted(tprint("IniFilename: s", io.IniFilename));
     }
 }
 
@@ -1058,7 +1066,7 @@ editor_update :: (state: *State) {
     }
 
     if !io.WantCaptureKeyboard {
-        for i: 0..9 {
+        for i: 0..7 {
             name := tprint("%", (i + 1));
             key_code := cast(rl.KeyboardKey)(cast(s32)rl.KeyboardKey.KEY_ONE + i);
             if rl.IsKeyPressed(key_code) {
@@ -1074,6 +1082,7 @@ editor_update :: (state: *State) {
         }
 
         if rl.IsKeyPressed(.KEY_S) && ctrl_down {
+            // Save the scene under the same name.
             save_scene();
         }
     }
@@ -1274,7 +1283,7 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
     }
 
     SameLine();
-    Text(" %s", name.data);
+    TextUnformatted(tprint(" %", name));
 
     if BeginPopup("entity_selector") {
         defer EndPopup();
@@ -1292,7 +1301,7 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
             assert(ok);
             PushID(entity);
             defer PopID();
-            if TextFilter.PassFilter(filter, entity.name.data) {
+            if TextFilter.PassFilter(filter, entity.name) {
                 if (Selectable(entity.name.data)) {
                     selected_handle.has_value = true;
                     selected_handle.value = it;
@@ -1395,7 +1404,7 @@ HelpMarker :: (desc: string) {
         PushTextWrapPos(ImGui.GetFontSize() * 35.0);
         defer PopTextWrapPos();
 
-        TextUnformatted(tprint("%\0", desc).data);
+        TextUnformatted(tprint("%\0", desc));
     }
 }
 

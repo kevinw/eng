@@ -27,6 +27,7 @@ we have now, and this kind of thing...
 #module_parameters(GAME_NAME := "");
 #assert(GAME_NAME.count > 0);
 
+#load "components/transform.jai";
 #load "components/camera.jai";
 #load "components/sprite_renderer.jai";
 #load "components/box_collider.jai";
@@ -44,23 +45,65 @@ we have now, and this kind of thing...
 #load "components/parallax_background.jai";
 #load "components/physics_2d.jai";
 
-Transform :: struct {
-    using component: Component;
-
-    position: rl.Vector3    = .{0, 0, 0};
-    rotation: rl.Quaternion = .{0, 0, 0, 1};
-    scale:    rl.Vector3    = .{1, 1, 1};
-}
-
-Link :: struct {
-    using component: Component;
-
-    parent: Entity_Handle;
-}
-
-TRS :: Transform; // an alias until Raylib is entirely gone
-
 #load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
+
+// iterate through children of entity
+for_expansion :: (entity_handle: Entity_Handle, body: Code, pointer: bool, reverse: bool) #expand {
+    assert(!pointer);
+
+    index := 0;
+    for link: * context.state.world._Link {
+        if link.parent == entity_handle {
+            `it := link.entity;
+            it_index := index;
+            index += 1;
+
+            #insert body;
+        }
+    }
+}
+
+get_parent :: (entity_handle: Entity_Handle) -> Entity_Handle {
+    link := get_component(entity_handle, Link);
+    if link
+        return link.parent;
+
+    return .{};
+}
+
+set_parent :: (entity_handle: Entity_Handle, parent_handle: Entity_Handle) {
+    link := get_component(entity_handle, Link);
+    if link == null
+        link = add_component(entity_handle, Link);
+
+    link.parent = parent_handle;
+
+}
+
+get_previous_sibling :: (entity_handle: Entity_Handle) -> (found: bool, handle: Entity_Handle) {
+    prev_handle: Entity_Handle;
+    found := false;
+
+    for handles(*context.state.world.entities) {
+        if it == entity_handle {
+            found = true;
+            break;
+        }
+
+        prev_handle = it;
+    }
+
+    return found, prev_handle;
+}
+
+child_count :: (entity_handle: Entity_Handle) -> int {
+    count := 0;
+    for link: * context.state.world._Link {
+        if link.parent == entity_handle
+            count += 1;
+    }
+    return count;
+}
 
 get_entity :: (component: *Component) -> (bool, *Entity) {
     assert(component != null);

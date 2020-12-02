@@ -220,3 +220,6 @@ imgui_render :: (ui: *UI_State) {
     ImGui_Impl_RenderDrawData(ui, ImGui.GetDrawData());
 }
 
+#scope_file
+
+rl :: #import "raylib";

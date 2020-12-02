@@ -546,5 +546,6 @@ ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, displa
 #run compiler_set_type_info_flags(GL_Procedures, .NO_SIZE_COMPLAINT);
 Clipboard :: #import "Clipboard";
 Input :: #import "Input";
+rl :: #import "raylib";
 
 

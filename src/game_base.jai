@@ -155,6 +155,7 @@ game_base_did_reload_dll :: () {
 #scope_file
 
 cp :: #import "Chipmunk";
+rl :: #import "raylib";
 
 Physics_2D_State :: struct {
     space: *cp.Space;

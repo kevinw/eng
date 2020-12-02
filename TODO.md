@@ -1,7 +1,7 @@
 # TODO
 
 ## High Priority
-- Sort this list (difficulty? MVP for shippable thing?)
+- flappy word - flappy bird mechanics, but you're swapping letters in words vertically
 - [delta time fix](https://blogs.unity3d.com/2020/10/01/fixing-time-deltatime-in-unity-2020-2-for-smoother-gameplay-what-did-it-take/)
 - [HLSL shaders](https://github.com/microsoft/ShaderConductor)
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
@@ -32,7 +32,7 @@
 - 2 hour timer; procreate doodling
 - Try catching windows touch events and make rotation of entities with two
   fingers work via iPad remote desktop
-- research general “mistakes we made making this engine
+- research general "mistakes we made making this engine"
 - research network shared data stores. What would the minimum thing be.
 - cleanup selection and undo
 - What is the simplest possible frame graph blog post

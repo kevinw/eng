@@ -86,3 +86,7 @@ host_debug_draw :: () {
 get_plugin_compile_error :: () -> (bool, string) {
     return _local_host_state.jai_compiler_did_error, _local_host_state.jai_compiler_error_string;
 }
+
+#scope_file
+
+rl :: #import "raylib";

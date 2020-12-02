@@ -137,15 +137,15 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
             if next_data == null {
                 if info_pointer.pointer_to.type == .STRUCT
-                    Text("%s: (*%s)null", name, (cast(*Type_Info_Struct)info_pointer.pointer_to).name.data);
+                    TextUnformatted(tprint("%: (%)null", name, (cast(*Type_Info_Struct)info_pointer.pointer_to).name));
                 else
-                    Text("%s: null", name);
+                    TextUnformatted(tprint("%: null", name));
             } else
                 inspect(name, next_data, info_pointer.pointer_to, show_node_func, categorize_type_func, custom_ctrl);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
         case .VOID;
-            Text("%s: %p", name, data);
+            TextUnformatted(tprint("%: %", name, data));
         case .CODE;
             TextUnformatted("Code");
         case .STRUCT;
@@ -231,8 +231,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     print_item_to_builder(*sb, any);
                     as_str := builder_to_string(*sb);
 
-                    z := tprint("%: %\0", to_string(name), as_str);
-                    TextUnformatted(z.data);
+                    TextUnformatted(tprint("%: %\0", to_string(name), as_str));
 
                     for ti_enum.values {
                         if it == 0 continue;
@@ -311,7 +310,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             print_type_to_builder(*sb, type_ti);
             s := builder_to_string(*sb);
 
-            TextUnformatted(tprint("%: Type %\0", to_string(name), s).data);
+            TextUnformatted(tprint("%: Type %\0", to_string(name), s));
 
         case .OVERLOAD_SET;
             // @@

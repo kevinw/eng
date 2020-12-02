@@ -16,8 +16,8 @@ update_and_draw :: () {
         game_base_push_drawing();
 
         {
-            PushTextureMode(screen.texture);
-            ClearBackground(BLACK);
+            rl.PushTextureMode(screen.texture);
+            rl.ClearBackground(rl.BLACK);
             world_draw();
             editor_draw_world(context.state);
             screenlog.draw_world();
@@ -25,7 +25,7 @@ update_and_draw :: () {
         }
 
         {
-            PushShaderMode(screen.shader);
+            rl.PushShaderMode(screen.shader);
             blit_render_texture_to_screen(screen.texture);
         }
     }
@@ -36,8 +36,8 @@ on_host_init :: () {
 
     game_base_init();
 
-    screen.texture = LoadRenderTexture(gameWidth, gameHeight);
-    screen.shader = LoadShader(null, null);
+    screen.texture = rl.LoadRenderTexture(gameWidth, gameHeight);
+    screen.shader = rl.LoadShader(null, null);
 
     p1 := get_component(spawn_prefab("paddle", v3(200, 50, 0)), Pong_Paddle);
     p1.player_index = 0;
@@ -57,3 +57,6 @@ on_host_shutdown :: () {
     game_base_shutdown();
 }
 
+#scope_file
+
+rl :: #import "raylib";
