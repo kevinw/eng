@@ -14,13 +14,17 @@ assert os.path.isdir(PATH_TO_THE_FORGE), PATH_TO_THE_FORGE
 
 ctx = dict(indent = 0)
 
+skip_class_names = frozenset([
+    "ClearValue",
+])
+
 @contextlib.contextmanager
 def indent():
     ctx["indent"] += 1
     try:
         yield
     finally:
-        ctx["index"] -= 1
+        ctx["indent"] -= 1
 
 def p(*a, **k):
     # a shortcut for printing to the output file
@@ -96,6 +100,8 @@ def process_header(header_file, output_filename):
             p(f"{enum_id} :: {enum_type} {{\n    {enum_contents}\n}}\n")
 
 
+
+
 def longest_common_prefix(strs):
     longest_pre = ""
     if not strs:
@@ -130,13 +136,46 @@ def process_enum_val(val, prefix = None):
         val = val.strip()
     return val
 
+type_replacements = [
+    # \b and \b make sure these things get matched at word boundaries
+    (r"\b" + c_type + r"\b", jai_type) for (c_type, jai_type) in [
+        ("const char *", "*u8"),
+        ("char *",       "*u8"),
+        ("const void *", "*void"),
+        ("uint64_t",     "u64"),
+        ("uint32_t",     "u32"),
+        ("uint8_t",      "u8"),
+        ("int32_t",      "s32"),
+        ("int",          "s32"),
+        ("size_t",       "int"),
+        ("char",         "u8"),
+        ("unsigned",     "u32"),
+        ("struct ",      ""),
+    ]
+]
+
+def to_jai_type(t):
+    for s, repl in type_replacements:
+        t = re.sub(s, repl, t)
+
+    while t.endswith(" *"):
+        print(t, end="")
+        t = "*" + t[:-2]
+        print(' -> ', t)
+
+    return t
+
 def process_header_2(path_to_header, output_filename):
     header = CppHeaderParser.CppHeader(path_to_header)
     
+    print("printing header.classes...")
     out = open("temp.txt", "w")
-
-    pp = pprint.PrettyPrinter(indent=4, stream=out)
-    pp.pprint(header.enums)
+    pp = pprint.PrettyPrinter(indent=4, stream=out, compact=True, sort_dicts=False)
+    num_classes = len(header.classes)
+    for i, cls in enumerate(header.classes.items()):
+        pp.pprint(f"---- ({i}/{num_classes}) ----")
+        pp.pprint(cls)
+    print("...done")
 
     ctx['output_file'] = open(output_filename, "w")
 
@@ -180,16 +219,55 @@ def process_header_2(path_to_header, output_filename):
             ctx["indent"] -= 1
             p("}\n")
 
+    for name, cls in header.classes.items():
+        if name in skip_class_names:
+            continue
+        if "::" in name:
+            continue # TODO "ClearValue::<anon-struct-1>"
+
+        p(f"{name} :: struct {{")
+        with indent():
+            for visibility in ("private", "protected", "public"):
+                for prop in cls["properties"][visibility]:
+                    assert visibility not in ("private", "protected"), cls["name"]
+
+                    name = prop["name"]
+                    union_match = re.match(r"<anon-union-(\d+)>", prop["type"])
+                    if union_match:
+                        jai_type = "union {}"
+                        if not name:
+                            name = "using _unnamed_union_" + union_match.group(1)
+                    else:
+                        jai_type = to_jai_type(prop['type'])
+                        name = prop["name"]
+
+
+                    p(f"{name} :: {jai_type};")
+
+        p("}")
 
 
 class MyPreprocessor(Preprocessor):
-    def on_directive_handle(self, directive, toks, ifpassthru):
+    def include(self, toks):
+        print("---------")
+        print(toks)
+        if toks and toks[0].value == '"common.hpp"':
+            return []
+        else:
+            return super(MyPreprocessor, self).include(toks)
+
+    def on_directive_handle(self, directive, toks, ifpassthru, precedingtoks):
+        print(directive, toks, ifpassthru, precedingtoks)
 
         # skip all #includes
         if directive.value == "include":
-            return False
+            if toks and "IRay.h" in toks[0].value:
+                pass
+            else:
+                return None
+                
 
-        return super(Preprocessor, self).on_directive_handle(directive, toks, ifpassthru)
+        return super(MyPreprocessor, self).on_directive_handle(directive, toks, ifpassthru, precedingtoks)
 
 def main():
     path_to_header = os.path.join(PATH_TO_THE_FORGE, "Common_3/Renderer/IRenderer.h")
@@ -203,7 +281,7 @@ def main():
 
     process_header_2(path_to_preprocessed, "Renderer.jai")
 
-    #process_header(open(path_to_header, "r"), "Renderer.jai")
+    # process_header(open(path_to_header, "r"), "Renderer.jai")
 
 if __name__ == "__main__":
     main()
