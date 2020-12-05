@@ -1,23 +1,30 @@
+// from https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_dx11.cpp
+
 UI_State :: struct {
     using ui_state_base: UI_State_Base;
 
-    d3dDevice: *ID3D11Device;
-    d3dDeviceContext: *ID3D11DeviceContext;
-    Factory: *IDXGIFactory;
-    VB: *ID3D11Buffer;
-    IB: *ID3D11Buffer;
-    VertexShader: *ID3D11VertexShader;
-    InputLayout: *ID3D11InputLayout;
+    d3dDevice:            *ID3D11Device;
+    d3dDeviceContext:     *ID3D11DeviceContext;
+    Factory:              *IDXGIFactory;
+    VB:                   *ID3D11Buffer;
+    IB:                   *ID3D11Buffer;
+    VertexShader:         *ID3D11VertexShader;
+    InputLayout:          *ID3D11InputLayout;
     VertexConstantBuffer: *ID3D11Buffer;
-    PixelShader: *ID3D11PixelShader;
-    FontSampler: *ID3D11SamplerState;
-    FontTextureView: *ID3D11ShaderResourceView;
-    RasterizerState: *ID3D11RasterizerState;
-    BlendState: *ID3D11BlendState;
-    DepthStencilState: *ID3D11DepthStencilState;
+    PixelShader:          *ID3D11PixelShader;
+    FontSampler:          *ID3D11SamplerState;
+    FontTextureView:      *ID3D11ShaderResourceView;
+    RasterizerState:      *ID3D11RasterizerState;
+    BlendState:           *ID3D11BlendState;
+    DepthStencilState:    *ID3D11DepthStencilState;
     VertexBufferSize: s32 = 5000;
-    IndexBufferSize: s32 = 10000;
+    IndexBufferSize:  s32 = 10000;
 }
+
+VERTEX_CONSTANT_BUFFER :: struct {
+    mvp: [4][4]float;
+}
+
 
 ImGui_ImplDX11_SetupRenderState :: (using ui_state: *UI_State, draw_data: *ImDrawData) {
     d_ctx := ui_state.d3dDeviceContext;
@@ -34,7 +41,7 @@ ImGui_ImplDX11_SetupRenderState :: (using ui_state: *UI_State, draw_data: *ImDra
 
     // Setup shader and vertex buffers
     stride:u32 = size_of(ImDrawVert);
-    offset:u32 = 0;
+    offset:u32;
     d_ctx.IASetInputLayout(d_ctx, InputLayout);
     d_ctx.IASetVertexBuffers(d_ctx, 0, 1, *VB, *stride, *offset);
     idx_buf_type := ifx size_of(ImDrawIdx) == 2 then DXGI_FORMAT_R16_UINT else DXGI_FORMAT_R32_UINT;
@@ -68,10 +75,9 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         if VB != null { VB.Release(xx VB); VB = null; }
         VertexBufferSize = draw_data.TotalVtxCount + 5000;
         desc := D3D11_BUFFER_DESC.{
-            Usage = .D3D11_USAGE_DYNAMIC,
-            BindFlags = .D3D11_BIND_VERTEX_BUFFER,
+            Usage          = .D3D11_USAGE_DYNAMIC,
+            BindFlags      = .D3D11_BIND_VERTEX_BUFFER,
             CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE,
-            MiscFlags = 0,
         };
         desc.ByteWidth = cast(u32)(VertexBufferSize * size_of(ImDrawVert));
         if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *VB) < 0 {
@@ -84,9 +90,9 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         if IB != null { IB.Release(xx IB); IB = null; }
         IndexBufferSize = draw_data.TotalIdxCount + 10000;
         desc := D3D11_BUFFER_DESC.{
-            Usage = D3D11_USAGE_DYNAMIC,
-            BindFlags = D3D11_BIND_INDEX_BUFFER,
-            CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
+            Usage = .D3D11_USAGE_DYNAMIC,
+            BindFlags = .D3D11_BIND_INDEX_BUFFER,
+            CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE,
         };
         desc.ByteWidth = cast(u32)(IndexBufferSize * size_of(ImDrawIdx));
         if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *IB) < 0 {
@@ -120,10 +126,6 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         mapped_resource: D3D11_MAPPED_SUBRESOURCE;
         if d_ctx.Map(xx d_ctx, xx VertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, *mapped_resource) != S_OK
             return;
-
-        VERTEX_CONSTANT_BUFFER :: struct {
-            mvp: [4][4]float;
-        }
 
         constant_buffer := cast(*VERTEX_CONSTANT_BUFFER)mapped_resource.pData;
         L:float = draw_data.DisplayPos.x;
@@ -209,8 +211,8 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
 
     // Render command lists
     // (Because we merged all buffers into a single one, we maintain our own offset into them)
-    global_idx_offset:u32 = 0;
-    global_vtx_offset:u32 = 0;
+    global_idx_offset:u32;
+    global_vtx_offset:u32;
     clip_off := draw_data.DisplayPos;
     for n: 0..draw_data.CmdListsCount - 1 {
         cmd_list := draw_data.CmdLists[n];
@@ -263,6 +265,222 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     d_ctx.IASetInputLayout(d_ctx, old.InputLayout); Release(old.InputLayout);
 }
 
+ImGui_ImplDX11_CreateFontsTexture :: (using ui_state: *UI_State) {
+    // Build texture atlas
+    io := ImGui.GetIO();
+    pixels: *u8;
+    width, height: s32;
+    io.Fonts.GetTexDataAsRGBA32(io.Fonts, *pixels, *width, *height);
+
+    // Upload texture to graphics system
+    {
+        desc := D3D11_TEXTURE2D_DESC.{
+            MipLevels = 1,
+            ArraySize = 1,
+            Format    = .DXGI_FORMAT_R8G8B8A8_UNORM,
+            Usage     = .D3D11_USAGE_DEFAULT,
+            BindFlags = .D3D11_BIND_SHADER_RESOURCE,
+        };
+        desc.Width  = cast(u32)width;
+        desc.Height = cast(u32)height;
+        desc.SampleDesc.Count = 1;
+
+        pTexture: *ID3D11Texture2D;
+        subResource: D3D11_SUBRESOURCE_DATA;
+        subResource.pSysMem = pixels;
+        subResource.SysMemPitch = desc.Width * 4;
+        subResource.SysMemSlicePitch = 0;
+        d3dDevice.CreateTexture2D(d3dDevice, *desc, *subResource, *pTexture);
+
+        // Create texture view
+        srvDesc: D3D11_SHADER_RESOURCE_VIEW_DESC ;
+        srvDesc.Format = .DXGI_FORMAT_R8G8B8A8_UNORM;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = desc.MipLevels;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        d3dDevice.CreateShaderResourceView(d3dDevice, xx pTexture, *srvDesc, *FontTextureView);
+        Release(pTexture);
+    }
+
+    // Store our identifier
+    io.Fonts.TexID = cast(ImTextureID)FontTextureView;
+
+    // Create texture sampler
+    {
+        desc := D3D11_SAMPLER_DESC.{
+            Filter = .D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+            AddressU = .D3D11_TEXTURE_ADDRESS_WRAP,
+            AddressV = .D3D11_TEXTURE_ADDRESS_WRAP,
+            AddressW = .D3D11_TEXTURE_ADDRESS_WRAP,
+            ComparisonFunc = .D3D11_COMPARISON_ALWAYS,
+        };
+        d3dDevice.CreateSamplerState(d3dDevice, *desc, *FontSampler);
+    }
+}
+
+ImGui_ImplDX11_CreateDeviceObjects :: (using ui_state: *UI_State) -> bool {
+    if !d3dDevice return false;
+    if FontSampler ImGui_ImplDX11_InvalidateDeviceObjects(ui_state);
+
+    // By using D3DCompile() from <d3dcompiler.h> / d3dcompiler.lib, we introduce a dependency to a given version of d3dcompiler_XX.dll (see D3DCOMPILER_DLL_A)
+    // If you would like to use this DX11 sample code but remove this dependency you can:
+    //  1) compile once, save the compiled shader blobs into a file or source code and pass them to CreateVertexShader()/CreatePixelShader() [preferred solution]
+    //  2) use code to detect any version of the DLL and grab a pointer to D3DCompile from the DLL.
+    // See https://github.com/ocornut/imgui/pull/638 for sources and details.
+
+    // Create the vertex shader
+    {
+        vertexShader :: #string END
+cbuffer vertexBuffer : register(b0)
+{
+  float4x4 ProjectionMatrix;
+};
+struct VS_INPUT
+{
+  float2 pos : POSITION;
+  float4 col : COLOR0;
+  float2 uv  : TEXCOORD0;
+};
+
+struct PS_INPUT
+{
+  float4 pos : SV_POSITION;
+  float4 col : COLOR0;
+  float2 uv  : TEXCOORD0;
+};
+
+PS_INPUT main(VS_INPUT input)
+{
+  PS_INPUT output;
+  output.pos = mul( ProjectionMatrix, float4(input.pos.xy, 0.f, 1.f));
+  output.col = input.col;
+  output.uv  = input.uv;
+  return output;
+}
+END;
+
+        vertexShaderBlob: *ID3DBlob;
+        if S_OK != D3DCompile(vertexShader.data, vertexShader.count, null, null, null, "main", "vs_4_0", 0, 0, *vertexShaderBlob, null)
+            return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
+        defer Release(vertexShaderBlob);
+
+        if d3dDevice.CreateVertexShader(d3dDevice, vertexShaderBlob.GetBufferPointer(vertexShaderBlob), vertexShaderBlob.GetBufferSize(vertexShaderBlob), null, *VertexShader) != S_OK
+            return false;
+
+        // Create the input layout
+        local_layout := D3D11_INPUT_ELEMENT_DESC.[
+            .{ "POSITION", 0, .DXGI_FORMAT_R32G32_FLOAT,   0, cast(u32)#run offset_of(ImDrawVert, "pos"), .D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            .{ "TEXCOORD", 0, .DXGI_FORMAT_R32G32_FLOAT,   0, cast(u32)#run offset_of(ImDrawVert, "uv"),  .D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            .{ "COLOR",    0, .DXGI_FORMAT_R8G8B8A8_UNORM, 0, cast(u32)#run offset_of(ImDrawVert, "col"), .D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        ];
+        if d3dDevice.CreateInputLayout(d3dDevice, local_layout.data, local_layout.count, vertexShaderBlob.GetBufferPointer(vertexShaderBlob), vertexShaderBlob.GetBufferSize(vertexShaderBlob), *InputLayout) != S_OK
+            return false;
+
+        // Create the constant buffer
+        {
+            desc := D3D11_BUFFER_DESC.{
+                Usage          = .D3D11_USAGE_DYNAMIC,
+                BindFlags      = .D3D11_BIND_CONSTANT_BUFFER,
+                CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE,
+                ByteWidth      = size_of(VERTEX_CONSTANT_BUFFER),
+            };
+            d3dDevice.CreateBuffer(d3dDevice, *desc, null, *VertexConstantBuffer);
+        }
+    }
+
+    // Create the pixel shader
+    {
+        pixelShader :: #string END
+struct PS_INPUT
+{
+    float4 pos : SV_POSITION;
+    float4 col : COLOR0;
+    float2 uv  : TEXCOORD0;
+};
+sampler sampler0;
+Texture2D texture0;
+
+float4 main(PS_INPUT input) : SV_Target
+{
+    float4 out_col = input.col * texture0.Sample(sampler0, input.uv);
+    return out_col;
+}
+END;
+
+        pixelShaderBlob: *ID3DBlob;
+        if D3DCompile(pixelShader.data, pixelShader.count, null, null, null, "main", "ps_4_0", 0, 0, *pixelShaderBlob, null) < 0
+            return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
+        defer Release(pixelShaderBlob);
+
+        if d3dDevice.CreatePixelShader(d3dDevice, pixelShaderBlob.GetBufferPointer(pixelShaderBlob), pixelShaderBlob.GetBufferSize(pixelShaderBlob), null, *PixelShader) != S_OK
+            return false;
+    }
+
+    // Create the blending setup
+    {
+        desc: D3D11_BLEND_DESC ;
+        desc.AlphaToCoverageEnable                 = cast(BOOL)false;
+        desc.RenderTarget[0].BlendEnable           = cast(BOOL)true;
+        desc.RenderTarget[0].SrcBlend              = .D3D11_BLEND_SRC_ALPHA;
+        desc.RenderTarget[0].DestBlend             = .D3D11_BLEND_INV_SRC_ALPHA;
+        desc.RenderTarget[0].BlendOp               = .D3D11_BLEND_OP_ADD;
+        desc.RenderTarget[0].SrcBlendAlpha         = .D3D11_BLEND_INV_SRC_ALPHA;
+        desc.RenderTarget[0].DestBlendAlpha        = .D3D11_BLEND_ZERO;
+        desc.RenderTarget[0].BlendOpAlpha          = .D3D11_BLEND_OP_ADD;
+        desc.RenderTarget[0].RenderTargetWriteMask = cast(u8)D3D11_COLOR_WRITE_ENABLE_ALL;
+        d3dDevice.CreateBlendState(d3dDevice, *desc, *BlendState);
+    }
+
+    // Create the rasterizer state
+    {
+        desc: D3D11_RASTERIZER_DESC;
+        desc.FillMode = D3D11_FILL_SOLID;
+        desc.CullMode = D3D11_CULL_NONE;
+        desc.ScissorEnable = TRUE;
+        desc.DepthClipEnable = TRUE;
+        d3dDevice.CreateRasterizerState(d3dDevice, *desc, *RasterizerState);
+    }
+
+    // Create depth-stencil State
+    {
+        desc: D3D11_DEPTH_STENCIL_DESC;
+        desc.DepthEnable    = FALSE;
+        desc.DepthWriteMask = .D3D11_DEPTH_WRITE_MASK_ALL;
+        desc.DepthFunc      = .D3D11_COMPARISON_ALWAYS;
+        desc.StencilEnable  = FALSE;
+        desc.FrontFace.StencilFailOp      = .D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = .D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp      = .D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilFunc        = .D3D11_COMPARISON_ALWAYS;
+        desc.BackFace = desc.FrontFace;
+        d3dDevice.CreateDepthStencilState(d3dDevice, *desc, *DepthStencilState);
+    }
+
+    ImGui_ImplDX11_CreateFontsTexture(ui_state);
+
+    return true;
+}
+
+
+ImGui_ImplDX11_InvalidateDeviceObjects :: (using ui_state: *UI_State) {
+    if !d3dDevice
+        return;
+
+    Release_And_Set_Null(*FontSampler);
+    Release_And_Set_Null(*FontTextureView);
+    ImGui.GetIO().Fonts.TexID = null; // We copied g_pFontTextureView to io.Fonts->TexID so let's clear that as well.
+    Release_And_Set_Null(*IB);
+    Release_And_Set_Null(*VB);
+
+    Release_And_Set_Null(*BlendState);
+    Release_And_Set_Null(*DepthStencilState);
+    Release_And_Set_Null(*RasterizerState);
+    Release_And_Set_Null(*PixelShader);
+    Release_And_Set_Null(*VertexConstantBuffer);
+    Release_And_Set_Null(*InputLayout);
+    Release_And_Set_Null(*VertexShader);
+}
+
 ImGui_Impl_SetupGLContext :: () {
 }
 
@@ -285,13 +503,33 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
 
 #scope_file
 
-ImDrawVert :: ImGui.ImDrawVert;
-ImDrawData :: ImGui.ImDrawData;
-ImDrawIdx :: ImGui.ImDrawIdx;
+ImDrawVert  :: ImGui.ImDrawVert;
+ImDrawData  :: ImGui.ImDrawData;
+ImDrawIdx   :: ImGui.ImDrawIdx;
+ImTextureID :: ImGui.ImTextureID;
 
 Release :: inline (ptr: *$T) {
     if ptr != null
         ptr.Release(cast(*IUnknown)ptr);
+}
+
+Release_And_Set_Null :: inline (ptr_address: **$T) {
+    assert(ptr_address != null);
+
+    ptr := <<ptr_address;
+
+    if ptr != null {
+        ptr.Release(cast(*IUnknown)ptr);
+        <<ptr_address = null;
+    }
+}
+
+offset_of :: ($T: Type, $member: string) -> s64 {
+    #insert #run sprint(BODY, member);
+    BODY :: #string DONE
+        dummy: T = ---;
+        return cast(*void) (*dummy.%) - cast(*void) *dummy;
+    DONE
 }
 
 #import "d3d11";
