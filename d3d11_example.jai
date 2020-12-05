@@ -7,11 +7,18 @@ main :: () {
 
     renderer: Renderer;
     init(*renderer, the_window);
-    device := renderer.device;
-    device_context1 := renderer.device_context1;
+
+    ui: UI_State;
+    ui.d3dDevice = xx renderer.device;
+    ui.d3dDeviceContext = xx renderer.device_context1;
+    ImGui_Impl_CreateContext(*ui);
+    ImGui.StyleColorsDark();
+    style := ImGui.GetStyle();
+    style.ScaleAllSizes(style, 1.2);
+    ImGui_Impl_Init(*ui, the_window);
+
     shader_ok, shader := load_shader_from_file(*renderer, "shaders.hlsl");
     assert(shader_ok);
-
     pipeline := make_pipeline(*shader, .Triangles);
 
     // constant buffer
@@ -50,8 +57,14 @@ main :: () {
                 case .QUIT;
                     quit = true;
                 case .KEYBOARD;
-                    if it.key_pressed && (it.key_code == .ESCAPE)
-                        quit = true;
+                    if it.key_code == {
+                        case .MOUSE_BUTTON_LEFT;   ui.MousePressed[0] = it.key_pressed != 0;
+                        case .MOUSE_BUTTON_RIGHT;  ui.MousePressed[1] = it.key_pressed != 0;
+                        case .MOUSE_BUTTON_MIDDLE; ui.MousePressed[2] = it.key_pressed != 0;
+
+                        case .ESCAPE;
+                            if it.key_pressed quit = true;
+                    }
             }
         }
 
@@ -61,16 +74,19 @@ main :: () {
         
         elapsed_time += dt;
 
-        // UPDATE
+        ImGui_Impl_NewFrame(*ui, the_window, cast(s32)renderer.depth_buffer_desc.Width, cast(s32)renderer.depth_buffer_desc.Height);
+
+        show_demo_window := true;
+        ImGui.ShowDemoWindow(*show_demo_window);
+
         rotateX   := make_matrix4(1, 0, 0, 0, 0, cos(modelRotation.x), -sin(modelRotation.x), 0, 0, sin(modelRotation.x), cos(modelRotation.x), 0, 0, 0, 0, 1 );
         rotateY   := make_matrix4(cos(modelRotation.y), 0, sin(modelRotation.y), 0, 0, 1, 0, 0, -sin(modelRotation.y), 0, cos(modelRotation.y), 0, 0, 0, 0, 1 );
         rotateZ   := make_matrix4(cos(modelRotation.z), -sin(modelRotation.z), 0, 0, sin(modelRotation.z), cos(modelRotation.z), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 );
         scale     := make_matrix4(modelScale.x, 0, 0, 0, 0, modelScale.y, 0, 0, 0, 0, modelScale.z, 0, 0, 0, 0, 1 );
         translate := make_matrix4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, modelTranslation.x, modelTranslation.y, modelTranslation.z, 1 );
 
-        modelRotation.x += 0.5 * dt;
-        modelRotation.y += 0.9 * dt;
-        modelRotation.z += 0.1 * dt;
+        modelRotation += Vector3.{0.5, 0.9, 0.1} * dt;
+
         // END UPDATE
 
         reset_temporary_storage();
@@ -100,20 +116,24 @@ main :: () {
             draw();
         }
 
+        ImGui.Render();
+        ImGui_Impl_RenderDrawData(*ui, ImGui.GetDrawData());
+
         present();
         // END DRAW
     }
 }
 
-#scope_file
+ImGui :: #import "imgui";
 
+#scope_file
 #load "lib/renderer.jai";
 
 #import "Window_Creation";
 #import "Input";
 #import "Basic";
-#import "Windows";
 #import "Math";
 
-
 #load "data.jai";    // model data
+
+#load "imgui_impl_d3d11.jai";

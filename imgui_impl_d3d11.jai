@@ -254,11 +254,15 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     d_ctx.PSSetShaderResources(d_ctx, 0, 1, *old.PSShaderResource); Release(old.PSShaderResource);
     d_ctx.PSSetSamplers(d_ctx, 0, 1, *old.PSSampler); Release(old.PSSampler);
     d_ctx.PSSetShader(d_ctx, old.PS, old.PSInstances.data, old.PSInstancesCount); Release(old.PS);
-    for i: 0..old.PSInstancesCount - 1 if old.PSInstances[i] Release(old.PSInstances[i]);
+    if old.PSInstancesCount > 0
+        for i: 0..old.PSInstancesCount - 1
+            Release(old.PSInstances[i]);
     d_ctx.VSSetShader(d_ctx, old.VS, old.VSInstances.data, old.VSInstancesCount); Release(old.VS);
     d_ctx.VSSetConstantBuffers(d_ctx, 0, 1, *old.VSConstantBuffer); Release(old.VSConstantBuffer);
     d_ctx.GSSetShader(d_ctx, old.GS, old.GSInstances.data, old.GSInstancesCount); Release(old.GS);
-    for i: 0..old.VSInstancesCount - 1 if old.VSInstances[i] Release(old.VSInstances[i]);
+    if old.VSInstancesCount > 0
+        for i: 0..old.VSInstancesCount - 1
+            Release(old.VSInstances[i]);
     d_ctx.IASetPrimitiveTopology(d_ctx, old.PrimitiveTopology);
     d_ctx.IASetIndexBuffer(d_ctx, old.IndexBuffer, old.IndexBufferFormat, old.IndexBufferOffset); Release(old.IndexBuffer);
     d_ctx.IASetVertexBuffers(d_ctx, 0, 1, *old.VertexBuffer, *old.VertexBufferStride, *old.VertexBufferOffset); Release(old.VertexBuffer);
@@ -320,7 +324,7 @@ ImGui_ImplDX11_CreateFontsTexture :: (using ui_state: *UI_State) {
 
 ImGui_ImplDX11_CreateDeviceObjects :: (using ui_state: *UI_State) -> bool {
     if !d3dDevice return false;
-    if FontSampler ImGui_ImplDX11_InvalidateDeviceObjects(ui_state);
+    if ui_state.FontSampler ImGui_ImplDX11_InvalidateDeviceObjects(ui_state);
 
     // By using D3DCompile() from <d3dcompiler.h> / d3dcompiler.lib, we introduce a dependency to a given version of d3dcompiler_XX.dll (see D3DCOMPILER_DLL_A)
     // If you would like to use this DX11 sample code but remove this dependency you can:
@@ -481,7 +485,53 @@ ImGui_ImplDX11_InvalidateDeviceObjects :: (using ui_state: *UI_State) {
     Release_And_Set_Null(*VertexShader);
 }
 
+ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
+    // Setup backend capabilities flags
+    io := ImGui.GetIO();
+    io.BackendRendererName = "imgui_impl_dx11";
+    io.BackendFlags_ |= .RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
+
+    // Get factory from device
+    pDXGIDevice: *IDXGIDevice;
+    pDXGIAdapter: *IDXGIAdapter;
+    pFactory: *IDXGIFactory;
+
+    assert(d3dDevice != null, "must set d3dDevice in UI_State before calling ImGui_Impl_Init in the d3d11 backend");
+    assert(d3dDeviceContext != null, "must set d3dDeviceContext in UI_State before calling ImGui_Impl_Init in the d3d11 backend");
+
+    if d3dDevice.QueryInterface(xx d3dDevice, *uid(IDXGIDevice.uuid), cast(**void)*pDXGIDevice) == S_OK
+        if pDXGIDevice.GetParent(xx pDXGIDevice, *uid(IDXGIAdapter.uuid), cast(**void)*pDXGIAdapter) == S_OK
+            if pDXGIAdapter.GetParent(xx pDXGIAdapter, *uid(IDXGIFactory.uuid), cast(**void)*pFactory) == S_OK
+            {
+                Factory = pFactory;
+            }
+
+    assert(Factory != null);
+
+    Release(pDXGIDevice);
+    Release(pDXGIAdapter);
+
+    d3dDevice.AddRef(xx d3dDevice);
+    d3dDeviceContext.AddRef(xx d3dDeviceContext);
+
+    return true;
+}
+
+
 ImGui_Impl_SetupGLContext :: () {
+}
+
+
+#if OS == .WINDOWS {
+
+Win32 :: #import "Windows";
+get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
+    point: Win32.POINT;
+    Win32.GetCursorPos(*point);
+    Win32.ScreenToClient(window, *point);
+    return point.x, point.y;
+}
+
 }
 
 ImGui_SetMouseEvents :: (using ui_state: *UI_State, left: bool, middle: bool, right: bool, wheel: float) {
@@ -491,11 +541,30 @@ ImGui_SetMouseEvents :: (using ui_state: *UI_State, left: bool, middle: bool, ri
     MouseWheel = wheel;
 }
 
-ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {
-}
+ImGui_Impl_NewFrame :: (using ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {
 
-ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
-    return false;
+    io := ImGui.GetIO();
+
+    // Setup display size (every frame to accommodate for window resizing)
+    io.DisplaySize = ImGui.make_ImVec2(xx display_width, xx display_height);
+    io.DisplayFramebufferScale = ImGui.make_ImVec2(1, 1);
+
+    // Setup time step
+    current_time := get_time();
+    if Time > 0.0 io.DeltaTime = xx (current_time - Time);
+    else io.DeltaTime = (1.0/60.0);
+    Time = current_time;
+
+    // Setup inputs
+    mx, my := get_client_mouse_pos(native_window_handle);
+    io.MousePos = ImGui.make_ImVec2(xx mx, xx my);
+    io.MouseDown[0] = MousePressed[0];
+    io.MouseDown[1] = MousePressed[1];
+    io.MouseDown[2] = MousePressed[2];
+
+    if FontSampler == null
+        ImGui_ImplDX11_CreateDeviceObjects(ui_state);
+    ImGui.NewFrame();
 }
 
 
