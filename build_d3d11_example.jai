@@ -9,9 +9,10 @@ build :: () {
     w := compiler_create_workspace("build");
     compiler_begin_intercept(w);
     defer compiler_end_intercept(w);
-    array_add(*opts.modules_search_path_array, "..\\jai-imgui");
-    for opts.modules_search_path_array
-        print("%: %\n", it_index, it);
+    array_add(*opts.modules_search_path_array,
+        "..\\jai-imgui",
+        "lib",
+    );
     opts.output_type = .EXECUTABLE;
 
     opts.output_executable_name = "d3d11_example";

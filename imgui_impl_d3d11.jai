@@ -440,18 +440,18 @@ END;
         desc: D3D11_RASTERIZER_DESC;
         desc.FillMode = D3D11_FILL_SOLID;
         desc.CullMode = D3D11_CULL_NONE;
-        desc.ScissorEnable = TRUE;
-        desc.DepthClipEnable = TRUE;
+        desc.ScissorEnable = BOOL.TRUE;
+        desc.DepthClipEnable = BOOL.TRUE;
         d3dDevice.CreateRasterizerState(d3dDevice, *desc, *RasterizerState);
     }
 
     // Create depth-stencil State
     {
         desc: D3D11_DEPTH_STENCIL_DESC;
-        desc.DepthEnable    = FALSE;
+        desc.DepthEnable    = BOOL.FALSE;
         desc.DepthWriteMask = .D3D11_DEPTH_WRITE_MASK_ALL;
         desc.DepthFunc      = .D3D11_COMPARISON_ALWAYS;
-        desc.StencilEnable  = FALSE;
+        desc.StencilEnable  = BOOL.FALSE;
         desc.FrontFace.StencilFailOp      = .D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilDepthFailOp = .D3D11_STENCIL_OP_KEEP;
         desc.FrontFace.StencilPassOp      = .D3D11_STENCIL_OP_KEEP;
@@ -603,5 +603,8 @@ offset_of :: ($T: Type, $member: string) -> s64 {
 
 #import "d3d11";
 #import "dxgi";
+#import "D3dcompiler";
 #import "Windows";
+
+#import "d3d11_shader";
 S_OK :: 0;

@@ -585,3 +585,4 @@ ID3D11ShaderReflection_VTable :: struct {
 #scope_file
 
 #import "d3d11";
+#import "Windows";

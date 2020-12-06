@@ -435,4 +435,9 @@ FALSE: BOOL: 0;
 TRUE: BOOL: cast(BOOL)1;
 S_FALSE: HRESULT = 0x00000001;
 
+#scope_file
+#import "dxgi";
+#import "d3d11";
+#import "Windows";
+
 // ~~~~~~~~~~~

@@ -714,6 +714,5 @@ renderer: *Renderer;
 #import "D3dcompiler";
 #import "dxgi";
 #import "Windows";
-#load "../d3d11_1.jai"; // for 11_1 features
-#load "../d3d11_shader.jai"; // for shader reflection
-
+#import "d3d11_shader"; // for shader reflection
+#import "d3d11_1";      // for 11_1 features
