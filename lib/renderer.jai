@@ -388,6 +388,20 @@ apply_constant_buffers :: (constant_buffers: ..*Buffer) {
     device_context.VSSetConstantBuffers(device_context, 0, cast(u32)buffers.count, buffers.data);
 }
 
+load_texture_from_file :: (renderer: *Renderer, filename: string) -> bool, Texture {
+    bitmap: Bitmap;
+    if !bitmap_load(*bitmap, filename)
+        return false, .{};
+
+    assert(bitmap.width > 0);
+    assert(bitmap.height > 0);
+
+    bytes_per_pixel := cast(u32)get_image_bytes_per_texel(bitmap.format);
+
+    ok, tex := load_texture_from_data(renderer, cast(u32)bitmap.width, cast(u32)bitmap.height, bytes_per_pixel, bitmap.data);
+    return ok, tex;
+}
+
 load_texture_from_data :: (renderer: *Renderer, width: u32, height: u32, bytes_per_pixel: u32, data: *void) -> bool, Texture {
     textureDesc := D3D11_TEXTURE2D_DESC.{
         MipLevels          = 1,

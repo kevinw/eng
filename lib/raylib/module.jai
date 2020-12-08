@@ -40,6 +40,10 @@ IsKeyPressed :: (key: KeyboardKey) -> bool {
     return (<<_input_button_states)[cast(int)key] & .START != 0;
 }
 
+DrawTexturePro :: (texture: Texture2D, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
+    print("TODO: DrawTexturePro\n");
+}
+
 
     
 //------

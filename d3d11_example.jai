@@ -12,7 +12,7 @@ main :: () {
     ui.d3dDevice = xx renderer.device;
     ui.d3dDeviceContext = xx renderer.device_context1;
     ImGui_Impl_CreateContext(*ui);
-    ImGui.StyleColorsDark();
+    //ImGui.StyleColorsDark();
     style := ImGui.GetStyle();
     style.ScaleAllSizes(style, 1.2);
     ImGui_Impl_Init(*ui, the_window);
@@ -31,8 +31,12 @@ main :: () {
     constant_buffer := create_constant_buffer(Constants);
     vertex_buffer   := create_immutable_buffer(VertexData, .Vertex);
     index_buffer    := create_immutable_buffer(IndexData, .Index);
-    tex_ok, texture := load_texture_from_data(*renderer, TEXTURE_WIDTH, TEXTURE_HEIGHT, 4, TextureData.data);
-    assert(tex_ok);
+
+    tex_ok_1, texture := load_texture_from_data(*renderer, TEXTURE_WIDTH, TEXTURE_HEIGHT, 4, TextureData.data);
+    assert(tex_ok_1);
+
+    //tex_ok_2, texture := load_texture_from_file(*renderer, "resources/textures/Grass.jpg");
+    //assert(tex_ok_2);
 
     // setup
 
@@ -129,7 +133,6 @@ ImGui :: #import "imgui";
 
 #scope_file
 #load "lib/renderer.jai";
-#import "Render";
 
 #import "Window_Creation";
 #import "Input";
