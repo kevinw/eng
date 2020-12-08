@@ -10,7 +10,7 @@ State :: struct {
 update_and_draw :: () {
     using context.state;
 
-    ImGui_Impl_ProcessInputEvents(*ui, _local_host_state.host_events_this_frame);
+    ImGui_Impl_ProcessInputEvents(*ui, _local_host_state.events_this_frame);
     game_base_update();
 
     // draw
@@ -31,13 +31,19 @@ update_and_draw :: () {
     im_finish(*im_context);
 }
 
+_update_raylib_temp :: (host_state: Host_State) {
+    using context.state;
+
+    // These go away once we remove the fake raylib module entirely.
+    rl._XXX_SetRenderer(*renderer);
+    rl._XXX_SetNativeWindow(host_state.window_handle);
+    rl._XXX_SetHostInputButtonStates(host_state.input_button_states);
+}
 
 on_host_did_reload_game_dll :: (host_state: Host_State) {
     using context.state;
     set_global_renderer_ptr(*renderer);
-
-    rl._XXX_SetRenderer(*renderer);
-    rl._XXX_SetNativeWindow(host_state.window_handle);
+    _update_raylib_temp(host_state);
     game_base_did_reload_dll();
 }
 
@@ -51,8 +57,7 @@ on_host_init :: (host_state: Host_State) {
     set_context_funcs();
 
     init(*renderer, host_state.window_handle);
-    rl._XXX_SetRenderer(*renderer);
-    rl._XXX_SetNativeWindow(host_state.window_handle);
+    _update_raylib_temp(host_state);
     ui.d3dDevice = xx renderer.device;
     ui.d3dDeviceContext = xx renderer.device_context1;
     game_base_init(host_state);

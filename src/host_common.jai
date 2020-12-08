@@ -4,7 +4,8 @@ Host_State :: struct {
     soloud_context: *void;
     window_handle: *void;
 
-    host_events_this_frame: [..]Input.Event;
+    events_this_frame: [..]Input.Event;
+    input_button_states: *[Input.NUM_BUTTON_STATES] Input.Key_Current_State; // since the Input module stores state in module globals, we need to pass sa pointer down to the dll
 }
 
 Sanity_Check_Info :: struct {

@@ -242,6 +242,7 @@ main :: () {
     the_window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "");
     // TODO: set win_x, win_y
     host_state.window_handle = the_window;
+    host_state.input_button_states = *input_button_states; 
 
     context.logger_data = New(screenlog.Logger_State);
     context.logger = screenlog.context_func;
@@ -284,6 +285,7 @@ main :: () {
     // set_target_fps(30);
     frame_count := 0;
 
+
     while !window_should_close() {
         auto_release_temp();
         update_window_events();
@@ -292,8 +294,9 @@ main :: () {
                 mark_window_should_close();
 
         // pass a copy of all events down into the plugin
-        host_state.host_events_this_frame.count = 0;
-        for events_this_frame array_add(*host_state.host_events_this_frame, it);
+        host_state.events_this_frame.count = 0;
+        for events_this_frame array_add(*host_state.events_this_frame, it);
+
 
         frame_count += 1;
 

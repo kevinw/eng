@@ -1,10 +1,17 @@
 #scope_file
 #import "renderer";
+#import "Basic";
 renderer: *Renderer;
 _native_window: *void;
+_input_button_states: *[Input.NUM_BUTTON_STATES]Input.Key_Current_State;
+Input :: #import "Input";
 #scope_export
 _XXX_SetRenderer :: (renderer_ptr: *Renderer) { renderer = renderer_ptr; }
 _XXX_SetNativeWindow :: (native_window: *void) { _native_window = native_window; }
+_XXX_SetHostInputButtonStates :: (host_button_states: *[Input.NUM_BUTTON_STATES] Input.Key_Current_State) {
+    assert(host_button_states != null, "cannot pass a null pointer to _XXX_SetHostInputButtonStates");
+    _input_button_states = host_button_states;
+}
 
 // ----
 
@@ -19,6 +26,18 @@ DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
         t0=make_vector2(0,0),
         t1=make_vector2(1,1),
         c=ColorToNormalized(color));
+}
+
+IsKeyDown :: (key: KeyboardKey) -> bool {
+    if cast(int)key > 300 return false;
+    assert(_input_button_states != null);
+    return (<<_input_button_states)[cast(int)key] & .DOWN != 0;
+}
+
+IsKeyPressed :: (key: KeyboardKey) -> bool {
+    if cast(int)key > 300 return false;
+    assert(_input_button_states != null);
+    return (<<_input_button_states)[cast(int)key] & .START != 0;
 }
 
 
@@ -442,9 +461,6 @@ MouseButton :: enum {
     MOUSE_MIDDLE_BUTTON :: 2;
 }
 
-
-IsKeyDown :: (key: KeyboardKey) -> bool { return false; }
-IsKeyPressed :: (key: KeyboardKey) -> bool { return false; }
 
 IsGamepadButtonPressed :: (gamepad: int, button: GamepadButton) -> bool { return false; }
 
