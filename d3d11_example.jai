@@ -94,7 +94,7 @@ main :: () {
         // DRAW
         {
             using constants : *Constants;
-            get_constant_buffer_ptr(*constants, *renderer, *constant_buffer);
+            get_constant_buffer_ptr(*constants, *constant_buffer);
             Transform   = rotateX * rotateY * rotateZ * scale * translate;
             Projection  = make_matrix4(2 * n / w, 0, 0, 0, 0, 2 * n / h, 0, 0, 0, 0, f / (f - n), 1, 0, 0, n * f / (n - f), 0 );
             LightVector = .{ 1.0, -1.0, 1.0 };
@@ -117,7 +117,8 @@ main :: () {
         }
 
         ImGui.Render();
-        ImGui_Impl_RenderDrawData(*ui, ImGui.GetDrawData());
+        ok := ImGui_Impl_RenderDrawData(*ui, ImGui.GetDrawData());
+        assert(ok);
 
         present();
         // END DRAW
@@ -128,6 +129,7 @@ ImGui :: #import "imgui";
 
 #scope_file
 #load "lib/renderer.jai";
+#import "Render";
 
 #import "Window_Creation";
 #import "Input";

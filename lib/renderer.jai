@@ -67,10 +67,17 @@ Primitive_Type :: enum u8 {
     Triangles;
 }
 
+Cull_Mode :: enum u8 {
+    None  :: 0;
+    Front :: 1;
+    Back  :: 2;
+}
+
+
 Buffer :: struct {
     d3d_buffer: *ID3D11Buffer;
 
-    element_count: u32;
+    element_count: u32; // not sure this should be here...
 }
 
 
@@ -83,15 +90,18 @@ draw :: (num_elements: int = -1, num_instances: u32 = 1, base_element: u32 = 0) 
 
     if current_index_buffer != null {
         num_elements_to_draw: u32;
-        if num_elements == -1
+        if num_elements == -1 {
             num_elements_to_draw = current_index_buffer.element_count;
+            assert(num_elements_to_draw > 0);
+        }
         else
-            num_elements_to_draw = cast(u32)num_elements_to_draw;
+            num_elements_to_draw = cast(u32)num_elements;
 
-        if 1 == num_instances
+        if 1 == num_instances {
             device_context1.DrawIndexed(xx device_context1, num_elements_to_draw, base_element, 0);
-        else
+        } else {
             device_context1.DrawIndexedInstanced(xx device_context1, num_elements_to_draw, num_instances, base_element, 0, 0);
+        }
     } else {
         assert(num_elements != -1, "TODO: is it possible just to know how many elements to draw when there's no index buffer?");
         num_elements_to_draw := cast(u32)num_elements;
@@ -167,21 +177,39 @@ create_constant_buffer :: ($T: Type) -> Buffer {
     return buf;
 }
 
+create_dynamic_buffer :: (size_in_bytes: u32, type: Buffer_Type) -> Buffer {
+    assert_state();
+    using renderer;
+
+    desc: D3D11_BUFFER_DESC;
+    desc.ByteWidth      = size_in_bytes;
+    desc.Usage          = .D3D11_USAGE_DYNAMIC;
+    desc.CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE;
+    desc.BindFlags      = get_d3d_bind_flags(type);
+
+    buffer: Buffer;
+    check_result(device.CreateBuffer(xx device, *desc, null, *buffer.d3d_buffer));
+    buffer.element_count = 0;
+    return buffer;
+}
+
+get_d3d_bind_flags :: (type: Buffer_Type) -> D3D11_BIND_FLAG {
+    if type == {
+        case .Vertex; return .D3D11_BIND_VERTEX_BUFFER;
+        case .Index;  return .D3D11_BIND_INDEX_BUFFER;
+        case; assert(false);
+    }
+    return 0;
+}
+
 create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
     assert_state();
     using renderer;
 
-    bind_flags: D3D11_BIND_FLAG;
-    if type == {
-        case .Vertex; bind_flags = .D3D11_BIND_VERTEX_BUFFER;
-        case .Index;  bind_flags = .D3D11_BIND_INDEX_BUFFER;
-        case; assert(false);
-    }
-
     desc: D3D11_BUFFER_DESC;
     desc.ByteWidth = cast(u32)(size_of(D) * data.count);
-    desc.Usage = .D3D11_USAGE_IMMUTABLE;
-    desc.BindFlags = bind_flags;
+    desc.Usage     = .D3D11_USAGE_IMMUTABLE;
+    desc.BindFlags = get_d3d_bind_flags(type);
 
     subresource_data: D3D11_SUBRESOURCE_DATA;
     subresource_data.pSysMem = data.data;
@@ -248,14 +276,20 @@ push_default_pass :: (clear_color: *Vector4 = null) #expand {
 }
 
 check_result :: (hresult: HRESULT, loc := #caller_location) {
-    assert(hresult == S_OK, tprint("HRESULT was %", formatInt(hresult, base=16)), loc=loc);
+    if hresult != S_OK {
+        flush_debug_messages(renderer);
+        assert(hresult == S_OK, tprint("HRESULT was %", formatInt(hresult, base=16)), loc=loc);
+    }
 }
 
 unload_shader :: (using shader: *Shader) {
     print("TODO: unload_shader\n");
 }
 
-make_pipeline :: (shader: *Shader, primitive_type: Primitive_Type = .Triangles) -> Pipeline {
+make_pipeline :: (shader: *Shader,
+    primitive_type: Primitive_Type = .Triangles,
+    cull_mode: Cull_Mode = .Back
+) -> Pipeline {
     assert_state();
 
     pipeline: Pipeline;
@@ -263,11 +297,20 @@ make_pipeline :: (shader: *Shader, primitive_type: Primitive_Type = .Triangles) 
 
     device := cast(*ID3D11Device)renderer.device;
 
+    d3d_cull_mode: D3D11_CULL_MODE;
+    if cull_mode == {
+        case .None;  d3d_cull_mode = .D3D11_CULL_NONE;
+        case .Back;  d3d_cull_mode = .D3D11_CULL_BACK;
+        case .Front; d3d_cull_mode = .D3D11_CULL_FRONT;
+        case; assert(false);
+    }
+
     // d3d11
     rasterizer_desc := D3D11_RASTERIZER_DESC1.{
         FillMode = .D3D11_FILL_SOLID,
-        CullMode = .D3D11_CULL_BACK,
     };
+    rasterizer_desc.CullMode = d3d_cull_mode;
+
     check_result(renderer.device.CreateRasterizerState1(
         renderer.device, *rasterizer_desc, *pipeline.rasterizer_state));
 
@@ -412,10 +455,23 @@ load_shader_from_file :: (renderer: *Renderer, filename: string, vs_main := "vs_
         return false, .{};
     }
 
+    blob_to_string :: (blob: *ID3DBlob) -> string { // only lives as long as the blob
+        if blob == null
+            return "";
+
+        str: string;
+        str.data  = blob.GetBufferPointer(xx blob);
+        str.count = cast(s64)blob.GetBufferSize(xx blob);
+        return str;
+    }
+
     {
-        res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", vs_main).data, "vs_5_0", 0, 0, *vs_blob, null);
-        if res != S_OK || vs_blob == null
-            unload_and_return_error("D3DCompileFromFile(%) failed", filename);
+        error_blob: *ID3DBlob;
+        res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", vs_main).data, "vs_5_0", 0, 0, *vs_blob, *error_blob);
+        if res != S_OK || vs_blob == null {
+            unload_and_return_error("D3DCompileFromFile(%, %) failed...\n%", vs_main, filename, blob_to_string(error_blob));
+            if error_blob error_blob.Release(xx error_blob);
+        }
     }
     {
         res := device.CreateVertexShader(cast(*ID3D11Device)device, vs_blob.GetBufferPointer(vs_blob), vs_blob.GetBufferSize(vs_blob), null, *vert);
@@ -443,9 +499,12 @@ load_shader_from_file :: (renderer: *Renderer, filename: string, vs_main := "vs_
     }
 
     {
-        res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", ps_main).data, "ps_5_0", 0, 0, *ps_blob, null);
-        if res != S_OK || ps_blob == null
-            unload_and_return_error("D3DCompileFromFile(%, %) failed", ps_main, filename);
+        error_blob: *ID3DBlob;
+        res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", ps_main).data, "ps_5_0", 0, 0, *ps_blob, *error_blob);
+        if res != S_OK || ps_blob == null {
+            unload_and_return_error("D3DCompileFromFile(%, %) failed: %", ps_main, filename, blob_to_string(error_blob));
+            if error_blob error_blob.Release(xx error_blob);
+        }
     }
     {
         res := device.CreatePixelShader(cast(*ID3D11Device)device, ps_blob.GetBufferPointer(ps_blob), ps_blob.GetBufferSize(ps_blob), null, *frag);
@@ -504,7 +563,7 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND) {
     swap_chain_desc := DXGI_SWAP_CHAIN_DESC1.{
         Width  = 0, // use window width
         Height = 0, // use window height
-        Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+        Format = .DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
         Stereo = FALSE,
         SampleDesc = .{
             Count   = 1,
@@ -603,23 +662,40 @@ flush_debug_messages :: (using renderer: *Renderer) {
     debug_info_queue.ClearStoredMessages(debug_info_queue);
 }
 
-
-get_constant_buffer_ptr :: (ptr: **$T, renderer: *Renderer, buffer: *Buffer) #expand {
+get_buffer_ptr :: (buffer: *Buffer, ptr: **$T) #expand {
+    assert_state();
+    using renderer;
     assert(buffer != null);
+    assert(buffer.d3d_buffer != null);
+    mapped_subresource: D3D11_MAPPED_SUBRESOURCE;
+    subresource_index :: 0;
+    check_result(device_context1.Map(xx device_context1, xx buffer.d3d_buffer, subresource_index, .D3D11_MAP_WRITE_DISCARD, 0, *mapped_subresource));
+    assert(mapped_subresource.pData != null);
+    `defer device_context1.Unmap(xx device_context1, xx buffer.d3d_buffer, 0);
 
+    <<ptr = cast(*T)mapped_subresource.pData;
+}
+
+get_constant_buffer_ptr :: (ptr: **$T, buffer: *Buffer) #expand {
+    assert_state();
+    assert(buffer != null);
     constant_buffer := buffer.d3d_buffer;
-
     mappedSubresource: D3D11_MAPPED_SUBRESOURCE;
-    res := renderer.device_context1.Map(xx renderer.device_context1, xx constant_buffer, 0, .D3D11_MAP_WRITE_DISCARD, 0, *mappedSubresource);
-    assert(res == S_OK);
+    subresource_index :: 0;
+    check_result(renderer.device_context1.Map(xx renderer.device_context1, xx constant_buffer, subresource_index, .D3D11_MAP_WRITE_DISCARD, 0, *mappedSubresource));
     assert(mappedSubresource.pData != null);
-    <<ptr = cast(*T)mappedSubresource.pData;
     `defer renderer.device_context1.Unmap(xx renderer.device_context1, xx constant_buffer, 0);
+
+    <<ptr = cast(*T)mappedSubresource.pData;
 }
 
 next_multiple_of :: (N: int, X: int) -> int {
     // X is the number you want to round up to the nearest multiple N
     return ((N - 1) | (X - 1)) + 1;
+}
+
+set_global_renderer_ptr :: (new_renderer: *Renderer) {
+    renderer = new_renderer;
 }
 
 

@@ -1,7 +1,6 @@
 #scope_file // everything in this file is "private" since we're only exporting symbols.
 
 #import "Basic";
-Math :: #import "Math";
 State_Type_In_Context :: *State;
 #load "host_common.jai";
 
@@ -37,7 +36,7 @@ plugin_init :: (old_value: *void, host_state: Host_State) {
     if old_value != null {
         context.state = cast(*State)old_value;
         context.state.check_canaries(context.state);
-        on_host_did_reload_game_dll();
+        on_host_did_reload_game_dll(host_state);
     } else {
         context.state = New(State);
         assert(context.state != null);
@@ -48,7 +47,7 @@ plugin_init :: (old_value: *void, host_state: Host_State) {
         // so here we just receive the soloud context from the host.
         context.state.sound_state.soloud = host_state.soloud_context;
 
-        on_host_init();
+        on_host_init(host_state);
     }
 }
 
@@ -63,7 +62,6 @@ plugin_deinit :: (shutting_down: bool) -> *void {
     return context.state;
 }
 
-_local_host_state: Host_State;
 
 #program_export
 plugin_tick :: (host_state: Host_State) {
@@ -73,20 +71,14 @@ plugin_tick :: (host_state: Host_State) {
 }
 
 #scope_module
+_local_host_state: Host_State;
 host_debug_draw :: () {
     // Draw a very visible red outline if the jai compiler failed trying to recompile the game dll.
     if _local_host_state.jai_compiler_did_error {
-        rect := rl.make_Rectangle(0, 0, rl.GetScreenWidth(), rl.GetScreenHeight());
-        outline_width := cast(s32)(max(rl.GetScreenWidth(), rl.GetScreenHeight()) * 0.03);
-        color := rl.make_Color(255, 40, 40, cast(u8)(255.0 * ((Math.sin(rl.GetTime() * 5) + 1.0) / 4.0 + 0.3)));
-        rl.DrawRectangleLinesEx(rect, outline_width, color);
+        game_base_draw_compile_error();
     }
 }
 
 get_plugin_compile_error :: () -> (bool, string) {
     return _local_host_state.jai_compiler_did_error, _local_host_state.jai_compiler_error_string;
 }
-
-#scope_file
-
-rl :: #import "raylib";

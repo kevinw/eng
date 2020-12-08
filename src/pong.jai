@@ -49,7 +49,7 @@ on_host_init :: () {
     get_transform(ball).position.xy = v2(100, 100);
 }
 
-on_host_did_reload_game_dll :: () {
+on_host_did_reload_game_dll :: (host_state: Host_State) {
     game_base_did_reload_dll();
 }
 

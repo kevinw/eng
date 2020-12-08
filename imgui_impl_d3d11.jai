@@ -63,10 +63,10 @@ ImGui_ImplDX11_SetupRenderState :: (using ui_state: *UI_State, draw_data: *ImDra
     d_ctx.RSSetState(d_ctx, RasterizerState);
 }
 
-ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDrawData) {
+ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDrawData) -> bool {
     // Avoid rendering when minimized
     if draw_data.DisplaySize.x <= 0 || draw_data.DisplaySize.y <= 0
-        return;
+        return false;
 
     d_ctx := ui_state.d3dDeviceContext;
 
@@ -82,7 +82,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         desc.ByteWidth = cast(u32)(VertexBufferSize * size_of(ImDrawVert));
         if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *VB) < 0 {
             logprint("imgui_d3d11", "Error creating the vertex buffer");
-            return;
+            return false;
         }
     }
 
@@ -97,16 +97,16 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         desc.ByteWidth = cast(u32)(IndexBufferSize * size_of(ImDrawIdx));
         if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *IB) < 0 {
             logprint("imgui_d3d11", "Error creating the index buffer");
-            return;
+            return false;
         }
     }
 
     // Upload vertex/index data into a single contiguous GPU buffer
     vtx_resource, idx_resource: D3D11_MAPPED_SUBRESOURCE;
     if d_ctx.Map(xx d_ctx, xx VB, 0, .D3D11_MAP_WRITE_DISCARD, 0, *vtx_resource) != S_OK
-        return;
+        return false;
     if d_ctx.Map(xx d_ctx, xx IB, 0, .D3D11_MAP_WRITE_DISCARD, 0, *idx_resource) != S_OK
-        return;
+        return false;
 
     vtx_dst := cast(*ImDrawVert)vtx_resource.pData;
     idx_dst := cast(*ImDrawIdx)idx_resource.pData;
@@ -125,7 +125,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     {
         mapped_resource: D3D11_MAPPED_SUBRESOURCE;
         if d_ctx.Map(xx d_ctx, xx VertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, *mapped_resource) != S_OK
-            return;
+            return false;
 
         constant_buffer := cast(*VERTEX_CONSTANT_BUFFER)mapped_resource.pData;
         L:float = draw_data.DisplayPos.x;
@@ -267,6 +267,8 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     d_ctx.IASetIndexBuffer(d_ctx, old.IndexBuffer, old.IndexBufferFormat, old.IndexBufferOffset); Release(old.IndexBuffer);
     d_ctx.IASetVertexBuffers(d_ctx, 0, 1, *old.VertexBuffer, *old.VertexBufferStride, *old.VertexBufferOffset); Release(old.VertexBuffer);
     d_ctx.IASetInputLayout(d_ctx, old.InputLayout); Release(old.InputLayout);
+
+    return true;
 }
 
 ImGui_ImplDX11_CreateFontsTexture :: (using ui_state: *UI_State) {
@@ -518,17 +520,19 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
 }
 
 
-ImGui_Impl_SetupGLContext :: () {
-}
-
-
 #if OS == .WINDOWS {
 
 Win32 :: #import "Windows";
+last_point: Win32.POINT;
 get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
+    user32 :: #foreign_system_library "user32";
+    MapWindowPoints :: (hwnd1: *void, hwnd2: *void, points: *POINT, point_count: u32) -> s32 #foreign user32;
+
+    assert(window != null);
+    
     point: Win32.POINT;
     Win32.GetCursorPos(*point);
-    Win32.ScreenToClient(window, *point);
+    MapWindowPoints(null, window, *point, 1);
     return point.x, point.y;
 }
 
@@ -542,12 +546,12 @@ ImGui_SetMouseEvents :: (using ui_state: *UI_State, left: bool, middle: bool, ri
 }
 
 ImGui_Impl_NewFrame :: (using ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {
-
     io := ImGui.GetIO();
 
     // Setup display size (every frame to accommodate for window resizing)
-    io.DisplaySize = ImGui.make_ImVec2(xx display_width, xx display_height);
-    io.DisplayFramebufferScale = ImGui.make_ImVec2(1, 1);
+    io.DisplaySize.x = cast(float)display_width;
+    io.DisplaySize.y = cast(float)display_height;
+    io.DisplayFramebufferScale = ImGui.ImVec2.{2, 2};
 
     // Setup time step
     current_time := get_time();
@@ -558,15 +562,13 @@ ImGui_Impl_NewFrame :: (using ui_state: *UI_State, native_window_handle: *void, 
     // Setup inputs
     mx, my := get_client_mouse_pos(native_window_handle);
     io.MousePos = ImGui.make_ImVec2(xx mx, xx my);
-    io.MouseDown[0] = MousePressed[0];
-    io.MouseDown[1] = MousePressed[1];
-    io.MouseDown[2] = MousePressed[2];
+    for 0..2 io.MouseDown[it] = MousePressed[it];
 
     if FontSampler == null
         ImGui_ImplDX11_CreateDeviceObjects(ui_state);
+
     ImGui.NewFrame();
 }
-
 
 #load "imgui_impl_common.jai";
 

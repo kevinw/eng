@@ -1,0 +1,307 @@
+// forked from jai's builtin Render/Im_Draw
+
+// To draw something, this needs to be provided by the user.
+Im_Draw_Callback :: #type (ctx: *Im_Context, index_array: [] u16, vertex_array: [] Im_Vertex, draw_array: [] Im_Draw_Command);
+
+
+im_init :: (using ctx: *Im_Context, index_elements := 4096, vertex_elements := 4096, draw_elements:=64, callback: Im_Draw_Callback) {
+    // Allocate buffers.
+    array_reserve(*index_array,  index_elements);
+    array_reserve(*vertex_array, vertex_elements);
+    array_reserve(*draw_array,   draw_elements);
+
+    dummy: Im_Draw_Command;
+    array_add(*draw_array, dummy);
+
+    draw_callback = callback;
+
+    scale  = xy(1, 1);
+    offset = xy(0, 0);
+}
+
+im_set_texture :: (using ctx: *Im_Context, texture: *Texture) {
+    draw_cmd := *draw_array[draw_array.count - 1];
+    if draw_cmd.texture == texture  return;                     // Nothing to do.
+    if draw_cmd.index_count         im_flush(ctx);
+    draw_cmd.texture = texture;
+
+    current_texture = texture;
+}
+
+im_set_sampler :: (using ctx: *Im_Context, sampler: *Sampler) {
+    draw_cmd := *draw_array[draw_array.count - 1];
+    if draw_cmd.sampler == sampler  return;                     // Nothing to do.
+    if draw_cmd.index_count         im_flush(ctx);
+    draw_cmd.sampler = sampler;
+
+    current_sampler = sampler;
+}
+
+im_set_primitive :: (using ctx: *Im_Context, index_per_primitive: u32) {
+    if !draw_array return;
+    assert(index_per_primitive > 0 && index_per_primitive <= 3);
+	
+    draw_cmd := *draw_array[draw_array.count - 1];
+    if draw_cmd.index_per_primitive == index_per_primitive return;    // Nothing to do.
+    if draw_cmd.index_count         im_flush(ctx);
+    draw_cmd.index_per_primitive = index_per_primitive;
+
+    current_index_per_primitive = index_per_primitive;
+}
+
+
+// The default view transform is assumed to map the [-1,1] range to the extents of the viewport, with (-1,-1) at the bottom left corner.
+// You can use this function to provide coordinates in a different range. This doesn't produce a flush, it only affects the upcoming vertex invocations.
+im_set_viewport_transform :: (using ctx: *Im_Context, scale_x: float, scale_y: float, offset_x: float, offset_y: float) {
+    scale.x = scale_x;
+    scale.y = scale_y;
+    offset.x = offset_x;
+    offset.y = offset_y;
+}
+
+
+im_set_viewport :: (using ctx: *Im_Context, x: u32, y: u32, w: s32, h: s32) {
+    // @@ 
+}
+
+im_set_clip_rect :: (using ctx: *Im_Context, x: u32, y: u32, w: s32, h: s32) {
+    im_set_clip_rect(ctx, xyzw(xx x, xx y, xx w, xx h));
+}
+
+im_set_clip_rect :: (using ctx: *Im_Context, rect: Vector4) {
+    draw_cmd := *draw_array[draw_array.count - 1];
+    if draw_cmd.clip_rect == rect   return;                     // Nothing to do.
+    if draw_cmd.index_count         draw_cmd = im_begin_draw(ctx, false); // Start a new draw.
+    draw_cmd.clip_rect = rect;
+
+    current_clip_rect = rect;
+}
+
+/*im_set_clip_rect :: (x:s32, y:s32, w:s32, h:s32) {
+    rect: Im_Clip_Rect;
+    rect.x = x; rect.y = y;                                     // @@ Initialization syntax.
+    rect.w = w; rect.h = h;
+
+    draw_cmd := *draw_array[draw_array.count];
+    if draw_cmd.clip_rect == rect   return;                     // Nothing to do.
+    if draw_cmd.index_count         draw_cmd = im_begin_draw(); // Start a new draw.
+    draw_cmd.clip_rect = rect;
+}*/
+
+
+im_draw_quad :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t0: Vector2, t1: Vector2, t2: Vector2, t3: Vector2, c: Vector4) {
+    im_set_primitive(ctx, 3);
+    im_ensure_space_for(ctx, 6, 4);
+
+    v0 := im_vertex(ctx, p0, t0, c);
+    v1 := im_vertex(ctx, p1, t1, c);
+    v2 := im_vertex(ctx, p2, t2, c);
+    v3 := im_vertex(ctx, p3, t3, c);
+
+    #if CLOCKWISE {
+        im_indices(ctx, v0, v2, v1, v2, v0, v3);
+    } else {
+        im_indices(ctx, v0, v1, v2, v2, v0, v3);
+    }
+    
+}
+
+im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0: Vector2, t1: Vector2, c: Vector4) {
+
+    /*draw_cmd := *draw_array[draw_array.count - 1];
+
+    // Cull quad against clip rect. @@ Not sure how this interacts with the scale/offset. In what space is clip_rect?
+    if draw_cmd.clip_rect.x != draw_cmd.clip_rect.y {
+        if x1 < draw_cmd.clip_rect.x return;
+        if x0 > draw_cmd.clip_rect.z return;
+        if y1 < draw_cmd.clip_rect.y return;
+        if y0 > draw_cmd.clip_rect.w return;
+    }*/
+
+    p01 := xy(p0.x, p1.y);
+    p10 := xy(p1.x, p0.y);
+
+    t01 := xy(t0.x, t1.y);
+    t10 := xy(t1.x, t0.y);
+
+    im_draw_quad(ctx, p0, p01, p1, p10, t0, t01, t1, t10, c);
+}
+
+im_draw_rect :: inline (using ctx: *Im_Context, x0: float, y0: float, x1: float, y1: float, u0:=0.0, v0:=0.0, u1:=1.0, v1:=1.0, c: Vector4) {
+
+    p0 := xy(x0, y0); p1 := xy(x1, y1);
+    t0 := xy(u0, v0); t1 := xy(u1, v1);
+
+    im_draw_rect(ctx, p0, p1, t0, t1, c);
+}
+
+im_draw_triangle :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, t0: Vector2, t1: Vector2, t2: Vector2, c: Vector4) {
+    im_set_primitive(ctx, 3);
+    im_ensure_space_for(ctx, 3, 3);
+
+    v0 := im_vertex(ctx, p0, t0, c);
+    v1 := im_vertex(ctx, p1, t1, c);
+    v2 := im_vertex(ctx, p2, t2, c);
+
+    im_indices(ctx, v0, v1, v2);
+}
+
+im_draw_triangle :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, t0: Vector2, t1: Vector2, t2: Vector2, c0: Vector4, c1: Vector4, c2: Vector4) {
+    im_set_primitive(ctx, 3);
+    im_ensure_space_for(ctx, 3, 3);
+
+    v0 := im_vertex(ctx, p0, t0, c0);
+    v1 := im_vertex(ctx, p1, t1, c1);
+    v2 := im_vertex(ctx, p2, t2, c2);
+
+    im_indices(ctx, v0, v1, v2);
+}
+
+im_draw_line :: (using ctx: *Im_Context, x0: float, y0: float, x1: float, y1: float, c: Vector4) {
+    im_set_primitive(ctx, 2);
+    im_ensure_space_for(ctx, 2, 2);
+
+    v0 := im_vertex(ctx, xy(x0,y0), xy(0,0), c);
+    v1 := im_vertex(ctx, xy(x1,y1), xy(1,1), c);
+
+    im_indices(ctx, v0, v1);
+}
+
+
+/*im_draw_triangles :: (p: *Vector3, t: *Vector2, c: *Vector4, triangle_count: int) {
+
+}*/
+
+/*im_draw_primitive :: (primitive_type: Primitive_Type, primitive_count: int, vertex_data: *$T, vertex_stride:=0) {
+    // @@ Use metaprogramming to determine how to bind each of the vertex attributes based on their annotation.
+    // Vertex :: struct {
+    //     pos: Vector2;   @position0
+    //     tex: Vector2;   @texcoord0
+    //     col: Vector4;   @color0
+    // }
+}*/
+
+// Make sure there's enough space for these in the current buffers, otherwise flush them.
+im_ensure_space_for :: (using ctx: *Im_Context, index_count: int, vertex_count: int) {
+    assert(index_count <= index_array.allocated);
+    assert(vertex_count <= vertex_array.allocated);
+
+    if (index_array.count + index_count > index_array.allocated) || (vertex_array.count + vertex_count > vertex_array.allocated) {
+        im_flush(ctx);
+    }
+}
+
+
+// @Speed: We probably want to disable abc in all these functions.
+
+im_index :: (using ctx: *Im_Context, idx: u16) {
+    assert(index_array.count < index_array.allocated);
+    inline array_add(*index_array, idx);
+}
+
+im_indices :: (using ctx: *Im_Context, indices: ..u16) {
+    assert(index_array.count + indices.count <= index_array.allocated);
+    
+    for indices  inline array_add(*index_array, it);
+    
+    draw_cmd := *draw_array[draw_array.count - 1];
+    draw_cmd.index_count += xx indices.count;
+}
+
+im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4) -> u16 {
+    assert(vertex_array.count < vertex_array.allocated);
+
+    v := inline array_add(*vertex_array);
+    v.pos = p * scale + offset;
+    v.tex = t;
+    v.col = c;
+    return cast(u16) (vertex_array.count - 1);
+}
+
+
+// You want to flush *only* if you change shaders or shader parameters.
+im_flush :: (using ctx: *Im_Context) {
+    if draw_array.count {
+        draw_callback(ctx, index_array, vertex_array, draw_array);
+    }
+    
+    index_array.count  = 0;
+    vertex_array.count = 0;
+    draw_array.count   = 0;
+
+    push_fresh_command(ctx);
+}
+
+
+
+// @@ These need to be public for Im_Draw_GL ...
+
+Im_Draw_Command :: struct {
+    index_count : u32;
+    index_per_primitive: u32; // 1, 2 or 3.
+    clip_rect: Vector4;
+    texture: *Texture;  // To make this more general this could just be a *void that the callback interprets however it wants.
+    sampler: *Sampler;
+}
+
+Im_Vertex :: struct {
+    pos: Vector2;
+    tex: Vector2;
+    col: Vector4;
+}
+
+
+Im_Context :: struct {
+    draw_callback: Im_Draw_Callback;
+
+    scale  : Vector2;
+    offset : Vector2;
+
+    index_array  : [..] u16;
+    vertex_array : [..] Im_Vertex;
+    draw_array   : [..] Im_Draw_Command;
+
+    current_texture: *Texture;
+    current_sampler: *Sampler;
+    current_index_per_primitive: u32 = 3;
+    current_clip_rect: Vector4;
+}
+
+#scope_file
+
+CLOCKWISE :: true;
+
+#import "Math";
+#import "Basic";
+
+// @@ Group draw data in channels?
+
+Texture :: struct {} // TODO TODO TODO
+Sampler :: struct {}
+
+im_begin_draw :: (using ctx: *Im_Context, reset := true) -> *Im_Draw_Command {
+    if draw_array.count == draw_array.allocated - 1 {
+        im_flush(ctx);
+    }
+
+    if reset {
+        dummy: Vector4;
+        current_index_per_primitive = 3;
+        current_clip_rect = dummy;
+        current_texture = null;
+        current_sampler = null;
+    }
+
+    return push_fresh_command(ctx);
+}
+
+push_fresh_command :: (using ctx: *Im_Context) -> *Im_Draw_Command {
+    draw := array_add(*draw_array);
+    draw.index_count = 0;
+    draw.clip_rect = current_clip_rect;
+    draw.index_per_primitive = current_index_per_primitive;
+    draw.texture = current_texture;
+    draw.sampler = current_sampler;
+
+    return draw;
+}
