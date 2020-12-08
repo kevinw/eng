@@ -478,10 +478,6 @@ DrawTexture :: (texture: Texture2D, posX: s32, posY: s32, tint: Color) {
 DrawTextureNPatch :: (texture: Texture2D, nPatchInfo: NPatchInfo, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
 }
 
-DrawTexturePro :: (texture: Texture2D, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
-    print("TODO: DrawTexturePro\n");
-}
-
 LoadTexture :: (fileName: *u8) -> Texture2D {
     print("TODO: LoadTexture\n");
     return .{};

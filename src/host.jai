@@ -294,6 +294,7 @@ main :: () {
                 mark_window_should_close();
 
         // pass a copy of all events down into the plugin
+        host_state.pending_resizes = *pending_resizes;
         host_state.events_this_frame.count = 0;
         for events_this_frame array_add(*host_state.events_this_frame, it);
 

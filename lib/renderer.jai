@@ -9,6 +9,8 @@ Renderer_Base :: struct {
 // D3D11 implementation
 
 Shader :: struct {
+
+    // d3d11
     vert: *ID3D11VertexShader;
     frag: *ID3D11PixelShader;
 
@@ -20,20 +22,23 @@ Shader :: struct {
 }
 
 Renderer :: struct {
+    using base: Renderer_Base;
+    current_index_buffer: *Buffer;
+
+    // d3d11
     device: *ID3D11Device1;
     device_context1: *ID3D11DeviceContext1;
     swap_chain: *IDXGISwapChain1;
 
-    // views of swapchain backbuffer
+    // swapchain backbuffer
+    frame_buffer: *ID3D11Texture2D;
     frame_buffer_view: *ID3D11RenderTargetView;
+
+    depth_buffer: *ID3D11Texture2D;
     depth_buffer_view: *ID3D11DepthStencilView;
     depth_buffer_desc: D3D11_TEXTURE2D_DESC;
 
     debug_info_queue: *ID3D11InfoQueue;
-
-    current_index_buffer: *Buffer;
-
-    using base: Renderer_Base;
 }
 
 Texture :: struct {
@@ -82,6 +87,36 @@ Buffer :: struct {
 
 
 ////////
+
+resize_swapchain :: (w: u32, h: u32) {
+    assert_state();
+    using renderer;
+    assert(w > 0);
+    assert(h > 0);
+
+    if w == depth_buffer_desc.Width && h == depth_buffer_desc.Height
+        return; // no actual size change
+
+    Release(frame_buffer);
+    Release(frame_buffer_view);
+    Release(depth_buffer);
+    Release(depth_buffer_view);
+    check_result(swap_chain.ResizeBuffers(
+        xx swap_chain,
+        BufferCount = 0,
+        Width = w,
+        Height = h,
+        NewFormat = .DXGI_FORMAT_UNKNOWN, // UNKNOWN here means "keep the format the same"
+        SwapChainFlags = 0,
+    ));
+
+    _get_swapchain_framebuffer(renderer);
+
+    // Width and Height in the depth_buffer_desc are what we use to tell the
+    // rest of the system how big our framebuffer is, for now.
+    assert(renderer.depth_buffer_desc.Width == w);
+    assert(renderer.depth_buffer_desc.Height == h);
+}
 
 draw :: (num_elements: int = -1, num_instances: u32 = 1, base_element: u32 = 0) {
     assert_state();
@@ -484,7 +519,7 @@ load_shader_from_file :: (renderer: *Renderer, filename: string, vs_main := "vs_
         res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", vs_main).data, "vs_5_0", 0, 0, *vs_blob, *error_blob);
         if res != S_OK || vs_blob == null {
             unload_and_return_error("D3DCompileFromFile(%, %) failed...\n%", vs_main, filename, blob_to_string(error_blob));
-            if error_blob error_blob.Release(xx error_blob);
+            Release(error_blob);
         }
     }
     {
@@ -517,7 +552,7 @@ load_shader_from_file :: (renderer: *Renderer, filename: string, vs_main := "vs_
         res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", ps_main).data, "ps_5_0", 0, 0, *ps_blob, *error_blob);
         if res != S_OK || ps_blob == null {
             unload_and_return_error("D3DCompileFromFile(%, %) failed: %", ps_main, filename, blob_to_string(error_blob));
-            if error_blob error_blob.Release(xx error_blob);
+            Release(error_blob);
         }
     }
     {
@@ -527,6 +562,29 @@ load_shader_from_file :: (renderer: *Renderer, filename: string, vs_main := "vs_
     }
 
     return true, shader;
+}
+
+_get_swapchain_framebuffer :: (using renderer: *Renderer) {
+    assert(renderer.swap_chain != null);
+
+    // frame buffer
+    check_result(swap_chain.GetBuffer(cast(*IDXGISwapChain)swap_chain, 0, *uid(ID3D11Texture2D.uuid), cast(**void)*frame_buffer));
+    assert(frame_buffer != null);
+
+    // render target view
+    check_result(device.CreateRenderTargetView(cast(*ID3D11Device)device, cast(*ID3D11Resource)frame_buffer, null, *frame_buffer_view));
+    assert(frame_buffer_view != null);
+
+    // depth buffer
+    frame_buffer.GetDesc(frame_buffer, *depth_buffer_desc);
+    depth_buffer_desc.Format    = .DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depth_buffer_desc.BindFlags = .D3D11_BIND_DEPTH_STENCIL;
+
+    check_result(device.CreateTexture2D(cast(*ID3D11Device)device, *depth_buffer_desc, null, *depth_buffer));
+    assert(depth_buffer != null);
+
+    check_result(device.CreateDepthStencilView(cast(*ID3D11Device)device, cast(*ID3D11Resource)depth_buffer, null, *depth_buffer_view));
+    assert(depth_buffer_view != null);
 }
 
 init :: (renderer_ptr: *Renderer, hwnd: HWND) {
@@ -558,6 +616,7 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND) {
 
     device: *ID3D11Device1;
     check_result(base_device.QueryInterface(xx base_device, *uid(ID3D11Device1.uuid), cast(**void)*device));
+    renderer.device = device;
 
     device_context1: *ID3D11DeviceContext1;
     check_result(base_device_context.QueryInterface(xx base_device_context, *uid(ID3D11DeviceContext1.uuid), cast(**void)*device_context1));
@@ -594,50 +653,13 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND) {
     swap_chain: *IDXGISwapChain1;
     check_result(dxgi_factory.CreateSwapChainForHwnd(dxgi_factory, cast(*IUnknown)device, hwnd, *swap_chain_desc, null, null, *swap_chain));
     assert(swap_chain != null, "CreateSwapChainForHwnd did not create a swap chain!");
+    renderer.swap_chain = swap_chain;
 
-    // frame buffer
-    frame_buffer: *ID3D11Texture2D;
-    {
-        res := swap_chain.GetBuffer(cast(*IDXGISwapChain)swap_chain, 0, *uid(ID3D11Texture2D.uuid), cast(**void)*frame_buffer);
-        assert(res == S_OK);
-        assert(frame_buffer != null);
-    }
+    _get_swapchain_framebuffer(renderer);
 
-    // render target view
-    frame_buffer_view: *ID3D11RenderTargetView;
-    {
-        res := device.CreateRenderTargetView(cast(*ID3D11Device)device, cast(*ID3D11Resource)frame_buffer, null, *frame_buffer_view);
-        assert(res == S_OK);
-        assert(frame_buffer_view != null);
-    }
-
-    // depth buffer
-    depth_buffer_desc: D3D11_TEXTURE2D_DESC;
-    frame_buffer.GetDesc(frame_buffer, *depth_buffer_desc);
-    depth_buffer_desc.Format    = .DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depth_buffer_desc.BindFlags = .D3D11_BIND_DEPTH_STENCIL;
-
-    depth_buffer: *ID3D11Texture2D;
-    {
-        res := device.CreateTexture2D(cast(*ID3D11Device)device, *depth_buffer_desc, null, *depth_buffer);
-        assert(res == S_OK);
-        assert(depth_buffer != null);
-    }
-
-    depth_buffer_view: *ID3D11DepthStencilView;
-    {
-        res := device.CreateDepthStencilView(cast(*ID3D11Device)device, cast(*ID3D11Resource)depth_buffer, null, *depth_buffer_view);
-        assert(res == S_OK);
-        assert(depth_buffer_view != null);
-    }
 
     // TODO: move all this up into the function
-    renderer.device = device;
     renderer.device_context1 = device_context1;
-    renderer.swap_chain = swap_chain;
-    renderer.frame_buffer_view = frame_buffer_view;
-    renderer.depth_buffer_desc = depth_buffer_desc;
-    renderer.depth_buffer_view = depth_buffer_view;
     renderer.debug_info_queue = debug_info_queue;
 }
 
@@ -725,7 +747,7 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection)
         return S_FALSE;
 
-    defer pVertexShaderReflection.Release(cast(*IUnknown)pVertexShaderReflection);
+    defer Release(pVertexShaderReflection);
      
     // get shader description
     shaderDesc: D3D11_SHADER_DESC;
@@ -795,7 +817,16 @@ assert_state :: () {
     assert(renderer != null, "must call init(*renderer) first");
 }
 
+Release :: inline (ptr: *$T) { // IUnknown Release, checks for null
+    if ptr != null
+        ptr.Release(cast(*IUnknown)ptr);
+}
+
+
 renderer: *Renderer;
+
+#import "Bitmap";
+#import "Render/Texture_Format";
 
 #import "d3d11";
 #import "Basic";
@@ -806,3 +837,4 @@ renderer: *Renderer;
 #import "Windows";
 #import "d3d11_shader"; // for shader reflection
 #import "d3d11_1";      // for 11_1 features
+
