@@ -234,7 +234,6 @@ main :: () {
             game_index = idx;
     }
 
-
     host_config_name :: "setup.cfg";
     parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
     win_x:= host_settings.window_pos_x;
@@ -286,20 +285,15 @@ main :: () {
     frame_count := 0;
 
     while !window_should_close() {
-        update_window_events();
-        for events_this_frame {
-            if it.type == {
-                case .QUIT;
-                    mark_window_should_close();
-            }
-        }
         auto_release_temp();
+        update_window_events();
+        for events_this_frame
+            if it.type == .QUIT
+                mark_window_should_close();
 
         // pass a copy of all events down into the plugin
-        plugin_events_this_frame: [..]Event;
-        plugin_events_this_frame.allocator = __temporary_allocator;
-        for events_this_frame array_add(*plugin_events_this_frame, it);
-        host_state.host_events_this_frame = plugin_events_this_frame;
+        host_state.host_events_this_frame.count = 0;
+        for events_this_frame array_add(*host_state.host_events_this_frame, it);
 
         frame_count += 1;
 

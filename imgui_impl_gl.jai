@@ -150,13 +150,6 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     }
 }
 
-ImGui_SetMouseEvents :: (using ui_state: *UI_State, left: bool, middle: bool, right: bool, wheel: float) {
-    MousePressed[0] = left;
-    MousePressed[1] = right;
-    MousePressed[2] = middle;
-    MouseWheel = wheel;
-}
-
 ImGui_Impl_GetClipboardText :: (data: *void) -> *u8 #c_call {
     new_context: Context; // TODO: hide the context in the userdata pointer passed to us
     push_context new_context {

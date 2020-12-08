@@ -10,12 +10,12 @@ State :: struct {
 update_and_draw :: () {
     using context.state;
 
-    ImGui_Impl_ProcessInputEvent(*ui, _local_host_state.host_events_this_frame);
+    ImGui_Impl_ProcessInputEvents(*ui, _local_host_state.host_events_this_frame);
     game_base_update();
 
     // draw
     defer present();
-    push_default_pass(clear_color=*Vector4.{1, 0, 1, 1});
+    push_default_pass(clear_color=*Vector4.{0.2, 0, 0.2, 1});
 
     editor_draw(context.state);
 

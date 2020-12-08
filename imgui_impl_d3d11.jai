@@ -538,13 +538,6 @@ get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
 
 }
 
-ImGui_SetMouseEvents :: (using ui_state: *UI_State, left: bool, middle: bool, right: bool, wheel: float) {
-    MousePressed[0] = left;
-    MousePressed[1] = right;
-    MousePressed[2] = middle;
-    MouseWheel = wheel;
-}
-
 ImGui_Impl_NewFrame :: (using ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {
     io := ImGui.GetIO();
 
@@ -563,6 +556,7 @@ ImGui_Impl_NewFrame :: (using ui_state: *UI_State, native_window_handle: *void, 
     mx, my := get_client_mouse_pos(native_window_handle);
     io.MousePos = ImGui.make_ImVec2(xx mx, xx my);
     for 0..2 io.MouseDown[it] = MousePressed[it];
+    io.MouseWheel = MouseWheel;
 
     if FontSampler == null
         ImGui_ImplDX11_CreateDeviceObjects(ui_state);

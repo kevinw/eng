@@ -36,35 +36,35 @@ ImGui_Impl_CreateContext :: (using ui_state: *UI_State) {
     io.ConfigFlags_ |= .DockingEnable;
 }
 
-ImGui_Impl_ProcessInputEvent :: (using ui_state: *UI_State, events: []Input.Event) -> bool {
+ImGui_Impl_ProcessInputEvents :: (using ui_state: *UI_State, events: []Input.Event) {
     using Input;
     io := ImGui.GetIO();
-    for event: events {
-        if event.type == {
+
+    MouseWheel = 0;
+    for events {
+        if it.type == {
             case .MOUSE_WHEEL;
-                if event.wheel_delta > 0 MouseWheel = 1;
-                if event.wheel_delta < 0 MouseWheel = -1;
-                return true;
+                MouseWheel = cast(float)it.wheel_delta / cast(float)it.typical_wheel_delta;
+                remove it;
             case .KEYBOARD;
-                if event.key_code == {
-                    case .MOUSE_BUTTON_LEFT;   MousePressed[0] = event.key_pressed != 0;
-                    case .MOUSE_BUTTON_MIDDLE; MousePressed[1] = event.key_pressed != 0;
-                    case .MOUSE_BUTTON_RIGHT;  MousePressed[2] = event.key_pressed != 0;
+                if it.key_code == {
+                    case .MOUSE_BUTTON_LEFT;   MousePressed[0] = it.key_pressed != 0;
+                    case .MOUSE_BUTTON_MIDDLE; MousePressed[1] = it.key_pressed != 0;
+                    case .MOUSE_BUTTON_RIGHT;  MousePressed[2] = it.key_pressed != 0;
                     case;
-                        io.KeysDown[event.key_code] = event.key_pressed != 0;
-                        io.KeyShift = event.shift_pressed;
-                        io.KeyCtrl  = event.ctrl_pressed;
-                        io.KeyAlt   = event.alt_pressed;
+                        io.KeysDown[it.key_code] = it.key_pressed != 0;
+                        io.KeyShift = it.shift_pressed;
+                        io.KeyCtrl  = it.ctrl_pressed;
+                        io.KeyAlt   = it.alt_pressed;
                 }
-                return true;
+                remove it;
             case .TEXT_INPUT;
-                buf := talloc(size_of(s32) + 1); // unicode rune + 0
-                memcpy(buf, *event.utf32, size_of(s32));
-                io.AddInputCharactersUTF8(io, buf);
-                return true;
+                buf: [size_of(s32) + 1]u8; // unicode rune + 0
+                <<(cast(*s32)buf.data) = cast(s32)it.utf32;
+                io.AddInputCharactersUTF8(io, buf.data);
+                remove it;
         }
     }
-    return false;
 }
 
 ImGui_Impl_SetupInputModuleKeymap :: (using ui_state: *UI_State) {
