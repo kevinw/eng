@@ -1,6 +1,7 @@
 #scope_file
 #import "renderer";
 #import "Basic";
+Gamepad :: #import "Gamepad";
 renderer: *Renderer;
 _native_window: *void;
 _input_button_states: *[Input.NUM_BUTTON_STATES]Input.Key_Current_State;
@@ -44,6 +45,52 @@ DrawTexturePro :: (texture: Texture2D, sourceRec: Rectangle, destRec: Rectangle,
     print("TODO: DrawTexturePro\n");
 }
 
+
+GetGamepadAxisMovement :: (gamepad: int, axis: GamepadAxis) -> float {
+    assert(gamepad == 0);
+    if axis == {
+        case .GAMEPAD_AXIS_LEFT_X;  return Gamepad.gamepad.left_stick.x;
+        case .GAMEPAD_AXIS_LEFT_Y;  return Gamepad.gamepad.left_stick.y;
+        case .GAMEPAD_AXIS_RIGHT_X; return Gamepad.gamepad.right_stick.y;
+        case .GAMEPAD_AXIS_RIGHT_Y; return Gamepad.gamepad.right_stick.y;
+        case;
+            assert(false, "TODO");
+    }
+
+    return 0;
+}
+
+get_gamepad_button :: (raylib_button: GamepadButton) -> Gamepad.Gamepad_Code {
+    if raylib_button == {
+        case .GAMEPAD_BUTTON_LEFT_FACE_UP;     return .DPAD_UP;
+        case .GAMEPAD_BUTTON_LEFT_FACE_RIGHT;  return .DPAD_RIGHT;
+        case .GAMEPAD_BUTTON_LEFT_FACE_DOWN;   return .DPAD_DOWN;
+        case .GAMEPAD_BUTTON_LEFT_FACE_LEFT;   return .DPAD_LEFT;
+
+        case .GAMEPAD_BUTTON_RIGHT_FACE_UP;    return .Y;
+        case .GAMEPAD_BUTTON_RIGHT_FACE_RIGHT; return .X;
+        case .GAMEPAD_BUTTON_RIGHT_FACE_DOWN;  return .A;
+        case .GAMEPAD_BUTTON_RIGHT_FACE_LEFT;  return .B;
+
+        case .GAMEPAD_BUTTON_MIDDLE_RIGHT;     return .START;
+        case .GAMEPAD_BUTTON_MIDDLE_LEFT;      return .BACK;
+
+        case;
+            assert(false, tprint("gamepad button %", raylib_button));
+    }
+
+    return 0;
+}
+
+IsGamepadButtonDown :: (gamepad: int, button: GamepadButton) -> bool {
+    assert(gamepad == 0);
+    return Gamepad.gamepad.buttons[cast(int)get_gamepad_button(button)] & .DOWN != 0;
+}
+
+IsGamepadButtonPressed :: (gamepad: int, button: GamepadButton) -> bool { 
+    assert(gamepad == 0);
+    return Gamepad.gamepad.buttons[cast(int)get_gamepad_button(button)] & .START != 0;
+}
 
     
 //------
@@ -126,16 +173,6 @@ NPatchInfo :: struct {
 GenImageColor :: (width: s32, height: s32, color: Color) -> Image {
     print("TODO: GetImageColor\n");
     return .{};
-}
-
-GetGamepadAxisMovement :: (gamepad: int, axis: GamepadAxis) -> float {
-    print("TODO: GetGamepadAxisMovement\n");
-    return 0;
-}
-
-IsGamepadButtonDown :: (gamepad: int, button: GamepadButton) -> bool {
-    print("TODO: IsGamepadButtonDown\n");
-    return false;
 }
 
 GamepadAxis :: enum {
@@ -465,8 +502,6 @@ MouseButton :: enum {
     MOUSE_MIDDLE_BUTTON :: 2;
 }
 
-
-IsGamepadButtonPressed :: (gamepad: int, button: GamepadButton) -> bool { return false; }
 
 BeginShaderMode :: (shader: Shader) {}
 EndShaderMode :: () {}
