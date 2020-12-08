@@ -20,7 +20,7 @@ Entry :: struct {
     ident: string;
 
     use_world_pos := false;
-    world_pos: rl.Vector2;
+    world_pos: Vector2;
 }
 
 #scope_module
@@ -31,7 +31,7 @@ Logger_State :: struct {
     this_frame_entries: [..]Entry;
 }
 
-world :: (pos: rl.Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
+world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
@@ -82,7 +82,7 @@ sticky :: (message: string, args: ..Any) {
     entry.message = copy_string_z(tprint(message, ..args));
 }
 
-world :: (world_pos: rl.Vector2, message: string, args: ..Any) {
+world :: (world_pos: Vector2, message: string, args: ..Any) {
     assert(message.count < MAX_COUNT);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
@@ -148,3 +148,6 @@ draw_world :: () {
     for * entries if it.use_world_pos
         #insert_internal draw;
 }
+#scope_file
+#import "Math";
+

@@ -68,7 +68,7 @@ patch_function_pointers :: () {
 Takes_Damage :: struct {
     // damage
     time: float64 = -999999;
-    delta: rl.Vector2;
+    delta: Vector2;
 
     health: float = 100;
 
@@ -95,14 +95,14 @@ being_damaged :: (damage: *Takes_Damage) -> bool {
     return Time.now - damage.time < damage.damage_time;
 }
 
-try_take_damage :: (it: *Takes_Damage, delta: rl.Vector2) -> bool {
+try_take_damage :: (it: *Takes_Damage, delta: Vector2) -> bool {
     if being_damaged(it) return false;
 
     take_damage(it, delta);
     return true;
 }
 
-take_damage :: (using it: *Takes_Damage, in_delta: rl.Vector2) {
+take_damage :: (using it: *Takes_Damage, in_delta: Vector2) {
     using context.state;
 
     amount := 1.0;
@@ -117,7 +117,7 @@ take_damage :: (using it: *Takes_Damage, in_delta: rl.Vector2) {
 Player :: struct {
     using component: Component;
 
-    speed: rl.Vector2;
+    speed: Vector2;
     grounded: bool;
     jump_count: u8;
 
@@ -510,7 +510,6 @@ player_attack_rect :: (using it: *Player, transform: *Transform) -> rl.Rectangle
 #import "Basic";
 rl :: #import "raylib";
 Color :: rl.Color;
-Vector2 :: rl.Vector2;
 inp :: #import "inp";
 Math :: #import "Math";
 reaper :: #import "reaper";

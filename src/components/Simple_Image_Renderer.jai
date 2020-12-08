@@ -51,7 +51,7 @@ draw :: (using it: *Simple_Image_Renderer, transform: *Transform) {
 
     source_rect := rl.make_Rectangle(0, 0, tex.width, tex.height);
     dest_rect := rl.make_Rectangle(transform.position.x, transform.position.y, source_rect.width, source_rect.height);
-    origin: rl.Vector2;
+    origin: Vector2;
     rotation := 0.0;
 
     rl.DrawTexturePro(tex, source_rect, dest_rect, origin, rotation, tint);

@@ -106,6 +106,9 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
 
 load_raylib_texture :: (filename: string) -> rl.Texture {
     if String.ends_with_nocase(filename, ".jpeg") || String.ends_with_nocase(filename, ".jpg") {
+        assert(false, "TODO: implement jpeg loading");
+        rl_format: rl.PixelFormat;
+        /*
         // for now, our raylib build doesn't support JPEGs, so we'll use
         // Jai's builtin STB image to do it. @Bloat
 
@@ -117,7 +120,6 @@ load_raylib_texture :: (filename: string) -> rl.Texture {
             return .{};
         }
 
-        rl_format: rl.PixelFormat;
         if bitmap.format == {
             case .R8;    rl_format = .UNCOMPRESSED_GRAYSCALE;
             case .RG8;    rl_format = .UNCOMPRESSED_GRAY_ALPHA;
@@ -125,8 +127,16 @@ load_raylib_texture :: (filename: string) -> rl.Texture {
             case .RGBA8; rl_format = .UNCOMPRESSED_R8G8B8A8;
             case; assert(false, "TODO: implement conversion here for format %", bitmap.format);
         }
+        data := bitmap.data;
+        width := bitmap.width;
+        height := bitmap.height;
+        */
 
-        img := rl.LoadImagePro(bitmap.data, bitmap.width, bitmap.height, cast(s32)rl_format);
+        data: *void;
+        width:s32 = 10;
+        height:s32 = 10;
+
+        img := rl.LoadImagePro(data, width, height, cast(s32)rl_format);
         return rl.LoadTextureFromImage(img);
     } else {
         return rl.LoadTexture(constant_or_temp_cstring(filename));
@@ -166,7 +176,7 @@ DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: rl.Color) {
     rl.DrawTexture(texture._entry.resource, posX, posY, tint);
 }
 
-DrawTexturePro :: (texture: LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.Rectangle, offset: rl.Vector2 = .{0, 0}, rotation:float = 0, color := rl.WHITE) {
+DrawTexturePro :: (texture: LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.Rectangle, offset: Vector2 = .{0, 0}, rotation:float = 0, color := rl.WHITE) {
     rl.DrawTexturePro(texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
@@ -240,6 +250,7 @@ _to_temp_c_string :: (s: string) -> *u8 {
 
 #scope_file
 #import "toolbelt";
+#import "Math";
 String :: #import "String";
 rl :: #import "raylib";
 #import "Basic";

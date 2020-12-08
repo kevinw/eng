@@ -1,7 +1,3 @@
-#scope_file
-toolbelt :: #import "toolbelt";
-#scope_export
-
 Sorting_Layer :: u8;
 
 SpriteRenderer :: struct {
@@ -159,7 +155,7 @@ _draw :: (using it: *SpriteRenderer, transform: *Transform) {
         dest_rect := get_sprite_anim_dest_rect(it, transform);
         if #complete slice_mode == {
             case .None;
-                toolbelt.draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
+                draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
             case .NineSlice;
                 npatch_info: rl.NPatchInfo;
                 npatch_info.sourceRec = _current_frame.rect;
@@ -188,7 +184,9 @@ draw_debug :: (using it: *SpriteRenderer, transform: *Transform) {
 }
 
 #scope_file
+#import "Math";
 rl :: #import "raylib";
+#import "raymath";
 #import "toolbelt";
 Sprite_Anim :: #import "Sprite_Anim";
 #import "Live_Types";

@@ -4,7 +4,7 @@ Sprite_Anim :: struct {
     Frame :: struct {
         texture: rl.Texture;
         rect: rl.Rectangle;
-        offset: rl.Vector2;
+        offset: Vector2;
         duration_secs: float;
     }
 
@@ -46,7 +46,7 @@ get_frame :: (using sprite_anim: *Sprite_Anim, timer: float64, tag_name := "") -
         }
     }
 
-    timer_mod := Math.fmod(timer, duration);
+    timer_mod := fmod(timer, duration);
 
     t := 0.0;
     for * frames_to_iterate {
@@ -59,7 +59,7 @@ get_frame :: (using sprite_anim: *Sprite_Anim, timer: float64, tag_name := "") -
     return false, .{}, -1;
 }
 
-draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: rl.Vector2, tag_name := "") {
+draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: Vector2, tag_name := "") {
     assert(sprite_anim != null);
     assert(frames.count > 0);
     assert(frames.count < MAX_FRAME_COUNT);
@@ -70,7 +70,7 @@ draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: rl.Vector2, tag_na
         logprint("warning", "couldn't get frame");
 }
 
-draw_frame :: (frame: Sprite_Anim.Frame, pos: rl.Vector2) {
+draw_frame :: (frame: Sprite_Anim.Frame, pos: Vector2) {
     dest_rect := rl.make_Rectangle(pos.x, pos.y, frame.rect.width, frame.rect.height);
     toolbelt.draw_texture(frame.texture, frame.rect, dest_rect, frame.offset);
 }
@@ -141,4 +141,4 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
 rl :: #import "raylib";
 #import "Basic";
 toolbelt :: #import "toolbelt";
-Math :: #import "Math";
+#import "Math";

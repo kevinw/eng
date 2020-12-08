@@ -63,7 +63,7 @@ Editor :: struct {
 
     drag_state: struct {
         dragging: bool;
-        origin: rl.Vector2;
+        origin: Vector2;
     };
 
     selected: [..]Selected_Object;
@@ -72,8 +72,8 @@ Editor :: struct {
     editing_entity_name: Maybe(Entity_Handle);
     editing_entity_grab_focus := false;
 
-    world_mouse_pos: rl.Vector2;
-    mouse_pos: Latch(rl.Vector2);
+    world_mouse_pos: Vector2;
+    mouse_pos: Latch(Vector2);
 
     last_click_time: float64 = -99999;
 
@@ -129,7 +129,7 @@ Vec2 :: Vector2;
 
 Selected_Object :: struct {
     using handle: Entity_Handle;
-    original_pos: rl.Vector2;
+    original_pos: Vector2;
 }
 
 InputTextStr :: (str: *string) -> bool {
@@ -213,31 +213,31 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
             // roll (x-axis rotation)
             sinr_cosp := 2.0 * (q.w * q.x + q.y * q.z);
             cosr_cosp := 1.0 - 2.0 * (q.x * q.x + q.y * q.y);
-            angles.x = Math.atan2(sinr_cosp, cosr_cosp);
+            angles.x = atan2(sinr_cosp, cosr_cosp);
 
             // pitch (y-axis rotation)
             sinp := 2.0 * (q.w * q.y - q.z * q.x);
-            if Math.abs(sinp) >= 1
-                angles.y = copysign(Math.PI / 2.0, sinp); // use 90 degrees if out of range
+            if abs(sinp) >= 1
+                angles.y = copysign(PI / 2.0, sinp); // use 90 degrees if out of range
             else
-                angles.y = Math.asin(sinp);
+                angles.y = asin(sinp);
 
             // yaw (z-axis rotation)
             siny_cosp := 2 * (q.w * q.z + q.x * q.y);
             cosy_cosp := 1 - 2 * (q.y * q.y + q.z * q.z);
-            angles.z = Math.atan2(siny_cosp, cosy_cosp);
+            angles.z = atan2(siny_cosp, cosy_cosp);
 
             return angles;
         }
 
         euler_to_quaternion :: (yaw: float, pitch: float, roll: float) -> Vector4 { // yaw (Z), pitch (Y), roll (X)
             // Abbreviations for the various angular functions
-            cy := Math.cos(yaw * 0.5);
-            sy := Math.sin(yaw * 0.5);
-            cp := Math.cos(pitch * 0.5);
-            sp := Math.sin(pitch * 0.5);
-            cr := Math.cos(roll * 0.5);
-            sr := Math.sin(roll * 0.5);
+            cy := cos(yaw * 0.5);
+            sy := sin(yaw * 0.5);
+            cp := cos(pitch * 0.5);
+            sp := sin(pitch * 0.5);
+            cr := cos(roll * 0.5);
+            sr := sin(roll * 0.5);
 
             q: Vector4;
             q.w = cr * cp * cy + sr * sp * sy;
@@ -536,6 +536,7 @@ render_imgui_to_drawlists :: (state: *State) {
 
     using ImGui;
 
+
     {
         // fade the editor in and out when toggling between edit and play mode.
         using state.editor;
@@ -602,8 +603,8 @@ render_imgui_to_drawlists :: (state: *State) {
     if editor.windows.asset_selector.visible
         render_asset_selector(*editor.windows.asset_selector.visible);
 
-    if editor.windows.demo
-        ShowDemoWindow(*editor.windows.demo);
+    //if editor.windows.demo
+        //ShowDemoWindow(*editor.windows.demo);
 
     ButtonEx :: (label: *u8, size:ImVec2 = .{0,0}, enabled := true) -> bool {
         if !enabled PushStyleVar(.Alpha, 0.5);
@@ -691,13 +692,13 @@ render_imgui_to_drawlists :: (state: *State) {
             }
 
             if do_spawn {
-                pos: rl.Vector3;
+                pos: Vector3;
                 camera := get_main_camera();
                 if camera != null { pos = get_worldspace_center(camera); }
 
                 entity_handle: Entity_Handle;
                 entity: *Entity;
-                offset: rl.Vector2;
+                offset: Vector2;
 
                 if it.type == {
                     case .Prefab;
@@ -1329,7 +1330,7 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
     ok, entity := get_entity(entity_handle);
     if !ok return;
 
-    pos: Maybe(rl.Vector2);
+    pos: Maybe(Vector2);
     r := entity_rect(entity);
 
     if r.width > 0 && r.height > 0 {
@@ -1408,6 +1409,9 @@ HelpMarker :: (desc: string) {
     }
 }
 
+#scope_export
+ImGui :: #import "imgui";
+make_ImVec2 :: ImGui.make_ImVec2;
 #scope_file
 
 #load "../lib/imgui_inspector.jai";
@@ -1415,7 +1419,8 @@ HelpMarker :: (desc: string) {
 
 
 File_Utilities :: #import "File_Utilities";
-Math :: #import "Math";
+#import "toolbelt";
+#import "Math";
 wbml :: #import "wbml";
 inp :: #import "inp";
 File :: #import "File";
@@ -1425,3 +1430,7 @@ String :: #import "String";
 #import "tween";
 #import "Array_With_Holes";
 #import "Live_Types";
+Maybe :: struct(T: Type) {
+    using value: T;
+    has_value: bool;
+}

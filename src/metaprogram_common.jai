@@ -1,3 +1,6 @@
+DEFAULT_SRC_PLUGIN :: "d3d_game";
+//DEFAULT_SRC_PLUGIN :: "game";
+
 is_name_a_System_Stage :: inline (name: string) -> bool    {
     #insert #run (() -> string {
         sb: String_Builder;

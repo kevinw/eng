@@ -1,6 +1,6 @@
 Rotater :: struct {
     using component: Component;
-    speed: rl.Vector3;
+    speed: Vector3;
     count := 10;
 }
 

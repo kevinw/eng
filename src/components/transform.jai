@@ -1,9 +1,9 @@
 Transform :: struct {
     using component: Component;
 
-    position: rl.Vector3    = .{0, 0, 0};
-    rotation: rl.Quaternion = .{0, 0, 0, 1};
-    scale:    rl.Vector3    = .{1, 1, 1};
+    position: Vector3    = .{0, 0, 0};
+    rotation: Quaternion = .{0, 0, 0, 1};
+    scale:    Vector3    = .{1, 1, 1};
 }
 
 Link :: struct {

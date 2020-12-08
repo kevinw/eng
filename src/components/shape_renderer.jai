@@ -29,5 +29,4 @@ on_enable :: (it: *Shape_Renderer, entity: *Entity) {
 }
 
 #scope_file
-Render :: #import "Render";
 rl :: #import "raylib";

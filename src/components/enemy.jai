@@ -7,7 +7,6 @@ DYING_FPS :: 9;
 #import "game_sound_soloud";
 #import "Sprite_Anim";
 rl :: #import "raylib";
-Vector4 :: rl.Vector4;
 
 evilplant: LiveTexture;
 evilplant_sprite: struct {
@@ -74,7 +73,7 @@ on_enable :: (using it: *Enemy, parent_entity: *Entity) {
     editor_rect = add_component(it.entity, Editor_Selectable_Rect);
 }
 
-enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: rl.Vector2) {
+enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
     if try_take_damage(*damage, delta) {
         last_attack_time = -99999;
         attack_cooldown = ATTACK_COOLDOWN;
@@ -161,7 +160,7 @@ enemy_update_all :: () {
     using context.state;
 
     p_rect: rl.Rectangle;
-    player_midpoint: rl.Vector2;
+    player_midpoint: Vector2;
 
     all_players := get_components(Player);
     assert(all_players.count < 2, "right now only coded for one player, but there are: %", all_players.count);

@@ -1,6 +1,5 @@
 #scope_file
 Reflection :: #import "Reflection";
-ImVec2 :: ImGui.ImVec2;
 #scope_export
 
 Struct_Looks_Like :: enum {

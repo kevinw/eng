@@ -28,12 +28,12 @@ get_main_camera_2D :: () -> *rl.Camera2D {
         return null;
 }
 
-get_worldspace_center :: (cam: *Cam) -> rl.Vector3 {
+get_worldspace_center :: (cam: *Cam) -> Vector3 {
     return v3(cam.cam2D.target +
         rl.make_Vector2(context.state.gameWidth/2.0, context.state.gameHeight/2.0));
 }
 
-set_worldspace_center :: (cam: *Cam, position: rl.Vector2) {
+set_worldspace_center :: (cam: *Cam, position: Vector2) {
     cam.cam2D.target = position - v2(context.state.gameWidth/2.0, context.state.gameHeight/2.0);
 }
 
@@ -82,7 +82,7 @@ update :: (cam_follow: *Cam_Follow, camera: *Cam) {
 
 rl :: #import "raylib";
 #import "raymath";
-Vector2 :: rl.Vector2;
+#import "Math";
 
 /*
 

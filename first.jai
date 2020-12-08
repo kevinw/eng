@@ -10,7 +10,7 @@ CHECK_PATH :: "check/";
 
 module_search_paths := string.[
     "../jai-imgui",
-    "../jai-raylib",
+    //"../jai-raylib",
     "../jai-soloud",
     "lib",
     "src"
@@ -428,8 +428,6 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
 }
 
 build :: () {
-    DEFAULT_SRC_PLUGIN :: "game";
-
     args := compiler_get_command_line_arguments();
     is_reload := false;
     flags := Build_Flags.None;

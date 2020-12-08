@@ -70,7 +70,7 @@ game_base_shutdown :: () {
 game_base_update :: () {
     using context.state;
 
-    imgui_raylib_new_frame(*ui);
+    ImGui_Impl_NewFrame(*ui, rl.GetWindowHandle(), rl.GetScreenWidth(), rl.GetScreenHeight());
 
     absolute_delta_time := rl.GetFrameTime();
 
@@ -128,7 +128,11 @@ game_base_push_drawing :: () #expand {
     rl.BeginDrawing();
     `defer {
         rl.rlglDraw();
-        imgui_render(*context.state.ui);
+
+        ImGui.Render();
+        ok := ImGui_Impl_RenderDrawData(ui, ImGui.GetDrawData());
+        assert(ok);
+
         screenlog.draw();
         host_debug_draw();
         rl.EndDrawing();
@@ -139,24 +143,52 @@ game_base_push_drawing :: () #expand {
     // https://github.com/raysan5/raylib/issues/1216
 }
 
-game_base_init :: () {
+game_base_draw_compile_error :: () {
+    rect := rl.make_Rectangle(0, 0, rl.GetScreenWidth(), rl.GetScreenHeight());
+    outline_width := cast(s32)(max(rl.GetScreenWidth(), rl.GetScreenHeight()) * 0.03);
+    color := rl.make_Color(255, 40, 40, cast(u8)(255.0 * ((sin(rl.GetTime() * 5) + 1.0) / 4.0 + 0.3)));
+    rl.DrawRectangleLinesEx(rect, outline_width, color);
+}
+
+game_base_init :: (host_state: Host_State) {
     using context.state;
+
     init_world(*world);
-    imgui_init(*ui);
+    imgui_init(*ui, host_state.window_handle);
     sound_init(*sound_state);
     editor_init(*editor);
 }
 
 game_base_did_reload_dll :: () {
-    ImGui_Impl_DLL_Was_Reloaded(*context.state.ui);
+    ui_state := *context.state.ui;
+
+    #if ACTUALLY_USE_RAYLIB
+        ImGui_Impl_SetupGLContext();
+
+    _SetAllocators();
+    ui_state.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
+
+    assert(context.state.ui.ctx != null);
+    ImGui.SetCurrentContext(context.state.ui.ctx);
+
+    {
+        // The DLL initializes these by default to strings in its data segment,
+        // so when we reload we get a crash unless we make them valid again.
+        // note that they can be set to null to indicate that you want to
+        // handle saving/loading yourself; see the docs.
+        io := ImGui.GetIO();
+        io.IniFilename = "imgui.ini";
+        io.LogFilename = "imgui_log.txt";
+    }
+
     logprint("game", "game dll reloaded at % secs", cast(int)rl.GetTime());
 }
 
 #scope_file
 
-cp :: #import "Chipmunk";
 rl :: #import "raylib";
 
+cp :: #import "Chipmunk";
 Physics_2D_State :: struct {
     space: *cp.Space;
 }

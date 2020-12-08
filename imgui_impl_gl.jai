@@ -6,15 +6,30 @@ ImGui :: #import "imgui";
 ImDrawIdx :: ImGui.ImDrawIdx;
 make_ImVec2 :: ImGui.make_ImVec2;
 
+DEBUG_SEVERITY_NOTIFICATION:GLenum: 0x826B;
+
+gl_debug_context: Context;
+
+gl_debug_proc :: (
+    source: GLenum,
+    type: GLenum,
+    id: GLuint,
+    severity: GLenum,
+    length: GLsizei,
+    message: *u8,
+    userdata: *void) #c_call
+{
+    if severity == DEBUG_SEVERITY_NOTIFICATION return;
+
+    ctx := cast(*Context)userdata;
+    push_context <<ctx {
+        print("GL ERROR: severity: % --- %\n", severity, to_string(message));
+    }
+}
+
+
 UI_State :: struct {
-    ctx: *ImGui.Context;
-
-    small_font: *ImGui.ImFont;
-    monospace_font: *ImGui.ImFont;
-
-    Time: float64;
-    MousePressed: [3]bool;
-    MouseWheel: float;
+    using ui_state_base: UI_State_Base;
     FontTexture: GLuint;
     ShaderHandle: GLuint;
     AttribLocationTex: GLint;
@@ -27,33 +42,7 @@ UI_State :: struct {
     ElementsHandle: GLuint;
 };
 
-imgui_alloc_context: Context;
-
-// @Speed: maybe imgui should just get 
-c_alloc :: (sz: u64, userdata: *void) -> *void #c_call {
-    push_context << cast(*Context)userdata {
-        return alloc(cast(s64)sz);
-    }
-}
-
-c_free :: (ptr: *void, userdata: *void) #c_call {
-    push_context << cast(*Context)userdata {
-        free(ptr);
-    }
-}
-
-_SetAllocators :: () {
-    imgui_alloc_context = context;
-    ImGui.SetAllocatorFunctions(c_alloc, c_free, *imgui_alloc_context);
-}
-
-ImGui_Impl_CreateContext :: (using ui_state: *UI_State) {
-    _SetAllocators();
-    ctx = ImGui.CreateContext();
-
-    io := ImGui.GetIO();
-    io.ConfigFlags_ |= .DockingEnable;
-}
+#load "imgui_impl_common.jai";
 
 
 // This is the main rendering function that you have to implement and provide to ImGui (via setting up 'RenderDrawListsFn' in the ImGuiIO structure)
@@ -480,27 +469,6 @@ ImGui_Impl_SetupGLContext :: () {
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     gl_debug_context = context;
     glDebugMessageCallback(gl_debug_proc, *gl_debug_context);
-}
-
-ImGui_Impl_DLL_Was_Reloaded :: (ui_state: *UI_State) {
-    ImGui_Impl_SetupGLContext();
-
-    _SetAllocators();
-    ui_state.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
-
-    assert(context.state.ui.ctx != null);
-    ImGui.SetCurrentContext(context.state.ui.ctx);
-
-    {
-        // The DLL initializes these by default to strings in its data segment,
-        // so when we reload we get a crash unless we make them valid again.
-        // note that they can be set to null to indicate that you want to
-        // handle saving/loading yourself; see the docs.
-        io := ImGui.GetIO();
-        io.IniFilename = "imgui.ini";
-        io.LogFilename = "imgui_log.txt";
-    }
-
 }
 
 ImGui_Impl_NewFrame :: (ui_state: *UI_State, native_window_handle: *void, display_width: s32, display_height: s32) {

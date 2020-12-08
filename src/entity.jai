@@ -35,8 +35,8 @@ we have now, and this kind of thing...
 #load "components/enemy.jai";
 #load "components/player.jai";
 #load "components/shape_renderer.jai";
-#load "components/pong_paddle.jai";
-#load "components/pong_components.jai";
+//#load "components/pong_paddle.jai";
+//#load "components/pong_components.jai";
 #load "components/transform_test_components.jai";
 #load "components/editor_selectable_rect.jai";
 #load "components/follow.jai";
@@ -47,6 +47,7 @@ we have now, and this kind of thing...
 
 #load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
 
+/*
 // iterate through children of entity
 for_expansion :: (entity_handle: Entity_Handle, body: Code, pointer: bool, reverse: bool) #expand {
     assert(!pointer);
@@ -62,6 +63,7 @@ for_expansion :: (entity_handle: Entity_Handle, body: Code, pointer: bool, rever
         }
     }
 }
+*/
 
 get_parent :: (entity_handle: Entity_Handle) -> Entity_Handle {
     link := get_component(entity_handle, Link);
@@ -246,7 +248,7 @@ entity_rect :: (entity_handle: Entity_Handle) -> rl.Rectangle {
     return entity_rect(entity);
 }
 
-operator + :: inline (rect: rl.Rectangle, pos: rl.Vector2) -> rl.Rectangle {
+operator + :: inline (rect: rl.Rectangle, pos: Vector2) -> rl.Rectangle {
     return rl.make_Rectangle(rect.x + pos.x, rect.y + pos.y, rect.width, rect.height);
 }
 
@@ -957,7 +959,7 @@ get_component_in_entity_named :: (entity_name: string, $component_type: Type) ->
     return null;
 }
 
-spawn_prefab :: (prefab_name: string, world_pos: rl.Vector2) -> (*Entity, Entity_Handle) {
+spawn_prefab :: (prefab_name: string, world_pos: Vector2) -> (*Entity, Entity_Handle) {
     entity, entity_handle := spawn_prefab(prefab_name, v3(world_pos));
     return entity, entity_handle;
 }
@@ -1001,7 +1003,6 @@ wbml :: #import "wbml";
 laas :: #import "laas";
 Undo :: #import "undo";
 rl :: #import "raylib";
-Vector3 :: rl.Vector3;
 Debug :: #import "Debug";
 
 #import "live_raylib";

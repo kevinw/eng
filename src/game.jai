@@ -51,7 +51,7 @@ set_context_funcs :: () {
     context.state.editor.callbacks.did_drag = editor_did_drag;
 }
 
-on_host_did_reload_game_dll :: () {
+on_host_did_reload_game_dll :: (host_state: Host_State) {
     set_context_funcs();
     game_base_did_reload_dll();
 }
@@ -68,11 +68,11 @@ editor_did_drag :: (rect: rl.Rectangle) {
     Undo.commit(*context.state.editor.undo_state);
 }
 
-on_host_init :: () {
+on_host_init :: (host_state: Host_State) {
     using context.state;
     set_context_funcs();
 
-    game_base_init();
+    game_base_init(host_state);
     // print("host inited. state at %. world.entities at %\n", context.state, context.state.world.entities);
 
     {

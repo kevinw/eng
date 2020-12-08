@@ -42,7 +42,7 @@ get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
 }
 
 sin_min_max :: (val: float, min: float, max: float) -> float {
-    sin01 := (Math.sin(val) * 0.5) + 1.0;
+    sin01 := (sin(val) * 0.5) + 1.0;
     return min + sin01 * (max - min);
 }
 
@@ -333,8 +333,9 @@ sign :: inline (x: $T) -> int {
 }
 
 v2 :: make_Vector2;
-v3 :: (x: float, y: float, z: float) -> Vector3 { return make_Vector3(x, y, z); }
-v3 :: (xy: Vector2, z: float=0) -> Vector3 { return make_Vector3(xy.x, xy.y, z); }
+v3 :: inline (x: float, y: float, z: float) -> Vector3 { return make_vector3(x, y, z); }
+v3 :: inline (xy: Vector2, z: float=0) -> Vector3 { return make_vector3(xy.x, xy.y, z); }
+v4 :: make_vector4;
 
 rect :: make_Rectangle;
 
@@ -342,14 +343,14 @@ rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
     x := min(p1.x, p2.x);
     y := min(p1.y, p2.y);
 
-    width := Math.abs(p2.x - p1.x);
-    height := Math.abs(p2.y - p1.y);
+    width := abs(p2.x - p1.x);
+    height := abs(p2.y - p1.y);
 
     return rect(x, y, width, height);
 }
 
 get_mouse_world_pos :: (camera: *Camera2D, screen_texture: RenderTexture) -> Vector2 {
-    rt_multiplier := v2(cast(float)screen_texture.texture.width / GetScreenWidth(),
+    rt_multiplier := v2(cast(float)screen_texture.texture.width  / GetScreenWidth(),
                         cast(float)screen_texture.texture.height / GetScreenHeight());
 
     mouse_pos := GetMousePosition();
@@ -427,7 +428,7 @@ test_parent_struct :: () {
 
 
 round :: (f: float) -> float {
-    frac_part := Math.fmod(f, 1);
+    frac_part := fmod(f, 1);
     res := cast(float)cast(int)f;
     if frac_part >= 0.5 res += 1;
     return res;
@@ -580,5 +581,5 @@ New_Ident :: (name: string, flags: u32 = 0) -> *Code_Ident {
 #import "raylib";
 #import "raymath";
 #import "Compiler";
-Math :: #import "Math";
+#import "Math";
 platform :: #import "platform";

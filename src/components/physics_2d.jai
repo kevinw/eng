@@ -12,8 +12,8 @@ BoxCollider :: struct {
     using component: Component;
     collision: Collision_Type;
 
-    size:   rl.Vector2 = .{1, 1};
-    offset: rl.Vector2 = .{0, 0};
+    size:   Vector2 = .{1, 1};
+    offset: Vector2 = .{0, 0};
 
 
     using physics_object: Physics_Object; @noui @noserialize
@@ -255,7 +255,7 @@ DrawSegment :: (a: cp.Vect, b: cp.Vect, color: cp.SpaceDebugColor, data: *void) 
 DrawFatSegment :: (a: cp.Vect, b: cp.Vect, radius: float64, outlineColor: cp.SpaceDebugColor, fill_color: cp.SpaceDebugColor, data: *void) #c_call {}
 
 DrawPolygon :: (count: s32, verts: *cp.Vect, radius: float64, outlineColor: cp.SpaceDebugColor, fill_color: cp.SpaceDebugColor, data: *void) #c_call {
-    points: [3]rl.Vector2;
+    points: [3]Vector2;
 
     push_context <<cast(*Context)data {
         i := 0;
