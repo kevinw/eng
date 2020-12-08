@@ -14,15 +14,14 @@
 - make sure debug allocators are off
 - make sure ROBUSTNESS flags in entity / array with holes are off
 
-- link (and other libraries?) raylib statically
-
 - bypass plugin architecture and embed game.dll functions directly
--miniz (and probably others) has /z7 embedded debugging info
-- find a tool to see if there is debugging info anywhere?
+- miniz (and probably others) has /z7 embedded debugging info
+- find or make a tool to see if there is debugging info anywhere?
 
 
 ## DONE
 - the tprints for debug names in wbml serialization and entity stuff get run A
   LOT. maybe we need a "devprint" which is effectively a no-op on release (or
   even most dev?) builds
+- link (and other libraries?) raylib statically
 

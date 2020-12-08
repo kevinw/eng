@@ -19,6 +19,15 @@ im_init :: (using ctx: *Im_Context, index_elements := 4096, vertex_elements := 4
     offset = xy(0, 0);
 }
 
+im_finish :: (using ctx: *Im_Context) { // TODO: not sure this is necesssary beyond im_flush
+    if draw_array.count > 0 {
+        draw_cmd := *draw_array[draw_array.count - 1];
+        if draw_cmd.index_count > 0 {
+            im_flush(ctx);
+        }
+    }
+}
+
 im_set_texture :: (using ctx: *Im_Context, texture: *Texture) {
     draw_cmd := *draw_array[draw_array.count - 1];
     if draw_cmd.texture == texture  return;                     // Nothing to do.
@@ -89,6 +98,38 @@ im_set_clip_rect :: (using ctx: *Im_Context, rect: Vector4) {
 }*/
 
 
+im_draw_circle :: (using ctx: *Im_Context, center: Vector2, radius: Vector2, color: Vector4, segments := 40) {
+    im_draw_circle_sector(ctx, center, radius, start_angle=0, end_angle=TAU, segments=segments, color=color);
+}
+
+im_draw_circle_sector :: (using ctx: *Im_Context, center: Vector2, radius: Vector2, start_angle: float = 0, end_angle:float = TAU, segments := 40, color := Vector4.{1,1,1,1}) {
+    r := radius;
+    if r.x <= 0 r.x = 0.1;
+    if r.y <= 0 r.y = 0.1;
+
+    if end_angle < start_angle
+        Swap(*end_angle, *start_angle);
+
+    assert(segments >= 5, "TODO");
+
+    step_length := cast(float)(end_angle - start_angle)/cast(float)segments;
+    angle       := cast(float)start_angle;
+
+    for i: 0..segments - 1 {
+        im_draw_triangle(ctx,
+            center,
+            center + make_vector2(sin(angle) * r.x,               cos(angle) * r.y),
+            center + make_vector2(sin(angle + step_length) * r.x, cos(angle + step_length) * r.y),
+            make_vector2(0, 0),
+            make_vector2(1, 1),
+            make_vector2(1, 1),
+            color);
+        angle += step_length;
+
+        //print("drawing circle segment % %\n", i, r);
+    }
+}
+
 im_draw_quad :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t0: Vector2, t1: Vector2, t2: Vector2, t3: Vector2, c: Vector4) {
     im_set_primitive(ctx, 3);
     im_ensure_space_for(ctx, 6, 4);
@@ -98,12 +139,7 @@ im_draw_quad :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, 
     v2 := im_vertex(ctx, p2, t2, c);
     v3 := im_vertex(ctx, p3, t3, c);
 
-    #if CLOCKWISE {
-        im_indices(ctx, v0, v2, v1, v2, v0, v3);
-    } else {
-        im_indices(ctx, v0, v1, v2, v2, v0, v3);
-    }
-    
+    im_indices(ctx, v0, v1, v2, v2, v0, v3);
 }
 
 im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0: Vector2, t1: Vector2, c: Vector4) {
@@ -269,8 +305,6 @@ Im_Context :: struct {
 
 #scope_file
 
-CLOCKWISE :: true;
-
 #import "Math";
 #import "Basic";
 
@@ -285,9 +319,8 @@ im_begin_draw :: (using ctx: *Im_Context, reset := true) -> *Im_Draw_Command {
     }
 
     if reset {
-        dummy: Vector4;
         current_index_per_primitive = 3;
-        current_clip_rect = dummy;
+        current_clip_rect = .{};
         current_texture = null;
         current_sampler = null;
     }

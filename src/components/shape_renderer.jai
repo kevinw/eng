@@ -8,15 +8,14 @@ Shape_Renderer :: struct {
     }
 
     shape: Shape = .Circle;
-    color: rl.Color = rl.MAGENTA;
+    color: rl.Color = .{190, 110, 180, 255};
 }
 
 draw :: (using shape_renderer: *Shape_Renderer, transform: *Transform) {
     scl := transform.scale.xy;
     if shape == {
         case .Circle;
-            radius := max(scl.x, scl.y);
-            rl.DrawCircleV(transform.position.xy, radius, color);
+            im_draw_circle(*context.state.im_context, transform.position.xy, scl, color=rl.ColorToNormalized(color));
         case .Square;
             p := transform.position.xy - scl * 0.5;
             rl.DrawRectangleV(p, scl, color);
@@ -30,3 +29,4 @@ on_enable :: (it: *Shape_Renderer, entity: *Entity) {
 
 #scope_file
 rl :: #import "raylib";
+#import "renderer_im";

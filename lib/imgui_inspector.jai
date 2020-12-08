@@ -279,10 +279,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                                 }
                             } else {
                                 if ti_enum.internal_type.runtime_size == {
-                                    case 1;
-                                        <<cast(*u8)data = xx new_val;
-                                        print("set here %\n", new_val);
-                                        print("set value in mem: %\n", <<(cast(*u8)data));
+                                    case 1; <<cast(*u8)data  = xx new_val;
                                     case 2; <<cast(*u16)data = xx new_val;
                                     case 4; <<cast(*u32)data = xx new_val;
                                     case 8; <<cast(*u64)data = xx new_val;

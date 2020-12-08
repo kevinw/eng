@@ -1,18 +1,3 @@
-#import "Basic";
-#import "raymath";
-#import "toolbelt";
-screenlog :: #import "screenlog";
-inp :: #import "inp";
-#import "live_raylib";
-Sloppy_Math :: #import "Sloppy_Math";
-#import "Live_Types";
-#import "entity"(GAME_NAME);
-#import "game_sound_soloud";
-
-#load "../lib/ui.jai";
-#load "plugin_exports.jai";
-#load "editor.jai";
-
 HOTLOADING_ENABLED :: true;
 
 #add_context state: *State;
@@ -39,10 +24,6 @@ State_Base :: struct {
         frame_count: u64;
     };
     global_time_scale:float = 1.0;
-
-    // TODO: this is a kind of weird inversion of control. other files we import
-    // provide the structs that we use here. is that badly designed, or using a
-    // jai feature in a way that is actually fine?
 
     editor: Editor;
     sound_state: Sound_State;
@@ -91,8 +72,9 @@ game_base_update :: () {
         shift := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
         if rl.IsKeyPressed(.KEY_TAB) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
             editor_toggle(context.state);
-        if rl.IsKeyPressed(.KEY_R) && !shift && restart != null restart();
-        if rl.IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
+        if rl.IsKeyPressed(.KEY_R) && !shift && restart != null
+            restart();
+        if rl.IsKeyPressed(.KEY_MINUS)  change_global_time_scale(-1);
         if rl.IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
         if rl.IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
@@ -108,7 +90,7 @@ game_base_update :: () {
         }
     }
 
-    context.state.check_canaries(context.state);
+    check_canaries(context.state);
     world_update(*world, Time.delta_time);
 }
 
@@ -160,17 +142,13 @@ game_base_init :: (host_state: Host_State) {
 }
 
 game_base_did_reload_dll :: () {
-    ui_state := *context.state.ui;
+    using context.state;
 
-    #if ACTUALLY_USE_RAYLIB
-        ImGui_Impl_SetupGLContext();
+    _SetImGuiAllocators();
+    ui.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
 
-    _SetAllocators();
-    ui_state.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
-
-    assert(context.state.ui.ctx != null);
-    ImGui.SetCurrentContext(context.state.ui.ctx);
-
+    assert(ui.ctx != null);
+    ImGui.SetCurrentContext(ui.ctx);
     {
         // The DLL initializes these by default to strings in its data segment,
         // so when we reload we get a crash unless we make them valid again.
@@ -186,9 +164,25 @@ game_base_did_reload_dll :: () {
 
 #scope_file
 
-rl :: #import "raylib";
-
-cp :: #import "Chipmunk";
 Physics_2D_State :: struct {
     space: *cp.Space;
 }
+
+#import "entity"(GAME_NAME);
+
+rl :: #import "raylib";
+cp :: #import "Chipmunk";
+#import "Basic";
+#import "raymath";
+#import "toolbelt";
+screenlog :: #import "screenlog";
+inp :: #import "inp";
+#import "live_raylib";
+Sloppy_Math :: #import "Sloppy_Math";
+#import "Live_Types";
+#import "game_sound_soloud";
+
+#load "../lib/ui.jai";
+#load "plugin_exports.jai";
+#load "editor.jai";
+

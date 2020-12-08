@@ -1,9 +1,4 @@
-ACTUALLY_USE_RAYLIB :: false;
-
-#if ACTUALLY_USE_RAYLIB
-    #load "../imgui_impl_gl.jai";
-else
-    #load "../imgui_impl_d3d11.jai";
+#load "../imgui_impl_d3d11.jai";
 
 make_ImVec4 :: (x: float, y: float, z: float, w: float) -> ImGui.ImVec4 {
     v: ImGui.ImVec4 = ---;
@@ -127,16 +122,19 @@ dark_theme_2 :: () {
     style.Colors[ImGui.Col.ModalWindowDimBg] = make_ImVec4(0.80, 0.80, 0.80, 0.35);
 }
 
-imgui_init :: (ui: *UI_State, window_handle: *void) {
-    #if ACTUALLY_USE_RAYLIB
-        ImGui_Impl_SetupGLContext();
+imgui_render :: (ui: *UI_State) {
+    ImGui.Render();
+    ok := ImGui_Impl_RenderDrawData(ui, ImGui.GetDrawData());
+    assert(ok);
+}
 
+imgui_init :: (ui: *UI_State, window_handle: *void) {
     ImGui_Impl_CreateContext(ui);
     ImGui.StyleColorsDark();
     style := ImGui.GetStyle();
     style.ScaleAllSizes(style, 1.2);
 
-    dark_theme_2();
+    //dark_theme_2();
 
     font_file      :: "resources/fonts/Roboto-Regular.ttf"; font_size :: 20;
     font_file_mono :: "resources/fonts/consola.ttf";
@@ -148,6 +146,5 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
 
     ImGui_Impl_Init(ui, window_handle);
 
-    #if !ACTUALLY_USE_RAYLIB
-        ImGui_Impl_SetupInputModuleKeymap(ui);
+    ImGui_Impl_SetupInputModuleKeymap(ui);
 }

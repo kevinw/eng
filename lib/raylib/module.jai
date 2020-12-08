@@ -6,6 +6,21 @@ _native_window: *void;
 _XXX_SetRenderer :: (renderer_ptr: *Renderer) { renderer = renderer_ptr; }
 _XXX_SetNativeWindow :: (native_window: *void) { _native_window = native_window; }
 
+// ----
+
+DrawCircleV :: (center: Vector2, radius: float, color: Color) {
+    im_draw_circle(*context.state.im_context, center, make_vector2(radius, radius), color=ColorToNormalized(color));
+}
+
+DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
+    im_draw_rect(*context.state.im_context,
+        p0=position,
+        p1=position+size,
+        t0=make_vector2(0,0),
+        t1=make_vector2(1,1),
+        c=ColorToNormalized(color));
+}
+
 
     
 //------
@@ -129,10 +144,6 @@ DrawTriangleStrip :: (points: *Vector2, pointsCount: s32, color: Color) {
     print("TODO: DrawTriangleStrip\n");
 }
 
-DrawCircleV :: (center: Vector2, radius: float, color: Color) {
-    print("TODO: DrawCircleV\n");
-}
-
 
 Color :: struct {
     r: u8;
@@ -140,7 +151,24 @@ Color :: struct {
     b: u8;
     a: u8;
 }
-ColorFromNormalized :: (normalized: Vector4) -> Color { return .{}; }
+ColorFromNormalized :: (normalized: Vector4) -> Color {
+    c: Color = ---;
+    c.r = cast(u8)(normalized.x * 255.0);
+    c.g = cast(u8)(normalized.y * 255.0);
+    c.b = cast(u8)(normalized.z * 255.0);
+    c.a = cast(u8)(normalized.w * 255.0);
+    return c;
+}
+
+ColorToNormalized :: (color: Color) -> Vector4 {
+    v: Vector4 = ---;
+    v.x = cast(float)color.r / 255.0;
+    v.y = cast(float)color.g / 255.0;
+    v.z = cast(float)color.b / 255.0;
+    v.w = cast(float)color.a / 255.0;
+    return v;
+}
+
 Shader :: struct {
 }
 
@@ -423,10 +451,6 @@ IsGamepadButtonPressed :: (gamepad: int, button: GamepadButton) -> bool { return
 BeginShaderMode :: (shader: Shader) {}
 EndShaderMode :: () {}
 
-DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
-    print("TODO: DrawRectangleV\n");
-}
-
 DrawTexture :: (texture: Texture2D, posX: s32, posY: s32, tint: Color) {
     print("TODO: DrawTexture\n");
 }
@@ -532,6 +556,7 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
 
 #scope_file
 #import "Math";
+#import "renderer_im";
 Basic :: #import "Basic";
 print :: Basic.print;
 

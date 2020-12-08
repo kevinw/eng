@@ -1,46 +1,12 @@
-#import "Basic";
-rl :: #import "raylib";
-#import "toolbelt";
-
-// TODO: logs should use the camera's zoom to maintain its size on screen
-
-#scope_file
-TIME_ON_SCREEN :: 2.0;
-MAX_COUNT :: 2000;
-
-
 free_entry :: (using entry: *Entry) {
     free(message);
     free(ident);
 }
 
-Entry :: struct {
-    time: float64;
-    message: string;
-    ident: string;
-
-    use_world_pos := false;
-    world_pos: Vector2;
-}
-
-#scope_module
-
 Logger_State :: struct {
     //time: float64;
     entries: [..]Entry;
     this_frame_entries: [..]Entry;
-}
-
-world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
-    assert(context.logger_data != null);
-    using cast(*Logger_State)context.logger_data;
-
-    entry := array_add(*entries);
-    entry.time = time_to_show;
-    entry.ident = copy_string_z("msg from world func");
-    entry.message = copy_string_z(message);
-    entry.use_world_pos = true;
-    entry.world_pos = pos.xy;
 }
 
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
@@ -51,8 +17,8 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     if ident.count == 0 || ident[0] != #char "="
         print("%: %\n", ident, message);
 
-    new_ident := copy_string_z(ident);
-    new_message := copy_string_z(message);
+    new_ident := sprint("%\0", ident);
+    new_message := sprint("%\0", message);
 
     entry: *Entry;
     if new_ident.count > 1 && new_ident[0] == #char "=" {
@@ -79,7 +45,19 @@ sticky :: (message: string, args: ..Any) {
     using cast(*Logger_State)context.logger_data;
 
     entry := array_add(*this_frame_entries);
-    entry.message = copy_string_z(tprint(message, ..args));
+    entry.message = sprint("%\0", tprint(message, ..args));
+}
+
+world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
+    assert(context.logger_data != null);
+    using cast(*Logger_State)context.logger_data;
+
+    entry := array_add(*entries);
+    entry.time = time_to_show;
+    entry.ident = "msg from world func\0";
+    entry.message = sprint("%\0", message);
+    entry.use_world_pos = true;
+    entry.world_pos = pos.xy;
 }
 
 world :: (world_pos: Vector2, message: string, args: ..Any) {
@@ -92,7 +70,7 @@ world :: (world_pos: Vector2, message: string, args: ..Any) {
     entry := array_add(*this_frame_entries);
     entry.use_world_pos = true;
     entry.world_pos = world_pos;
-    entry.message = copy_string_z(tprint(message, ..args));
+    entry.message = sprint("%\0", tprint(message, ..args));
 }
 
 update :: (delta_time: float64) {
@@ -108,46 +86,20 @@ update :: (delta_time: float64) {
     }
 }
 
-draw :: () {
-    assert(context.logger_data != null);
-    using cast(*Logger_State)context.logger_data;
-
-    starting_x := cast(s32)400;
-
-    y:s32 = 0;
-    font_size:s32 = 22;
-    for * entries {
-        rl.DrawText(it.message, starting_x, y, font_size, rl.WHITE);
-        y += font_size;
-    }
-
-    x := cast(s32)500;
-    font_size = 15;
-    y = 0;
-    for * this_frame_entries {
-        if it.use_world_pos continue;
-        rl.DrawText(it.message, x, y, font_size, rl.WHITE);
-        y += font_size;
-    }
-
-    for * this_frame_entries free_entry(it);
-    array_reset(*this_frame_entries);
-}
-
-draw_world :: () {
-    assert(context.logger_data != null);
-    using cast(*Logger_State)context.logger_data;
-
-    font_size :: 9;
-
-    draw :: #code { rl.DrawText(it.message, xx it.world_pos.x, xx it.world_pos.y, font_size, rl.WHITE); };
-
-    for * this_frame_entries if it.use_world_pos
-        #insert_internal draw;
-            
-    for * entries if it.use_world_pos
-        #insert_internal draw;
-}
 #scope_file
+
 #import "Math";
+#import "Basic";
+
+TIME_ON_SCREEN :: 2.0;
+MAX_COUNT :: 2000;
+
+Entry :: struct {
+    time: float64;
+    message: string;
+    ident: string;
+
+    use_world_pos := false;
+    world_pos: Vector2;
+}
 

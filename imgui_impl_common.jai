@@ -11,7 +11,6 @@ UI_State_Base :: struct {
 
 imgui_alloc_context: Context;
 
-// @Speed: maybe imgui should just get 
 c_alloc :: (sz: u64, userdata: *void) -> *void #c_call {
     push_context << cast(*Context)userdata {
         return alloc(cast(s64)sz);
@@ -24,13 +23,13 @@ c_free :: (ptr: *void, userdata: *void) #c_call {
     }
 }
 
-_SetAllocators :: () {
+_SetImGuiAllocators :: () {
     imgui_alloc_context = context;
     ImGui.SetAllocatorFunctions(c_alloc, c_free, *imgui_alloc_context);
 }
 
 ImGui_Impl_CreateContext :: (using ui_state: *UI_State) {
-    _SetAllocators();
+    _SetImGuiAllocators();
     ctx = ImGui.CreateContext();
 
     io := ImGui.GetIO();

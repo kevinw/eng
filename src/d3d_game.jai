@@ -1,7 +1,6 @@
 GAME_NAME :: "d3d_game";
 #load "game_base.jai";
 
-
 State :: struct {
     using state_base: State_Base;
     renderer: Renderer;
@@ -20,16 +19,16 @@ update_and_draw :: () {
 
     editor_draw(context.state);
 
-    ImGui.Render();
-    ok := ImGui_Impl_RenderDrawData(*ui, ImGui.GetDrawData());
-    assert(ok);
+    {
+        world_draw(*world);
+        draw_all_drawables(*world);
+        physics_2d_draw_debug();
+        editor_draw_world(context.state);
+        screenlog_draw.draw_world();
+    }
 
-    im_draw_rect(*im_context,
-        p0=v2(30, 30), p1=v2(200, 250),
-        t0=v2(0, 0),   t1=v2(1, 1),
-        c =v4(1, .5, .5, 1));
-
-    im_flush(*im_context);
+    imgui_render(*ui);
+    im_finish(*im_context);
 }
 
 
@@ -79,3 +78,4 @@ editor_did_drag :: (rect: rl.Rectangle) {
 #import "renderer_im";
 #import "renderer_im_impl";
 rl :: #import "raylib";
+screenlog_draw :: #import "screenlog_draw";

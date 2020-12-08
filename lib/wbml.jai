@@ -197,6 +197,7 @@ _default_nodes: [..]Default_Node_Entry;
 get_defaults_node :: (value: *$Type, on_serialize := default_on_serialize) -> *Node {
     s := serialize(value, on_serialize, do_automatic_defaults = false);
     assert(s.count > 0);
+    assert(s.count < 10000);
     lexer := laas.make_lexer(s);
     node := parse_value(*lexer);
     assert(node != null);
@@ -873,10 +874,6 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
             logprint("wbml", "unhandled: '%' %", debug_name, ti.type);
     }
 }
-
-run_tests :: run_tests;
-
-// #run run_tests();
 
 #scope_file
 

@@ -1,9 +1,5 @@
 window_rect: Rectangle; // TODO: this needs to be injected into state, or refreshed, or deleted
 
-scrlog :: (id: *void, fmt: string, args: ..Any) {
-    logprint(tprint("=%", id), fmt, ..args);
-}
-
 push_mode_2D :: (camera: Camera2D) #expand {
     begin_mode_2D(camera);
     `defer EndMode2D();
@@ -111,16 +107,6 @@ to_temp_c_string :: (s: string) -> *u8 {
     memcpy(result, s.data, s.count);
     result[s.count] = 0;
     return result;
-}
-
-// copy a string and make sure the last byte is null
-copy_string_z :: (s: string) -> string {
-    r: string;
-    r.count = s.count;
-    r.data = cast(*u8) alloc(r.count + 1);  // Add 1 for the zero.
-    memcpy(r.data, s.data, s.count);
-    r.data[s.count] = 0;
-    return r;
 }
 
 draw_point :: inline (pt: Vector2, size: float, color: Color) {
