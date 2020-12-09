@@ -1,5 +1,3 @@
-window_rect: Rectangle; // TODO: this needs to be injected into state, or refreshed, or deleted
-
 push_mode_2D :: (camera: Camera2D) #expand {
     begin_mode_2D(camera);
     `defer EndMode2D();
@@ -40,53 +38,6 @@ get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
 sin_min_max :: (val: float, min: float, max: float) -> float {
     sin01 := (sin(val) * 0.5) + 1.0;
     return min + sin01 * (max - min);
-}
-
-ToggleFakeFullscreen :: () {
-    // raylib only does exclusive fullscreen, so here's a windowed fullscreen
-    // implementation.
-    
-    handle := GetWindowHandle();
-
-    WINDOW_WIDTH :: 1200;
-    WINDOW_HEIGHT :: 675;
-
-    monitor := 0;
-    monitor_w := GetMonitorWidth(0);
-    monitor_h := GetMonitorHeight(0);
-
-    pos := GetWindowPosition();
-    w, h := platform.get_window_size(handle);
-
-    if platform.is_window_borderless(handle) {
-        platform.set_window_borderless(handle, false);
-        platform.set_window_always_on_top(handle, true);
-        if window_rect.x <= 0 window_rect.x = 50;
-        if window_rect.y <= 0 window_rect.y = 50;
-        if window_rect.width == 0 window_rect.width = WINDOW_WIDTH;
-        if window_rect.height == 0 window_rect.height = WINDOW_HEIGHT;
-
-
-        SetWindowPosition(xx window_rect.x, xx window_rect.y);
-        SetWindowSize(xx window_rect.width, xx window_rect.height);
-    } else {
-        platform.set_window_borderless(handle, true);
-        window_rect = make_Rectangle(pos.x, pos.y, w, h);
-        platform.set_window_always_on_top(handle, false);
-        
-        {
-            // TODO: SetWindowSize sets the wrong size!!
-            #import "Windows";
-            w := GetSystemMetrics(SM_CXSCREEN);
-            h := GetSystemMetrics(SM_CYSCREEN);
-            SetWindowPos(handle, HWND_TOP, 0, 0, w, h, SWP_FRAMECHANGED);
-        }
-
-        //SetWindowSize(monitor_w, monitor_h);
-        //SetWindowPosition(0, 0);
-    }
-
-
 }
 
 overlaps :: inline (point: Vector2, rect: Rectangle) -> bool #symmetric {

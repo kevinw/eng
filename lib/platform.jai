@@ -1,7 +1,3 @@
-#scope_file
-#if OS == .WINDOWS #import "Windows";
-#import "Basic";
-#scope_module
 
 set_window_opacity :: (native_handle: *void, opacity: float) {
     #if OS == .WINDOWS {
@@ -41,8 +37,21 @@ set_window_borderless :: (native_handle: *void, borderless: bool) {
 
 is_window_borderless :: (native_handle: *void) -> bool {
     #if OS == .WINDOWS
-        return !(GetWindowLongW(native_handle, GWL_STYLE) & WS_OVERLAPPEDWINDOW);
+        return !!(GetWindowLongW(native_handle, GWL_STYLE) & WS_POPUP);
     return false;
+}
+
+set_window_rect :: (native_handle: *void, x: s32, y: s32, w: s32, h: s32) {
+    #if OS == .WINDOWS {
+        SetWindowPos(native_handle, HWND_TOP, x, y, w, h, SWP_NOZORDER);
+    }
+}
+
+get_window_position :: (native_handle: *void) -> (x: s32, y: s32) {
+    assert(native_handle != null);
+    rect: RECT;
+    GetWindowRect(native_handle, *rect);
+    return rect.left, rect.top;
 }
 
 get_window_size :: (native_handle: *void) -> (w: s32, h: s32) {
@@ -71,3 +80,8 @@ toggle_always_on_top :: (native_handle: *void) -> bool {
     set_window_always_on_top(native_handle, new_val);
     return new_val;
 }
+
+#scope_file
+#if OS == .WINDOWS #import "Windows";
+#import "Basic";
+#import "Math";

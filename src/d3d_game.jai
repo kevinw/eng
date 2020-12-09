@@ -64,7 +64,6 @@ on_host_init :: (host_state: Host_State) {
     set_context_funcs();
 
     Gamepad.init_gamepad();
-    print("Called init_gamepad: %\n", Gamepad.gamepad);
 
     init(*renderer, host_state.window_handle);
     _update_raylib_temp(host_state);

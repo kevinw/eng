@@ -31,6 +31,7 @@ WINDOW_HEIGHT :: 720;
 #add_context state: *void;
 #load "host_common.jai";
 
+the_window: Window_Type;
 host_state: Host_State;
 needs_recompile_timer:float = 0;
 reload_new_dll_filename: string;
@@ -147,45 +148,64 @@ panic :: (msg: string) {
 ///
 //
 //
-//
+
 #import "Math";
-
-Key_Code_Stub :: enum u32 {
-    // TODO: stubs
-    KEY_ZERO;
-    KEY_NINE;
-    KEY_LEFT_SHIFT;
-    KEY_RIGHT_SHIFT;
-    KEY_LEFT_BRACKET;
-    KEY_RIGHT_BRACKET;
-    KEY_R;
-}
-
-
 #import "Window_Creation";
 #import "Input";
 
-the_window: HWND;
-__window_should_close: bool;
-mark_window_should_close :: () { __window_should_close = true; }
-window_should_close :: () -> bool { return __window_should_close; }
-is_key_pressed :: (key: Key_Code_Stub) -> bool { return false; }
-is_key_down    :: (key: Key_Code_Stub) -> bool { return false; }
-is_window_fullscreen :: () -> bool { return false; }
-get_window_position :: () -> Vector2 {
-    rect: RECT;
-    GetWindowRect(the_window, *rect);
-    v: Vector2 = ---;
-    v.x = cast(float)rect.left;
-    v.y = cast(float)rect.top;
-    return v;
+is_key_pressed :: (key: Key_Code) -> bool {
+    return input_button_states[cast(int)key] & .START != 0;
+}
+is_key_down    :: (key: Key_Code) -> bool {
+    return input_button_states[cast(int)key] & .DOWN != 0;
+}
+is_window_fullscreen :: () -> bool {
+    // Raylib had "true fullscreen" but we haven't reimplemented it yet.
+    return false;
 }
 
-//
+window_rect: [4]s32;
+
+toggle_borderless_fullscreen :: () {
+    using platform;
+
+    handle := the_window;
+    
+    if is_window_borderless(handle) {
+        set_window_borderless(handle, false);
+        set_window_always_on_top(handle, true);
+        if window_rect[0] <= 0 window_rect[0] = 50;
+        if window_rect[1] <= 0 window_rect[1] = 50;
+        if window_rect[2] == 0 window_rect[2] = 1200;
+        if window_rect[3] == 0 window_rect[3] = 675;
+        set_window_rect(handle, window_rect[0], window_rect[1], window_rect[2], window_rect[3]);
+    } else {
+        x, y := get_window_position(handle);
+        w, h := get_window_size(handle);
+
+        set_window_borderless(handle, true);
+        window_rect[0] = x;
+        window_rect[1] = y;
+        window_rect[2] = w;
+        window_rect[3] = h;
+        set_window_always_on_top(handle, false);
+        {
+            #import "Windows";
+            w := GetSystemMetrics(SM_CXSCREEN);
+            h := GetSystemMetrics(SM_CYSCREEN);
+            SetWindowPos(handle, HWND_TOP, 0, 0, w, h, SWP_FRAMECHANGED);
+        }
+    }
+
+
+}
+
+
 //
 
 main :: () {
     Debug.init();
+    
     if GUARD_ALLOCATOR {
         GWP :: #import "gwpasan";
         print("[Perf] Using slow guard allocator.\n");
@@ -196,7 +216,7 @@ main :: () {
     found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
         print("Error: unable to find my own exe\n");
-        return;
+        exit(1);
     }
 
     {
@@ -204,26 +224,23 @@ main :: () {
         defer array_free(args);
 
         did_set_plugin_dll := false;
-        for args {
-            if it == {
-                case "--no-topmost";
-                    print("skipping topmost window\n");
-                    cmdline_args.topmost_window = false;
-                case "--no-live-reload";
-                    print("no live reload\n");
-                    cmdline_args.live_reload = false;
-                case;
-                    if it_index > 0 {
-                        if did_set_plugin_dll {
-                            print("error: more than one dll argument specified.\n");
-                            exit(1);
-                        }
-
-                        cmdline_args.game_name = copy_string(it);
-                        did_set_plugin_dll = true;
+        for args if it == {
+            case "--no-topmost";
+                print("skipping topmost window\n");
+                cmdline_args.topmost_window = false;
+            case "--no-live-reload";
+                print("no live reload\n");
+                cmdline_args.live_reload = false;
+            case;
+                if it_index > 0 {
+                    if did_set_plugin_dll {
+                        print("error: more than one dll argument specified.\n");
+                        exit(1);
                     }
-                    
-            }
+
+                    cmdline_args.game_name = copy_string(it);
+                    did_set_plugin_dll = true;
+                }
         }
     }
 
@@ -239,10 +256,11 @@ main :: () {
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
 
-    the_window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "");
+    the_window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "", window_x=win_x, window_y=win_y);
     // TODO: set win_x, win_y
     host_state.window_handle = the_window;
     host_state.input_button_states = *input_button_states; 
+    host_state.toggle_borderless_fullscreen = toggle_borderless_fullscreen;
 
     context.logger_data = New(screenlog.Logger_State);
     context.logger = screenlog.context_func;
@@ -285,19 +303,28 @@ main :: () {
     // set_target_fps(30);
     frame_count := 0;
 
+    window_did_move: bool;
+    window_move_record: Window_Move_Record;
 
-    while !window_should_close() {
+    quit: bool;
+    while !quit {
         auto_release_temp();
         update_window_events();
-        for events_this_frame
-            if it.type == .QUIT
-                mark_window_should_close();
+        for events_this_frame if it.type == .QUIT
+            quit = true;
 
         // pass a copy of all events down into the plugin
         host_state.pending_resizes = *pending_resizes;
         host_state.events_this_frame.count = 0;
         for events_this_frame array_add(*host_state.events_this_frame, it);
 
+        for pending_moves {
+            if it.window == the_window {
+                window_move_record = it;
+                window_did_move = true;
+                remove it;
+            }
+        }
 
         frame_count += 1;
 
@@ -312,12 +339,12 @@ main :: () {
             window_was_active = win_active;
         }
 
-        if is_key_pressed(.KEY_ZERO) {
+        if is_key_pressed(cast(Key_Code)#char "0") {
             top := platform.toggle_always_on_top(the_window);
             logprint("host", ifx top then "window always on top" else "window not topmost");
         }
 
-        if is_key_pressed(.KEY_NINE) {
+        if is_key_pressed(cast(Key_Code)#char "9") {
             transparent_while_not_focused = !transparent_while_not_focused;
             logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         }
@@ -325,14 +352,13 @@ main :: () {
         if cmdline_args.live_reload {
             if frame_count % 4 == 0 hotloader_process_change();
 
-            recompile_requested := is_key_pressed(.KEY_R) && (is_key_down(.KEY_LEFT_SHIFT) || is_key_down(.KEY_RIGHT_SHIFT));
-            if recompile_requested {
+            recompile_requested := is_key_pressed(cast(Key_Code)#char "r") && is_key_down(.SHIFT);
+            if recompile_requested
                 do_recompile();
-            }
 
             game_delta := 0;
-            if is_key_pressed(.KEY_LEFT_BRACKET) game_delta -= 1;
-            if is_key_pressed(.KEY_RIGHT_BRACKET) game_delta += 1;
+            if is_key_pressed(cast(Key_Code)#char "[") game_delta -= 1;
+            if is_key_pressed(cast(Key_Code)#char "]") game_delta += 1;
             if game_delta != 0 {
                 game_index += game_delta;
                 if game_index < 0 game_index = all_games.count - 1;
@@ -382,18 +408,15 @@ main :: () {
         plugin_tick(host_state);
     }
 
-    if !is_window_fullscreen() && !platform.is_window_borderless(the_window) {
+    if window_did_move && !platform.is_window_borderless(the_window) {
         builder: String_Builder;
-        defer free_buffers(*builder);
+        builder.allocator = __temporary_allocator;
 
         append(*builder, "[1]\n\n");
-        pos := get_window_position();
-        print("window pos %\n", pos);
-        print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\n", cast(s32)pos.x, cast(s32)pos.y);
+        print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\n",
+            window_move_record.x, window_move_record.y);
 
-        output := builder_to_string(*builder);
-        defer free(output);
-        File.write_entire_file(host_config_name, output);
+        File.write_entire_file(host_config_name, builder_to_string(*builder));
     }
 
     print("exit OK.\n");

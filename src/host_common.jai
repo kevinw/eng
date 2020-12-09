@@ -6,6 +6,8 @@ Host_State :: struct {
     events_this_frame:   [..]Event;
     input_button_states: *[NUM_BUTTON_STATES] Key_Current_State; // since the Input module stores state in module globals, we need to pass sa pointer down to the dll
     pending_resizes:     *[..] Window_Resize_Record;
+
+    toggle_borderless_fullscreen: #type ();
 }
 
 Sanity_Check_Info :: struct {

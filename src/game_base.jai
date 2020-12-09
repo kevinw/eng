@@ -81,12 +81,8 @@ game_base_update :: () {
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
         }
         if rl.IsKeyPressed(.KEY_F) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
-            USE_REAL_FULLSCREEN :: false;
-            if USE_REAL_FULLSCREEN {
-                rl.ToggleFullscreen();
-            } else {
-                ToggleFakeFullscreen();
-            }
+            if _local_host_state.toggle_borderless_fullscreen
+                _local_host_state.toggle_borderless_fullscreen();
         }
     }
 
