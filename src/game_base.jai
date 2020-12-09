@@ -146,6 +146,7 @@ game_base_did_reload_dll :: () {
 
     _SetImGuiAllocators();
     ui.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
+    ImGui_Impl_DidReloadDLL(*ui);
 
     assert(ui.ctx != null);
     ImGui.SetCurrentContext(ui.ctx);

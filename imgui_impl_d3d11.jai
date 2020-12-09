@@ -5,6 +5,9 @@ UI_State :: struct {
 
     // win32
     LastMouseCursor:      ImGui.MouseCursor;
+    hook: HHOOK;
+
+
 
     // d3d11
 
@@ -506,8 +509,9 @@ CWPRETSTRUCT :: struct {
 }
 user32 :: #foreign_system_library "user32";
 
-CallNextHookEx    :: (hhk: HHOOK, code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #foreign user32;
-SetWindowsHookExA :: (id_hook: s32, hook_fn: HOOKPROC, hmod: HINSTANCE, thread_id: DWORD) -> HHOOK #foreign user32;
+CallNextHookEx      :: (hhk: HHOOK, code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #foreign user32;
+SetWindowsHookExA   :: (id_hook: s32, hook_fn: HOOKPROC, hmod: HINSTANCE, thread_id: DWORD) -> HHOOK #foreign user32;
+UnhookWindowsHookEx :: (hhk: HHOOK) -> BOOL #foreign user32;
 
 HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
     HTCLIENT :: 1;
@@ -527,31 +531,34 @@ HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
     return CallNextHookEx(null, code, wparam, lparam);
 }
 
-hook: HHOOK;
-
-setup_set_cursor_hook :: () {
+setup_set_cursor_hook :: (using ui_state: *UI_State) {
     WH_CALLWNDPROCRET :: 12;
 
-    if SetWindowsHookExA(WH_CALLWNDPROCRET, HookProc, null, GetCurrentThreadId()) == null {
+    // unhook a previous one
+    if hook != null
+        if 0 == cast(int)UnhookWindowsHookEx(hook)
+            print("Error in UnhookWindowsHookEx: %", GetLastError());
+
+    // hook up the new callback
+    hook = SetWindowsHookExA(WH_CALLWNDPROCRET, HookProc, null, GetCurrentThreadId());
+    if hook == null
         print("SetWindowsHookExA error: %\n", GetLastError());
-        assert(false);
-    }
 }
 
 
 ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
     // Setup backend capabilities flags
     io := ImGui.GetIO();
-    io.BackendRendererName = "imgui_impl_dx11";
+    io.BackendRendererName = "imgui_impl_dx11_jai";
     io.BackendFlags_ |= .RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
     io.BackendFlags_ |= .HasMouseCursors;       // We have mouse cursors
 
-    setup_set_cursor_hook();
+    setup_set_cursor_hook(ui_state);
 
     // Get factory from device
-    pDXGIDevice: *IDXGIDevice;
-    pDXGIAdapter: *IDXGIAdapter;
-    pFactory: *IDXGIFactory;
+    pDXGIDevice:   *IDXGIDevice;
+    pDXGIAdapter:  *IDXGIAdapter;
+    pFactory:      *IDXGIFactory;
 
     assert(d3dDevice != null, "must set d3dDevice in UI_State before calling ImGui_Impl_Init in the d3d11 backend");
     assert(d3dDeviceContext != null, "must set d3dDeviceContext in UI_State before calling ImGui_Impl_Init in the d3d11 backend");
@@ -572,6 +579,10 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     d3dDeviceContext.AddRef(xx d3dDeviceContext);
 
     return true;
+}
+
+ImGui_Impl_DidReloadDLL :: (ui_state: *UI_State) {
+    setup_set_cursor_hook(ui_state);
 }
 
 
