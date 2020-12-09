@@ -1,8 +1,12 @@
+
 Module :: struct {
     filename: string;
-    native_module: HMODULE;
     last_write_time: u64;
     count: u16;
+
+    // win32
+    module_info: MODULEINFO;
+    native_module: HMODULE;
 }
 
 load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
@@ -42,6 +46,11 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
         return false;
     }
 
+    // Here we store the address of the loaded DLL for later.
+    if 0 == cast(int)GetModuleInformation(GetCurrentProcess(), new_dll, *plugin.module_info, size_of(type_of(plugin.module_info))) {
+        print("ERROR: Could not get module information.\n");
+    }
+
     file_time, ok := file_modtime(filename);
     if !ok {
         print("could not read DLL write time: %\n", filename);
@@ -62,6 +71,22 @@ unload :: (plugin: *Module) -> bool {
         print("error calling FreeLibrary on '%'\n", plugin.native_module);
         return false;
     }
+
+    {
+        // Here we lock the old DLL memory as PAGE_NOACCESS, so that if we
+        // accidentally keep a function pointer to it, we'll immediately get a
+        // breakpoint when trying to call the function, instead of jumping to
+        // random new bytes in memory that are being reused as something else.
+        // This should only be used in development/live reload code because it
+        // consumes address space.
+        using plugin.module_info;
+        if lpBaseOfDll != null {
+            old_protect_flags: u32;
+            valloc_ptr := VirtualAlloc(lpBaseOfDll, cast(u64)SizeOfImage, MEM_RESERVE, PAGE_NOACCESS);
+            assert(valloc_ptr != null, "VirtualAlloc failed");
+        }
+    }
+
 
     plugin.native_module = null;
     return true;
@@ -177,6 +202,8 @@ kernel32 :: #foreign_system_library "kernel32";
 FreeLibrary :: (module: HANDLE) -> s32 #foreign kernel32;
 CopyFileW :: (src: *wchar_t, dest: *wchar_t, force: BOOL) -> s32 #foreign kernel32;
 
+#if OS == .WINDOWS {
+
 _copy_file :: (src: string, dest: string) -> bool {
     fail_if_exists: BOOL = BOOL.FALSE;
 
@@ -188,6 +215,21 @@ _copy_file :: (src: string, dest: string) -> bool {
 
     return 0 != res;
 }
+
+MODULEINFO :: struct {
+    lpBaseOfDll: *void;
+    SizeOfImage: DWORD;
+    EntryPoint: *void;
+}
+
+GetModuleInformation :: (
+  hProcess: HANDLE,
+  hModule: HMODULE,
+  lpmodinfo: *MODULEINFO,
+  cb: DWORD
+) -> BOOL #foreign kernel32 "K32GetModuleInformation";
+
+} // OS == .WINDOWS
 
 
 #import "Basic";

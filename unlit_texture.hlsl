@@ -1,3 +1,6 @@
+Texture2D color_tex            : register(t0);
+SamplerState color_tex_sampler : register(s0);
+
 cbuffer constants : register(b0)
 {
     float4x4 projection;
@@ -26,5 +29,5 @@ vs_out vs_main(vs_in input) {
 }
 
 float4 ps_main(vs_out input): SV_TARGET {
-    return input.color;
+    return input.color * color_tex.Sample(color_tex_sampler, input.texcoord);
 }

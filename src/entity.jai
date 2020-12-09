@@ -114,6 +114,7 @@ get_entity :: (component: *Component) -> (bool, *Entity) {
     return ok, entity;
 }
 
+
 get_entity :: (entity_handle: Entity_Handle, $check_count := false) -> (bool, *Entity) {
     if entity_handle.id == 0 return false, null; // TODO: not sure if this should be down in get_item_ptr
 
@@ -299,6 +300,14 @@ entity_rect :: (entity: *Entity, verbose := false) -> rl.Rectangle {
 
 Entity_Handle :: Handle_Type;
 
+
+check_canaries :: (world: *World = null) {
+    if world == null
+        world = *context.state.world;
+    assert(world.canary1 == 101, tprint("world canary1 was not 101: %", world.canary1));
+    assert(world.canary2 == 999, tprint("world canary1 was not 999: %", world.canary2));
+}
+
 World :: struct {
     canary1 := 101;
     entities: Array_With_Holes(Entity);
@@ -385,10 +394,7 @@ world_predraw :: (world: *World) { run_all(world, .pre_draw); }
 
 world_draw :: (world: *World = null) {
     if world == null world = *context.state.world;
-
-    assert(world.canary1 == 101, tprint("world canary1 was not 101: %", world.canary1));
-    assert(world.canary2 == 999, tprint("world canary1 was not 999: %", world.canary2));
-
+    check_canaries(world);
     run_all(world, .draw);
 }
 
@@ -422,14 +428,20 @@ create_entity :: (world: *World = null, name: string = "",
 }
 
 get_entity_handle :: inline (entity: *Entity) -> Entity_Handle {
+    check_canaries();
+
     return get_handle_for_value_ptr(*context.state.world.entities, entity);
 }
 
 destroy_entity :: inline (entity_ptr: *Entity, undo: *Undo.Impl = null) {
+    check_canaries();
+
     destroy_entity(get_entity_handle(entity_ptr), undo);
 }
 
 destroy_entity :: (e: Entity_Handle, undo: *Undo.Impl = null) {
+    check_canaries();
+
     other_e := e;
     assert(other_e.id == e.id, "simple assignment of entity handle failed");
 
@@ -470,12 +482,16 @@ add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct, 
 }
 
 add_or_get_component :: (entity_or_handle: $E, $component_type: Type) -> *Component {
+    check_canaries();
+
     component_ptr := get_component(entity_or_handle, component_type);
     if component_ptr != null return component_ptr;
     return add_component(entity_or_handle, component_type);
 }
 
 add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct, undo: *Undo.Impl=null, $on_enable := true) -> *Component {
+    check_canaries();
+
     ok, entity := get_entity(entity_handle);
     assert(ok);
 
@@ -500,6 +516,8 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct,
 }
 
 add_component :: (entity_handle: Entity_Handle, $component_type: Type, undo: *Undo.Impl=null) -> *component_type {
+    check_canaries();
+
     ok, entity := get_entity(entity_handle);
     assert(ok);
 

@@ -16,6 +16,8 @@ _XXX_SetHostInputButtonStates :: (host_button_states: *[Input.NUM_BUTTON_STATES]
 
 // ----
 
+GetTime :: get_time;
+
 DrawCircleV :: (center: Vector2, radius: float, color: Color) {
     im_draw_circle(*context.state.im_context, center, make_vector2(radius, radius), color=ColorToNormalized(color));
 }
@@ -134,8 +136,6 @@ MatrixToFloatV  :: (mat: Matrix) -> float16 {
     f16.v = mat.floats;
     return f16;
 }
-GetTime :: () -> float64 { return 0; }
-GetFrameTime :: () -> float { return 0; }
 rlMultMatrixf   :: (matf: *float) { Basic.assert(false); }
 
 

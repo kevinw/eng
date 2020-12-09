@@ -7,6 +7,9 @@ State :: struct {
     im_context: Im_Context_R;
 }
 
+
+foo: Texture;
+
 update_and_draw :: () {
     using context.state;
 
@@ -18,21 +21,36 @@ update_and_draw :: () {
     game_base_update();
 
     // draw
-    defer present();
-    push_default_pass(clear_color=*Vector4.{0.2, 0, 0.2, 1});
-
-    editor_draw(context.state);
-
     {
-        world_draw(*world);
-        draw_all_drawables(*world);
-        physics_2d_draw_debug();
-        editor_draw_world(context.state);
-        screenlog_draw.draw_world();
-    }
+        push_default_pass(clear_color=*Vector4.{0.2, 0, 0.2, 1});
+        editor_draw(context.state);
 
-    imgui_render(*ui);
-    im_finish(*im_context);
+        {
+            world_draw(*world);
+            draw_all_drawables(*world);
+            physics_2d_draw_debug();
+            editor_draw_world(context.state);
+            screenlog_draw.draw_world();
+        }
+
+
+        imgui_render(*ui);
+
+
+        if foo.texture2D == null {
+            ok: bool;
+            ok, foo = load_texture_from_file("resources/textures/space.png");
+            assert(ok);
+        }
+
+        im_ctx := *context.state.im_context;
+        im_set_texture(im_ctx, *foo);
+        im_draw_rect(
+            im_ctx, v2(300, 200), v2(600, 400),
+            c=v4(cast(float)((sin(Time.now) + 1) * 0.5), 1, 1, 1));
+        im_flush(*im_context);
+    }
+    present();
 }
 
 _update_raylib_temp :: (host_state: Host_State) {
@@ -46,6 +64,8 @@ _update_raylib_temp :: (host_state: Host_State) {
 
 on_host_did_reload_game_dll :: (host_state: Host_State) {
     using context.state;
+
+    context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
 
     Gamepad.init_gamepad();
 

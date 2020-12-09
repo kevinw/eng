@@ -39,6 +39,8 @@ Renderer :: struct {
     depth_buffer_desc: D3D11_TEXTURE2D_DESC;
 
     debug_info_queue: *ID3D11InfoQueue;
+
+    white_texture: Texture;
 }
 
 Texture :: struct {
@@ -89,8 +91,7 @@ Buffer :: struct {
 ////////
 
 resize_swapchain :: (w: u32, h: u32) {
-    assert_state();
-    using renderer;
+    using renderer := assert_state();
     assert(w > 0);
     assert(h > 0);
 
@@ -119,8 +120,8 @@ resize_swapchain :: (w: u32, h: u32) {
 }
 
 draw :: (num_elements: int = -1, num_instances: u32 = 1, base_element: u32 = 0) {
-    assert_state();
-    using renderer;
+    using renderer := assert_state();
+
     assert(in_pass, "must call begin_pass before draw");
 
     if current_index_buffer != null {
@@ -423,7 +424,9 @@ apply_constant_buffers :: (constant_buffers: ..*Buffer) {
     device_context.VSSetConstantBuffers(device_context, 0, cast(u32)buffers.count, buffers.data);
 }
 
-load_texture_from_file :: (renderer: *Renderer, filename: string) -> bool, Texture {
+load_texture_from_file :: (filename: string) -> bool, Texture {
+    renderer := assert_state();
+
     bitmap: Bitmap;
     if !bitmap_load(*bitmap, filename)
         return false, .{};
@@ -661,6 +664,21 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND) {
     // TODO: move all this up into the function
     renderer.device_context1 = device_context1;
     renderer.debug_info_queue = debug_info_queue;
+
+    // generate utility textures
+
+    // TODO: move this into a shared init thing
+
+    SZ :: 16;
+    {
+        pixels: [SZ * SZ]u32;
+        
+        tex_ok: bool;
+
+        for 0..(SZ*SZ)-1 pixels[it] = 0xffffffff;
+        tex_ok, renderer.white_texture = load_texture_from_data(renderer, SZ, SZ, 4, pixels.data);
+        assert(tex_ok);
+    }
 }
 
 
@@ -699,8 +717,7 @@ flush_debug_messages :: (using renderer: *Renderer) {
 }
 
 get_buffer_ptr :: (buffer: *Buffer, ptr: **$T) #expand {
-    assert_state();
-    using renderer;
+    using renderer := assert_state();
     assert(buffer != null);
     assert(buffer.d3d_buffer != null);
     mapped_subresource: D3D11_MAPPED_SUBRESOURCE;
@@ -813,8 +830,9 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     return hr;
 }
 
-assert_state :: () {
+assert_state :: () -> *Renderer {
     assert(renderer != null, "must call init(*renderer) first");
+    return renderer;
 }
 
 Release :: inline (ptr: *$T) { // IUnknown Release, checks for null

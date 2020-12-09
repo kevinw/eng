@@ -3,6 +3,11 @@
 UI_State :: struct {
     using ui_state_base: UI_State_Base;
 
+    // win32
+    LastMouseCursor:      ImGui.MouseCursor;
+
+    // d3d11
+
     d3dDevice:            *ID3D11Device;
     d3dDeviceContext:     *ID3D11DeviceContext;
     Factory:              *IDXGIFactory;
@@ -487,11 +492,61 @@ ImGui_ImplDX11_InvalidateDeviceObjects :: (using ui_state: *UI_State) {
     Release_And_Set_Null(*VertexShader);
 }
 
+// Hopefully in the future it will be easier to provide custom WindowProc functionality
+// through Jai's windows impl.
+HHOOK :: HANDLE;
+HOOKPROC :: #type (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call;
+
+CWPRETSTRUCT :: struct {
+    lResult: LRESULT;
+    lParam:  LPARAM;
+    wParam:  WPARAM;
+    message: u32;
+    hwnd:    HWND;
+}
+user32 :: #foreign_system_library "user32";
+
+CallNextHookEx    :: (hhk: HHOOK, code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #foreign user32;
+SetWindowsHookExA :: (id_hook: s32, hook_fn: HOOKPROC, hmod: HINSTANCE, thread_id: DWORD) -> HHOOK #foreign user32;
+
+HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
+    HTCLIENT :: 1;
+    TRUE :: 1;
+
+    if code >= 0 {
+
+        if wparam == 0 {
+            cwp_ret := cast(*CWPRETSTRUCT)lparam;
+            if cast,trunc(u16)(cwp_ret.lParam) == HTCLIENT {
+                ImGui_ImplWin32_UpdateMouseCursor();
+                return TRUE;
+            }
+        }
+    }
+
+    return CallNextHookEx(null, code, wparam, lparam);
+}
+
+hook: HHOOK;
+
+setup_set_cursor_hook :: () {
+    WH_CALLWNDPROCRET :: 12;
+
+    if SetWindowsHookExA(WH_CALLWNDPROCRET, HookProc, null, GetCurrentThreadId()) == null {
+        print("SetWindowsHookExA error: %\n", GetLastError());
+        assert(false);
+    }
+}
+
+
 ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
     // Setup backend capabilities flags
     io := ImGui.GetIO();
     io.BackendRendererName = "imgui_impl_dx11";
     io.BackendFlags_ |= .RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
+    io.BackendFlags_ |= .HasMouseCursors;       // We have mouse cursors
+
+    setup_set_cursor_hook();
 
     // Get factory from device
     pDXGIDevice: *IDXGIDevice;
@@ -561,12 +616,62 @@ ImGui_Impl_NewFrame :: (using ui_state: *UI_State, native_window_handle: *void, 
     if FontSampler == null
         ImGui_ImplDX11_CreateDeviceObjects(ui_state);
 
+    // Update OS mouse cursor with the cursor requested by imgui
+    mouse_cursor := ifx io.MouseDrawCursor then ImGui.MouseCursor.None else ImGui.GetMouseCursor();
+    if LastMouseCursor != mouse_cursor {
+        LastMouseCursor = mouse_cursor;
+        ImGui_ImplWin32_UpdateMouseCursor();
+    }
+
+
     ImGui.NewFrame();
 }
 
 #load "imgui_impl_common.jai";
 
 #scope_file
+
+ImGui_ImplWin32_UpdateMouseCursor :: () -> bool #c_call {
+    IDC_ARROW    :: 32512;
+    IDC_HAND     :: 32649;
+    IDC_IBEAM    :: 32513;
+    IDC_NO       :: 32648;
+    IDC_SIZEALL  :: 32646;
+    IDC_SIZENESW :: 32643;
+    IDC_SIZENS   :: 32645;
+    IDC_SIZENWSE :: 32642;
+    IDC_SIZEWE   :: 32644;
+
+    SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
+
+    io := ImGui.GetIO();
+    if io.ConfigFlags_ & .NoMouseCursorChange
+        return false;
+
+    imgui_cursor := ImGui.GetMouseCursor();
+
+    if imgui_cursor == .None || io.MouseDrawCursor {
+        // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
+        SetCursor(null);
+    } else {
+        // Show OS mouse cursor
+        win32_cursor:s64 = IDC_ARROW;
+        if imgui_cursor == {
+            case .Arrow;        win32_cursor = IDC_ARROW;
+            case .TextInput;    win32_cursor = IDC_IBEAM;
+            case .ResizeAll;    win32_cursor = IDC_SIZEALL;
+            case .ResizeEW;     win32_cursor = IDC_SIZEWE;
+            case .ResizeNS;     win32_cursor = IDC_SIZENS;
+            case .ResizeNESW;   win32_cursor = IDC_SIZENESW;
+            case .ResizeNWSE;   win32_cursor = IDC_SIZENWSE;
+            case .Hand;         win32_cursor = IDC_HAND;
+            case .NotAllowed;   win32_cursor = IDC_NO;
+        }
+        SetCursor(LoadCursorW(null, cast(*u8)win32_cursor));
+    }
+    return true;
+}
+
 
 ImDrawVert  :: ImGui.ImDrawVert;
 ImDrawData  :: ImGui.ImDrawData;

@@ -39,7 +39,12 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     }
 
     apply_constant_buffers(*constant_buffer);
-    apply_bindings(*shader, to_array(vertex_buffer), *index_buffer);
+
+    color_texture := current_texture;
+    if color_texture == null
+        color_texture = *renderer.white_texture;
+
+    apply_bindings(*shader, to_array(vertex_buffer), *index_buffer, color_texture);
     idx_buffer_offset: u32;
     for draw_cmd: draw_array {
         draw(num_elements = draw_cmd.index_count, base_element = idx_buffer_offset);

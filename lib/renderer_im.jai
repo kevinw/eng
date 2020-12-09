@@ -1,8 +1,9 @@
 // forked from jai's builtin Render/Im_Draw
 
 // To draw something, this needs to be provided by the user.
-Im_Draw_Callback :: #type (ctx: *Im_Context, index_array: [] u16, vertex_array: [] Im_Vertex, draw_array: [] Im_Draw_Command);
+// renderer_im_impl.jai has an implementation using the "renderer" library.
 
+Im_Draw_Callback :: #type (ctx: *Im_Context, index_array: [] u16, vertex_array: [] Im_Vertex, draw_array: [] Im_Draw_Command);
 
 im_init :: (using ctx: *Im_Context, index_elements := 4096, vertex_elements := 4096, draw_elements:=64, callback: Im_Draw_Callback) {
     // Allocate buffers.
@@ -19,25 +20,15 @@ im_init :: (using ctx: *Im_Context, index_elements := 4096, vertex_elements := 4
     offset = xy(0, 0);
 }
 
-im_finish :: (using ctx: *Im_Context) { // TODO: not sure this is necesssary beyond im_flush
-    if draw_array.count > 0 {
-        draw_cmd := *draw_array[draw_array.count - 1];
-        if draw_cmd.index_count > 0 {
-            im_flush(ctx);
-        }
-    }
-}
-
-im_set_texture :: (using ctx: *Im_Context, texture: *Texture) {
+im_set_texture :: (using ctx: *Im_Context, texture: *void) {
     draw_cmd := *draw_array[draw_array.count - 1];
     if draw_cmd.texture == texture  return;                     // Nothing to do.
     if draw_cmd.index_count         im_flush(ctx);
     draw_cmd.texture = texture;
-
     current_texture = texture;
 }
 
-im_set_sampler :: (using ctx: *Im_Context, sampler: *Sampler) {
+im_set_sampler :: (using ctx: *Im_Context, sampler: *void) {
     draw_cmd := *draw_array[draw_array.count - 1];
     if draw_cmd.sampler == sampler  return;                     // Nothing to do.
     if draw_cmd.index_count         im_flush(ctx);
@@ -46,7 +37,7 @@ im_set_sampler :: (using ctx: *Im_Context, sampler: *Sampler) {
     current_sampler = sampler;
 }
 
-im_set_primitive :: (using ctx: *Im_Context, index_per_primitive: u32) {
+im_set_primitive :: (using ctx: *Im_Context, index_per_primitive: u8) {
     if !draw_array return;
     assert(index_per_primitive > 0 && index_per_primitive <= 3);
 	
@@ -142,7 +133,7 @@ im_draw_quad :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, 
     im_indices(ctx, v0, v1, v2, v2, v0, v3);
 }
 
-im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0: Vector2, t1: Vector2, c: Vector4) {
+im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0 := Vector2.{0, 0}, t1 := Vector2.{1, 1}, c := Vector4.{1, 0, 0, 1}) {
 
     /*draw_cmd := *draw_array[draw_array.count - 1];
 
@@ -270,14 +261,12 @@ im_flush :: (using ctx: *Im_Context) {
 
 
 
-// @@ These need to be public for Im_Draw_GL ...
-
 Im_Draw_Command :: struct {
     index_count : u32;
-    index_per_primitive: u32; // 1, 2 or 3.
+    index_per_primitive: u8; // 1, 2 or 3.
     clip_rect: Vector4;
-    texture: *Texture;  // To make this more general this could just be a *void that the callback interprets however it wants.
-    sampler: *Sampler;
+    texture: *void;
+    sampler: *void;
 }
 
 Im_Vertex :: struct {
@@ -297,9 +286,9 @@ Im_Context :: struct {
     vertex_array : [..] Im_Vertex;
     draw_array   : [..] Im_Draw_Command;
 
-    current_texture: *Texture;
-    current_sampler: *Sampler;
-    current_index_per_primitive: u32 = 3;
+    current_texture: *void;
+    current_sampler: *void;
+    current_index_per_primitive: u8 = 3;
     current_clip_rect: Vector4;
 }
 
@@ -309,9 +298,6 @@ Im_Context :: struct {
 #import "Basic";
 
 // @@ Group draw data in channels?
-
-Texture :: struct {} // TODO TODO TODO
-Sampler :: struct {}
 
 im_begin_draw :: (using ctx: *Im_Context, reset := true) -> *Im_Draw_Command {
     if draw_array.count == draw_array.allocated - 1 {

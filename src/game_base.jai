@@ -16,6 +16,7 @@ State_Base :: struct {
     gameWidth  :: 640;
     gameHeight :: 360;
     ui: UI_State;
+    _last_system_now: float64;
     Time: struct {
         now: float64;
         unscaled_now: float64;
@@ -53,14 +54,17 @@ game_base_update :: () {
 
     ImGui_Impl_NewFrame(*ui, rl.GetWindowHandle(), rl.GetScreenWidth(), rl.GetScreenHeight());
 
-    absolute_delta_time := rl.GetFrameTime();
+    system_now := get_time();
+    absolute_delta_time: float64;
+    if _last_system_now > 0 absolute_delta_time = system_now - _last_system_now;
+    _last_system_now = system_now;
 
     {
         // update the context's Time struct
-        Time.delta_time = global_time_scale * absolute_delta_time;
-        Time.unscaled_delta_time = absolute_delta_time;
+        Time.delta_time = cast(float)(global_time_scale * absolute_delta_time);
+        Time.unscaled_delta_time = cast(float)absolute_delta_time;
         Time.now += Time.delta_time;
-        Time.unscaled_now = rl.GetTime();
+        Time.unscaled_now = system_now;
         Time.frame_count += 1;
     }
 
