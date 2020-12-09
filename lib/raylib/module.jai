@@ -7,6 +7,10 @@ _native_window: *void;
 _input_button_states: *[Input.NUM_BUTTON_STATES]Input.Key_Current_State;
 Input :: #import "Input";
 #scope_export
+R::#import "renderer";
+Texture :: R.Texture;
+Image :: Bitmap;
+
 _XXX_SetRenderer :: (renderer_ptr: *Renderer) { renderer = renderer_ptr; }
 _XXX_SetNativeWindow :: (native_window: *void) { _native_window = native_window; }
 _XXX_SetHostInputButtonStates :: (host_button_states: *[Input.NUM_BUTTON_STATES] Input.Key_Current_State) {
@@ -16,7 +20,34 @@ _XXX_SetHostInputButtonStates :: (host_button_states: *[Input.NUM_BUTTON_STATES]
 
 // ----
 
+ColorFromNormalized :: (normalized: Vector4) -> Color {
+    c: Color = ---;
+    c.r = cast(u8)(normalized.x * 255.0);
+    c.g = cast(u8)(normalized.y * 255.0);
+    c.b = cast(u8)(normalized.z * 255.0);
+    c.a = cast(u8)(normalized.w * 255.0);
+    return c;
+}
+
+ColorToNormalized :: (color: Color) -> Vector4 {
+    v: Vector4 = ---;
+    v.x = cast(float)color.r / 255.0;
+    v.y = cast(float)color.g / 255.0;
+    v.z = cast(float)color.b / 255.0;
+    v.w = cast(float)color.a / 255.0;
+    return v;
+}
+
 GetTime :: get_time;
+
+CheckCollisionPointRec :: (point: Vector2, rec: Rectangle) -> bool {
+    return (point.x >= rec.x) && (point.x <= (rec.x + rec.width)) && (point.y >= rec.y) && (point.y <= (rec.y + rec.height));
+}
+
+CheckCollisionRecs :: (rec1: Rectangle, rec2: Rectangle) -> bool {
+    return (rec1.x < (rec2.x + rec2.width) && (rec1.x + rec1.width) > rec2.x) &&
+        (rec1.y < (rec2.y + rec2.height) && (rec1.y + rec1.height) > rec2.y);
+}
 
 DrawCircleV :: (center: Vector2, radius: float, color: Color) {
     im_draw_circle(*context.state.im_context, center, make_vector2(radius, radius), color=ColorToNormalized(color));
@@ -43,8 +74,42 @@ IsKeyPressed :: (key: KeyboardKey) -> bool {
     return (<<_input_button_states)[cast(int)key] & .START != 0;
 }
 
-DrawTexturePro :: (texture: Texture2D, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
-    print("TODO: DrawTexturePro\n");
+DrawTexturePro :: (texture: *Texture, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
+    assert(texture != null);
+
+    p0 := destRec.position;
+    p1 := p0 + destRec.size;
+
+    tex_size := make_vector2(xx texture.width, xx texture.height);
+
+    assert(tex_size.x > 0 && tex_size.y > 0, tprint("texture '%' has size %x%\n", texture.debug_name, texture.width, texture.height));
+
+    t0 := sourceRec.position;
+    t0.x /= tex_size.x;
+    t0.y /= tex_size.y;
+
+    t1 := sourceRec.position + sourceRec.size;
+    t1.x /= tex_size.x;
+    t1.y /= tex_size.y;
+
+    im_set_texture(*context.state.im_context, texture);
+    im_draw_rect(*context.state.im_context,
+        p0, p1, t0, t1,
+        c = ColorToNormalized(tint));
+}
+
+DrawTexture :: (texture: *Texture, posX: s32, posY: s32, tint: Color) {
+    assert(texture != null);
+
+    p0 := make_vector2(xx posX, xx posY);
+    p1 := p0 + make_vector2(xx texture.width, xx texture.height);
+
+    ctx :: inline () -> *Im_Context { return *context.state.im_context; }
+    im_set_texture(ctx(), texture);
+    im_draw_rect(ctx(),
+        p0, p1,
+        c=ColorToNormalized(tint));
+    print("TODO: DrawTexture\n");
 }
 
 
@@ -139,9 +204,6 @@ MatrixToFloatV  :: (mat: Matrix) -> float16 {
 rlMultMatrixf   :: (matf: *float) { Basic.assert(false); }
 
 
-CheckCollisionPointRec :: (point: Vector2, rec: Rectangle) -> bool { return false; }
-CheckCollisionRecs :: (rec1: Rectangle, rec2: Rectangle) -> bool { return false; }
-
 GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 { return .{}; }
 
 DrawText :: (text: *u8, posX: s32, posY: s32, fontSize: s32, color: Color) {
@@ -170,9 +232,18 @@ NPatchInfo :: struct {
     type: s32;
 }
 
-GenImageColor :: (width: s32, height: s32, color: Color) -> Image {
-    print("TODO: GetImageColor\n");
-    return .{};
+GenImageColor :: (width: s32, height: s32, color: Color) -> Bitmap {
+    assert(width > 0);
+    assert(height > 0);
+
+    bmp: Bitmap;
+    bitmap_alloc(*bmp, width, height, .RGBA8);
+    pixel := cast(*Color)bmp.data;
+    for 0..width*height {
+        <<pixel = color;
+        pixel += 1;
+    }
+    return bmp;
 }
 
 GamepadAxis :: enum {
@@ -211,23 +282,6 @@ Color :: struct {
     b: u8;
     a: u8;
 }
-ColorFromNormalized :: (normalized: Vector4) -> Color {
-    c: Color = ---;
-    c.r = cast(u8)(normalized.x * 255.0);
-    c.g = cast(u8)(normalized.y * 255.0);
-    c.b = cast(u8)(normalized.z * 255.0);
-    c.a = cast(u8)(normalized.w * 255.0);
-    return c;
-}
-
-ColorToNormalized :: (color: Color) -> Vector4 {
-    v: Vector4 = ---;
-    v.x = cast(float)color.r / 255.0;
-    v.y = cast(float)color.g / 255.0;
-    v.z = cast(float)color.b / 255.0;
-    v.w = cast(float)color.a / 255.0;
-    return v;
-}
 
 Shader :: struct {
 }
@@ -235,6 +289,7 @@ Shader :: struct {
 SetShaderValue :: (shader: Shader, uniformLoc: s32, value: *void, uniformType: ShaderUniformDataType) {
 
 }
+
 ShaderUniformDataType :: enum {
     UNIFORM_FLOAT :: 0;
     UNIFORM_VEC2;
@@ -250,7 +305,6 @@ ShaderUniformDataType :: enum {
 GetShaderLocation :: (shader: Shader, uniformName: *u8) -> s32 { return 0; }
 
 UnloadShader :: (shader: Shader) {}
-
 LoadShader :: (vsFileName: *u8, fsFileName: *u8) -> Shader { return .{}; }
 
 LIGHTGRAY :: Color.{  200, 200, 200, 255  };
@@ -297,7 +351,7 @@ LoadImageEx :: (pixels: *Color, width: s32, height: s32) -> Image {
     return .{};
 }
 
-UnloadImage :: (image: Image) {
+UnloadImage :: (image: Bitmap) {
 }
 
 ImageDraw :: (dst: *Image, src: Image, srcRec: Rectangle, dstRec: Rectangle, tint: Color) {
@@ -506,24 +560,28 @@ MouseButton :: enum {
 BeginShaderMode :: (shader: Shader) {}
 EndShaderMode :: () {}
 
-DrawTexture :: (texture: Texture2D, posX: s32, posY: s32, tint: Color) {
-    print("TODO: DrawTexture\n");
+DrawTextureNPatch :: (texture: *Texture, nPatchInfo: NPatchInfo, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
 }
 
-DrawTextureNPatch :: (texture: Texture2D, nPatchInfo: NPatchInfo, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
+LoadTexture :: (filename: string) -> Texture {
+    assert(filename.count > 0);
+    ok, tex := load_texture_from_file(filename);
+    if !ok print("Warning: load_texture_from_file('%') failed\n", filename);
+    assert(ok);
+    return tex;
 }
 
-LoadTexture :: (fileName: *u8) -> Texture2D {
-    print("TODO: LoadTexture\n");
-    return .{};
+LoadTextureFromImage :: (image: Bitmap) -> Texture {
+    assert(image.format == .RGBA8);
+    assert(image.width > 0);
+    assert(image.height > 0);
+
+    ok, texture := load_texture_from_data(xx image.width, xx image.height, 4, image.data);
+    assert(ok);
+    return texture;
 }
 
-LoadTextureFromImage :: (image: Image) -> Texture2D {
-    print("TODO: LoadTextureFromImage\n");
-    return .{};
-}
-
-UnloadTexture :: (texture: Texture2D) {
+UnloadTexture :: (texture: Texture) {
     print("TODO: UnloadTexture\n");
 }
 
@@ -560,37 +618,19 @@ make_Vector2 :: (x: $A, y: $B) -> Vector2 {
     return v;
 }
 
-Image :: struct {
-    data: *void;
-    width: s32;
-    height: s32;
-    mipmaps: s32;
-    format: s32;
-}
-
 RenderTexture2D :: struct {
     id: u32;
-    texture: Texture2D;
-    depth: Texture2D;
+    texture: Texture;
+    depth: Texture;
     depthTexture: bool;
 }
 
 RenderTexture :: RenderTexture2D;
 
-
-Texture2D :: struct {
-    id: u32;
-    width: s32;
-    height: s32;
-    mipmaps: s32;
-    format: s32;
-}
-Texture :: Texture2D;
-
 Font :: struct {
     baseSize: s32;
     charsCount: s32;
-    texture: Texture2D;
+    texture: Texture;
     recs: *Rectangle;
     chars: *CharInfo;
 }
@@ -606,6 +646,7 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
 }
 
 #scope_file
+#import "Bitmap";
 #import "Math";
 #import "renderer_im";
 Basic :: #import "Basic";

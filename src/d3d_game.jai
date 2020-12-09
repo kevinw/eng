@@ -44,10 +44,11 @@ update_and_draw :: () {
         }
 
         im_ctx := *context.state.im_context;
-        im_set_texture(im_ctx, *foo);
-        im_draw_rect(
-            im_ctx, v2(300, 200), v2(600, 400),
-            c=v4(cast(float)((sin(Time.now) + 1) * 0.5), 1, 1, 1));
+        //rl.DrawTexturePro(*foo, rl.Rectangle.{0, 0, 40, 40}, rl.Rectangle.{300, 200, 300, 250}, .{}, 0, .{255,255,255,255});
+        //im_set_texture(im_ctx, *foo);
+        //im_draw_rect(
+            //im_ctx, v2(300, 200), v2(600, 400),
+            //c=v4(cast(float)((sin(Time.now) + 1) * 0.5), 1, 1, 1));
         im_flush(*im_context);
     }
     present();

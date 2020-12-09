@@ -86,7 +86,7 @@ print_time :: (msg: string, args: ..Any) #expand {
     `defer print("took %\n", GetTime() - __print_time_now);
 }
 
-draw_texture :: (tex: Texture2D, source_rect: Rectangle, dest_rect: Rectangle, origin: Vector2 = .{0, 0}, rotation: float = 0, tint:Color = WHITE) {
+draw_texture :: (tex: *Texture, source_rect: Rectangle, dest_rect: Rectangle, origin: Vector2 = .{0, 0}, rotation: float = 0, tint:Color = WHITE) {
     DrawTexturePro(tex, source_rect, dest_rect, origin, rotation, tint);
 }
 
@@ -182,10 +182,10 @@ sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
     return new_slice;
 }
 
-blit_render_texture_to_screen :: (rt: RenderTexture) {
-    source_rect := make_Rectangle(0, 0, rt.texture.width, -rt.texture.height);
+blit_render_texture_to_screen :: (rt: *RenderTexture) {
+    source_rect := make_Rectangle(0, 0, rt.texture.width, -cast(s32)rt.texture.height);
     dest_rect   := make_Rectangle(0, 0, GetScreenWidth(), GetScreenHeight());
-    DrawTexturePro(rt.texture, source_rect, dest_rect, Vector2.{0, 0}, 0, WHITE);
+    DrawTexturePro(*rt.texture, source_rect, dest_rect, Vector2.{0, 0}, 0, WHITE);
 }
 
 parse_spriter_atlas :: (filename: string) -> []Sprite {

@@ -464,7 +464,7 @@ draw :: (using player: *Player) {
     //dest_rect.width = round(dest_rect.width);
     //dest_rect.height = round(dest_rect.height);
 
-    DrawTexturePro(gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
+    DrawTexturePro(*gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     //screenlog.world(position, "%", position);
 

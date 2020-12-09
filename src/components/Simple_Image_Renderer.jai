@@ -47,7 +47,7 @@ update :: (using it: *Simple_Image_Renderer, transform: *Transform, esr: *Editor
 draw :: (using it: *Simple_Image_Renderer, transform: *Transform) {
     if !has_value(texture)
         return;
-    tex := texture.resource;
+    tex := *texture.resource;
 
     source_rect := rl.make_Rectangle(0, 0, tex.width, tex.height);
     dest_rect := rl.make_Rectangle(transform.position.x, transform.position.y, source_rect.width, source_rect.height);

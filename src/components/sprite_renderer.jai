@@ -43,7 +43,7 @@ SpriteRenderer :: struct {
         right: s32;
         bottom: s32;
     };
-}
+} @component
 
 on_enable :: (using it: *SpriteRenderer, parent_entity: *Entity) {
     parent_entity.flags |= .Has_Component_Rect;
@@ -145,7 +145,7 @@ _draw :: (using it: *SpriteRenderer, transform: *Transform) {
         origin := v2(0, 0);
         // DEPRECATED DO NOT IMPROVE
         // DEPRECATED DO NOT IMPROVE
-        rl.DrawTexturePro(texture, sprite_rect, dest_rect, origin, 0, color);
+        rl.DrawTexturePro(*texture, sprite_rect, dest_rect, origin, 0, color);
         // DEPRECATED DO NOT IMPROVE
         // DEPRECATED DO NOT IMPROVE
     }
@@ -155,7 +155,14 @@ _draw :: (using it: *SpriteRenderer, transform: *Transform) {
         dest_rect := get_sprite_anim_dest_rect(it, transform);
         if #complete slice_mode == {
             case .None;
-                draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
+                if _current_frame.texture
+                    draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
+                else {
+                    ok, entity_ptr := get_entity(it.entity);
+                    assert(ok);
+                    
+                    print("Warning: sprite_anim._current_frame % has a null texture\n", entity_ptr.name);
+                }
             case .NineSlice;
                 npatch_info: rl.NPatchInfo;
                 npatch_info.sourceRec = _current_frame.rect;

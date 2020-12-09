@@ -8,7 +8,7 @@ draw :: (using it: *Parallax_Background) {
     using context.state;
 
     if has_value(texture) {
-        rl.DrawTexture(texture.resource, cast(s32)(Math.sin(Time.now) * 30), 0, rl.WHITE);
+        rl.DrawTexture(*texture.resource, cast(s32)(Math.sin(Time.now) * 30), 0, rl.WHITE);
     }
 }
 

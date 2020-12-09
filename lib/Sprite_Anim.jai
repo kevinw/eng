@@ -2,7 +2,7 @@ Sprite_Anim :: struct {
     MAX_FRAME_COUNT :: 500;
 
     Frame :: struct {
-        texture: rl.Texture;
+        texture: *rl.Texture;
         rect: rl.Rectangle;
         offset: Vector2;
         duration_secs: float;
@@ -17,6 +17,8 @@ Sprite_Anim :: struct {
     frames: [..]Frame;
     total_duration_secs: float;
     tags: [..]Tag;
+
+    atlas_texture: rl.Texture;
 }
 
 deinit :: (using sprite_anim: *Sprite_Anim) {
@@ -117,10 +119,10 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
         dest_rect.x += dest_rect.width;
     }
 
-    tex := rl.LoadTextureFromImage(atlas_img);
+    sprite_anim.atlas_texture = rl.LoadTextureFromImage(atlas_img);
 
     for imgs
-        sprite_anim.frames[it_index].texture = tex;
+        sprite_anim.frames[it_index].texture = *sprite_anim.atlas_texture;
     
     for sprite_info.tags {
         entry := array_add(*sprite_anim.tags);

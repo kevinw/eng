@@ -39,10 +39,10 @@ pre_draw :: (using it: *Background) {
     }
 
     if has_value(texture) {
-        rl.DrawTexture(texture.resource, 0, 0, rl.WHITE);
-        rl.DrawTexture(texture.resource, texture.width, 0, rl.WHITE);
-        rl.DrawTexture(texture.resource, 0, texture.height, rl.WHITE);
-        rl.DrawTexture(texture.resource, texture.width, texture.height, rl.WHITE);
+        rl.DrawTexture(*texture.resource, 0, 0, rl.WHITE);
+        rl.DrawTexture(*texture.resource, texture.width, 0, rl.WHITE);
+        rl.DrawTexture(*texture.resource, 0, texture.height, rl.WHITE);
+        rl.DrawTexture(*texture.resource, texture.width, texture.height, rl.WHITE);
     }
 }
 

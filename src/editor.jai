@@ -1186,9 +1186,8 @@ imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> 
 
     if !has_value(<<live_texture) return null, empty_size;
 
-    tex := live_texture.resource;
-    size := make_ImVec2(cast(float)tex.width, cast(float)tex.height);
-    return cast(*void)tex.id, size;
+    size := make_ImVec2(cast(float)live_texture.resource.width, cast(float)live_texture.resource.height);
+    return cast(*void)*live_texture.resource, size;
 }
 
 

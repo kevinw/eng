@@ -144,7 +144,7 @@ draw :: (using it: *Enemy, transform: *Transform) {
     if being_damaged(*damage) {
         color = rl.ColorFromNormalized(Vector4.{1, .5, .5, 1});
     }
-    DrawTexturePro(evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
+    DrawTexturePro(*evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     if debug_draw {
         draw_point(position.xy, 4, rl.RED);

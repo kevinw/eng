@@ -44,9 +44,14 @@ Renderer :: struct {
 }
 
 Texture :: struct {
+    width: u16;
+    height: u16;
+
     texture2D:     *ID3D11Texture2D;
     view:          *ID3D11ShaderResourceView;
     sampler_state: *ID3D11SamplerState;
+
+    debug_name: string; @debug @owned
 }
 
 Pass :: struct {
@@ -436,11 +441,14 @@ load_texture_from_file :: (filename: string) -> bool, Texture {
 
     bytes_per_pixel := cast(u32)get_image_bytes_per_texel(bitmap.format);
 
-    ok, tex := load_texture_from_data(renderer, cast(u32)bitmap.width, cast(u32)bitmap.height, bytes_per_pixel, bitmap.data);
+    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, bytes_per_pixel, bitmap.data);
+    tex.debug_name = copy_string(filename);
     return ok, tex;
 }
 
-load_texture_from_data :: (renderer: *Renderer, width: u32, height: u32, bytes_per_pixel: u32, data: *void) -> bool, Texture {
+load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: *void) -> bool, Texture {
+    renderer := assert_state();
+
     textureDesc := D3D11_TEXTURE2D_DESC.{
         MipLevels          = 1,
         ArraySize          = 1,
@@ -457,6 +465,8 @@ load_texture_from_data :: (renderer: *Renderer, width: u32, height: u32, bytes_p
     textureData.SysMemPitch        = width * bytes_per_pixel;
 
     tex: Texture;
+    tex.width  = cast(u16)width;
+    tex.height = cast(u16)height;
 
     unload_and_return_error :: () #expand {
         unload_texture(*tex);
@@ -676,8 +686,9 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND) {
         tex_ok: bool;
 
         for 0..(SZ*SZ)-1 pixels[it] = 0xffffffff;
-        tex_ok, renderer.white_texture = load_texture_from_data(renderer, SZ, SZ, 4, pixels.data);
+        tex_ok, renderer.white_texture = load_texture_from_data(SZ, SZ, 4, pixels.data);
         assert(tex_ok);
+        renderer.white_texture.debug_name = "white_texture";
     }
 }
 

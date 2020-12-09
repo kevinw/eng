@@ -105,42 +105,9 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
 }
 
 load_raylib_texture :: (filename: string) -> rl.Texture {
-    if String.ends_with_nocase(filename, ".jpeg") || String.ends_with_nocase(filename, ".jpg") {
-        assert(false, "TODO: implement jpeg loading");
-        rl_format: rl.PixelFormat;
-        /*
-        // for now, our raylib build doesn't support JPEGs, so we'll use
-        // Jai's builtin STB image to do it. @Bloat
-
-        Render :: #import "Render";
-
-        bitmap: Render.Bitmap;
-        if !Render.bitmap_load(*bitmap, filename) {
-            logprint("loader", "error: could not load JPEG from %", filename);
-            return .{};
-        }
-
-        if bitmap.format == {
-            case .R8;    rl_format = .UNCOMPRESSED_GRAYSCALE;
-            case .RG8;    rl_format = .UNCOMPRESSED_GRAY_ALPHA;
-            case .RGB8;  rl_format = .UNCOMPRESSED_R8G8B8;
-            case .RGBA8; rl_format = .UNCOMPRESSED_R8G8B8A8;
-            case; assert(false, "TODO: implement conversion here for format %", bitmap.format);
-        }
-        data := bitmap.data;
-        width := bitmap.width;
-        height := bitmap.height;
-        */
-
-        data: *void;
-        width:s32 = 10;
-        height:s32 = 10;
-
-        img := rl.LoadImagePro(data, width, height, cast(s32)rl_format);
-        return rl.LoadTextureFromImage(img);
-    } else {
-        return rl.LoadTexture(constant_or_temp_cstring(filename));
-    }
+    ok, texture := load_texture_from_file(filename);
+    assert(ok);
+    return texture;
 }
 
 LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
@@ -172,12 +139,12 @@ LoadLiveShader  :: (vs_filename: string, fs_filename: string) -> LiveShader  {
     return obj;
 }
 
-DrawTexture :: (texture: LiveTexture, posX: s32, posY: s32, tint: rl.Color) {
-    rl.DrawTexture(texture._entry.resource, posX, posY, tint);
+DrawTexture :: (texture: *LiveTexture, posX: s32, posY: s32, tint: rl.Color) {
+    rl.DrawTexture(*texture._entry.resource, posX, posY, tint);
 }
 
-DrawTexturePro :: (texture: LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.Rectangle, offset: Vector2 = .{0, 0}, rotation:float = 0, color := rl.WHITE) {
-    rl.DrawTexturePro(texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
+DrawTexturePro :: (texture: *LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.Rectangle, offset: Vector2 = .{0, 0}, rotation:float = 0, color := rl.WHITE) {
+    rl.DrawTexturePro(*texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
 UnloadLiveTexture :: (texture: LiveTexture) {
@@ -255,3 +222,4 @@ String :: #import "String";
 rl :: #import "raylib";
 #import "Basic";
 #import "Sprite_Anim";
+#import "renderer";
