@@ -70,10 +70,16 @@ bitmap_alloc :: (bmp: *Bitmap, w: s32, h: s32, format: Texture_Format) {
 }
 
 
-bitmap_load :: (bmp: *Bitmap, filepath: string) -> bool {
+bitmap_load :: (bmp: *Bitmap, filepath: string, requested_bytes_per_pixel:s32 = 4) -> bool {
 
     w, h, channels : s32;
-    data_tmp := stbi_load(temp_c_string(filepath), *w, *h, *channels, 0);
+    data_tmp := stbi_load(temp_c_string(filepath), *w, *h, *channels, requested_bytes_per_pixel);
+
+    // Can set requested_bytes_per_pixel to just load the data as is from the
+    // file. But if we're not doing that, we force the channels value to be
+    // what we "requested" from stbi_load.
+    if requested_bytes_per_pixel != 0
+        channels = requested_bytes_per_pixel;
 
     if data_tmp == null then {
         // @@ Log error, return error message?

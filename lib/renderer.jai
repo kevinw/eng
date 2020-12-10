@@ -433,15 +433,16 @@ load_texture_from_file :: (filename: string) -> bool, Texture {
     renderer := assert_state();
 
     bitmap: Bitmap;
-    if !bitmap_load(*bitmap, filename)
+
+    force_channels:s32 = 4; // TODO: texture compression instead of RGBA everything!
+
+    if !bitmap_load(*bitmap, filename, requested_bytes_per_pixel = force_channels)
         return false, .{};
 
     assert(bitmap.width > 0);
     assert(bitmap.height > 0);
 
-    bytes_per_pixel := cast(u32)get_image_bytes_per_texel(bitmap.format);
-
-    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, bytes_per_pixel, bitmap.data);
+    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, xx force_channels, bitmap.data);
     tex.debug_name = copy_string(filename);
     return ok, tex;
 }
@@ -452,11 +453,16 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     textureDesc := D3D11_TEXTURE2D_DESC.{
         MipLevels          = 1,
         ArraySize          = 1,
-        Format             = .DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
         SampleDesc.Count   = 1,
         Usage              = .D3D11_USAGE_IMMUTABLE,
         BindFlags          = .D3D11_BIND_SHADER_RESOURCE,
     };
+
+    if bytes_per_pixel == {
+        case 4; textureDesc.Format = .DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        case; assert(false);
+    }
+
     textureDesc.Width  = width;
     textureDesc.Height = height;
 

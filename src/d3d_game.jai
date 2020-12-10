@@ -8,7 +8,7 @@ State :: struct {
 }
 
 
-foo: Texture;
+//foo: Texture;
 
 update_and_draw :: () {
     using context.state;
@@ -37,19 +37,23 @@ update_and_draw :: () {
         imgui_render(*ui);
 
 
+        /*
         if foo.texture2D == null {
             ok: bool;
-            ok, foo = load_texture_from_file("resources/textures/space.png");
+            ok, foo = load_texture_from_file("resources/textures/Crumpled Foil.jpg");
             assert(ok);
         }
 
         im_ctx := *context.state.im_context;
-        //rl.DrawTexturePro(*foo, rl.Rectangle.{0, 0, 40, 40}, rl.Rectangle.{300, 200, 300, 250}, .{}, 0, .{255,255,255,255});
+        rl.DrawTexturePro(*foo, rl.make_Rectangle(0, 0, foo.width, foo.height), rl.Rectangle.{300, 200, 300, 250}, .{}, 0, .{255,255,255,255});
+        */
+
         //im_set_texture(im_ctx, *foo);
         //im_draw_rect(
             //im_ctx, v2(300, 200), v2(600, 400),
             //c=v4(cast(float)((sin(Time.now) + 1) * 0.5), 1, 1, 1));
         im_flush(*im_context);
+
     }
     present();
 }
