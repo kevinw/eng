@@ -15,7 +15,6 @@ platform :: #import "platform";
 screenlog :: #import "screenlog";
 #import "soloud";
 
-#load "metaprogram_common.jai";
 
 cmdline_args: struct {
     topmost_window := false;
@@ -28,116 +27,21 @@ GUARD_ALLOCATOR :: true;
 WINDOW_WIDTH  :: 1280;
 WINDOW_HEIGHT :: 720;
 
-#add_context state: *void;
 #load "host_common.jai";
 
 the_window: Window_Type;
 host_state: Host_State;
-needs_recompile_timer:float = 0;
-reload_new_dll_filename: string;
 transparent_while_not_focused := true;
-needs_complete_reload := false;
-_recompile_thread: *Thread;
 host_settings: struct {
     window_pos_x: s32;
     window_pos_y: s32;
 };
-all_games := string.[
-    "game.dll",
-    "pong.dll",
-    "transform_test.dll",
-];
 
+//#add_context state: *void;
 
-//
-// plugin functions
-//
-Plugin_Init_Func               :: #type (old_value: *void, host_state: Host_State);
-Plugin_Deinit_Func             :: #type (shutting_down: bool) -> *void;
-Plugin_Tick_Func               :: #type (host_state: Host_State);
-Plugin_On_Resource_Change_Func :: #type (change: *Asset_Change);
-Plugin_Sanity_Checks_Func      :: #type (sanity_check_info: Sanity_Check_Info);
-
-plugin_init:        Plugin_Init_Func;
-plugin_deinit:      Plugin_Deinit_Func;
-plugin_tick:        Plugin_Tick_Func;
-plugin_on_resource_change: Plugin_On_Resource_Change_Func;
-plugin_sanity_checks: Plugin_Sanity_Checks_Func;
-
-do_recompile :: () {
-    _recompile_thread := thread_create(_do_recompile);
-    thread_start(_recompile_thread);
-}
-
-_do_recompile :: (t: *Thread) -> s64 {
-    defer _recompile_thread = null;
-
-    arguments: [..]string;
-    array_add(*arguments, "jai", "-x64", "first.jai", "--", "reload", cmdline_args.game_name);
-
-    cmd_string := concatenate(..arguments, " ");
-    defer free(cmd_string);
-    print("Running jai compiler: %\n", cmd_string);
-
-    successfully_launched, exit_code, output_string, error_string := os_run_command(..arguments, capture_and_return_output=true);
-    // @Leak
-
-    print("[exit_code] %\n", exit_code);
-    print("%\n", output_string);
-    if error_string.count > 0 print("[stderr] %", error_string);
-
-    host_state.jai_compiler_did_error = !successfully_launched || exit_code != 0;
-
-    //free(host_state.jai_compiler_error_string);
-    host_state.jai_compiler_error_string = sprint("% %", output_string, error_string);
-
-    File.write_entire_file(".compiler_errors", output_string);
-
-    return exit_code;
-}
-
-on_asset_change :: (using asset_change: *Asset_Change) {
-    //print("%\n", <<asset_change);
-    //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
-    if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
-        #import "Thread";
-        logprint("host", "recompiling for %", full_name);
-        do_recompile();
-    } else if extension == "dll" && begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
-        reload_new_dll_filename = full_name;
-        if begins_with(reload_new_dll_filename, "./")
-            advance(*reload_new_dll_filename, 2);
-        reload_new_dll_filename = copy_string(reload_new_dll_filename);
-    } else {
-        // all other changes go to the plugin, which may want to live reload
-        // textures, etc.
-        if plugin_on_resource_change != null
-            plugin_on_resource_change(asset_change);
-    }
-}
-
-get_func_ptrs_from_dll :: (module: *Plugin.Module) {
-    // these functions are implemented plugin-side in plugin_exports.jai
-
-    // required functions
-
-    plugin_tick = cast(Plugin_Tick_Func)GetProcAddress(module.native_module, "plugin_tick");
-    if !plugin_tick panic("Could not load plugin_tick func");
-
-    plugin_init = cast(Plugin_Init_Func)GetProcAddress(module.native_module, "plugin_init");
-    if !plugin_init panic("Could not load plugin_init func");
-
-    plugin_deinit = cast(Plugin_Deinit_Func)GetProcAddress(module.native_module, "plugin_deinit");
-    if !plugin_deinit panic("Could not load plugin_deinit func");
-
-    plugin_sanity_checks = cast(Plugin_Sanity_Checks_Func)GetProcAddress(module.native_module, "plugin_sanity_checks");
-    if !plugin_sanity_checks panic("Could not load plugin_sanity_checks func");
-
-    // optional
-
-    plugin_on_resource_change = cast(Plugin_On_Resource_Change_Func)GetProcAddress(module.native_module, "plugin_on_resource_change");
-    // ^optional
-
+#if BUILDING_DLLS {
+    #load "metaprogram_common.jai";
+    #load "host_live_reload.jai";
 }
 
 panic :: (msg: string) {
@@ -244,11 +148,13 @@ main :: () {
         }
     }
 
-    game_index := 0;
-    {
-        found_game_name, idx := array_find(all_games, cmdline_args.game_name);
-        if found_game_name
-            game_index = idx;
+    #if BUILDING_DLLS {
+        game_index := 0;
+        {
+            found_game_name, idx := array_find(all_games, cmdline_args.game_name);
+            if found_game_name
+                game_index = idx;
+        }
     }
 
     host_config_name :: "setup.cfg";
@@ -269,15 +175,21 @@ main :: () {
     if cmdline_args.topmost_window
         platform.set_window_always_on_top(the_window);
 
-    if cmdline_args.live_reload {
-        hotloader_init(".", _DEBUG_LOGGING=false);
-        hotloader_register_callback(on_asset_change);
+    #if BUILDING_DLLS {
+        if cmdline_args.live_reload {
+            hotloader_init(".", _DEBUG_LOGGING=false);
+            hotloader_register_callback(on_asset_change);
+        }
+        defer if cmdline_args.live_reload hotloader_shutdown();
+
+        module: Plugin.Module;
+        plugin_dll_filename := copy_string_z(tprint("%.dll", cmdline_args.game_name));
+
+        if !Plugin.load(*module, plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
+            panic(tprint("Could not load DLL '%'\n", plugin_dll_filename));
+        defer Plugin.unload(*module);
+        get_func_ptrs_from_dll(*module);
     }
-    defer if cmdline_args.live_reload hotloader_shutdown();
-
-    module: Plugin.Module;
-
-    plugin_dll_filename := copy_string_z(tprint("%.dll", cmdline_args.game_name));
 
     soloud := Soloud_create();
     assert(soloud != null);
@@ -287,11 +199,6 @@ main :: () {
         Soloud_destroy(soloud);
     }
     host_state.soloud_context = soloud;
-
-    if !Plugin.load(*module, plugin_dll_filename, COPY_TO_TEMP_PATH = cmdline_args.live_reload)
-        panic(tprint("Could not load DLL '%'\n", plugin_dll_filename));
-    defer Plugin.unload(*module);
-    get_func_ptrs_from_dll(*module);
 
     plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
@@ -349,6 +256,7 @@ main :: () {
             logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         }
 
+        #if BUILDING_DLLS {
         if cmdline_args.live_reload {
             if frame_count % 4 == 0 hotloader_process_change();
 
@@ -404,6 +312,7 @@ main :: () {
                 plugin_init(old_state, host_state);
             }
         }
+        } // BUILDING_DLLS
 
         plugin_tick(host_state);
     }

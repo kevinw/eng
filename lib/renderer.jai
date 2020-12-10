@@ -606,7 +606,7 @@ _get_swapchain_framebuffer :: (using renderer: *Renderer) {
     assert(depth_buffer_view != null);
 }
 
-init :: (renderer_ptr: *Renderer, hwnd: HWND) {
+init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     renderer = renderer_ptr;
 
     feature_levels := D3D_FEATURE_LEVEL.[ .D3D_FEATURE_LEVEL_11_1 ];
@@ -614,18 +614,16 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND) {
     base_device: *ID3D11Device;
     base_device_context: *ID3D11DeviceContext;
 
-    DEBUG :: true;
-
     create_device_flags := D3D11_CREATE_DEVICE_FLAGS.D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
-    if DEBUG
+    if debug
         create_device_flags |= .D3D11_CREATE_DEVICE_DEBUG;
 
     check_result(D3D11CreateDevice(null, .D3D_DRIVER_TYPE_HARDWARE, null, create_device_flags, feature_levels.data,
             feature_levels.count, D3D11_SDK_VERSION, *base_device, null, *base_device_context));
 
     debug_info_queue: *ID3D11InfoQueue;
-    if DEBUG {
+    if debug {
         // Get the debug queue interface for retreiving warning/error messages
         // if the debug layer is on.
         check_result(base_device.QueryInterface(cast(*IUnknown)base_device, *uid("6543dbb6-1b48-42f5-ab82-e97ec74326f6"), cast(**void)*debug_info_queue));

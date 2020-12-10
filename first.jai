@@ -1,16 +1,9 @@
 #scope_file
 
-#import "Basic";
-#import "Compiler";
-#import "Random";
-String :: #import "String";
-Reflection :: #import "Reflection";
-
 CHECK_PATH :: "check/";
 
 module_search_paths := string.[
     "../jai-imgui",
-    //"../jai-raylib",
     "../jai-soloud",
     "lib",
     "src"
@@ -25,6 +18,27 @@ Build_Flags :: enum_flags {
 
 #load "src/compiler_util.jai";
 #load "src/metaprogram_common.jai";
+
+define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
+    release :=               build_flags & .Release != 0;
+
+    building_dlls :=         !release;
+    graphics_layer_debug :=  !release;
+    context_state_type :=    ifx is_host && !release then "*void" else "*State";
+    
+    constants := tprint(#string END
+BUILDING_DLLS        :: %;
+GRAPHICS_LAYER_DEBUG :: %;
+#add_context state   :  %;
+END,
+    building_dlls,
+    graphics_layer_debug,
+    context_state_type,
+);
+    print("----------------\n%----------------\n", constants);
+
+    add_build_string(constants, workspace);
+}
 
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);
@@ -51,32 +65,34 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
             opts.output_path = CHECK_PATH;
 
         if build_flags & .Reload {
-            output_exe := tprint("%_reloaded_%", game_dll_source_name, random_get());
+            output_exe := tprint("%_reloaded_%", game_dll_source_name, Random.random_get());
             //print("reloading...changing DLL output to %\n", output_exe);
             opts.output_executable_name = output_exe;
         } else {
             opts.output_executable_name = game_dll_source_name;
         }
 
-        if build_flags & .Release {
-            print("RELEASE MODE\n");
-            set_optimization_level(*opts, opt_level=3, size_level=1);
-        }
-
+        set_optimization(*opts, build_flags);
         set_build_options(opts, w);
 
-        source_file := tprint("src/%.jai", game_dll_source_name);
-        add_build_file(source_file, w);
+        add_build_file(tprint("src/%.jai", game_dll_source_name), w);
+        define_constants(w, build_flags, is_host = false);
 
-        metaprogram: Metaprogram;
-        metaprogram.workspace = w;
+        run_compiler_loop(w, true);
+    }
+};
 
-        did_generate_systems := false;
+run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
+    metaprogram: Metaprogram;
+    metaprogram.workspace = workspace;
 
-        while true {
-            message := compiler_wait_for_message();
-            if !message || message.workspace != w continue;
+    did_generate_systems := false;
 
+    while true {
+        message := compiler_wait_for_message();
+        if !message || message.workspace != workspace continue;
+
+        #if do_ecs_metaprogram {
             if message.kind == {
                 case .CODE_TYPECHECKED;
                     collect_component_functions(cast(*Compiler_Message_Code_Typechecked)message, *metaprogram);
@@ -88,13 +104,13 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
                         generate_systems(*metaprogram);
                     }
             }
+        }
 
-            if message.kind == .COMPLETE {
-                break;
-            }
+        if message.kind == .COMPLETE {
+            break;
         }
     }
-};
+}
 
 Metaprogram :: struct {
     workspace: s64;
@@ -102,7 +118,7 @@ Metaprogram :: struct {
     component_type_names: [..]string; // TODO: should these be *Type_Infos?
 }
 
-build_host :: (check := false) {
+build_host :: (build_flags: Build_Flags) {
     set_working_directory(#filepath);
 
     opts := get_build_options();
@@ -116,17 +132,35 @@ build_host :: (check := false) {
 
         array_add(*opts.modules_search_path_array, ..module_search_paths);
         opts.output_type = .EXECUTABLE;
-        if check opts.output_path = CHECK_PATH;
+        if build_flags & .Check_Only {
+            opts.output_path = CHECK_PATH;
+        }
+        set_optimization(*opts, build_flags);
         set_build_options(opts, w);
+        if build_flags & .Release {
+            add_build_file("src/d3d_game.jai", w);
+        }
+        define_constants(w, build_flags, is_host = true);
         add_build_file("src/host.jai", w);
 
-        while true {
-            message := compiler_wait_for_message();
-            if !message || message.workspace != w continue;
-            if message.kind == .COMPLETE break;
+        if build_flags & .Release != 0 {
+            run_compiler_loop(w, true);
+        } else {
+            run_compiler_loop(w, false);
         }
     }
 };
+
+set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
+    if build_flags & .Release {
+        print("RELEASE MODE\n");
+        //build_opts.backend = .LLVM;
+        set_optimization_level(build_opts, opt_level=3, size_level=1);
+    } else {
+        //build_opts.backend = .X64;
+        set_optimization_level(build_opts, opt_level=0, size_level=0);
+    }
+}
 
 is_argument_a_pointer_to_a_component :: (arg_decl: *Code_Declaration, metaprogram: *Metaprogram) -> (is_component: bool, component_name: string) {
     if arg_decl.type_inst == null return false, "";
@@ -402,7 +436,6 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
 
 build :: () {
     args := compiler_get_command_line_arguments();
-    is_reload := false;
     flags := Build_Flags.None;
     if args.count > 0 {
         if args[0] == "reload" {
@@ -410,15 +443,17 @@ build :: () {
             args.count -= 1;
             flags |= .Reload;
         }
+
         if args.count > 0 if args[0] == {
             case "all";
-                build_host();
-                build_plugin(flags, DEFAULT_SRC_PLUGIN);
+                build_host(flags);
+                if flags & .Release == 0
+                    build_plugin(flags, DEFAULT_SRC_PLUGIN);
             case "host";
-                build_host();
+                build_host(flags);
             case "check";
-                build_host(check=true);
                 flags |= .Check_Only;
+                build_host(flags);
                 build_plugin(flags, DEFAULT_SRC_PLUGIN);
             case;
                 build_plugin(flags, args[0]);
@@ -433,3 +468,10 @@ build :: () {
 }
 
 #run build();
+
+
+#import "Basic";
+#import "Compiler";
+Random :: #import "Random";
+String :: #import "String";
+Reflection :: #import "Reflection";

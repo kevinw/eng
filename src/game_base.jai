@@ -1,7 +1,5 @@
 HOTLOADING_ENABLED :: true;
 
-#add_context state: *State;
-
 State_Base :: struct {
     check_canaries :: (state: *State_Base) {
         assert(state.canary1 == 9999, "State_Base canary check failed");

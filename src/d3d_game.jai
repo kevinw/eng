@@ -90,7 +90,7 @@ on_host_init :: (host_state: Host_State) {
 
     Gamepad.init_gamepad();
 
-    init(*renderer, host_state.window_handle);
+    init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
     _update_raylib_temp(host_state);
     ui.d3dDevice = xx renderer.device;
     ui.d3dDeviceContext = xx renderer.device_context1;
