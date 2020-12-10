@@ -38,9 +38,9 @@ physics_2d_draw_debug :: () {
             ColorForShape,
             .{0.0, 0.75, 0.0, 1.0}, // Constraint color
             .{1.0, 0.0, 0.0, 1.0}, // Collision point color
-            *debug_draw_context,
+            null,
         };
-        
+        drawOptions.data = *debug_draw_context;
         cp.SpaceDebugDraw(space, *drawOptions);
     }
 }

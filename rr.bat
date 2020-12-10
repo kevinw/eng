@@ -1,1 +1,1 @@
-@jai first.jai -- --release all && first.exe %*
+@jai first.jai -- --release all && game.exe %*

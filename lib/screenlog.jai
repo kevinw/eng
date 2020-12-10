@@ -15,7 +15,7 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     using cast(*Logger_State)context.logger_data;
 
     if ident.count == 0 || ident[0] != #char "="
-        print("%: %\n", ident, message);
+        print("[%] %\n", ident, message);
 
     new_ident := sprint("%\0", ident);
     new_message := sprint("%\0", message);

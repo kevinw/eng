@@ -7,7 +7,6 @@ State :: struct {
     im_context: Im_Context_R;
 }
 
-
 //foo: Texture;
 
 update_and_draw :: () {
@@ -110,6 +109,7 @@ restart :: () {
 }
 
 editor_did_drag :: (rect: rl.Rectangle) {
+    print("TODO: editor_did_drag\n");
 }
 
 handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resizes: *[..]Window_Resize_Record) {

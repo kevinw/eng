@@ -22,8 +22,6 @@ cmdline_args: struct {
     game_name      := DEFAULT_SRC_PLUGIN;
 };
 
-GUARD_ALLOCATOR :: true;
-
 WINDOW_WIDTH  :: 1280;
 WINDOW_HEIGHT :: 720;
 
@@ -108,9 +106,11 @@ toggle_borderless_fullscreen :: () {
 //
 
 main :: () {
-    Debug.init();
+    #if DEBUG_MODULE {
+        Debug.init();
+    }
     
-    if GUARD_ALLOCATOR {
+    #if GUARD_ALLOCATOR {
         GWP :: #import "gwpasan";
         print("[Perf] Using slow guard allocator.\n");
         GWP.init(max_allocation = 100000, sample_rate = 1);

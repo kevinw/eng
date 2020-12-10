@@ -460,7 +460,7 @@ serialize_with_type_info :: (
                 print_to_builder(sb, "}");
             }
         case .POINTER;
-            print("TODO: skipping wbml serialize POINTER for '%'\n", dbgname);
+            logprint("wbml", "skipping wbml serialize POINTER for '%'", dbgname);
         case;
             panic(tprint("%: % (%)", name, ti.type, dbgname));
     }
