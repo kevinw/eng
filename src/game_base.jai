@@ -182,6 +182,9 @@ Sloppy_Math :: #import "Sloppy_Math";
 #import "game_sound_soloud";
 
 #load "../lib/ui.jai";
+#if BUILDING_DLLS {
+#load "host_common.jai";
+}
 #load "plugin_exports.jai";
 #load "editor.jai";
 

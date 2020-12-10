@@ -80,7 +80,4 @@ get_plugin_compile_error :: () -> (bool, string) {
 #scope_file
 
 #import "Basic";
-#if BUILDING_DLLS {
-    #load "host_common.jai";
-}
 

@@ -83,8 +83,10 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
 };
 
 run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
-    metaprogram: Metaprogram;
-    metaprogram.workspace = workspace;
+    #if do_ecs_metaprogram {
+        metaprogram: Metaprogram;
+        metaprogram.workspace = workspace;
+    }
 
     did_generate_systems := false;
 
@@ -154,10 +156,10 @@ build_host :: (build_flags: Build_Flags) {
 set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
     if build_flags & .Release {
         print("RELEASE MODE\n");
-        //build_opts.backend = .LLVM;
+        build_opts.backend = .LLVM;
         set_optimization_level(build_opts, opt_level=3, size_level=1);
     } else {
-        //build_opts.backend = .X64;
+        build_opts.backend = .X64;
         set_optimization_level(build_opts, opt_level=0, size_level=0);
     }
 }
@@ -437,6 +439,16 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
 build :: () {
     args := compiler_get_command_line_arguments();
     flags := Build_Flags.None;
+
+    //print("args:\n");
+    //for args print("%: %\n", it_index, it);
+
+    if args.count > 0 && args[0] == "--release" {
+        args.data = args.data + 1;
+        args.count -= 1;
+        flags |= .Release;
+    }
+
     if args.count > 0 {
         if args[0] == "reload" {
             args.data = args.data + 1;
@@ -468,7 +480,6 @@ build :: () {
 }
 
 #run build();
-
 
 #import "Basic";
 #import "Compiler";
