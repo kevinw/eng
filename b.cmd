@@ -1,1 +1,1 @@
-jai -x64 first.jai
+jai -x64 first.jai -- %*
