@@ -1071,13 +1071,12 @@ editor_update :: (state: *State) {
             name := tprint("%", (i + 1));
             key_code := cast(rl.KeyboardKey)(cast(s32)rl.KeyboardKey.KEY_ONE + i);
             if rl.IsKeyPressed(key_code) {
+                filename := tprint("prefabs/scenes/%.wbml", name);
                 if shift_down {
-                    save_scene(name);
+                    save_scene(filename=name);
                 } else {
                     clear_selection();
-
-                    filename := tprint("%.wbml", name);
-                    load_scene(filename);
+                    load_scene(filename=filename);
                 }
             }
         }
@@ -1375,8 +1374,7 @@ set_owned_string :: (str: *string, new_value: string) {
     <<str = copy_string(new_value);
 }
 
-save_scene :: (name: string) {
-    filename := tprint("%.wbml", name);
+save_scene :: (filename: string) {
     save_prefab(filename);
     logprint("editor", "saved scene '%'", filename);
 }

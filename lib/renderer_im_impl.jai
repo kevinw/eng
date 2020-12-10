@@ -62,7 +62,7 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
     constant_buffer = create_constant_buffer(Constants);
 
     ok: bool;
-    ok, shader   = load_shader_from_file(renderer, "unlit_texture.hlsl");
+    ok, shader   = load_shader_from_file(renderer, "resources/shaders/unlit_texture.hlsl");
     assert(ok);
     pipeline = make_pipeline(*shader, .Triangles,
         cull_mode = .None,
