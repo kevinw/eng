@@ -38,7 +38,7 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     }
 
     // load dll
-    logprint("plugin", "LOADING % from %...", temp_path, filename);
+    logprint("plugin", "loading % (copied from %)", temp_path, filename);
     new_dll := LoadLibraryA(to_c_string(temp_path));
     if !new_dll {
         logprint("plugin", "ERROR: could not load '%'", temp_path);

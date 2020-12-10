@@ -435,7 +435,7 @@ serialize_with_type_info :: (
 
                 child_debug_name := dbgname;
                 #if BUILD_DEBUG_NAMES
-                    child_debug_names = tprint("%.%", dbgname, it.name);
+                    child_debug_name = tprint("%.%", dbgname, it.name);
                 any_child_worked |= serialize_with_type_info(it.name, member_any.value_pointer, member_any.type, *sub_sb, indent_level,
                     on_serialize, child_debug_name, default=field_default);
             }
