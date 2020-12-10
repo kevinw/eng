@@ -415,6 +415,7 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
 
 }
 
+#if 0
 main :: () {
     Debug :: #import "Debug";
     Debug.init();
