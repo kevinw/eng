@@ -38,22 +38,21 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     }
 
     // load dll
-    print("LOADING % from %...", temp_path, filename);
+    logprint("plugin", "LOADING % from %...", temp_path, filename);
     new_dll := LoadLibraryA(to_c_string(temp_path));
-    print("ok.\n");
     if !new_dll {
-        print("ERROR: could not load '%'\n", temp_path);
+        logprint("plugin", "ERROR: could not load '%'", temp_path);
         return false;
     }
 
     // Here we store the address of the loaded DLL for later.
     if 0 == cast(int)GetModuleInformation(GetCurrentProcess(), new_dll, *plugin.module_info, size_of(type_of(plugin.module_info))) {
-        print("ERROR: Could not get module information.\n");
+        logprint("plugin", "ERROR: Could not get module information.");
     }
 
     file_time, ok := file_modtime(filename);
     if !ok {
-        print("could not read DLL write time: %\n", filename);
+        logprint("plugin", "could not read DLL write time: %", filename);
         return false;
     }
     plugin.last_write_time = file_time;
@@ -68,7 +67,7 @@ unload :: (plugin: *Module) -> bool {
     if plugin.native_module == null return false;
 
     if !FreeLibrary(plugin.native_module) {
-        print("error calling FreeLibrary on '%'\n", plugin.native_module);
+        logprint("plugin", "error calling FreeLibrary on '%'", plugin.native_module);
         return false;
     }
 
@@ -107,7 +106,7 @@ wait_for_readable_file :: (filename: string) -> bool {
         if last_err == ERROR_SHARING_VIOLATION {
             Sleep (100);
         } else {
-            print("an unexpected error while waiting for a file to become readable: % (for file '%')", 
+            logprint("plugin", "an unexpected error while waiting for a file to become readable: % (for file '%')", 
                 last_err, filename);
             return false;
         }
@@ -144,7 +143,7 @@ should_reload :: (plugin: *Module) -> bool {
     file_time, ok := file_modtime_with_busy_loop(plugin.filename);
 
     if !ok {
-        print("should_reload: could not get modtime: '%'\n", plugin.filename);
+        logprint("plugin", "should_reload: could not get modtime: '%'", plugin.filename);
         return false;
     }
 
@@ -156,19 +155,19 @@ should_reload :: (plugin: *Module) -> bool {
 
 reload :: (plugin: *Module, force_reload := false) -> bool {
     if !plugin.native_module {
-        print("error: there is not native module handle!\n");
+        logprint("plugin", "error: there is not native module handle!");
         return false;
     }
 
     file_time, ok := file_modtime_with_busy_loop(plugin.filename);
 
     if !ok {
-        print("could not get modtime: '%'\n", plugin.filename);
+        logprint("plugin", "could not get modtime: '%'", plugin.filename);
         return false;
     }
 
     if !force_reload && file_time == plugin.last_write_time {
-        print("reload: the modification time hasn't changed\n");
+        logprint("plugin", "reload: the modification time hasn't changed");
         return false;
     }
     
@@ -177,17 +176,17 @@ reload :: (plugin: *Module, force_reload := false) -> bool {
     // The jai compiler returns before the linker is done, so here we wait for
     // the file to be readable again.
     if !wait_for_readable_file(plugin.filename) {
-        print("error waiting for file to become readable\n");
+        logprint("plugin", "error waiting for file to become readable");
         return false;
     }
 
     if !unload(plugin) { // Actually unload the old DLL
-        print("error tring to unload the old plugin!\n");
+        logprint("plugin", "error tring to unload the old plugin!");
         return false;
     }
 
     if !load(plugin, plugin.filename) { // Load the new DLL
-        print("error trying to load the new plugin!\n");
+        logprint("plugin", "error trying to load the new plugin!");
         return false;
     }
 
@@ -210,7 +209,7 @@ _copy_file :: (src: string, dest: string) -> bool {
     res := CopyFileW(utf8_to_wide(src), utf8_to_wide(dest), fail_if_exists);
     if res == 0 {
         err := GetLastError();
-        if err print("GetLastError() returned %\n", err);
+        if err logprint("plugin", "GetLastError() returned %", err);
     }
 
     return 0 != res;

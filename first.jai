@@ -22,15 +22,21 @@ Build_Flags :: enum_flags {
 define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
     release :=               build_flags & .Release != 0;
 
+    debug_module :=          !release;
+    guard_allocator :=       !release;
     building_dlls :=         !release;
     graphics_layer_debug :=  !release;
     context_state_type :=    ifx is_host && !release then "*void" else "*State";
     
     constants := tprint(#string END
+DEBUG_MODULE         :: %;
+GUARD_ALLOCATOR      :: %;
 BUILDING_DLLS        :: %;
 GRAPHICS_LAYER_DEBUG :: %;
 #add_context state   :  %;
 END,
+    debug_module,
+    guard_allocator,
     building_dlls,
     graphics_layer_debug,
     context_state_type,
@@ -134,6 +140,7 @@ build_host :: (build_flags: Build_Flags) {
 
         array_add(*opts.modules_search_path_array, ..module_search_paths);
         opts.output_type = .EXECUTABLE;
+        opts.output_executable_name = tprint("game%.exe", ifx build_flags & .Release then "" else "_dev");
         if build_flags & .Check_Only {
             opts.output_path = CHECK_PATH;
         }

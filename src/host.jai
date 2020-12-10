@@ -112,7 +112,7 @@ main :: () {
     
     #if GUARD_ALLOCATOR {
         GWP :: #import "gwpasan";
-        print("[Perf] Using slow guard allocator.\n");
+        print("[host] Using slow guard allocator\n");
         GWP.init(max_allocation = 100000, sample_rate = 1);
         context.allocator = GWP.allocator;
     }
@@ -328,5 +328,5 @@ main :: () {
         File.write_entire_file(host_config_name, builder_to_string(*builder));
     }
 
-    print("exit OK.\n");
+    logprint("host", "exit OK.");
 }
