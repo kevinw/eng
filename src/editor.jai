@@ -97,6 +97,7 @@ Editor :: struct {
                 shader: *LiveShader;
             };
         };
+        screenlog := true;
     };
 
 }
@@ -603,8 +604,10 @@ render_imgui_to_drawlists :: (state: *State) {
     if editor.windows.asset_selector.visible
         render_asset_selector(*editor.windows.asset_selector.visible);
 
-    //if editor.windows.demo
-        //ShowDemoWindow(*editor.windows.demo);
+    if editor.windows.demo
+        ImGui.ShowDemoWindow(*editor.windows.demo);
+
+    show_screen_log();
 
     ButtonEx :: (label: *u8, size:ImVec2 = .{0,0}, enabled := true) -> bool {
         if !enabled PushStyleVar(.Alpha, 0.5);
@@ -934,6 +937,45 @@ render_imgui_to_drawlists :: (state: *State) {
         BeginEnd("Debug Internals");
         io := ImGui.GetIO();
         TextUnformatted(tprint("IniFilename: s", io.IniFilename));
+    }
+}
+
+show_screen_log :: () {
+    using ImGui;
+
+    open := *context.state.editor.windows.screenlog;
+    screenlog :: #import "screenlog";
+
+    SetNextWindowPos(.{0, 0});
+    SetNextWindowSize(.{0, 0});
+    PushPopFont(context.state.ui.small_font);
+
+    flags :: WindowFlags.NoDecoration | .NoInputs | .NoBackground | .NoMouseInputs;
+    if !Begin("Screenlog", open, flags) {
+        End();
+        return;
+    }
+    defer End();
+
+    PushPopStyleVar(.ItemSpacing, .{0,1});
+
+    logger_state := screenlog.get_context_state();
+
+    pos: ImVec2 = .{250, 20};
+    color := GetColorU32(.Text);
+    draw_list := GetForegroundDrawList();
+    for logger_state.entries {
+        begin := tprint("[%] %", it.ident, it.message);
+
+        // TODO: fix the imgui bindings...the begin/end string pairs aren't being handled right.
+        // any time we see a string argument taking an "End" we should just give an alternative that
+        // accepts a string. then we don't need a copy at all!
+        end: string;
+        end.data = begin.data + begin.count;
+        end.count = 1;
+
+        draw_list.AddText(draw_list, pos, color, begin.data, end);
+        pos.y += GetTextLineHeightWithSpacing();
     }
 }
 

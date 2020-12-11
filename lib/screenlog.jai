@@ -1,13 +1,32 @@
-free_entry :: (using entry: *Entry) {
+Logger_State :: struct {
+    EXPECTED_CANARY_VALUE :: 555;
+    canary := EXPECTED_CANARY_VALUE;
+
+    entries: [..]Entry;
+    this_frame_entries: [..]Entry;
+
+    Entry :: struct {
+        time: float64;
+        message: string;
+        ident: string;
+
+        use_world_pos := false;
+        world_pos: Vector2;
+    }
+}
+
+free_entry :: (using entry: *Logger_State.Entry) {
     free(message);
     free(ident);
 }
 
-Logger_State :: struct {
-    //time: float64;
-    entries: [..]Entry;
-    this_frame_entries: [..]Entry;
+get_context_state :: () -> *Logger_State {
+    logger_state := cast(*Logger_State)context.logger_data;
+    assert(logger_state.canary == Logger_State.EXPECTED_CANARY_VALUE,
+        "invalid canary value for context.logger_state -- either it is not a screenlog.Logger_State, or the memory is corrupted");
+    return logger_state;
 }
+
 
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
     assert(message.count < MAX_COUNT);
@@ -18,9 +37,12 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
         print("[%] %\n", ident, message);
 
     new_ident := sprint("%\0", ident);
-    new_message := sprint("%\0", message);
+    new_ident.count -= 1;
 
-    entry: *Entry;
+    new_message := sprint("%\0", message);
+    new_message.count -= 1;
+
+    entry: *Logger_State.Entry;
     if new_ident.count > 1 && new_ident[0] == #char "=" {
         for * entries {
             if it.ident == new_ident {
@@ -46,6 +68,7 @@ sticky :: (message: string, args: ..Any) {
 
     entry := array_add(*this_frame_entries);
     entry.message = sprint("%\0", tprint(message, ..args));
+    entry.message.count -= 1;
 }
 
 world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
@@ -56,6 +79,7 @@ world :: (pos: Vector3, message: string, time_to_show := TIME_ON_SCREEN) {
     entry.time = time_to_show;
     entry.ident = "msg from world func\0";
     entry.message = sprint("%\0", message);
+    entry.message.count -= 1;
     entry.use_world_pos = true;
     entry.world_pos = pos.xy;
 }
@@ -71,6 +95,7 @@ world :: (world_pos: Vector2, message: string, args: ..Any) {
     entry.use_world_pos = true;
     entry.world_pos = world_pos;
     entry.message = sprint("%\0", tprint(message, ..args));
+    entry.message.count -= 1;
 }
 
 update :: (delta_time: float64) {
@@ -93,13 +118,4 @@ update :: (delta_time: float64) {
 
 TIME_ON_SCREEN :: 2.0;
 MAX_COUNT :: 2000;
-
-Entry :: struct {
-    time: float64;
-    message: string;
-    ident: string;
-
-    use_world_pos := false;
-    world_pos: Vector2;
-}
 

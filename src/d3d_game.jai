@@ -33,8 +33,6 @@ update_and_draw :: () {
         }
 
 
-        imgui_render(*ui);
-
 
         /*
         if foo.texture2D == null {
@@ -52,6 +50,8 @@ update_and_draw :: () {
             //im_ctx, v2(300, 200), v2(600, 400),
             //c=v4(cast(float)((sin(Time.now) + 1) * 0.5), 1, 1, 1));
         im_flush(*im_context);
+
+        imgui_render(*ui);
 
     }
     present();

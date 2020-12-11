@@ -155,9 +155,10 @@ _draw :: (using it: *SpriteRenderer, transform: *Transform) {
         dest_rect := get_sprite_anim_dest_rect(it, transform);
         if #complete slice_mode == {
             case .None;
-                if _current_frame.texture
+                if _current_frame.texture {
+                    //logprint("sprite_renderer", "%", _current_frame.rect);
                     draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
-                else {
+                } else {
                     ok, entity_ptr := get_entity(it.entity);
                     assert(ok);
                     

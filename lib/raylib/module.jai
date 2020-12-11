@@ -213,9 +213,6 @@ DrawText :: inline ($$text: string, posX: s32, posY: s32, fontSize: s32, color: 
     DrawText(constant_or_temp_cstring(text), posX, posY, fontSize, color);
 }
 
-DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Color, col4: Color) {
-}
-
 NPatchType :: enum {
     NPT_9PATCH :: 0;         // Npatch defined by 3x3 tiles
     NPT_3PATCH_VERTICAL;    // Npatch defined by 1x3 tiles
@@ -347,15 +344,233 @@ LoadImagePro :: (data: *void, width: s32, height: s32, format: s32) -> Image {
     return .{};
 }
 
+DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Color, col4: Color) {
+    v2 :: make_vector2;
+    ctx :: inline () -> *Im_Context { return *context.state.im_context; }
+    _ctx := ctx();
+    im_set_primitive(_ctx, 3);
+    im_ensure_space_for(_ctx, 6, 4);
+
+    p0 := v2(rec.x, rec.y);
+    p1 := v2(rec.x, rec.y + rec.height);
+    p2 := v2(rec.x + rec.width, rec.y + rec.height);
+    p3 := v2(rec.x + rec.width, rec.y);
+
+    t0 := v2(0, 0);
+    t1 := v2(0, 1);
+    t2 := v2(1, 1);
+    t3 := v2(1, 0);
+
+    vt0 := im_vertex(_ctx, p0, t0, ColorToNormalized(col1));
+    vt1 := im_vertex(_ctx, p1, t1, ColorToNormalized(col2));
+    vt2 := im_vertex(_ctx, p2, t2, ColorToNormalized(col3));
+    vt3 := im_vertex(_ctx, p3, t3, ColorToNormalized(col4));
+
+    im_set_texture(_ctx, null);
+    im_indices(_ctx, vt0, vt1, vt2, vt2, vt0, vt3);
+}
+
 LoadImageEx :: (pixels: *Color, width: s32, height: s32) -> Image {
-    return .{};
+    bmp: Bitmap;
+    bitmap_alloc(*bmp, width, height, .RGBA8);
+    bmp.own_data = true;
+    memcpy(bmp.data, pixels, width * height * 4);
+    return bmp;
 }
 
 UnloadImage :: (image: Bitmap) {
 }
 
-ImageDraw :: (dst: *Image, src: Image, srcRec: Rectangle, dstRec: Rectangle, tint: Color) {
+ImageFromImage :: (image: Image, rec: Rectangle) -> Image {
+    result := image;
+    memcpy(result.data, image.data, image.length_in_bytes);
+    result.own_data = true;
+    return result;
 }
+
+ImageResize :: (image: *Image, newWidth: int, newHeight: int) {
+    assert(image.format == .RGBA8);
+    bytesPerPixel := 4;
+    output := alloc(newWidth * newHeight * bytesPerPixel);
+    if image.format == {
+        case .RGBA8;
+            stbir_resize_uint8(image.data, image.width, image.height, 0, output, xx newWidth, xx newHeight, 0, 4);
+    }
+
+    if image.own_data
+        free(image.data);
+
+    image.data = output;
+    image.width = xx newWidth;
+    image.height = xx newHeight;
+}
+
+GetPixelDataSize :: (width: s32, height: s32, format: Texture_Format) -> s32 {
+    return width * height * cast(s32)get_image_bytes_per_texel(format);
+}
+
+GetPixelColor :: (srcPtr: *void, format: Texture_Format) -> Color {
+    assert(format == .RGBA8);
+
+    col: Color;
+    col.r = (cast([4]u8)srcPtr)[0];
+    col.g = (cast([4]u8)srcPtr)[1];
+    col.b = (cast([4]u8)srcPtr)[2];
+    col.a = (cast([4]u8)srcPtr)[3];
+    return col;
+}
+
+ImageDraw :: (dst: *Image, src: Image, srcRecIn: Rectangle, dstRecIn: Rectangle, tint: Color) {
+    srcRec := srcRecIn;
+    dstRec := dstRecIn;
+
+    // Security check to avoid program crash
+    if dst.data == null || (dst.width == 0) || (dst.height == 0) ||
+        (src.data == null) || (src.width == 0) || (src.height == 0) return;
+
+    //if dst.mipmaps > 1 logprint("raylib_fake", "Image drawing only applied to base mipmap level");
+    assert(dst.format == .RGBA8);
+    //if dst.format >= COMPRESSED_DXT1_RGB {
+        //logprint("raylib_fake", "Image drawing not supported for compressed formats");
+        //return;
+    //}
+    srcMod: Image;       // Source copy (in case it was required)
+    srcPtr := *src;      // Pointer to source image
+    useSrcMod := false;  // Track source copy required
+
+    // Source rectangle out-of-bounds security checks
+    if srcRec.x < 0 { srcRec.width += srcRec.x; srcRec.x = 0; }
+    if srcRec.y < 0 { srcRec.height += srcRec.y; srcRec.y = 0; }
+    if (srcRec.x + srcRec.width) > xx src.width srcRec.width = src.width - srcRec.x;
+    if (srcRec.y + srcRec.height) > xx src.height srcRec.height = src.height - srcRec.y;
+
+    // Check if source rectangle needs to be resized to destination rectangle
+    // In that case, we make a copy of source and we apply all required transform
+    if (cast(s32)srcRec.width != cast(s32)dstRec.width) || (cast(s32)srcRec.height != cast(s32)dstRec.height) {
+        srcMod = ImageFromImage(src, srcRec);   // Create image from another image
+        ImageResize(*srcMod, cast(s32)dstRec.width, cast(s32)dstRec.height);   // Resize to destination rectangle
+        srcRec = make_Rectangle(0, 0, srcMod.width, srcMod.height);
+
+        srcPtr = *srcMod;
+        useSrcMod = true;
+    }
+
+    // Destination rectangle out-of-bounds security checks
+    if dstRec.x < 0 {
+        srcRec.x = -dstRec.x;
+        srcRec.width += dstRec.x;
+        dstRec.x = 0;
+    } else if (dstRec.x + srcRec.width) > xx dst.width {
+        srcRec.width = dst.width - dstRec.x;
+    }
+
+    if dstRec.y < 0 {
+        srcRec.y = -dstRec.y;
+        srcRec.height += dstRec.y;
+        dstRec.y = 0;
+    }
+    else if ((dstRec.y + srcRec.height) > xx dst.height) srcRec.height = dst.height - dstRec.y;
+
+    if dst.width < xx srcRec.width srcRec.width = xx dst.width;
+    if dst.height < xx srcRec.height srcRec.height = xx dst.height;
+
+    // This blitting method is quite fast! The process followed is:
+    // for every pixel -> [get_src_format/get_dst_format -> blend -> format_to_dst]
+    // Some optimization ideas:
+    //    [x] Avoid creating source copy if not required (no resize required)
+    //    [x] Optimize ImageResize() for pixel format (alternative: ImageResizeNN())
+    //    [x] Optimize ColorAlphaBlend() to avoid processing (alpha = 0) and (alpha = 1)
+    //    [x] Optimize ColorAlphaBlend() for faster operations (maybe avoiding divs?)
+    //    [x] Consider fast path: no alpha blending required cases (src has no alpha)
+    //    [x] Consider fast path: same src/dst format with no alpha -> direct line copy
+    //    [-] GetPixelColor(): Return Vector4 instead of Color, easier for ColorAlphaBlend()
+
+    colSrc, colDst, blend: Color;
+    blendRequired := true;
+    
+    // Fast path: Avoid blend if source has no alpha to blend
+    //if ((tint.a == 255) && ((srcPtr.format == UNCOMPRESSED_GRAYSCALE) || (srcPtr.format == UNCOMPRESSED_R8G8B8) || (srcPtr.format == UNCOMPRESSED_R5G6B5))) blendRequired = false;
+
+    strideDst:s32 = GetPixelDataSize(dst.width, 1, dst.format);
+    bytesPerPixelDst:s32 = strideDst/(dst.width);
+
+    strideSrc:s32 = GetPixelDataSize(srcPtr.width, 1, srcPtr.format);
+    bytesPerPixelSrc:s32 = strideSrc/srcPtr.width;
+
+    pSrcBase := cast(*u8)srcPtr.data + (cast(s32)srcRec.y*srcPtr.width + cast(s32)srcRec.x)*bytesPerPixelSrc;
+    pDstBase := cast(*u8)dst.data    + (cast(s32)dstRec.y*dst.width    + cast(s32)dstRec.x)*bytesPerPixelDst;
+
+    for y: 0..cast(s32)srcRec.height-1 {
+        pSrc := pSrcBase;
+        pDst := pDstBase;
+
+        // Fast path: Avoid moving pixel by pixel if no blend required and same format
+        if !blendRequired && (srcPtr.format == dst.format)
+            memcpy(pDst, pSrc, cast(s32)srcRec.width*bytesPerPixelSrc);
+        else
+        {
+            for x: 0..cast(s32)srcRec.width-1 {
+                colSrc = GetPixelColor(pSrc, srcPtr.format);
+                colDst = GetPixelColor(pDst, dst.format);
+                
+                // Fast path: Avoid blend if source has no alpha to blend
+                if (blendRequired) blend = ColorAlphaBlend(colDst, colSrc, tint);
+                else blend = colSrc;
+
+                SetPixelColor(pDst, blend, dst.format);
+
+                pDst += bytesPerPixelDst;
+                pSrc += bytesPerPixelSrc;
+            }
+        }
+
+        pSrcBase += strideSrc;
+        pDstBase += strideDst;
+    }
+
+    if useSrcMod UnloadImage(srcMod);     // Unload source modified image
+}
+
+SetPixelColor :: inline (dstPtr: *void, color: Color, format: Texture_Format)
+{
+    assert(format == .RGBA8);
+    (cast([4]u8)dstPtr)[0] = color.r;
+    (cast([4]u8)dstPtr)[1] = color.g;
+    (cast([4]u8)dstPtr)[2] = color.b;
+    (cast([4]u8)dstPtr)[3] = color.a;
+}
+
+
+// Returns src alpha-blended into dst color with tint
+ColorAlphaBlend :: (dst: Color, srcIn: Color, tint: Color) -> Color
+{
+    out := WHITE;
+
+    src := srcIn;
+    
+    // Apply color tint to source color
+    src.r = cast(u8)((cast(u32)src.r*cast(u32)tint.r) >> 8);
+    src.g = cast(u8)((cast(u32)src.g*cast(u32)tint.g) >> 8);
+    src.b = cast(u8)((cast(u32)src.b*cast(u32)tint.b) >> 8);
+    src.a = cast(u8)((cast(u32)src.a*cast(u32)tint.a) >> 8);
+
+    if (src.a == 0) out = dst;
+    else if (src.a == 255) out = src;
+    else
+    {
+        alpha := cast(u32)src.a + 1;     // We are shifting by 8 (dividing by 256), so we need to take that excess into account
+        out.a = cast(u8)((cast(u32)alpha*256 + cast(u32)dst.a*(256 - alpha)) >> 8);
+
+        if out.a > 0 {
+            out.r = cast(u8)(((cast(u32)src.r*alpha*256 + cast(u32)dst.r*cast(u32)dst.a*(256 - alpha))/out.a) >> 8);
+            out.g = cast(u8)(((cast(u32)src.g*alpha*256 + cast(u32)dst.g*cast(u32)dst.a*(256 - alpha))/out.a) >> 8);
+            out.b = cast(u8)(((cast(u32)src.b*alpha*256 + cast(u32)dst.b*cast(u32)dst.a*(256 - alpha))/out.a) >> 8);
+        }
+    }
+
+    return out;
+}
+
 
 DrawRectangleLinesEx :: (rec: Rectangle, lineThick: s32, color: Color) {
 }
@@ -649,8 +864,10 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
 #import "Bitmap";
 #import "Math";
 #import "renderer_im";
+#import "stb_image_resize";
 Basic :: #import "Basic";
 print :: Basic.print;
+#import "Render/Texture_Format";
 
 _to_temp_c_string :: (s: string) -> *u8 {
     result : *u8 = Basic.talloc(s.count + 1);

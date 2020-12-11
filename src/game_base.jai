@@ -55,6 +55,7 @@ game_base_update :: () {
     system_now := get_time();
     absolute_delta_time: float64;
     if _last_system_now > 0 absolute_delta_time = system_now - _last_system_now;
+    if absolute_delta_time < 0 absolute_delta_time = 0;
     _last_system_now = system_now;
 
     {

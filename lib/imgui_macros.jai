@@ -20,11 +20,16 @@ PushPopID :: (id_ptr: *void) #expand {
 }
 
 BeginEnd :: (name: string, open: *bool = null, window_flags: ImGui.WindowFlags = .None) #expand {
-    ImGui.Begin(name, open, window_flags);
-    `defer ImGui.End();
+    res := ImGui.Begin(name, open, window_flags);
+    `defer { if res ImGui.End(); }
 }
 
 PushPopStyleColor :: (idx: ImGui.Col, col: ImGui.ImVec4) #expand {
     ImGui.PushStyleColor(idx, col);
     `defer ImGui.PopStyleColor();
+}
+
+PushPopStyleVar :: (idx: ImGui.StyleVar, var: ImGui.ImVec2) #expand {
+    ImGui.PushStyleVar(idx, var);
+    `defer ImGui.PopStyleVar();
 }
