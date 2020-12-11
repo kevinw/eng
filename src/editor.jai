@@ -960,9 +960,13 @@ show_screen_log :: (open: *bool) {
     logger_state := screenlog.get_context_state();
 
     pos: ImVec2 = .{250, 20};
-    color := GetColorU32(.Text);
     draw_list := GetForegroundDrawList();
     for logger_state.entries {
+        alpha_factor: float = 1.0;
+        FADE_TIME :: 0.1;
+        if it.time < FADE_TIME alpha_factor = max(cast(float)0.0, cast(float)it.time) / FADE_TIME;
+        color := GetColorU32(.Text, cast(float)(it.time / 0.5));
+
         ident := it.ident;
         if ident.count > 0 && ident[0] == #char "=" advance(*ident);
         begin := tprint("[%] %", ident, it.message);
