@@ -607,7 +607,7 @@ render_imgui_to_drawlists :: (state: *State) {
     if editor.windows.demo
         ImGui.ShowDemoWindow(*editor.windows.demo);
 
-    show_screen_log();
+    show_screen_log(*editor.windows.screenlog);
 
     ButtonEx :: (label: *u8, size:ImVec2 = .{0,0}, enabled := true) -> bool {
         if !enabled PushStyleVar(.Alpha, 0.5);
@@ -940,16 +940,13 @@ render_imgui_to_drawlists :: (state: *State) {
     }
 }
 
-show_screen_log :: () {
+show_screen_log :: (open: *bool) {
     using ImGui;
 
-    open := *context.state.editor.windows.screenlog;
     screenlog :: #import "screenlog";
 
     SetNextWindowPos(.{0, 0});
     SetNextWindowSize(.{0, 0});
-    PushPopFont(context.state.ui.small_font);
-
     flags :: WindowFlags.NoDecoration | .NoInputs | .NoBackground | .NoMouseInputs;
     if !Begin("Screenlog", open, flags) {
         End();
@@ -958,6 +955,7 @@ show_screen_log :: () {
     defer End();
 
     PushPopStyleVar(.ItemSpacing, .{0,1});
+    PushPopFont(context.state.ui.small_font);
 
     logger_state := screenlog.get_context_state();
 
@@ -965,7 +963,9 @@ show_screen_log :: () {
     color := GetColorU32(.Text);
     draw_list := GetForegroundDrawList();
     for logger_state.entries {
-        begin := tprint("[%] %", it.ident, it.message);
+        ident := it.ident;
+        if ident.count > 0 && ident[0] == #char "=" advance(*ident);
+        begin := tprint("[%] %", ident, it.message);
 
         // TODO: fix the imgui bindings...the begin/end string pairs aren't being handled right.
         // any time we see a string argument taking an "End" we should just give an alternative that
