@@ -23,9 +23,6 @@ System_Stage :: enum {
     pre_draw;
     draw;
     on_disable;
-
-    // TODO: if you add to this enum, you also need to update the string
-    // comparison in collect_component_functions. see the note there about solving this....
 }
 
 is_event_func :: (stage: System_Stage) -> bool {
