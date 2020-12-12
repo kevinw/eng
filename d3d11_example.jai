@@ -17,7 +17,7 @@ main :: () {
     style.ScaleAllSizes(style, 1.2);
     ImGui_Impl_Init(*ui, the_window);
 
-    shader_ok, shader := load_shader_from_file(*renderer, "shaders.hlsl");
+    shader_ok, shader := load_shader_from_file("shaders.hlsl");
     assert(shader_ok);
     pipeline := make_pipeline(*shader, .Triangles);
 

@@ -67,6 +67,7 @@ Pipeline :: struct {
     rasterizer_state: *ID3D11RasterizerState1;
     primitive_type: D3D11_PRIMITIVE_TOPOLOGY;
     depth_stencil_state: *ID3D11DepthStencilState;
+    blend_state:         *ID3D11BlendState;
 }
 
 Buffer_Type :: enum u8 {
@@ -327,9 +328,16 @@ unload_shader :: (using shader: *Shader) {
     print("TODO: unload_shader\n");
 }
 
-make_pipeline :: (shader: *Shader,
+Blend_Mode :: enum {
+    Default;
+    Alpha_Blended;
+}
+
+make_pipeline :: (
+    shader: *Shader,
     primitive_type: Primitive_Type = .Triangles,
-    cull_mode: Cull_Mode = .Back
+    cull_mode:      Cull_Mode = .Back,
+    blend_mode:     Blend_Mode = .Default
 ) -> Pipeline {
     assert_state();
 
@@ -361,13 +369,29 @@ make_pipeline :: (shader: *Shader,
     }
 
     // depth stencil state
-    // TODO: make this configurable
     depth_stencil_desc := D3D11_DEPTH_STENCIL_DESC.{
         DepthEnable    = TRUE,
         DepthWriteMask = .D3D11_DEPTH_WRITE_MASK_ALL,
         DepthFunc      = .D3D11_COMPARISON_LESS,
     };
     check_result(device.CreateDepthStencilState(device, *depth_stencil_desc, *pipeline.depth_stencil_state));
+
+    // blend mode
+    // (note it is valid in OMSetBlendState for blend_state to be null)
+    if blend_mode != .Default {
+        using blend_desc: D3D11_BLEND_DESC;
+        RenderTarget[0] = .{
+            BlendEnable = TRUE,
+            SrcBlend = .D3D11_BLEND_SRC_ALPHA,
+            DestBlend = .D3D11_BLEND_INV_SRC_ALPHA,
+            BlendOp = .D3D11_BLEND_OP_ADD,
+            SrcBlendAlpha = .D3D11_BLEND_ONE,
+            DestBlendAlpha = .D3D11_BLEND_ZERO,
+            BlendOpAlpha = .D3D11_BLEND_OP_ADD,
+            RenderTargetWriteMask = 0x0f,
+        };
+        check_result(device.CreateBlendState(device, *blend_desc, *pipeline.blend_state));
+    }
 
     return pipeline;
 }
@@ -389,8 +413,7 @@ apply_pipeline :: (pipeline: *Pipeline) {
 
     device_context.OMSetDepthStencilState(device_context, depth_stencil_state, 0);
 
-    // TODO: make blend state configurable
-    device_context.OMSetBlendState(device_context, null, cast([4]float)null, 0xffffffff); // use default blend mode (i.e. disable)
+    device_context.OMSetBlendState(device_context, blend_state, cast([4]float)null, 0xffffffff);
 }
 
 apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float = -1) {
@@ -482,11 +505,17 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     device := cast(*ID3D11Device)renderer.device;
     {
         res := device.CreateTexture2D(device, *textureDesc, *textureData, *tex.texture2D);
-        if res != S_OK unload_and_return_error();
+        if res != S_OK {
+            flush_debug_messages(renderer);
+            unload_and_return_error();
+        }
     }
     {
         res := device.CreateShaderResourceView(device, xx tex.texture2D, null, *tex.view);
-        if res != S_OK unload_and_return_error();
+        if res != S_OK {
+            flush_debug_messages(renderer);
+            unload_and_return_error();
+        }
     }
 
     // Sampler
@@ -499,7 +528,10 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     };
     {
         res := device.CreateSamplerState(device, *sampler_desc, *tex.sampler_state);
-        if res != S_OK || tex.sampler_state == null unload_and_return_error();
+        if res != S_OK || tex.sampler_state == null {
+            flush_debug_messages(renderer);
+            unload_and_return_error();
+        }
     }
 
     return true, tex;
