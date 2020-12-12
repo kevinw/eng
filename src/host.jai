@@ -157,20 +157,20 @@ main :: () {
         }
     }
 
+    context.logger_data = New(screenlog.Logger_State);
+    context.logger = screenlog.context_func;
+    defer free(context.logger_data);
+
     host_config_name :: "setup.cfg";
     parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
 
     the_window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "", window_x=win_x, window_y=win_y);
-    // TODO: set win_x, win_y
-    host_state.window_handle = the_window;
-    host_state.input_button_states = *input_button_states; 
+    host_state.window_handle                = the_window;
+    host_state.input_button_states          = *input_button_states;
     host_state.toggle_borderless_fullscreen = toggle_borderless_fullscreen;
-
-    context.logger_data = New(screenlog.Logger_State);
-    context.logger = screenlog.context_func;
-    defer free(context.logger_data);
+    host_state.pending_resizes              = *pending_resizes;
 
     if cmdline_args.topmost_window
         platform.set_window_always_on_top(the_window);
@@ -199,7 +199,6 @@ main :: () {
         Soloud_destroy(soloud);
     }
     host_state.soloud_context = soloud;
-    host_state.pending_resizes = *pending_resizes;
 
     plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
