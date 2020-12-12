@@ -132,7 +132,7 @@ main :: () {
 ImGui :: #import "imgui";
 
 #scope_file
-#load "lib/renderer.jai";
+#import "renderer";
 
 #import "Window_Creation";
 #import "Input";
