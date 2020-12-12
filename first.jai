@@ -27,23 +27,32 @@ define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
     building_dlls :=         !release;
     graphics_layer_debug :=  !release;
     context_state_type :=    ifx is_host && !release then "*void" else "*State";
+
+    add_build_string_constants := tprint(#string END
+#add_context state   :  %;
+END,
+    context_state_type,
+);
     
     constants := tprint(#string END
 DEBUG_MODULE         :: %;
 GUARD_ALLOCATOR      :: %;
 BUILDING_DLLS        :: %;
 GRAPHICS_LAYER_DEBUG :: %;
-#add_context state   :  %;
 END,
     debug_module,
     guard_allocator,
     building_dlls,
     graphics_layer_debug,
-    context_state_type,
 );
-    print("----------------\n%----------------\n", constants);
+    print("------\n%", constants);
+    print("%------\n", add_build_string_constants);
 
-    add_build_string(constants, workspace);
+    add_build_string(add_build_string_constants, workspace);
+
+    fn :: "src/Build_Constants.jai";
+    File.write_entire_file(fn, constants);
+    add_build_file(fn, workspace);
 }
 
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
@@ -81,8 +90,8 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
         set_optimization(*opts, build_flags);
         set_build_options(opts, w);
 
-        add_build_file(tprint("src/%.jai", game_dll_source_name), w);
         define_constants(w, build_flags, is_host = false);
+        add_build_file(tprint("src/%.jai", game_dll_source_name), w);
 
         run_compiler_loop(w, true);
     }
@@ -153,7 +162,7 @@ build_host :: (build_flags: Build_Flags) {
         add_build_file("src/host.jai", w);
 
         if build_flags & .Release != 0 {
-            run_compiler_loop(w, true);
+            run_compiler_loop(w, true); // when building one exe instead of the host and the dll, we need to do the ECS metaprogramming on the "host"
         } else {
             run_compiler_loop(w, false);
         }
@@ -493,3 +502,4 @@ build :: () {
 Random :: #import "Random";
 String :: #import "String";
 Reflection :: #import "Reflection";
+File :: #import "File";
