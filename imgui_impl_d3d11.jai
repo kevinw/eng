@@ -373,12 +373,22 @@ PS_INPUT main(VS_INPUT input)
 }
 END;
 
+#if GRAPHICS_LAYER_DEBUG {
         vertexShaderBlob: *ID3DBlob;
+        logprint("imgui_d3d11", "compiling imgui shader % (%)", "main", "vs_4_0");
         if S_OK != D3DCompile(vertexShader.data, vertexShader.count, null, null, null, "main", "vs_4_0", 0, 0, *vertexShaderBlob, null)
             return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
         defer Release(vertexShaderBlob);
 
-        if d3dDevice.CreateVertexShader(d3dDevice, vertexShaderBlob.GetBufferPointer(vertexShaderBlob), vertexShaderBlob.GetBufferSize(vertexShaderBlob), null, *VertexShader) != S_OK
+        blob_data := vertexShaderBlob.GetBufferPointer(vertexShaderBlob);
+        blob_size := vertexShaderBlob.GetBufferSize(vertexShaderBlob);
+} else {
+        blob :: #run run_fxc_on_string(vertexShader, "vs_4_0", "main");
+        blob_data := blob.data;
+        blob_size := cast(u64)blob.count;
+}
+
+        if d3dDevice.CreateVertexShader(d3dDevice, blob_data, blob_size, null, *VertexShader) != S_OK
             return false;
 
         // Create the input layout
@@ -387,7 +397,7 @@ END;
             .{ "TEXCOORD", 0, .DXGI_FORMAT_R32G32_FLOAT,   0, cast(u32)#run offset_of(ImDrawVert, "uv"),  .D3D11_INPUT_PER_VERTEX_DATA, 0 },
             .{ "COLOR",    0, .DXGI_FORMAT_R8G8B8A8_UNORM, 0, cast(u32)#run offset_of(ImDrawVert, "col"), .D3D11_INPUT_PER_VERTEX_DATA, 0 },
         ];
-        if d3dDevice.CreateInputLayout(d3dDevice, local_layout.data, local_layout.count, vertexShaderBlob.GetBufferPointer(vertexShaderBlob), vertexShaderBlob.GetBufferSize(vertexShaderBlob), *InputLayout) != S_OK
+        if d3dDevice.CreateInputLayout(d3dDevice, local_layout.data, local_layout.count, blob_data, blob_size, *InputLayout) != S_OK
             return false;
 
         // Create the constant buffer
@@ -421,12 +431,21 @@ float4 main(PS_INPUT input) : SV_Target
 }
 END;
 
+#if GRAPHICS_LAYER_DEBUG {
         pixelShaderBlob: *ID3DBlob;
+        logprint("imgui_d3d11", "compiling imgui shader % (%)", "main", "ps_4_0");
         if D3DCompile(pixelShader.data, pixelShader.count, null, null, null, "main", "ps_4_0", 0, 0, *pixelShaderBlob, null) < 0
             return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
         defer Release(pixelShaderBlob);
+        blob_data := pixelShaderBlob.GetBufferPointer(pixelShaderBlob);
+        blob_size := pixelShaderBlob.GetBufferSize(pixelShaderBlob);
+} else {
+        blob :: #run run_fxc_on_string(pixelShader, "ps_4_0", "main");
+        blob_data := blob.data;
+        blob_size := cast(u64)blob.count;
+}
 
-        if d3dDevice.CreatePixelShader(d3dDevice, pixelShaderBlob.GetBufferPointer(pixelShaderBlob), pixelShaderBlob.GetBufferSize(pixelShaderBlob), null, *PixelShader) != S_OK
+        if d3dDevice.CreatePixelShader(d3dDevice, blob_data, blob_size, null, *PixelShader) != S_OK
             return false;
     }
 

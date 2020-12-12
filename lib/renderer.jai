@@ -541,75 +541,149 @@ unload_texture :: (texture: *Texture) {
     print("TODO: impl unload texture\n");
 }
 
-load_shader_from_file :: (renderer: *Renderer, filename: string, vs_main := "vs_main", ps_main := "ps_main") -> (ok: bool, shader: Shader) {
-    assert(renderer != null && renderer.device != null);
 
-    device := renderer.device;
+find_fxc :: () -> string {
+    return "c:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.19041.0\\x64\\fxc.exe";
+}
+
+get_temporary_filename :: () -> string {
+    kernel32 :: #foreign_system_library "kernel32";
+    GetTempPathW     :: (buffer_length_in_tchars: u32, buffer: *u16) -> u32 #foreign kernel32;
+    GetTempFileNameW :: (path_name: *u16, prefix_string: *u16, unique: u32, temp_filename: *u16) -> u32 #foreign kernel32;
+
+    path_name: [MAX_PATH + 1]u16;
+    num_tchars := GetTempPathW(MAX_PATH + 1, path_name.data);
+    assert(num_tchars > 0);
+
+    temp_filename: [MAX_PATH + 1]u16;
+    res := GetTempFileNameW(path_name.data, utf8_to_wide("shd"), 0, temp_filename.data);
+    assert(res != 0);
+
+    return wide_to_utf8(temp_filename.data);
+}
+
+run_fxc_on_string :: (shader_string: string, target_profile: string, entrypoint_name: string) -> (compiled_blob: string) {
+    assert(shader_string.count > 0);
+    tempfile := get_temporary_filename();
+    write_entire_file(tempfile, shader_string);
+    defer file_delete(tempfile);
+    return run_fxc(tempfile, target_profile, entrypoint_name);
+}
+
+// fxc is the directx command line HLSL compiler.
+run_fxc :: (filename: string, target_profile: string, entrypoint_name: string) -> (compiled_blob: string) {
+    temp_file := tprint("temp.%.%.cso", target_profile, entrypoint_name);
+
+    file_delete(temp_file);
+
+    args: [..]string;
+    args.allocator = __temporary_allocator;
+    array_add(*args, find_fxc(), "/nologo");
+    //array_add(*args, "/Od", "/Zi");
+    array_add(*args, "/O3");
+    array_add(*args, "/T", target_profile);
+    array_add(*args, "/E", entrypoint_name);
+    array_add(*args, "/Fo", temp_file);
+    array_add(*args, filename);
+
+    print("%\n", join(..args, separator = " "));
+
+    successfully_launched, exit_code, output_string, error_string := os_run_command(..args);
+
+    if !successfully_launched || exit_code != 0
+        compiler_report_error(#file, #line, 0, tprint("Error (launched=%, exit_code=%) from fxc shader compiler.\n%\n%",
+            successfully_launched, exit_code, error_string, output_string));
+
+    blob_bytes, success := read_entire_file(temp_file);
+    if !success
+        compiler_report_error(#file, #line, 0, tprint("Did not find fxc output shader blob at '%'\n", temp_file));
+
+    file_delete(temp_file);
+
+    return blob_bytes;
+}
+
+load_shader_from_file :: ($filename: string, $vs_main := "vs_main", $ps_main := "ps_main") -> (ok: bool, shader: Shader) {
+    #if GRAPHICS_LAYER_DEBUG {
+        ok, shader := _load_shader_from_file_at_runtime(filename, vs_main, ps_main);
+        return ok, shader;
+    } else {
+        vs_blob_str := #run run_fxc(filename, "vs_5_0", vs_main);
+        ps_blob_str := #run run_fxc(filename, "ps_5_0", ps_main);
+        assert(vs_blob_str.count > 0);
+        assert(ps_blob_str.count > 0);
+        assert(vs_blob_str != ps_blob_str);
+        vs_blob := create_d3d_blob_from_str(vs_blob_str);
+        ps_blob := create_d3d_blob_from_str(ps_blob_str);
+        ok, shader := load_shader_from_blobs(vs_blob, ps_blob);
+        return ok, shader;
+    }
+}
+
+_compile_shader_at_runtime :: (filename: string, target_profile: string, entrypoint_name: string) -> (ok: bool, blob: *ID3DBlob) {
+    assert(filename.count > 0);
     filename_w := utf8_to_wide(filename);
 
-    using shader: Shader;
+    shader_blob, error_blob: *ID3DBlob;
+    logprint("renderer", "compiling shader % in % (%)", entrypoint_name, filename, target_profile);
+    if S_OK != D3DCompileFromFile(filename_w, null, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
+        flush_debug_messages(renderer);
+        logprint("shader", "D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
+        Release(error_blob);
+        return false, null;
+    }
 
-    unload_and_return_error :: (message := "", args: ..Any) #expand {
+    assert(shader_blob != null);
+    return true, shader_blob;
+}
+
+_load_shader_from_file_at_runtime :: (filename: string, vs_main := "vs_main", ps_main := "ps_main") -> (ok: bool, shader: Shader) {
+    renderer := assert_state();
+    vs_ok, vs_blob := _compile_shader_at_runtime(filename, "vs_5_0", vs_main);
+    if !vs_ok return false, .{};
+    ps_ok, ps_blob := _compile_shader_at_runtime(filename, "ps_5_0", ps_main);
+    if !ps_ok return false, .{};
+    // @Leak ....defer release blobs?
+    ok, shader := load_shader_from_blobs(vs_blob, ps_blob);
+    return ok, shader;
+}
+
+load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DBlob) -> (bool, Shader) {
+    renderer := assert_state();
+
+    using shader: Shader;
+    shader.vs_blob = compiled_vs_blob;
+    shader.ps_blob = compiled_ps_blob;
+    device := renderer.device;
+
+    unload_and_return_shader_error :: (message := "", args: ..Any) #expand {
         if message.count > 0 logprint("shader", tprint("%\n", message), ..args);
         unload_shader(*shader);
         return false, .{};
     }
 
-    blob_to_string :: (blob: *ID3DBlob) -> string { // only lives as long as the blob
-        if blob == null
-            return "";
-
-        str: string;
-        str.data  = blob.GetBufferPointer(xx blob);
-        str.count = cast(s64)blob.GetBufferSize(xx blob);
-        return str;
-    }
-
-    {
-        error_blob: *ID3DBlob;
-        res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", vs_main).data, "vs_5_0", 0, 0, *vs_blob, *error_blob);
-        if res != S_OK || vs_blob == null {
-            unload_and_return_error("D3DCompileFromFile(%, %) failed...\n%", vs_main, filename, blob_to_string(error_blob));
-            Release(error_blob);
-        }
-    }
     {
         res := device.CreateVertexShader(cast(*ID3D11Device)device, vs_blob.GetBufferPointer(vs_blob), vs_blob.GetBufferSize(vs_blob), null, *vert);
-        if res != S_OK || vert == null
-            unload_and_return_error("CreateVertexShader failed");
+        if res != S_OK || vert == null {
+            flush_debug_messages(renderer);
+            unload_and_return_shader_error("CreateVertexShader failed\n");
+        }
     }
 
     if 1 {
         res := CreateInputLayoutDescFromVertexShaderSignature(vs_blob, cast(*ID3D11Device)device, *input_layout, *input_layout_byte_length);
-        if res != S_OK || input_layout == null
-            unload_and_return_error("CreateInputLayoutDescFromVertexShaderSignature failed");
-    }
-
-    if 0 {
-        input_element_desc := D3D11_INPUT_ELEMENT_DESC.[ // float3 position, float3 normal, float2 texcoord, float3 color
-            .{ "POS", 0, .DXGI_FORMAT_R32G32B32_FLOAT, 0,                             0, .D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            .{ "NOR", 0, .DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, .D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            .{ "TEX", 0, .DXGI_FORMAT_R32G32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, .D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            .{ "COL", 0, .DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, .D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        ];
-
-        res := device.CreateInputLayout(cast(*ID3D11Device)device, input_element_desc.data, input_element_desc.count, vs_blob.GetBufferPointer(vs_blob), vs_blob.GetBufferSize(vs_blob), *input_layout);
-        if res != S_OK || input_layout == null
-            unload_and_return_error("CreateInputLayout failed");
-    }
-
-    {
-        error_blob: *ID3DBlob;
-        res := D3DCompileFromFile(filename_w, null, null, tprint("%\0", ps_main).data, "ps_5_0", 0, 0, *ps_blob, *error_blob);
-        if res != S_OK || ps_blob == null {
-            unload_and_return_error("D3DCompileFromFile(%, %) failed: %", ps_main, filename, blob_to_string(error_blob));
-            Release(error_blob);
+        if res != S_OK || input_layout == null {
+            flush_debug_messages(renderer);
+            unload_and_return_shader_error("CreateInputLayoutDescFromVertexShaderSignature failed");
         }
     }
+
     {
         res := device.CreatePixelShader(cast(*ID3D11Device)device, ps_blob.GetBufferPointer(ps_blob), ps_blob.GetBufferSize(ps_blob), null, *frag);
-        if res != S_OK || frag == null
-            unload_and_return_error("CreatePixelShader failed");
+        if res != S_OK || frag == null {
+            flush_debug_messages(renderer);
+            unload_and_return_shader_error("CreatePixelShader failed");
+        }
     }
 
     return true, shader;
@@ -660,7 +734,6 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
         // if the debug layer is on.
         check_result(base_device.QueryInterface(cast(*IUnknown)base_device, *uid("6543dbb6-1b48-42f5-ab82-e97ec74326f6"), cast(**void)*debug_info_queue));
         debug_info_queue.PushEmptyRetrievalFilter(xx debug_info_queue);
-
     }
 
     device: *ID3D11Device1;
@@ -808,8 +881,10 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
 
     pVertexShaderReflection: *ID3D11ShaderReflection;
 
-    if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection)
+    if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection) {
+        flush_debug_messages(renderer);
         return S_FALSE;
+    }
 
     defer Release(pVertexShaderReflection);
      
@@ -887,6 +962,28 @@ Release :: inline (ptr: *$T) { // IUnknown Release, checks for null
         ptr.Release(cast(*IUnknown)ptr);
 }
 
+blob_to_string :: (blob: *ID3DBlob) -> string { // only lives as long as the blob
+    if blob == null
+        return "";
+
+    str: string;
+    str.data  = blob.GetBufferPointer(xx blob);
+    str.count = cast(s64)blob.GetBufferSize(xx blob);
+    return str;
+}
+
+create_d3d_blob_from_str :: (blob_bytes: string) -> *ID3DBlob {
+    assert(blob_bytes.count > 0);
+    blob: *ID3DBlob;
+    check_result(D3DCreateBlob(cast(u64)blob_bytes.count, *blob));
+    assert(blob != null);
+    memcpy(blob.GetBufferPointer(blob), blob_bytes.data, blob_bytes.count);
+    return blob;
+}
+
+
+
+
 
 renderer: *Renderer;
 
@@ -903,3 +1000,9 @@ renderer: *Renderer;
 #import "d3d11_shader"; // for shader reflection
 #import "d3d11_1";      // for 11_1 features
 
+// these are for the compile-time shader FXC compiler
+#import "File";
+#import "Process";
+#import "Compiler";
+#import "String";
+#import "Build_Constants";
