@@ -1,3 +1,10 @@
+request_window_close :: (native_handle: *void) {
+    #if OS == .WINDOWS {
+        PostMessageW :: (hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> BOOL #foreign user32;
+        user32 :: #foreign_system_library "user32";
+        PostMessageW(native_handle, WM_CLOSE, 0, 0);
+    }
+}
 
 set_window_opacity :: (native_handle: *void, opacity: float) {
     #if OS == .WINDOWS {

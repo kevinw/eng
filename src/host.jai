@@ -199,6 +199,7 @@ main :: () {
         Soloud_destroy(soloud);
     }
     host_state.soloud_context = soloud;
+    host_state.pending_resizes = *pending_resizes;
 
     plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
@@ -213,24 +214,27 @@ main :: () {
     window_did_move: bool;
     window_move_record: Window_Move_Record;
 
-    quit: bool;
-    while !quit {
+    window_has_been_closed: bool;
+    while true {
         auto_release_temp();
         update_window_events();
-        for events_this_frame if it.type == .QUIT
-            quit = true;
+        for events_this_frame if it.type == {
+            case .QUIT;
+                window_has_been_closed = true;
+            case .KEYBOARD;
+                if it.key_pressed && it.key_code == cast(Key_Code)#char "Q" && it.alt_pressed && it.ctrl_pressed
+                    platform.request_window_close(the_window);
+        }
+        if window_has_been_closed break;
 
         // pass a copy of all events down into the plugin
-        host_state.pending_resizes = *pending_resizes;
         host_state.events_this_frame.count = 0;
         for events_this_frame array_add(*host_state.events_this_frame, it);
 
-        for pending_moves {
-            if it.window == the_window {
-                window_move_record = it;
-                window_did_move = true;
-                remove it;
-            }
+        for pending_moves if it.window == the_window {
+            window_move_record = it;
+            window_did_move = true;
+            remove it;
         }
 
         frame_count += 1;
