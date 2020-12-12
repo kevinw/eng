@@ -29,7 +29,7 @@ get_context_state :: () -> *Logger_State {
 
 
 context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
-    assert(message.count < MAX_COUNT);
+    assert(message.count < MAX_COUNT, tprint("expected a screenlog message with a reasonable count, got %", message.count));
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
 
@@ -117,5 +117,5 @@ update :: (delta_time: float64) {
 #import "Basic";
 
 TIME_ON_SCREEN :: 2.0;
-MAX_COUNT :: 2000;
+MAX_COUNT :: 200000;
 
