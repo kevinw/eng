@@ -52,7 +52,6 @@ Editor :: struct {
     tweens: Tweens;
 
     selector_filter: ImGui.TextFilter;
-    asset_selector_filter: ImGui.TextFilter;
 
     play_mode: Play_Mode = .Edit;
     fading_to_play: bool;
@@ -83,13 +82,16 @@ Editor :: struct {
     last_loaded_scene_filename: string; @owned
 
     windows: struct {
+        inspector      := true;
+        demo           := true;
+        entities       := true;
+        assets         := true;
+        screenlog      := true;
         undo_internals := false;
-        demo := true;
-        entities := true;
-        ecs_internals := false;
-        assets := true;
-        prefab_cache := false;
+        prefab_cache   := false;
+        ecs_internals  := false;
         asset_selector: struct {
+            filter: ImGui.TextFilter;
             visible := false;
             selected_asset_type: Asset.Type;
             selected_asset: union {
@@ -97,9 +99,7 @@ Editor :: struct {
                 shader: *LiveShader;
             };
         };
-        screenlog := true;
     };
-
 }
 
 Asset :: struct {
@@ -344,6 +344,7 @@ editor_init :: (editor: *Editor) {
         asset.type = .Prefab;
         copy_File_Visit_Info(asset, it);
     }
+
     for file_list_infos("resources", recursive=true) {
         ext := String.path_extension(it.full_name);
         asset: *Asset;
@@ -416,12 +417,12 @@ ASSET_SELECTOR_WINDOW_NAME :: "Assets##Selector";
 render_asset_selector :: (window_open: *bool) {
     using ImGui;
 
+    defer End();
+    if !Begin(ASSET_SELECTOR_WINDOW_NAME, window_open) return;
+
     using context.state.editor.windows.asset_selector;
 
-    BeginEnd(ASSET_SELECTOR_WINDOW_NAME, window_open);
-
-    filter := *context.state.editor.asset_selector_filter;
-    TextFilter.Draw(filter, "##asset selector filter text");
+    TextFilter.Draw(*filter, "##asset selector filter text");
 
     assets: [..]*Asset;
     assets.allocator = __temporary_allocator;
@@ -435,7 +436,7 @@ render_asset_selector :: (window_open: *bool) {
             sans_ext := String.path_strip_extension(it.short_name);
             filename_z = tprint("%\0", sans_ext);
 
-            if it.type != selected_asset_type || !TextFilter.PassFilter(filter, filename_z)
+            if it.type != selected_asset_type || !TextFilter.PassFilter(*filter, filename_z)
                 continue;
 
             // TODO: this is requesting we load the image. we should probably
@@ -529,13 +530,13 @@ render_imgui_to_drawlists :: (state: *State) {
     using state;
 
     // dockspace
-    fullscreen :: true;
-    padding    :: false;
-
-    menubar :: false;
-
-
     using ImGui;
+
+    set_play_mode_later: bool;
+    defer if set_play_mode_later {
+        logprint("editor", "entering play mode");
+        state.editor.play_mode = .Play;
+    }
 
 
     {
@@ -549,7 +550,7 @@ render_imgui_to_drawlists :: (state: *State) {
                 if style.Alpha <= 0 {
                     fading_to_play = false;
                     style.Alpha = 0;
-                    play_mode = .Play;
+                    set_play_mode_later = true;
                 }
             } else {
                 if style.Alpha < 1 {
@@ -560,67 +561,34 @@ render_imgui_to_drawlists :: (state: *State) {
     }
 
     {
-        window_flags := ImGui.WindowFlags.NoDocking;
-        if menubar window_flags |= .MenuBar;
+        window_flags :: ImGui.WindowFlags.NoDocking | .NoTitleBar | .NoCollapse
+            | .NoResize | .NoMove | .NoBringToFrontOnFocus | .NoNavFocus |
+            .NoBackground;
 
-        if fullscreen {
-            viewport := GetMainViewport();
-            SetNextWindowPos(viewport.GetWorkPos(viewport));
-            SetNextWindowSize(viewport.GetWorkSize(viewport));
-            SetNextWindowViewport(viewport.ID_);
-            PushStyleVar(.WindowRounding, 0);
-            PushStyleVar(.WindowBorderSize, 0);
-            window_flags |= ImGui.WindowFlags.NoTitleBar | .NoCollapse | .NoResize | .NoMove |
-                            .NoBringToFrontOnFocus | .NoNavFocus;
-        }
-        window_flags |= .NoBackground;
-        open := true;
+        viewport := GetMainViewport();
+        SetNextWindowPos(viewport.GetWorkPos(viewport));
+        SetNextWindowSize(viewport.GetWorkSize(viewport));
+        SetNextWindowViewport(viewport.ID_);
+        PushStyleVar(.WindowRounding, 0);
+        PushStyleVar(.WindowBorderSize, 0);
         {
-            if !padding PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
-
-            BeginEnd("DockSpace Demo", *open, window_flags);
-            if !padding PopStyleVar();
-
-            if fullscreen PopStyleVar(2);
-
+            PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
+            defer End();
+            open := true;
+            Begin("DockSpace Demo", *open, window_flags);
+            PopStyleVar();
+            PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
-
-            // dockspace
-            dockspace_flags := DockNodeFlags.PassthruCentralNode;
-            DockSpace(ImGui.GetID("Main DockSpace"), make_ImVec2(0, 0), dockspace_flags);
-
-            if menubar {
-                BeginMenuBar();
-                EndMenuBar();
-                if  BeginMenu("Options") {
-                    defer EndMenu();
-
-                }
-                HelpMarker("Some example help text goes here.");
-            }
+            DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
         }
     }
 
-    if editor.windows.asset_selector.visible
-        render_asset_selector(*editor.windows.asset_selector.visible);
-
-    if editor.windows.demo
-        ImGui.ShowDemoWindow(*editor.windows.demo);
-
-    show_screen_log(*editor.windows.screenlog);
-
-    ButtonEx :: (label: *u8, size:ImVec2 = .{0,0}, enabled := true) -> bool {
-        if !enabled PushStyleVar(.Alpha, 0.5);
-        defer if !enabled PopStyleVar();
-        res := Button(label, size);
-        return enabled && res;
-    }
 
     if editor.windows.ecs_internals {
-        BeginEnd("DEBUG", *editor.windows.ecs_internals);
-        inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
+        defer End();
+        if Begin("DEBUG", *editor.windows.ecs_internals)
+            inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
     }
-
 
     // Overlay showing compiler error
     has_compile_error, err_str := get_plugin_compile_error();
@@ -647,312 +615,321 @@ render_imgui_to_drawlists :: (state: *State) {
         }
     }
 
-    if editor.windows.undo_internals {
-        using context.state.editor;
-        BeginEnd("Undo", *editor.windows.undo_internals);
-        if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
-            Undo.undo(*undo_state);
-
-        SameLine();
-
-        if ButtonEx("Redo", enabled=Undo.can_redo(*undo_state))
-            Undo.redo(*undo_state);
-
-        SetNextItemOpen(true);
-        inspect("", *state.editor.undo_state);
+    using editor;
+    if windows.prefab_cache {
+        defer End();
+        if Begin("prefab cache", *windows.prefab_cache)
+            inspect("", *context.state.world.prefab_cache);
     }
+    if windows.undo_internals show_undo_internals(*windows.undo_internals);
+    if windows.assets show_assets_window(*windows.assets);
+    if windows.entities show_entities_window(*windows.entities);
+    if windows.inspector draw_inspector(*windows.inspector);
+    if windows.screenlog show_screen_log(*editor.windows.screenlog);
+    if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
+    if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
 
-    if editor.windows.prefab_cache {
-        BeginEnd("prefab cache", *editor.windows.prefab_cache);
-        inspect("", *context.state.world.prefab_cache);
-    }
+}
 
-    if editor.windows.assets {
-        BeginEnd("assets", *editor.windows.assets);
+show_assets_window :: (open: *bool) {
+    using context.state;
+    using ImGui;
 
-        for * editor.assets {
-            assert(it != null);
-            PushPopID(it);
+    defer End();
+    if !Begin("assets", open) return;
 
-            //dnd := BeginDragDropSource();
-            //defer { if dnd EndDragDropSource(); }
-            //if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
+    for * editor.assets {
+        assert(it != null);
+        PushPopID(it);
 
-            selected := editor.selected_asset == it;
-            if Selectable(tprint("%\0", it.short_name).data, selected)
-                editor.selected_asset = it;
+        //dnd := BeginDragDropSource();
+        //defer { if dnd EndDragDropSource(); }
+        //if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
 
-            do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
-            do_edit_as_scene := false;
+        selected := editor.selected_asset == it;
+        if Selectable(tprint("%\0", it.short_name).data, selected)
+            editor.selected_asset = it;
 
-            if BeginPopupContextItem("asset context menu") {
-                editor.selected_asset = it;
-                defer EndPopup();
-                if Selectable("Spawn in scene")
-                    do_spawn = true;
-                if Selectable("Edit as scene")
-                    do_edit_as_scene = true;
+        do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
+        do_edit_as_scene := false;
+
+        if BeginPopupContextItem("asset context menu") {
+            defer EndPopup();
+            editor.selected_asset = it;
+            if Selectable("Spawn in scene")
+                do_spawn = true;
+            if Selectable("Edit as scene")
+                do_edit_as_scene = true;
+        }
+
+        if do_spawn {
+            pos: Vector3;
+            camera := get_main_camera();
+            if camera != null { pos = get_worldspace_center(camera); }
+
+            entity_handle: Entity_Handle;
+            entity: *Entity;
+            offset: Vector2;
+
+            if it.type == {
+                case .Prefab;
+                    entity, entity_handle = spawn_prefab_from_filename(it.filename, pos, undo=*editor.undo_state);
+                    offset = entity_rect(entity).size * 0.5;
+
+                case .Texture;
+                    entity, entity_handle = create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
+                    img := add_component(entity_handle, Simple_Image_Renderer);
+                    img.texture = LoadLiveTexture(it.filename);
+                    offset = 0.5 * v2(img.texture.width, img.texture.height);
+
+                case .Sprite;
+                    entity, entity_handle := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
+                    spr := add_component(entity_handle, SpriteRenderer);
+                    spr.sprite_anim = LoadLiveSprite(it.filename);
+                    offset = 0.5 * entity_rect(entity_handle).size;
+
+                case;
+                    logprint("editor", "WARNING: unhandled asset type %", it.type);
             }
 
-            if do_spawn {
-                pos: Vector3;
-                camera := get_main_camera();
-                if camera != null { pos = get_worldspace_center(camera); }
+            // Select the new object if we made one.
+            if entity != null {
+                trs := get_transform(entity_handle);
+                if trs
+                    trs.position.xy -= entity_rect(entity).size * 0.5;
 
-                entity_handle: Entity_Handle;
-                entity: *Entity;
-                offset: Vector2;
-
-                if it.type == {
-                    case .Prefab;
-                        entity, entity_handle = spawn_prefab_from_filename(it.filename, pos, undo=*editor.undo_state);
-                        offset = entity_rect(entity).size * 0.5;
-
-                    case .Texture;
-                        entity, entity_handle = create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
-                        img := add_component(entity_handle, Simple_Image_Renderer);
-                        img.texture = LoadLiveTexture(it.filename);
-                        offset = 0.5 * v2(img.texture.width, img.texture.height);
-
-                    case .Sprite;
-                        entity, entity_handle := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
-                        spr := add_component(entity_handle, SpriteRenderer);
-                        spr.sprite_anim = LoadLiveSprite(it.filename);
-                        offset = 0.5 * entity_rect(entity_handle).size;
-
-                    case;
-                        logprint("editor", "WARNING: unhandled asset type %", it.type);
-                }
-
-                // Select the new object if we made one.
-                if entity != null {
-                    trs := get_transform(entity_handle);
-                    if trs
-                        trs.position.xy -= entity_rect(entity).size * 0.5;
-
-                    Undo.push_array(*editor.undo_state, *editor.selected);
-                    set_selected(entity_handle);
-                    Undo.commit(*editor.undo_state);
-                }
-            }
-
-            if do_edit_as_scene {
-                context.state.global_time_scale = 0;
-                load_scene(it.filename);
+                Undo.push_array(*editor.undo_state, *editor.selected);
+                set_selected(entity_handle);
+                Undo.commit(*editor.undo_state);
             }
         }
+
+        if do_edit_as_scene {
+            context.state.global_time_scale = 0;
+            load_scene(it.filename);
+        }
     }
+}
 
-    if editor.windows.entities {
-        BeginEnd("Entities", *editor.windows.entities);
+show_undo_internals :: (open: *bool) {
+    using context.state.editor;
+    using ImGui;
 
-        PushFont(context.state.ui.small_font);
-        if Button("New") {
-            PopFont();
-            entity_ptr, entity_handle := create_entity(undo=*editor.undo_state);
-            set_selected(entity_handle);
-            Undo.commit(*editor.undo_state);
-        } else
-            PopFont();
+    defer End();
+    if !Begin("Undo", open) return;
 
-        //Text("%d total", count_items(*world.entities));
+    if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
+        Undo.undo(*undo_state);
 
-        PushStyleVar(.ItemSpacing, ImVec2.{0, 0});
-        defer PopStyleVar();
+    SameLine();
 
+    if ButtonEx("Redo", enabled=Undo.can_redo(*undo_state))
+        Undo.redo(*undo_state);
 
-        //if TreeNodeEx("Entities", .DefaultOpen) {
-            //defer TreePop();
+    SetNextItemOpen(true);
+    inspect("", *context.state.editor.undo_state);
+}
 
-            node_clicked: Maybe(Entity_Handle);
-            for handles(*world.entities) {
-                parent := get_parent(it);
-                if parent != .{}
-                    continue;
+show_entities_window :: (open: *bool) {
+    using ImGui;
+    using context.state;
 
-                flags := TreeNodeFlags.SpanAvailWidth;
-                // flags |= .OpenOnArrow;
-                flags |= .Leaf;
+    defer End();
+    if !Begin("Entities", open)
+        return;
 
-                ///
-                /// MUST REMOVE .Leaf once we have parent entities!
-                //
+    PushFont(ui.small_font);
+    if Button("New") {
+        PopFont();
+        entity_ptr, entity_handle := create_entity(undo=*editor.undo_state);
+        set_selected(entity_handle);
+        Undo.commit(*editor.undo_state);
+    } else
+        PopFont();
 
-                for * sel: state.editor.selected
-                    if sel.handle == it
-                        flags |= .Selected;
+    //Text("%d total", count_items(*world.entities));
 
-                ok, entity := get_entity(it);
-                if ok {
-                    PushPopID(entity);
+    PushPopStyleVar(.ItemSpacing, ImVec2.{0, 0});
 
-                    using state.editor;
-                    if editing_entity_name.has_value && editing_entity_name.value == it {
-                        // Inline text editor for the entity name. Use by clicking once to select, and then
-                        // single clicking again on an entity.
-                        if editing_entity_grab_focus {
-                            editing_entity_grab_focus = false;
-                            Undo.push_string(*undo_state, *entity.name);
-                            SetKeyboardFocusHere();
-                        }
+    //if TreeNodeEx("Entities", .DefaultOpen) {
+        //defer TreePop();
 
-                        InputTextStr(*entity.name);
+        node_clicked: Maybe(Entity_Handle);
+        for handles(*world.entities) {
+            parent := get_parent(it);
+            if parent != .{}
+                continue;
 
-                        if IsItemDeactivated() {
-                            editing_entity_grab_focus = false;
-                            editing_entity_name.has_value = false;
-                            Undo.commit(*undo_state);
-                        }
-                    } else {
-                        //dnd := BeginDragDropSource();
-                        //defer { if dnd EndDragDropSource(); }
+            flags := TreeNodeFlags.SpanAvailWidth;
+            // flags |= .OpenOnArrow;
+            flags |= .Leaf;
 
-                        //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
-                        ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
-                        defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
+            ///
+            /// MUST REMOVE .Leaf once we have parent entities!
+            //
 
-                        name_label := tprint("% - %\0", entity.name, child_count(it));
-                        if TreeNodeEx(entity, flags, name_label.data) {
-                            defer TreePop();
-                        }
+            for * sel: editor.selected
+                if sel.handle == it
+                    flags |= .Selected;
+
+            ok, entity := get_entity(it);
+            if ok {
+                PushPopID(entity);
+
+                using editor;
+                if editing_entity_name.has_value && editing_entity_name.value == it {
+                    // Inline text editor for the entity name. Use by clicking once to select, and then
+                    // single clicking again on an entity.
+                    if editing_entity_grab_focus {
+                        editing_entity_grab_focus = false;
+                        Undo.push_string(*undo_state, *entity.name);
+                        SetKeyboardFocusHere();
                     }
 
-                    if BeginPopupContextItem("entity context menu") {
-                        defer EndPopup();
-                        if Selectable("Save as prefab") {
-                            filename := tprint("prefabs/%.wbml", entity.name);
-                            save_prefab(filename, *it);
-                        }
-                        if Selectable("Delete") {
-                            destroy_entity(it, undo=*editor.undo_state);
-                            Undo.commit(*editor.undo_state);
-                        }
+                    InputTextStr(*entity.name);
 
-                        if Selectable("Make child") {
-                            found, prev_sibling := get_previous_sibling(it);
-                            if found {
-                                set_parent(it, prev_sibling);
-                                logprint("editor", "make child: %\n", it);
-                            }
-                        }
-                    }
-                }
-                
-                if IsItemClicked() {
-                    node_clicked.value = it;
-                    node_clicked.has_value = true;
-                }
-            }
-
-            if node_clicked.has_value {
-                using state.editor;
-                was_selected := selected.count == 1 && selected[0].handle == node_clicked.value;
-                set_or_toggle_selected(node_clicked.value);
-                if IsMouseDoubleClicked(0)
-                    focus_editor_camera_on_entity(node_clicked.value);
-                else if IsMouseClicked(0) && was_selected {
-                    edit_entity_name(node_clicked.value);
-                }
-            }
-
-        //}
-
-        if false && ImGui.TreeNode("Advanced, with Selectable nodes") {
-            defer TreePop();
-            HelpMarker("This is a more typical looking tree with selectable nodes.\nClick to select, CTRL+Click to toggle, click on arrows or double-click to open.");
-            CheckboxFlags("ImGuiTreeNodeFlags_OpenOnArrow",       cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnArrow);
-            CheckboxFlags("ImGuiTreeNodeFlags_OpenOnDoubleClick", cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnDoubleClick);
-            CheckboxFlags("ImGuiTreeNodeFlags_SpanAvailWidth",    cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanAvailWidth); ImGui.SameLine(); HelpMarker("Extend hit area to all available width instead of allowing more items to be laid out after the node.");
-            CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth",     cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanFullWidth);
-            Checkbox("Align label with current X position", *align_label_with_current_x_position);
-            Checkbox("Test tree node as drag source", *test_drag_and_drop);
-            Text("Hello!");
-            if (align_label_with_current_x_position)
-                Unindent(ImGui.GetTreeNodeToLabelSpacing());
-
-            // 'selection_mask' is dumb representation of what may be user-side selection state.
-            //  You may retain selection state inside or outside your objects in whatever format you see fit.
-            // 'node_clicked' is temporary storage of what node we have clicked to process selection at the end
-            /// of the loop. May be a pointer to your own node type, etc.
-            node_clicked:s32 = -1;
-            for i: 0..5 {
-                // Disable the default "open on single-click behavior" + set Selected flag according to our selection.
-                node_flags := base_flags;
-                is_selected := (selection_mask & (1 << i)) != 0;
-                if is_selected
-                    node_flags |= .Selected;
-                if i < 3 {
-                    // Items 0..2 are Tree Node
-                    node_open:bool = ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Node %d", i);
-                    if IsItemClicked()
-                        node_clicked = cast(s32)i;
-                    if test_drag_and_drop && ImGui.BeginDragDropSource() {
-                        defer ImGui.EndDragDropSource();
-                        SetDragDropPayload("_TREENODE", null, 0);
-                        Text("This is a drag and drop source");
-                    }
-                    if node_open {
-                        BulletText("Blah blah\nBlah Blah");
-                        TreePop();
+                    if IsItemDeactivated() {
+                        editing_entity_grab_focus = false;
+                        editing_entity_name.has_value = false;
+                        Undo.commit(*undo_state);
                     }
                 } else {
-                    // Items 3..5 are Tree Leaves
-                    // The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
-                    // use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
-                    node_flags |= TreeNodeFlags.Leaf | .NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
-                    TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Leaf %d", i);
-                    if ImGui.IsItemClicked()
-                        node_clicked = cast(s32)i;
-                    if test_drag_and_drop && ImGui.BeginDragDropSource() {
-                        SetDragDropPayload("_TREENODE", null, 0);
-                        Text("This is a drag and drop source");
-                        EndDragDropSource();
+                    //dnd := BeginDragDropSource();
+                    //defer { if dnd EndDragDropSource(); }
+
+                    //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
+                    ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
+                    defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
+
+                    name_label := tprint("% - %\0", entity.name, child_count(it));
+                    if TreeNodeEx(entity, flags, name_label.data) {
+                        defer TreePop();
+                    }
+                }
+
+                if BeginPopupContextItem("entity context menu") {
+                    defer EndPopup();
+                    if Selectable("Save as prefab") {
+                        filename := tprint("prefabs/%.wbml", entity.name);
+                        save_prefab(filename, *it);
+                    }
+                    if Selectable("Delete") {
+                        destroy_entity(it, undo=*editor.undo_state);
+                        Undo.commit(*editor.undo_state);
+                    }
+
+                    if Selectable("Make child") {
+                        found, prev_sibling := get_previous_sibling(it);
+                        if found {
+                            set_parent(it, prev_sibling);
+                            logprint("editor", "make child: %\n", it);
+                        }
                     }
                 }
             }
-            if node_clicked != -1 {
-                // Update selection state
-                // (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
-                if GetIO().KeyCtrl
-                    selection_mask ^= cast(s32)(1 << node_clicked);          // CTRL+click to toggle
-                else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
-                    selection_mask = cast(s32)(1 << node_clicked);           // Click to single-select
-            }
-            if (align_label_with_current_x_position)
-                Indent(ImGui.GetTreeNodeToLabelSpacing());
-
-            // Pressing F2 will edit the selected entity's name.
-            using context.state.editor;
-            if rl.IsKeyPressed(.KEY_F2)
-                logprint("editor", "F2 was pressed!");
-            if !editing_entity_name.has_value && rl.IsKeyPressed(.KEY_F2) && selected.count == 1 {
-                edit_entity_name(selected[0].handle);
+            
+            if IsItemClicked() {
+                node_clicked.value = it;
+                node_clicked.has_value = true;
             }
         }
-    }
 
-    draw_inspector(*state.editor);
+        if node_clicked.has_value {
+            using editor;
+            was_selected := selected.count == 1 && selected[0].handle == node_clicked.value;
+            set_or_toggle_selected(node_clicked.value);
+            if IsMouseDoubleClicked(0)
+                focus_editor_camera_on_entity(node_clicked.value);
+            else if IsMouseClicked(0) && was_selected {
+                edit_entity_name(node_clicked.value);
+            }
+        }
 
-    if 0 {
-        BeginEnd("Debug Internals");
-        io := ImGui.GetIO();
-        TextUnformatted(tprint("IniFilename: s", io.IniFilename));
+    //}
+
+    if false && ImGui.TreeNode("Advanced, with Selectable nodes") {
+        defer TreePop();
+        HelpMarker("This is a more typical looking tree with selectable nodes.\nClick to select, CTRL+Click to toggle, click on arrows or double-click to open.");
+        CheckboxFlags("ImGuiTreeNodeFlags_OpenOnArrow",       cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnArrow);
+        CheckboxFlags("ImGuiTreeNodeFlags_OpenOnDoubleClick", cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnDoubleClick);
+        CheckboxFlags("ImGuiTreeNodeFlags_SpanAvailWidth",    cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanAvailWidth); ImGui.SameLine(); HelpMarker("Extend hit area to all available width instead of allowing more items to be laid out after the node.");
+        CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth",     cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanFullWidth);
+        Checkbox("Align label with current X position", *align_label_with_current_x_position);
+        Checkbox("Test tree node as drag source", *test_drag_and_drop);
+        Text("Hello!");
+        if (align_label_with_current_x_position)
+            Unindent(ImGui.GetTreeNodeToLabelSpacing());
+
+        // 'selection_mask' is dumb representation of what may be user-side selection state.
+        //  You may retain selection state inside or outside your objects in whatever format you see fit.
+        // 'node_clicked' is temporary storage of what node we have clicked to process selection at the end
+        /// of the loop. May be a pointer to your own node type, etc.
+        node_clicked:s32 = -1;
+        for i: 0..5 {
+            // Disable the default "open on single-click behavior" + set Selected flag according to our selection.
+            node_flags := base_flags;
+            is_selected := (selection_mask & (1 << i)) != 0;
+            if is_selected
+                node_flags |= .Selected;
+            if i < 3 {
+                // Items 0..2 are Tree Node
+                node_open:bool = ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Node %d", i);
+                if IsItemClicked()
+                    node_clicked = cast(s32)i;
+                if test_drag_and_drop && ImGui.BeginDragDropSource() {
+                    defer ImGui.EndDragDropSource();
+                    SetDragDropPayload("_TREENODE", null, 0);
+                    Text("This is a drag and drop source");
+                }
+                if node_open {
+                    BulletText("Blah blah\nBlah Blah");
+                    TreePop();
+                }
+            } else {
+                // Items 3..5 are Tree Leaves
+                // The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
+                // use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
+                node_flags |= TreeNodeFlags.Leaf | .NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
+                TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Leaf %d", i);
+                if ImGui.IsItemClicked()
+                    node_clicked = cast(s32)i;
+                if test_drag_and_drop && ImGui.BeginDragDropSource() {
+                    SetDragDropPayload("_TREENODE", null, 0);
+                    Text("This is a drag and drop source");
+                    EndDragDropSource();
+                }
+            }
+        }
+        if node_clicked != -1 {
+            // Update selection state
+            // (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
+            if GetIO().KeyCtrl
+                selection_mask ^= cast(s32)(1 << node_clicked);          // CTRL+click to toggle
+            else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
+                selection_mask = cast(s32)(1 << node_clicked);           // Click to single-select
+        }
+        if (align_label_with_current_x_position)
+            Indent(ImGui.GetTreeNodeToLabelSpacing());
+
+        // Pressing F2 will edit the selected entity's name.
+        using context.state.editor;
+        if rl.IsKeyPressed(.KEY_F2)
+            logprint("editor", "F2 was pressed!");
+        if !editing_entity_name.has_value && rl.IsKeyPressed(.KEY_F2) && selected.count == 1 {
+            edit_entity_name(selected[0].handle);
+        }
     }
 }
 
 show_screen_log :: (open: *bool) {
     using ImGui;
-
-    screenlog :: #import "screenlog";
+    using context.state;
 
     SetNextWindowPos(.{0, 0});
     SetNextWindowSize(.{0, 0});
     flags :: WindowFlags.NoDecoration | .NoInputs | .NoBackground | .NoMouseInputs;
-    if !Begin("Screenlog", open, flags) {
-        End();
-        return;
-    }
     defer End();
+    if !Begin("Screenlog", open, flags) return;
 
     PushPopStyleVar(.ItemSpacing, .{0,1});
     PushPopFont(context.state.ui.small_font);
@@ -1236,20 +1213,22 @@ imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> 
 }
 
 
-draw_inspector :: (editor_state: *Editor) {
-    using editor_state;
-
+draw_inspector :: (open: *bool) {
+    using context.state.editor;
     using ImGui;
 
-    BeginEnd("Inspector");
+    defer End();
+    if !Begin("Inspector", open)
+        return;
+
     entity: *Entity;
     entity_handle: Entity_Handle;
-    if editor_state.selected.count == {
+    if selected.count == {
         case 0; 
             // do nothing
         case 1;
             ok: bool;
-            entity_handle = editor_state.selected[0].handle;
+            entity_handle = selected[0].handle;
             ok, entity = get_entity(entity_handle);
             if ok Text(tprint("Entity %\0", entity_handle.id).data);
         case;
@@ -1457,16 +1436,25 @@ ImGui :: #import "imgui";
 make_ImVec2 :: ImGui.make_ImVec2;
 #scope_file
 
+ButtonEx :: (label: *u8, size:ImGui.ImVec2 = .{}, enabled := true) -> bool {
+    using ImGui;
+    if !enabled PushStyleVar(.Alpha, 0.5);
+    defer if !enabled PopStyleVar();
+    res := Button(label, size);
+    return enabled && res;
+}
+
+
 #load "../lib/imgui_inspector.jai";
 #load "../lib/imgui_macros.jai";
 
-
-File_Utilities :: #import "File_Utilities";
 #import "toolbelt";
 #import "Math";
+screenlog :: #import "screenlog";
 wbml :: #import "wbml";
 inp :: #import "inp";
 File :: #import "File";
+File_Utilities :: #import "File_Utilities";
 rl :: #import "raylib";
 String :: #import "String";
 #import "Random";

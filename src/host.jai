@@ -283,7 +283,7 @@ main :: () {
                 Plugin.should_reload(*module) || reload_new_dll_filename.count > 0
             ) {
                 if Plugin.should_reload(*module) logprint("host", "Plugin.should_reload(*module) was true");
-                if reload_new_dll_filename.count > 0 logprint("host", "reload_new_dll_filename was %", reload_new_dll_filename);
+                //if reload_new_dll_filename.count > 0 logprint("host", "reload_new_dll_filename was %", reload_new_dll_filename);
 
                 old_state := plugin_deinit(shutting_down = false);
 

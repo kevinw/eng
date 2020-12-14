@@ -1,4 +1,3 @@
-
 PushGroup :: () #expand {
     ImGui.BeginGroup();
     `defer ImGui.EndGroup();
@@ -17,11 +16,6 @@ PushPopID :: (id_str: string) #expand {
 PushPopID :: (id_ptr: *void) #expand {
     ImGui.PushID(id_ptr);
     `defer ImGui.PopID();
-}
-
-BeginEnd :: (name: string, open: *bool = null, window_flags: ImGui.WindowFlags = .None) #expand {
-    res := ImGui.Begin(name, open, window_flags);
-    `defer { if res ImGui.End(); }
 }
 
 PushPopStyleColor :: (idx: ImGui.Col, col: ImGui.ImVec4) #expand {

@@ -34,6 +34,7 @@ update_and_draw :: () {
 
 
 
+        im_ctx := *context.state.im_context;
         /*
         if foo.texture2D == null {
             ok: bool;
@@ -41,7 +42,6 @@ update_and_draw :: () {
             assert(ok);
         }
 
-        im_ctx := *context.state.im_context;
         rl.DrawTexturePro(*foo, rl.make_Rectangle(0, 0, foo.width, foo.height), rl.Rectangle.{300, 200, 300, 250}, .{}, 0, .{255,255,255,255});
         */
 
@@ -49,6 +49,8 @@ update_and_draw :: () {
         //im_draw_rect(
             //im_ctx, v2(300, 200), v2(600, 400),
             //c=v4(cast(float)((sin(Time.now) + 1) * 0.5), 1, 1, 1));
+        im_set_texture(im_ctx, null);
+        im_draw_rect(im_ctx, v2(0, 0), v2(50, 50));
         im_flush(*im_context);
 
         imgui_render(*ui);
