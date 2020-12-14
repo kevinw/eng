@@ -61,7 +61,11 @@ _do_recompile :: (t: *Thread) -> s64 {
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("%\n", <<asset_change);
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
-    if extension == "jai" && short_name != "host" && !String.begins_with(full_name, "./.") {
+    if extension == "jai" && short_name != "host" && 
+        !String.begins_with(full_name, "./.") && 
+        !String.begins_with(full_name, "./generated/")
+    {
+
         logprint("host", "recompiling for %", full_name);
         do_recompile();
     } else if extension == "dll" && begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
