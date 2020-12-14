@@ -1,7 +1,7 @@
 UI_State_Base :: struct {
     ctx: *ImGui.Context;
 
-    small_font: *ImGui.ImFont;
+    small_font:     *ImGui.ImFont;
     monospace_font: *ImGui.ImFont;
 
     Time: float64;
@@ -70,25 +70,26 @@ ImGui_Impl_ProcessInputEvents :: (using ui_state: *UI_State, events: []Input.Eve
 ImGui_Impl_SetupInputModuleKeymap :: (using ui_state: *UI_State) {
     using Input.Key_Code;
     io := ImGui.GetIO();
-    io.KeyMap[ImGui.Key.Tab] = xx TAB;                     // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
-    io.KeyMap[ImGui.Key.LeftArrow] = xx ARROW_LEFT;
+    // Keyboard mapping. ImGui will use those indices to peek into the io.KeyDown[] array.
+    io.KeyMap[ImGui.Key.Tab]        = xx TAB;
+    io.KeyMap[ImGui.Key.LeftArrow]  = xx ARROW_LEFT;
     io.KeyMap[ImGui.Key.RightArrow] = xx ARROW_RIGHT;
-    io.KeyMap[ImGui.Key.UpArrow] = xx ARROW_UP;
-    io.KeyMap[ImGui.Key.DownArrow] = xx ARROW_DOWN;
-    io.KeyMap[ImGui.Key.PageUp] = xx PAGE_UP;
-    io.KeyMap[ImGui.Key.PageDown] = xx PAGE_DOWN;
-    io.KeyMap[ImGui.Key.Home] = xx HOME;
-    io.KeyMap[ImGui.Key.End] = xx END;
-    io.KeyMap[ImGui.Key.Delete] = xx DELETE;
-    io.KeyMap[ImGui.Key.Backspace] = xx BACKSPACE;
-    io.KeyMap[ImGui.Key.Enter] = xx ENTER;
-    io.KeyMap[ImGui.Key.Escape] = xx ESCAPE;
-    io.KeyMap[ImGui.Key.A] = xx #char "A";
-    io.KeyMap[ImGui.Key.C] = xx #char "C";
-    io.KeyMap[ImGui.Key.V] = xx #char "V";
-    io.KeyMap[ImGui.Key.X] = xx #char "X";
-    io.KeyMap[ImGui.Key.Y] = xx #char "Y";
-    io.KeyMap[ImGui.Key.Z] = xx #char "Z";
+    io.KeyMap[ImGui.Key.UpArrow]    = xx ARROW_UP;
+    io.KeyMap[ImGui.Key.DownArrow]  = xx ARROW_DOWN;
+    io.KeyMap[ImGui.Key.PageUp]     = xx PAGE_UP;
+    io.KeyMap[ImGui.Key.PageDown]   = xx PAGE_DOWN;
+    io.KeyMap[ImGui.Key.Home]       = xx HOME;
+    io.KeyMap[ImGui.Key.End]        = xx END;
+    io.KeyMap[ImGui.Key.Delete]     = xx DELETE;
+    io.KeyMap[ImGui.Key.Backspace]  = xx BACKSPACE;
+    io.KeyMap[ImGui.Key.Enter]      = xx ENTER;
+    io.KeyMap[ImGui.Key.Escape]     = xx ESCAPE;
+    io.KeyMap[ImGui.Key.A]          = xx #char "A";
+    io.KeyMap[ImGui.Key.C]          = xx #char "C";
+    io.KeyMap[ImGui.Key.V]          = xx #char "V";
+    io.KeyMap[ImGui.Key.X]          = xx #char "X";
+    io.KeyMap[ImGui.Key.Y]          = xx #char "Y";
+    io.KeyMap[ImGui.Key.Z]          = xx #char "Z";
 }
 
 #scope_file

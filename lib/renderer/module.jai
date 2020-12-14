@@ -333,11 +333,23 @@ Blend_Mode :: enum {
     Alpha_Blended;
 }
 
+Depth_Compare_Func :: enum {
+    Less   :: D3D11_COMPARISON_LESS;
+    Always :: D3D11_COMPARISON_ALWAYS;
+}
+
+Depth_Stencil_Opts :: struct {
+    depth_write := true;
+    depth_compare_func: Depth_Compare_Func = .Less;
+}
+
+
 make_pipeline :: (
-    shader: *Shader,
-    primitive_type: Primitive_Type = .Triangles,
-    cull_mode:      Cull_Mode = .Back,
-    blend_mode:     Blend_Mode = .Default
+    shader:             *Shader,
+    primitive_type:     Primitive_Type     = .Triangles,
+    cull_mode:          Cull_Mode          = .Back,
+    blend_mode:         Blend_Mode         = .Default,
+    depth_stencil_opts: Depth_Stencil_Opts = .{}
 ) -> Pipeline {
     assert_state();
 
@@ -370,10 +382,11 @@ make_pipeline :: (
 
     // depth stencil state
     depth_stencil_desc := D3D11_DEPTH_STENCIL_DESC.{
-        DepthEnable    = TRUE,
         DepthWriteMask = .D3D11_DEPTH_WRITE_MASK_ALL,
-        DepthFunc      = .D3D11_COMPARISON_LESS,
     };
+    depth_stencil_desc.DepthEnable = ifx depth_stencil_opts.depth_write then TRUE else FALSE;
+    depth_stencil_desc.DepthFunc   = cast(D3D11_COMPARISON_FUNC)depth_stencil_opts.depth_compare_func;
+
     check_result(device.CreateDepthStencilState(device, *depth_stencil_desc, *pipeline.depth_stencil_state));
 
     // blend mode

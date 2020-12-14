@@ -527,8 +527,6 @@ edit_entity_name :: (handle: Entity_Handle) {
 
 render_imgui_to_drawlists :: (state: *State) {
     using state;
-
-    // dockspace
     using ImGui;
 
     set_play_mode_later: bool;
@@ -537,9 +535,8 @@ render_imgui_to_drawlists :: (state: *State) {
         state.editor.play_mode = .Play;
     }
 
-
     {
-        // fade the editor in and out when toggling between edit and play mode.
+        // Fade the editor in and out when toggling between edit and play mode.
         using state.editor;
         if play_mode == .Edit {
             style := GetStyle();
