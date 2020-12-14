@@ -388,7 +388,6 @@ editor_draw_world :: (state: *State) {
 
 }
 
-base_flags: ImGui.TreeNodeFlags = ImGui.TreeNodeFlags.OpenOnArrow | .OpenOnDoubleClick | .SpanAvailWidth;
 align_label_with_current_x_position:bool = false;
 test_drag_and_drop:bool = false;
 selection_mask: s32 = (1 << 2);
@@ -846,79 +845,6 @@ show_entities_window :: (open: *bool) {
         }
 
     //}
-
-    if false && ImGui.TreeNode("Advanced, with Selectable nodes") {
-        defer TreePop();
-        HelpMarker("This is a more typical looking tree with selectable nodes.\nClick to select, CTRL+Click to toggle, click on arrows or double-click to open.");
-        CheckboxFlags("ImGuiTreeNodeFlags_OpenOnArrow",       cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnArrow);
-        CheckboxFlags("ImGuiTreeNodeFlags_OpenOnDoubleClick", cast(*u32)*base_flags, cast(u32)TreeNodeFlags.OpenOnDoubleClick);
-        CheckboxFlags("ImGuiTreeNodeFlags_SpanAvailWidth",    cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanAvailWidth); ImGui.SameLine(); HelpMarker("Extend hit area to all available width instead of allowing more items to be laid out after the node.");
-        CheckboxFlags("ImGuiTreeNodeFlags_SpanFullWidth",     cast(*u32)*base_flags, cast(u32)TreeNodeFlags.SpanFullWidth);
-        Checkbox("Align label with current X position", *align_label_with_current_x_position);
-        Checkbox("Test tree node as drag source", *test_drag_and_drop);
-        Text("Hello!");
-        if (align_label_with_current_x_position)
-            Unindent(ImGui.GetTreeNodeToLabelSpacing());
-
-        // 'selection_mask' is dumb representation of what may be user-side selection state.
-        //  You may retain selection state inside or outside your objects in whatever format you see fit.
-        // 'node_clicked' is temporary storage of what node we have clicked to process selection at the end
-        /// of the loop. May be a pointer to your own node type, etc.
-        node_clicked:s32 = -1;
-        for i: 0..5 {
-            // Disable the default "open on single-click behavior" + set Selected flag according to our selection.
-            node_flags := base_flags;
-            is_selected := (selection_mask & (1 << i)) != 0;
-            if is_selected
-                node_flags |= .Selected;
-            if i < 3 {
-                // Items 0..2 are Tree Node
-                node_open:bool = ImGui.TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Node %d", i);
-                if IsItemClicked()
-                    node_clicked = cast(s32)i;
-                if test_drag_and_drop && ImGui.BeginDragDropSource() {
-                    defer ImGui.EndDragDropSource();
-                    SetDragDropPayload("_TREENODE", null, 0);
-                    Text("This is a drag and drop source");
-                }
-                if node_open {
-                    BulletText("Blah blah\nBlah Blah");
-                    TreePop();
-                }
-            } else {
-                // Items 3..5 are Tree Leaves
-                // The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
-                // use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
-                node_flags |= TreeNodeFlags.Leaf | .NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
-                TreeNodeEx(cast(*void)cast(int)i, node_flags, "Selectable Leaf %d", i);
-                if ImGui.IsItemClicked()
-                    node_clicked = cast(s32)i;
-                if test_drag_and_drop && ImGui.BeginDragDropSource() {
-                    SetDragDropPayload("_TREENODE", null, 0);
-                    Text("This is a drag and drop source");
-                    EndDragDropSource();
-                }
-            }
-        }
-        if node_clicked != -1 {
-            // Update selection state
-            // (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
-            if GetIO().KeyCtrl
-                selection_mask ^= cast(s32)(1 << node_clicked);          // CTRL+click to toggle
-            else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
-                selection_mask = cast(s32)(1 << node_clicked);           // Click to single-select
-        }
-        if (align_label_with_current_x_position)
-            Indent(ImGui.GetTreeNodeToLabelSpacing());
-
-        // Pressing F2 will edit the selected entity's name.
-        using context.state.editor;
-        if rl.IsKeyPressed(.KEY_F2)
-            logprint("editor", "F2 was pressed!");
-        if !editing_entity_name.has_value && rl.IsKeyPressed(.KEY_F2) && selected.count == 1 {
-            edit_entity_name(selected[0].handle);
-        }
-    }
 }
 
 show_screen_log :: (open: *bool) {
