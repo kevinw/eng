@@ -64,14 +64,28 @@ DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
 
 IsKeyDown :: (key: KeyboardKey) -> bool {
     if cast(int)key > 300 return false;
+    key_code := _translate_keycode(key);
     assert(_input_button_states != null);
     return (<<_input_button_states)[cast(int)key] & .DOWN != 0;
 }
 
+_translate_keycode :: (key: KeyboardKey) -> Input.Key_Code {
+    // temporary mapping from raylib keycode types back to the Jai input ones
+    if key == {
+        case .KEY_TAB;     return .TAB;
+        case .KEY_ENTER;   return .ENTER;
+        case .KEY_ESCAPE;  return .ESCAPE;
+        case .KEY_SPACE;   return .SPACEBAR;
+    }
+
+    return cast(Input.Key_Code)key;
+}
+
 IsKeyPressed :: (key: KeyboardKey) -> bool {
     if cast(int)key > 300 return false;
+    key_code := _translate_keycode(key);
     assert(_input_button_states != null);
-    return (<<_input_button_states)[cast(int)key] & .START != 0;
+    return (<<_input_button_states)[cast(int)key_code] & .START != 0;
 }
 
 DrawTexturePro :: (texture: *Texture, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
