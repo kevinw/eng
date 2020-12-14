@@ -53,6 +53,22 @@ DrawCircleV :: (center: Vector2, radius: float, color: Color) {
     im_draw_circle(*context.state.im_context, center, make_vector2(radius, radius), color=ColorToNormalized(color));
 }
 
+DrawRectangleLinesEx :: (rec: Rectangle, lineThick: s32, color: Color) {
+    if cast(float)lineThick > rec.width || cast(float)lineThick > rec.height {
+        if rec.width > rec.height lineThick = cast(s32)rec.height/2;
+        else if rec.width < rec.height lineThick = cast(s32)rec.width/2;
+    }
+
+    DrawRectangle(cast(s32)rec.x, cast(s32)rec.y, cast(s32)rec.width, lineThick, color);
+    DrawRectangle(cast(s32)(rec.x - lineThick + rec.width), cast(s32)(rec.y + lineThick), lineThick, cast(s32)(rec.height - lineThick*2.0), color);
+    DrawRectangle(cast(s32)rec.x, cast(s32)(rec.y + rec.height - lineThick), cast(s32)rec.width, lineThick, color);
+    DrawRectangle(cast(s32)rec.x, cast(s32)(rec.y + lineThick), lineThick, cast(s32)(rec.height - lineThick*2), color);
+}
+
+DrawRectangle :: (posX: s32, posY: s32, width: s32, height: s32, color: Color) {
+    DrawRectangleV(make_vector2(cast(float)posX, cast(float)posY), make_vector2(cast(float)width, cast(float)height), color);
+}
+
 DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
     im_draw_rect(*context.state.im_context,
         p0=position,
@@ -585,9 +601,6 @@ ColorAlphaBlend :: (dst: Color, srcIn: Color, tint: Color) -> Color
     return out;
 }
 
-
-DrawRectangleLinesEx :: (rec: Rectangle, lineThick: s32, color: Color) {
-}
 
 PixelFormat :: enum {
     UNCOMPRESSED_GRAYSCALE :: 1;     // 8 bit per pixel (no alpha)
