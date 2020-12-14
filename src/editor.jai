@@ -81,6 +81,9 @@ Editor :: struct {
 
     last_loaded_scene_filename: string; @owned
 
+    wait_for_entity_name: Maybe(Entity_Handle);
+    wait_for_entity_name_time: float64;
+
     windows: struct {
         inspector      := true;
         demo           := true;
@@ -758,89 +761,92 @@ show_entities_window :: (open: *bool) {
 
             flags := TreeNodeFlags.SpanAvailWidth;
             // flags |= .OpenOnArrow;
-            flags |= .Leaf;
-
-            ///
-            /// MUST REMOVE .Leaf once we have parent entities!
-            //
-
-            for * sel: editor.selected
-                if sel.handle == it
-                    flags |= .Selected;
+            flags |= .Leaf; /// MUST REMOVE .Leaf once we have parent entities!
+            for * sel: editor.selected if sel.handle == it
+                flags |= .Selected;
 
             ok, entity := get_entity(it);
-            if ok {
-                PushPopID(entity);
+            if !ok continue;
 
-                using editor;
-                if editing_entity_name.has_value && editing_entity_name.value == it {
-                    // Inline text editor for the entity name. Use by clicking once to select, and then
-                    // single clicking again on an entity.
-                    if editing_entity_grab_focus {
-                        editing_entity_grab_focus = false;
-                        Undo.push_string(*undo_state, *entity.name);
-                        SetKeyboardFocusHere();
-                    }
+            PushPopID(entity);
 
-                    InputTextStr(*entity.name);
-
-                    if IsItemDeactivated() {
-                        editing_entity_grab_focus = false;
-                        editing_entity_name.has_value = false;
-                        Undo.commit(*undo_state);
-                    }
-                } else {
-                    //dnd := BeginDragDropSource();
-                    //defer { if dnd EndDragDropSource(); }
-
-                    //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
-                    ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
-                    defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
-
-                    name_label := tprint("% - %\0", entity.name, child_count(it));
-                    if TreeNodeEx(entity, flags, name_label.data) {
-                        defer TreePop();
-                    }
-                }
-
-                if BeginPopupContextItem("entity context menu") {
-                    defer EndPopup();
-                    if Selectable("Save as prefab") {
-                        filename := tprint("prefabs/%.wbml", entity.name);
-                        save_prefab(filename, *it);
-                    }
-                    if Selectable("Delete") {
-                        destroy_entity(it, undo=*editor.undo_state);
-                        Undo.commit(*editor.undo_state);
-                    }
-
-                    if Selectable("Make child") {
-                        found, prev_sibling := get_previous_sibling(it);
-                        if found {
-                            set_parent(it, prev_sibling);
-                            logprint("editor", "make child: %\n", it);
-                        }
-                    }
-                }
-            }
-            
-            if IsItemClicked() {
-                node_clicked.value = it;
-                node_clicked.has_value = true;
-            }
-        }
-
-        if node_clicked.has_value {
             using editor;
+            if editing_entity_name.has_value && editing_entity_name.value == it {
+                // Inline text editor for the entity name. Use by clicking once to select, and then
+                // single clicking again on an entity.
+                if editing_entity_grab_focus {
+                    editing_entity_grab_focus = false;
+                    Undo.push_string(*undo_state, *entity.name);
+                    SetKeyboardFocusHere();
+                }
+
+                InputTextStr(*entity.name);
+
+                if IsItemDeactivated() {
+                    editing_entity_grab_focus = false;
+                    editing_entity_name.has_value = false;
+                    Undo.commit(*undo_state);
+                }
+            } else {
+                //dnd := BeginDragDropSource();
+                //defer { if dnd EndDragDropSource(); }
+
+                //if dnd SetDragDropPayload("_ENTITY", *it, size_of(Entity_Handle));
+                ImGui.Unindent(ImGui.GetTreeNodeToLabelSpacing());
+                defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
+
+                //name_label := tprint("% - %\0", entity.name, child_count(it));
+                name_label := tprint("%\0", entity.name);
+                if TreeNodeEx(entity, flags, name_label.data) {
+                    defer TreePop();
+                }
+            }
+
+            if BeginPopupContextItem("entity context menu") {
+                defer EndPopup();
+                if Selectable("Save as prefab") {
+                    filename := tprint("prefabs/%.wbml", entity.name);
+                    save_prefab(filename, *it);
+                }
+                if Selectable("Delete") {
+                    destroy_entity(it, undo=*editor.undo_state);
+                    Undo.commit(*editor.undo_state);
+                }
+
+                if Selectable("Make child") {
+                    found, prev_sibling := get_previous_sibling(it);
+                    if found {
+                        set_parent(it, prev_sibling);
+                        logprint("editor", "make child: %\n", it);
+                    }
+                }
+            }
+
+            if IsItemClicked()
+                set(*node_clicked, it);
+        }
+            
+
+        using editor;
+        if node_clicked.has_value {
             was_selected := selected.count == 1 && selected[0].handle == node_clicked.value;
             set_or_toggle_selected(node_clicked.value);
-            if IsMouseDoubleClicked(0)
+            if IsMouseDoubleClicked(0) {
                 focus_editor_camera_on_entity(node_clicked.value);
-            else if IsMouseClicked(0) && was_selected {
-                edit_entity_name(node_clicked.value);
+                clear(*wait_for_entity_name);
+            } else if was_selected {
+                set(*wait_for_entity_name, node_clicked.value);
+                wait_for_entity_name_time = Time.now;
             }
-        }
+        } else {
+            if selected.count == 1 && eq(*wait_for_entity_name, selected[0].handle) && Time.now - wait_for_entity_name_time > 0.4 {
+                clear(*wait_for_entity_name);
+                edit_entity_name(selected[0].handle);
+            }
 
+            if IsMouseClicked(0) && IsWindowHovered()
+                clear_selection();
+        }
     //}
 }
 
@@ -1387,4 +1393,14 @@ String :: #import "String";
 Maybe :: struct(T: Type) {
     using value: T;
     has_value: bool;
+}
+set :: (using maybe: *Maybe, new_value: $T) {
+    has_value = true;
+    value = new_value;
+}
+clear :: (using maybe: *Maybe) {
+    has_value = false;
+}
+eq :: (using maybe: *Maybe, value_to_compare: $T) -> bool {
+    return has_value && value == value_to_compare;
 }

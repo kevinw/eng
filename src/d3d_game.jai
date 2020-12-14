@@ -19,7 +19,7 @@ update_and_draw :: () {
 
     // draw
     {
-        push_default_pass(clear_color=*Vector4.{0.2, 0, 0.2, 1});
+        push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         editor_draw(context.state);
 
         im_ctx := *context.state.im_context;
@@ -34,6 +34,7 @@ update_and_draw :: () {
 
         im_set_texture(im_ctx, null);
         im_draw_rect(im_ctx, v2(0, 0), v2(50, 50));
+
         im_flush(*im_context);
 
         imgui_render(*ui);
