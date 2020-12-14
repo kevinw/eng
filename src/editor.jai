@@ -620,13 +620,13 @@ render_imgui_to_drawlists :: (state: *State) {
         if Begin("prefab cache", *windows.prefab_cache)
             inspect("", *context.state.world.prefab_cache);
     }
+    if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
     if windows.undo_internals show_undo_internals(*windows.undo_internals);
     if windows.assets show_assets_window(*windows.assets);
     if windows.entities show_entities_window(*windows.entities);
     if windows.inspector draw_inspector(*windows.inspector);
     if windows.screenlog show_screen_log(*editor.windows.screenlog);
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
-    if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
 
 }
 
