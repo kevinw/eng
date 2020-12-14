@@ -1,7 +1,12 @@
+#module_parameters(LINK_STATIC := false);
 #scope_file
 
 #if OS == .WINDOWS {
-    chipmunk_lib :: #foreign_library "win/chipmunk";
+    #if LINK_STATIC {
+        chipmunk_lib :: #foreign_library,no_dll "win/static/chipmunk";
+    } else {
+        chipmunk_lib :: #foreign_library "win/dll/chipmunk";
+    }
 }
 
 Float     :: float64;

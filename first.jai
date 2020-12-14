@@ -22,11 +22,12 @@ Build_Flags :: enum_flags {
 define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
     release :=               build_flags & .Release != 0;
 
-    debug_module :=          !release;
-    guard_allocator :=       !release;
-    building_dlls :=         !release;
-    graphics_layer_debug :=  !release;
-    context_state_type :=    ifx is_host && !release then "*void" else "*State";
+    debug_module :=             !release;
+    guard_allocator :=          !release;
+    building_dlls :=            !release;
+    graphics_layer_debug :=     !release;
+    link_externals_as_static := release;
+    context_state_type :=       ifx is_host && !release then "*void" else "*State";
 
     add_build_string_constants := tprint(#string END
 #add_context state   :  %;
@@ -49,8 +50,11 @@ END,
     print("%------\n", add_build_string_constants);
 
     add_build_string(add_build_string_constants, workspace);
+    add_build_string(
+        tprint("#import \"Chipmunk\"(LINK_STATIC = %);", link_externals_as_static),
+        workspace);
 
-    fn :: "src/Build_Constants.jai";
+    fn :: "generated/Build_Constants.jai";
     File.write_entire_file(fn, constants);
     add_build_file(fn, workspace);
 }
