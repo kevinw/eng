@@ -391,11 +391,14 @@ END;
         if d3dDevice.CreateVertexShader(d3dDevice, blob_data, blob_size, null, *VertexShader) != S_OK
             return false;
 
+        // TODO: detect #define IMGUI_USE_BGRA_PACKED_COLOR or not and use BGRA or RGBA as necessary...
+        // the imgui bindings should probably have a constant for this.
+
         // Create the input layout
         local_layout := D3D11_INPUT_ELEMENT_DESC.[
             .{ "POSITION", 0, .DXGI_FORMAT_R32G32_FLOAT,   0, cast(u32)#run offset_of(ImDrawVert, "pos"), .D3D11_INPUT_PER_VERTEX_DATA, 0 },
             .{ "TEXCOORD", 0, .DXGI_FORMAT_R32G32_FLOAT,   0, cast(u32)#run offset_of(ImDrawVert, "uv"),  .D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            .{ "COLOR",    0, .DXGI_FORMAT_R8G8B8A8_UNORM, 0, cast(u32)#run offset_of(ImDrawVert, "col"), .D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            .{ "COLOR",    0, .DXGI_FORMAT_B8G8R8A8_UNORM, 0, cast(u32)#run offset_of(ImDrawVert, "col"), .D3D11_INPUT_PER_VERTEX_DATA, 0 },
         ];
         if d3dDevice.CreateInputLayout(d3dDevice, local_layout.data, local_layout.count, blob_data, blob_size, *InputLayout) != S_OK
             return false;

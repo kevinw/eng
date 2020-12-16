@@ -472,7 +472,7 @@ render_asset_selector :: (window_open: *bool) {
                     <<live_tex = <<entry_tex;
                     Undo.commit(*context.state.editor.undo_state);
                 }
-                Text(filename_z);
+                Text(filename_z.data);
             }
             SameLine();
         case .Shader;
@@ -877,14 +877,7 @@ show_screen_log :: (open: *bool) {
         if ident.count > 0 && ident[0] == #char "=" advance(*ident);
         begin := tprint("[%] %", ident, it.message);
 
-        // TODO: fix the imgui bindings...the begin/end string pairs aren't being handled right.
-        // any time we see a string argument taking an "End" we should just give an alternative that
-        // accepts a string. then we don't need a copy at all!
-        end: string;
-        end.data = begin.data + begin.count;
-        end.count = 1;
-
-        draw_list.AddText(draw_list, pos, color, begin.data, end);
+        draw_list.AddText(draw_list, pos, color, begin);
         pos.y += GetTextLineHeightWithSpacing();
     }
 }

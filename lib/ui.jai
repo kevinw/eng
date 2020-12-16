@@ -132,16 +132,19 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
     ImGui_Impl_CreateContext(ui);
     ImGui.StyleColorsDark();
     style := ImGui.GetStyle();
-    style.ScaleAllSizes(style, 1.2);
+    style.ScaleAllSizes(style, 1.1);
+    style.FrameRounding = 4.0;
+    style.GrabRounding = 4.0;
+    style.TabRounding = 6.0;
 
     //dark_theme_2();
 
-    font_file      :: "resources/fonts/Roboto-Regular.ttf"; font_size :: 20;
+    font_file      :: "resources/fonts/Roboto-Regular.ttf";
     font_file_mono :: "resources/fonts/consola.ttf";
 
     io := ImGui.GetIO();
-    io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 20);
-    ui.small_font     = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 16);
+    io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 15);
+    ui.small_font     = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 14);
     ui.monospace_font = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file_mono, 18);
 
     ImGui_Impl_Init(ui, window_handle);
