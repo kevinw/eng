@@ -50,9 +50,22 @@ END,
     print("%------\n", add_build_string_constants);
 
     add_build_string(add_build_string_constants, workspace);
-    add_build_string(
-        tprint("#import \"Chipmunk\"(LINK_STATIC = %);", link_externals_as_static),
-        workspace);
+
+    // here we import some modules very early in the build process, being sure
+    // to provide the module parameters we wish to use. this will result in
+    // further imports later in the program using those parameters.
+    //
+    // the specific thing we use this for here is to link to static libraries
+    // in a release build. this is slower compile-time-wise, but then we don't
+    // have an extra DLL dependency.
+    imports_with_module_params := tprint(#string END
+
+#import "Chipmunk"(LINK_STATIC = %);
+#import "imgui"(LINK_STATIC = %);
+
+END, link_externals_as_static, link_externals_as_static);
+
+    add_build_string(imports_with_module_params, workspace);
 
     fn :: "generated/Build_Constants.jai";
     File.write_entire_file(fn, constants);

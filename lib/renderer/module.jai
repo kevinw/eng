@@ -617,7 +617,7 @@ run_fxc :: (filename: string, target_profile: string, entrypoint_name: string) -
 }
 
 load_shader_from_file :: ($filename: string, $vs_main := "vs_main", $ps_main := "ps_main") -> (ok: bool, shader: Shader) {
-    #if GRAPHICS_LAYER_DEBUG {
+    #if #run get_build_options().optimization_level != .RELEASE {
         ok, shader := _load_shader_from_file_at_runtime(filename, vs_main, ps_main);
         return ok, shader;
     } else {

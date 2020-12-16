@@ -1,4 +1,4 @@
-// from https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_dx11.cpp
+// thanks https://raw.githubusercontent.com/ocornut/imgui/master/backends/imgui_impl_dx11.cpp
 
 UI_State :: struct {
     using ui_state_base: UI_State_Base;
@@ -6,8 +6,6 @@ UI_State :: struct {
     // win32
     LastMouseCursor:      ImGui.MouseCursor;
     hook: HHOOK;
-
-
 
     // d3d11
 

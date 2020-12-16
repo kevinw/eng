@@ -281,7 +281,7 @@ live_shader_editor :: (name: string, live_shader_ptr: *LiveShader) {
             SetWindowFocus(ASSET_SELECTOR_WINDOW_NAME);
         }
         SameLine();
-        TextUnformatted(tprint("%\0", name));
+        TextUnformatted(name);
     }
 }
 
@@ -1355,7 +1355,6 @@ HelpMarker :: (desc: string) {
 
 #scope_export
 ImGui :: #import "imgui";
-make_ImVec2 :: ImGui.make_ImVec2;
 #scope_file
 
 ButtonEx :: (label: *u8, size:ImGui.ImVec2 = .{}, enabled := true) -> bool {
