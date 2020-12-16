@@ -49,8 +49,8 @@ ImGui_Impl_ProcessInputEvents :: (using ui_state: *UI_State, events: []Input.Eve
             case .KEYBOARD;
                 if it.key_code == {
                     case .MOUSE_BUTTON_LEFT;   MousePressed[0] = it.key_pressed != 0;
-                    case .MOUSE_BUTTON_MIDDLE; MousePressed[1] = it.key_pressed != 0;
-                    case .MOUSE_BUTTON_RIGHT;  MousePressed[2] = it.key_pressed != 0;
+                    case .MOUSE_BUTTON_RIGHT;  MousePressed[1] = it.key_pressed != 0;
+                    case .MOUSE_BUTTON_MIDDLE; MousePressed[2] = it.key_pressed != 0;
                     case;
                         io.KeysDown[it.key_code] = it.key_pressed != 0;
                         io.KeyShift = it.shift_pressed;
