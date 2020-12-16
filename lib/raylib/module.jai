@@ -70,6 +70,7 @@ DrawRectangle :: (posX: s32, posY: s32, width: s32, height: s32, color: Color) {
 }
 
 DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
+    im_set_texture(*context.state.im_context, null);
     im_draw_rect(*context.state.im_context,
         p0=position,
         p1=position+size,
