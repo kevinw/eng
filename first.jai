@@ -3,7 +3,6 @@
 CHECK_PATH :: "check/";
 
 module_search_paths := string.[
-    "../jai-imgui",
     "../jai-soloud",
     "lib",
     "src"
