@@ -453,7 +453,7 @@ render_asset_selector :: (window_open: *bool) {
             live_tex := selected_asset.tex;
             selected_tex_id, selected_tex_size := imtex(live_tex);
             entry_tex := ifx it == null then *LiveTexture.Empty else *it.live_texture;
-            tex_id, size := imtex(entry_tex, make_ImVec2(MAX_HEIGHT, MAX_HEIGHT));
+            tex_id, size := imtex(entry_tex, ImGui.make_ImVec2(MAX_HEIGHT, MAX_HEIGHT));
             MAX_HEIGHT :: 200;
             if size.y > MAX_HEIGHT {
                 size.x /= size.y / MAX_HEIGHT;
@@ -571,7 +571,7 @@ render_imgui_to_drawlists :: (state: *State) {
         PushStyleVar(.WindowRounding, 0);
         PushStyleVar(.WindowBorderSize, 0);
         {
-            PushStyleVar(.WindowPadding, make_ImVec2(0, 0));
+            PushStyleVar(.WindowPadding, ImGui.make_ImVec2(0, 0));
             defer End();
             open := true;
             Begin("DockSpace Demo", *open, window_flags);
@@ -597,8 +597,8 @@ render_imgui_to_drawlists :: (state: *State) {
             viewport         := GetMainViewport();
             work_area_pos    := viewport.GetWorkPos(viewport);   // Instead of using viewport->Pos we use GetWorkPos() to avoid menu bars, if any!
             work_area_size   := viewport.GetWorkSize(viewport);
-            window_pos       := make_ImVec2(work_area_pos.x + DISTANCE, work_area_pos.y + DISTANCE);
-            window_pos_pivot := make_ImVec2(0, 0);
+            window_pos       := ImGui.make_ImVec2(work_area_pos.x + DISTANCE, work_area_pos.y + DISTANCE);
+            window_pos_pivot := ImGui.make_ImVec2(0, 0);
             SetNextWindowPos(window_pos, .Always, window_pos_pivot);
             SetNextWindowViewport(viewport.ID_);
         }
@@ -1130,7 +1130,7 @@ imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> 
 
     if !has_value(<<live_texture) return null, empty_size;
 
-    size := make_ImVec2(cast(float)live_texture.resource.width, cast(float)live_texture.resource.height);
+    size := ImGui.make_ImVec2(cast(float)live_texture.resource.width, cast(float)live_texture.resource.height);
     return cast(*void)*live_texture.resource, size;
 }
 
