@@ -59,8 +59,8 @@ END,
     // have an extra DLL dependency.
     imports_with_module_params := tprint(#string END
 
-#import "Chipmunk"(LINK_STATIC = %);
-#import "imgui"(LINK_STATIC = %);
+__module_param_import_Chipmunk :: #import "Chipmunk"(LINK_STATIC = %);
+__module_param_import_ImGui    :: #import "imgui"(LINK_STATIC = %);
 
 END, link_externals_as_static, link_externals_as_static);
 
