@@ -39,9 +39,6 @@ update_and_draw :: () {
             screenlog_draw.draw_world();
         }
 
-        im_set_texture(im_ctx, null);
-        im_draw_rect(im_ctx, v2(0, 0), v2(50, 50));
-
         im_flush(*im_context);
 
         imgui_render(*ui);

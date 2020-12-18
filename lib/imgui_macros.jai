@@ -27,3 +27,8 @@ PushPopStyleVar :: (idx: ImGui.StyleVar, var: ImGui.ImVec2) #expand {
     ImGui.PushStyleVar(idx, var);
     `defer ImGui.PopStyleVar();
 }
+
+PushPopStyleVar :: (idx: ImGui.StyleVar, var: float) #expand {
+    ImGui.PushStyleVar(idx, var);
+    `defer ImGui.PopStyleVar();
+}

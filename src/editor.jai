@@ -55,6 +55,7 @@ Editor :: struct {
 
     play_mode: Play_Mode = .Edit;
     fading_to_play: bool;
+    fading_alpha: float = 1;
 
     callbacks: struct {
         did_drag: #type (rect: rl.Rectangle);
@@ -396,7 +397,6 @@ test_drag_and_drop:bool = false;
 selection_mask: s32 = (1 << 2);
 
 editor_draw :: (state: *State) {
-    if state.editor.play_mode == .Play return;
     render_imgui_to_drawlists(state);
 }
 
@@ -542,22 +542,29 @@ render_imgui_to_drawlists :: (state: *State) {
         // Fade the editor in and out when toggling between edit and play mode.
         using state.editor;
         if play_mode == .Edit {
-            style := GetStyle();
-            ALPHA_CHANGE_SPEED :: 9.0;
+            ALPHA_CHANGE_SPEED :: 11.0;
             if fading_to_play {
-                style.Alpha -= Time.unscaled_delta_time * ALPHA_CHANGE_SPEED;
-                if style.Alpha <= 0 {
+                fading_alpha -= Time.unscaled_delta_time * ALPHA_CHANGE_SPEED;
+                if fading_alpha <= 0 {
                     fading_to_play = false;
-                    style.Alpha = 0;
+                    fading_alpha = 0;
                     set_play_mode_later = true;
                 }
-            } else {
-                if style.Alpha < 1 {
-                    style.Alpha = clamp(style.Alpha + Time.unscaled_delta_time * ALPHA_CHANGE_SPEED, 0, 1);
-                }
+            } else if fading_alpha < 1 {
+                fading_alpha = clamp(fading_alpha + Time.unscaled_delta_time * ALPHA_CHANGE_SPEED, 0, 1);
             }
         }
     }
+
+    // the screen log always shows, even in playmode
+    {
+        using state.editor;
+        if windows.screenlog show_screen_log(*windows.screenlog);
+        if play_mode == .Play
+            return;
+    }
+
+    PushPopStyleVar(.Alpha, editor.fading_alpha); // from here on out, we may be fading out the entire editor. when going to play mode
 
     {
         window_flags :: ImGui.WindowFlags.NoDocking | .NoTitleBar | .NoCollapse
@@ -625,7 +632,6 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.assets show_assets_window(*windows.assets);
     if windows.entities show_entities_window(*windows.entities);
     if windows.inspector draw_inspector(*windows.inspector);
-    if windows.screenlog show_screen_log(*editor.windows.screenlog);
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
 
 }
