@@ -7,6 +7,8 @@ State :: struct {
     im_context: Im_Context_R;
 }
 
+first_draw: bool;
+
 update_and_draw :: () {
     using context.state;
 
@@ -16,6 +18,11 @@ update_and_draw :: () {
     handle_input_module_renderer_resize(host_state.window_handle, host_state.pending_resizes);
     ImGui_Impl_ProcessInputEvents(*ui, host_state.events_this_frame);
     game_base_update();
+
+    if !first_draw {
+        first_draw = true;
+        logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
+    }
 
     // draw
     {

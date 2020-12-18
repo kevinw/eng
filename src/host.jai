@@ -110,6 +110,8 @@ main :: () {
         Debug.init();
     }
     
+    get_time();
+
     #if GUARD_ALLOCATOR {
         GWP :: #import "gwpasan";
         print("[host] Using slow guard allocator\n");
@@ -317,6 +319,7 @@ main :: () {
         }
         } // BUILDING_DLLS
 
+        host_state.time = get_time();
         plugin_tick(host_state);
     }
 
