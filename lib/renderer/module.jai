@@ -426,7 +426,8 @@ apply_pipeline :: (pipeline: *Pipeline) {
 
     device_context.OMSetDepthStencilState(device_context, depth_stencil_state, 0);
 
-    device_context.OMSetBlendState(device_context, blend_state, cast([4]float)null, 0xffffffff);
+    blend_factors :: float.[ 1, 1, 1, 1 ];
+    device_context.OMSetBlendState(device_context, blend_state, blend_factors, 0xffffffff);
 }
 
 apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float = -1) {
