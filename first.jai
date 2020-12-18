@@ -61,8 +61,9 @@ END,
 
 __module_param_import_Chipmunk :: #import "Chipmunk"(LINK_STATIC = %);
 __module_param_import_ImGui    :: #import "imgui"(LINK_STATIC = %);
+__module_param_import_lz4      :: #import "lz4-1.9.3"(LINK_STATIC = %);
 
-END, link_externals_as_static, link_externals_as_static);
+END, link_externals_as_static, link_externals_as_static, link_externals_as_static);
 
     add_build_string(imports_with_module_params, workspace);
 

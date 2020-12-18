@@ -141,13 +141,75 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
 
     font_file      :: "resources/fonts/Roboto-Regular.ttf";
     font_file_mono :: "resources/fonts/consola.ttf";
+    fonts := ImGui.GetIO().Fonts;
+    #if #run Compiler.get_build_options().optimization_level != .RELEASE {
+        // In debug builds, load the TTF files from disk.
+        logprint("ui", "loading font %", font_file);
+        logprint("ui", "loading font %", font_file_mono);
+        fonts.AddFontFromFileTTF(fonts, font_file, 15);
+        ui.small_font     = fonts.AddFontFromFileTTF(fonts, font_file, 14);
+        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, 18);
+    } else {
+        // In release builds, just include the font files in the data segment.
+        font_file_bytes      := decompress_from_data_segment(font_file);
+        font_file_mono_bytes := decompress_from_data_segment(font_file_mono);
 
-    io := ImGui.GetIO();
-    io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 15);
-    ui.small_font     = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file, 14);
-    ui.monospace_font = io.Fonts.AddFontFromFileTTF(io.Fonts, font_file_mono, 18);
+        // By default, AddFontFromMemoryTTF transfers ownership so we don't need to free the decompressed bytes buffers.
+        fonts.AddFontFromMemoryTTF(fonts, font_file_bytes.data, cast(s32)font_file_bytes.count, 15);
+        ui.small_font     = fonts.AddFontFromMemoryTTF(fonts, font_file_bytes.data, cast(s32)font_file_bytes.count, 14);
+        ui.monospace_font = fonts.AddFontFromMemoryTTF(fonts, font_file_mono_bytes.data, cast(s32)font_file_bytes.count, 18);
+    }
 
     ImGui_Impl_Init(ui, window_handle);
 
     ImGui_Impl_SetupInputModuleKeymap(ui);
 }
+
+#scope_file
+
+decompress_from_data_segment :: inline ($filename: string) -> string {
+    compressed :: #run compress(File.read_entire_file(filename));
+    return decompress(compressed);
+}
+
+compress :: (bytes: string) -> string {
+    assert(bytes.count > 0 && bytes.data != null);
+
+    compressed_bytes_len := lz4.LZ4_compressBound(cast(s32)bytes.count);
+    compressed_bytes_buf := alloc(compressed_bytes_len + size_of(s32));
+
+    res := lz4.LZ4_compress_default(bytes.data, compressed_bytes_buf + size_of(s32), cast(s32)bytes.count, compressed_bytes_len);
+    assert(res != 0);
+
+    <<(cast(*s32)compressed_bytes_buf) = cast(s32)bytes.count; // store the uncompressed length in the first 4 bytes.
+
+    // TODO: should we realloc here? it's running at compile time right now so I don't really care.
+
+    s: string;
+    s.data = compressed_bytes_buf;
+    s.count = res + size_of(s32);
+    print("Compressed into % bytes.\n", res);
+    return s;
+}
+
+decompress :: (compressed_bytes: string) -> string {
+    original_uncompressed_size := <<(cast(*s32)compressed_bytes.data);
+    //print("Decompressing (original uncompressed size %)\n", original_uncompressed_size);
+    buf := alloc(original_uncompressed_size);
+
+    compressed_size := cast(s32)(compressed_bytes.count - size_of(s32));
+    //print("  compressed_size: %\n", compressed_size);
+
+    res := lz4.LZ4_decompress_safe(compressed_bytes.data + size_of(s32), buf, compressed_size, original_uncompressed_size);
+    assert(res > 0, tprint("LZ4_decompress_safe returned %", res));
+    // TODO: should we realloc here? it's running at compile time right now so I don't really care.
+
+    s: string;
+    s.data = buf;
+    s.count = res;
+    return s;
+}
+
+File :: #import "File";
+lz4 :: #import "lz4-1.9.3";
+Compiler :: #import "Compiler";
