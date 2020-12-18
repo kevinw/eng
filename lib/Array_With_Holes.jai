@@ -26,7 +26,7 @@ Array_With_Holes :: struct(Value: Type) {
     Handle :: Handle_Type;
     Value_Type :: Value;
     Max_Bytes :: 1000 * size_of(Slot);
-    Slot :: struct(Value: Type) {
+    Slot :: struct {
         // TODO: bring this union back, once the bug in beta 37 is fixed. it
         // causes a weird infinite loop of reporting redclared 'next' and
         // 'value' variables here...
