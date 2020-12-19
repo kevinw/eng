@@ -105,6 +105,15 @@ IsKeyPressed :: (key: KeyboardKey) -> bool {
     return (<<_input_button_states)[cast(int)key_code] & .START != 0;
 }
 
+GetMousePosition :: () -> Vector2 {
+    x, y := Window_Creation.get_mouse_pointer_position();
+
+    v: Vector2 = ---;
+    v.x = cast(float)x;
+    v.y = cast(float)y;
+    return v;
+}
+
 DrawTexturePro :: (texture: *Texture, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
     assert(texture != null);
 
@@ -212,7 +221,6 @@ GetScreenHeight :: () -> s32 {
     Basic.assert(renderer != null);
     return cast(s32)renderer.depth_buffer_desc.Height;
 }
-GetMousePosition :: () -> Vector2 { return .{}; }
 MatrixTranslate :: (x: float, y: float, z: float) -> Matrix {
     return make_translation_matrix4(make_Vector3(x, y, z));
 }
@@ -235,7 +243,7 @@ MatrixToFloatV  :: (mat: Matrix) -> float16 {
 rlMultMatrixf   :: (matf: *float) { Basic.assert(false); }
 
 
-GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 { return .{}; }
+GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 { return position; }
 
 DrawText :: (text: *u8, posX: s32, posY: s32, fontSize: s32, color: Color) {
 }
@@ -894,6 +902,7 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
 #import "renderer_im";
 #import "stb_image_resize";
 Basic :: #import "Basic";
+Window_Creation :: #import "Window_Creation";
 print :: Basic.print;
 #import "Render/Texture_Format";
 

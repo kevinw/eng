@@ -85,6 +85,8 @@ Editor :: struct {
     wait_for_entity_name: Maybe(Entity_Handle);
     wait_for_entity_name_time: float64;
 
+    entities_window_size: ImGui.ImVec2;
+
     windows: struct {
         inspector      := true;
         demo           := true;
@@ -925,10 +927,12 @@ editor_update :: (state: *State) {
         camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
     }
     
+    logprint("=editor_mouse_2", "io.WantCaptureMouse: %, rl.GetMousePosition(): %", io.WantCaptureMouse, rl.GetMousePosition());
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
 
             world_mouse_pos = get_mouse_world_pos(camera, state.screen.texture);
+            logprint("=editor_mouse", "world mouse: %", world_mouse_pos);
 
             hover.has_value = false;
             for handles(*state.world.entities) {
