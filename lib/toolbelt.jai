@@ -287,8 +287,10 @@ rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
 }
 
 get_mouse_world_pos :: (camera: *Camera2D, screen_texture: RenderTexture) -> Vector2 {
-    rt_multiplier := v2(cast(float)screen_texture.texture.width  / GetScreenWidth(),
-                        cast(float)screen_texture.texture.height / GetScreenHeight());
+    // render texture
+    //rt_multiplier := v2(cast(float)screen_texture.texture.width  / GetScreenWidth(),
+                        //cast(float)screen_texture.texture.height / GetScreenHeight());
+    rt_multiplier := Vector2.{1,1};
 
     mouse_pos := GetMousePosition();
     world_pos := v2(rt_multiplier.x * mouse_pos.x, rt_multiplier.y * mouse_pos.y);
@@ -306,7 +308,7 @@ get_field_value :: (parent_struct: *$T, $field_name: string, $Field_Type: Type, 
         field := get_field(ti_struct, field_name);
         if field == null {
             #import "Compiler";
-            compiler_error(tprint("Error: no field named '%' in %", field_name, T));
+            compiler_report(tprint("Error: no field named '%' in %", field_name, T));
         }
         return field.offset_in_bytes;
     }());

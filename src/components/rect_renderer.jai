@@ -12,6 +12,7 @@ _draw :: (it: *RectRenderer) {
     color2 := it.color;
     color2.r -= 100; color2.g -= 100; color2.b -= 100;
     rl.DrawRectangleGradientEx(rect, it.color, color2, color2, it.color);
+    //im_draw_rect(*context.state.im_context, rect.position, rect.size + rect.position);
 }
 
 queue_all_drawable :: (sprites: *Array_With_Holes(RectRenderer), by_layer: [256]Drawable_Layer) -> (highest_layer: Sorting_Layer) {

@@ -27,6 +27,7 @@ update_and_draw :: () {
     // draw
     {
         push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+        im_set_texture(*im_context, null);
         editor_draw(context.state);
 
         im_ctx := *context.state.im_context;
@@ -58,6 +59,7 @@ _update_raylib_temp :: (host_state: Host_State) {
 
 on_host_did_reload_game_dll :: (host_state: Host_State) {
     using context.state;
+    set_context_funcs();
 
     context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
 
@@ -98,8 +100,17 @@ restart :: () {
     using context.state;
 }
 
+
 editor_did_drag :: (rect: rl.Rectangle) {
-    print("TODO: editor_did_drag\n");
+    color := rl.RED;
+    color.b = cast(u8)random_get_within_range(100, 255);
+    block, block_h := envitem(*context.state.world,
+        rect.x, rect.y, rect.width, rect.height,
+        .PLATFORM, color, is_editor=true);
+
+    Undo.push_array(*context.state.editor.undo_state, *context.state.editor.selected);
+    set_selected(block_h);
+    Undo.commit(*context.state.editor.undo_state);
 }
 
 handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resizes: *[..]Window_Resize_Record) {
@@ -119,9 +130,34 @@ handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resi
 }
 
 #scope_file
+
+envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: rl.Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
+    undo: *Undo.Impl;
+    if is_editor undo = *context.state.editor.undo_state;
+
+    entity, entity_handle := create_entity(world, "box", undo=undo);
+    assert(entity != null);
+
+    transform := get_component(entity, TRS);
+    assert(transform != null);
+    transform.position.xy = v2(x, y);
+    transform.scale = rl.make_Vector3(width, height, 1);
+
+    box := add_component(entity_handle, BoxCollider, undo=undo);
+    box.collision = .PLATFORM;
+
+    renderer := add_component(entity_handle, RectRenderer, undo=undo);
+    renderer.color = color;
+
+    return entity, entity_handle;
+}
+
+
 #import "renderer";
 #import "renderer_im";
 #import "renderer_im_impl";
+#import "Hash";
+#import "Math";
 Gamepad :: #import "Gamepad";
 rl :: #import "raylib";
 screenlog_draw :: #import "screenlog_draw";

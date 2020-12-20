@@ -75,7 +75,7 @@ Editor :: struct {
     world_mouse_pos: Vector2;
     mouse_pos: Latch(Vector2);
 
-    last_click_time: float64 = -99999;
+    last_click_time: float64 = -99999; // nocheckin
 
     assets: [..]Asset;
     selected_asset: *Asset = null;
@@ -182,7 +182,7 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
         return .Has_Custom_Control;
     else if ti == type_info(LiveShader)
         return .Has_Custom_Control;
-    else if ti == type_info(Transform)
+    else if false && ti == type_info(Transform)
         return .Has_Custom_Control;
     return .None;
 }
@@ -194,7 +194,7 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
         live_image_editor(cast(*LiveTexture)data);
     else if ti_struct == type_info(LiveShader)
         live_shader_editor(name, cast(*LiveShader)data);
-    else if ti_struct == type_info(Transform) {
+    else if false && ti_struct == type_info(Transform) {
 
         /*
         TODO it would be nice to have the metaprogram notice an "editor" function like this...
@@ -256,17 +256,17 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
         }
 
         xrs := cast(*Transform)data;
-        DragFloat3("pos", cast([3]float)*xrs.position);
-        DragFloat3("scl", cast([3]float)*xrs.scale);
+        DragFloat3("pos", cast(*[3]float)*xrs.position);
+        DragFloat3("scl", cast(*[3]float)*xrs.scale);
 
         quat := cast(*Vector4)*xrs.rotation;
         euler := quaternion_to_euler(<<quat);
-        if DragFloat3("rotation", cast([3]float)*euler.x) {
+        if DragFloat3("rotation", cast(*[3]float)*euler.x) {
             <<quat = euler_to_quaternion(euler.x, euler.y, euler.z);
             logprint("=quat", "changed euler % to quat %", euler, <<quat);
         }
 
-        DragFloat4("quat", cast([4]float)quat);
+        DragFloat4("quat", cast(*[4]float)quat);
     }
 }
 
@@ -562,9 +562,35 @@ render_imgui_to_drawlists :: (state: *State) {
     {
         using state.editor;
         if windows.screenlog show_screen_log(*windows.screenlog);
-        if play_mode == .Play
-            return;
     }
+
+    // Overlay showing compiler error
+    has_compile_error, err_str := get_plugin_compile_error();
+    if has_compile_error {
+        {
+            DISTANCE:float = 80.0;
+            viewport         := GetMainViewport();
+            work_area_pos    := viewport.GetWorkPos(viewport);   // Instead of using viewport->Pos we use GetWorkPos() to avoid menu bars, if any!
+            work_area_size   := viewport.GetWorkSize(viewport);
+            window_pos       := ImGui.make_ImVec2(work_area_pos.x + DISTANCE, work_area_pos.y + DISTANCE);
+            window_pos_pivot := ImGui.make_ImVec2(0, 0);
+            SetNextWindowPos(window_pos, .Always, window_pos_pivot);
+            SetNextWindowViewport(viewport.ID_);
+        }
+        SetNextWindowBgAlpha(0.99); // Transparent background
+        window_flags :: ImGui.WindowFlags.NoDecoration | .NoMove | .NoDocking | .AlwaysAutoResize | .NoSavedSettings | .NoFocusOnAppearing | .NoNav;
+        defer End();
+        if Begin("compiler error overlay", null, window_flags) {
+            if err_str.count > 0 {
+                PushPopFont(context.state.ui.monospace_font);
+                PushTextWrapPos(ImGui.GetFontSize() * 55.0);
+                Text(tprint("%\0", err_str).data);
+            }
+        }
+    }
+
+    if state.editor.play_mode == .Play
+        return;
 
     PushPopStyleVar(.Alpha, editor.fading_alpha); // from here on out, we may be fading out the entire editor. when going to play mode
 
@@ -598,31 +624,6 @@ render_imgui_to_drawlists :: (state: *State) {
             inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
     }
 
-    // Overlay showing compiler error
-    has_compile_error, err_str := get_plugin_compile_error();
-    if has_compile_error {
-        {
-            DISTANCE:float = 80.0;
-            viewport         := GetMainViewport();
-            work_area_pos    := viewport.GetWorkPos(viewport);   // Instead of using viewport->Pos we use GetWorkPos() to avoid menu bars, if any!
-            work_area_size   := viewport.GetWorkSize(viewport);
-            window_pos       := ImGui.make_ImVec2(work_area_pos.x + DISTANCE, work_area_pos.y + DISTANCE);
-            window_pos_pivot := ImGui.make_ImVec2(0, 0);
-            SetNextWindowPos(window_pos, .Always, window_pos_pivot);
-            SetNextWindowViewport(viewport.ID_);
-        }
-        SetNextWindowBgAlpha(0.99); // Transparent background
-        window_flags :: ImGui.WindowFlags.NoDecoration | .NoMove | .NoDocking | .AlwaysAutoResize | .NoSavedSettings | .NoFocusOnAppearing | .NoNav;
-        defer End();
-        if Begin("compiler error overlay", null, window_flags) {
-            if err_str.count > 0 {
-                PushPopFont(context.state.ui.monospace_font);
-                PushTextWrapPos(ImGui.GetFontSize() * 55.0);
-                Text(tprint("%\0", err_str).data);
-            }
-        }
-    }
-
     using editor;
     if windows.prefab_cache {
         defer End();
@@ -654,7 +655,7 @@ show_assets_window :: (open: *bool) {
         //if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
 
         selected := editor.selected_asset == it;
-        if Selectable(tprint("%\0", it.short_name).data, selected)
+        if Selectable(tprint("%\0", String.path_strip_extension(it.short_name)).data, selected)
             editor.selected_asset = it;
 
         do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
@@ -927,13 +928,9 @@ editor_update :: (state: *State) {
         camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
     }
     
-    logprint("=editor_mouse_2", "io.WantCaptureMouse: %, rl.GetMousePosition(): %", io.WantCaptureMouse, rl.GetMousePosition());
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
-
             world_mouse_pos = get_mouse_world_pos(camera, state.screen.texture);
-            logprint("=editor_mouse", "world mouse: %", world_mouse_pos);
-
             hover.has_value = false;
             for handles(*state.world.entities) {
                 ok, entity := get_entity(it);
@@ -946,7 +943,7 @@ editor_update :: (state: *State) {
             }
         }
 
-        if rl.IsMouseButtonPressed(.MOUSE_LEFT_BUTTON) {
+        if ImGui.IsMouseClicked(0) {
             Undo.push_array(*undo_state, *selected);
 
             took_action := false;
@@ -974,7 +971,7 @@ editor_update :: (state: *State) {
                         it.original_pos = trs.position.xy;
                 }
             }
-        } else if (drag_state.dragging && !rl.IsMouseButtonDown(.MOUSE_LEFT_BUTTON)) {
+        } else if drag_state.dragging && !ImGui.IsMouseDown(0) {
             if selected.count == 0 {
                 rect := rect_from_points(drag_state.origin, world_mouse_pos);
                 if rect.width > 5 && rect.height > 5 {
@@ -986,7 +983,7 @@ editor_update :: (state: *State) {
 
             drag_state.dragging = false;
 
-        } else if drag_state.dragging && rl.IsMouseButtonDown(.MOUSE_LEFT_BUTTON) {
+        } else if drag_state.dragging && ImGui.IsMouseDown(0) {
             delta := world_mouse_pos - drag_state.origin;
             for selected {
                 trs := get_transform_or_null(it);

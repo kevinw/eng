@@ -286,7 +286,7 @@ begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
 
     if clear_color != null
         for framebuffers
-            device_context.ClearRenderTargetView(device_context, it, cast([4]float)clear_color);
+            device_context.ClearRenderTargetView(device_context, it, cast(*[4]float)clear_color);
 
     // TODO: pass actions, depth clear options
     if depth != null
@@ -427,7 +427,7 @@ apply_pipeline :: (pipeline: *Pipeline) {
     device_context.OMSetDepthStencilState(device_context, depth_stencil_state, 0);
 
     blend_factors :: float.[ 1, 1, 1, 1 ];
-    device_context.OMSetBlendState(device_context, blend_state, blend_factors, 0xffffffff);
+    device_context.OMSetBlendState(device_context, blend_state, *blend_factors, 0xffffffff);
 }
 
 apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float = -1) {
@@ -605,12 +605,12 @@ run_fxc :: (filename: string, target_profile: string, entrypoint_name: string) -
     successfully_launched, exit_code, output_string, error_string := os_run_command(..args);
 
     if !successfully_launched || exit_code != 0
-        compiler_report_error(#file, #line, 0, tprint("Error (launched=%, exit_code=%) from fxc shader compiler.\n%\n%",
+        compiler_report(#file, #line, 0, tprint("Error (launched=%, exit_code=%) from fxc shader compiler.\n%\n%",
             successfully_launched, exit_code, error_string, output_string));
 
     blob_bytes, success := read_entire_file(temp_file);
     if !success
-        compiler_report_error(#file, #line, 0, tprint("Did not find fxc output shader blob at '%'\n", temp_file));
+        compiler_report(#file, #line, 0, tprint("Did not find fxc output shader blob at '%'\n", temp_file));
 
     file_delete(temp_file);
 

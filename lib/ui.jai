@@ -148,7 +148,7 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
         logprint("ui", "loading font %", font_file_mono);
         fonts.AddFontFromFileTTF(fonts, font_file, 15);
         ui.small_font     = fonts.AddFontFromFileTTF(fonts, font_file, 14);
-        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, 18);
+        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, 16);
     } else {
         // In release builds, just include the font files in the data segment.
         font_file_bytes      := decompress_from_data_segment(font_file);

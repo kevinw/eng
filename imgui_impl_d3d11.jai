@@ -64,7 +64,7 @@ ImGui_ImplDX11_SetupRenderState :: (using ui_state: *UI_State, draw_data: *ImDra
 
     // Setup blend state
     blend_factor : [4]float = .[0, 0, 0, 0];
-    d_ctx.OMSetBlendState(d_ctx, BlendState, blend_factor, 0xffffffff);
+    d_ctx.OMSetBlendState(d_ctx, BlendState, *blend_factor, 0xffffffff);
     d_ctx.OMSetDepthStencilState(d_ctx, DepthStencilState, 0);
     d_ctx.RSSetState(d_ctx, RasterizerState);
 }
@@ -195,7 +195,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     d_ctx.RSGetScissorRects(d_ctx, *old.ScissorRectsCount, old.ScissorRects.data);
     d_ctx.RSGetViewports(d_ctx, *old.ViewportsCount, old.Viewports.data);
     d_ctx.RSGetState(d_ctx, *old.RS);
-    d_ctx.OMGetBlendState(d_ctx, *old.BlendState, old.BlendFactor, *old.SampleMask);
+    d_ctx.OMGetBlendState(d_ctx, *old.BlendState, *old.BlendFactor, *old.SampleMask);
     d_ctx.OMGetDepthStencilState(d_ctx, *old.DepthStencilState, *old.StencilRef);
     d_ctx.PSGetShaderResources(d_ctx, 0, 1, *old.PSShaderResource);
     d_ctx.PSGetSamplers(d_ctx, 0, 1, *old.PSSampler);
@@ -255,7 +255,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     d_ctx.RSSetScissorRects(d_ctx, old.ScissorRectsCount, old.ScissorRects.data);
     d_ctx.RSSetViewports(d_ctx, old.ViewportsCount, old.Viewports.data);
     d_ctx.RSSetState(d_ctx, old.RS); Release(old.RS);
-    d_ctx.OMSetBlendState(d_ctx, old.BlendState, old.BlendFactor, old.SampleMask); Release(old.BlendState);
+    d_ctx.OMSetBlendState(d_ctx, old.BlendState, *old.BlendFactor, old.SampleMask); Release(old.BlendState);
     d_ctx.OMSetDepthStencilState(d_ctx, old.DepthStencilState, old.StencilRef); Release(old.DepthStencilState);
     d_ctx.PSSetShaderResources(d_ctx, 0, 1, *old.PSShaderResource); Release(old.PSShaderResource);
     d_ctx.PSSetSamplers(d_ctx, 0, 1, *old.PSSampler); Release(old.PSSampler);

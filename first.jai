@@ -81,7 +81,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
     set_build_options(opts);
 
     if String.count(game_dll_source_name, ".") > 0 {
-        compiler_error(tprint("Error: no dots in source name please: '%'", game_dll_source_name), loc);
+        compiler_report(tprint("Error: no dots in source name please: '%'", game_dll_source_name), loc, .ERROR);
         return;
     }
 

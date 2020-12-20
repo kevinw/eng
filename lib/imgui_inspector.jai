@@ -1,5 +1,3 @@
-#scope_file
-Reflection :: #import "Reflection";
 #scope_export
 
 Struct_Looks_Like :: enum {
@@ -91,7 +89,6 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
     if show_node_func != null && !show_node_func(name, data, info)
         return;
 
-
     default_size:ImVec2;
 
     PushID(data);
@@ -104,7 +101,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             ti_int := cast(*Type_Info_Integer) info;
             data_type: DataType;
             if info.runtime_size == {
-                case 1; data_type = ifx ti_int.signed then DataType.S8 else DataType.U8;
+                case 1; data_type = ifx ti_int.signed then DataType.S8  else DataType.U8;
                 case 2; data_type = ifx ti_int.signed then DataType.S16 else DataType.U16;
                 case 4; data_type = ifx ti_int.signed then DataType.S32 else DataType.U32;
                 case 8; data_type = ifx ti_int.signed then DataType.S64 else DataType.U64;
@@ -156,13 +153,13 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             } else {
                 if category == {
                     case .Float2;
-                        DragFloat2(name, cast([2]float)data);
+                        DragFloat2(name, cast(*[2]float)data);
                         push_or_commit_item(data, size_of(float) * 2);
                     case .Float3;
-                        DragFloat3(name, cast([3]float)data);
+                        DragFloat3(name, cast(*[3]float)data);
                         push_or_commit_item(data, size_of(float) * 3);
                     case .Float4;
-                        DragFloat4(name, cast([4]float)data);
+                        DragFloat4(name, cast(*[4]float)data);
                         push_or_commit_item(data, size_of(float) * 4);
                     case .Color_Byte4;
                         bytes := cast(*u8)data;
@@ -177,7 +174,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     case;
                         tree_node_str:string;
                         if name != null && str_length(name) > 0
-                            tree_node_str = tprint("%: %\0", to_string(name), ti_struct.name);
+                            tree_node_str = tprint("%: %", to_string(name), ti_struct.name);
                         else
                             tree_node_str = ti_struct.name;
 
@@ -215,7 +212,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             any := cast(*Any)data;
             inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func, custom_ctrl);
         case .ENUM;
-            ti_enum := cast(*Type_Info_Enum) info;
+            ti_enum := cast(*Type_Info_Enum)info;
             if ti_enum.enum_type_flags & .Is_Flags {
                 // enum_flags
                 if ti_enum.internal_type.runtime_size > 4 {
@@ -224,13 +221,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                     any: Any;
                     any.value_pointer = data;
                     any.type = ti_enum;
-
-                    sb: String_Builder;
-                    defer free_buffers(*sb);
-                    print_item_to_builder(*sb, any);
-                    as_str := builder_to_string(*sb);
-
-                    TextUnformatted(tprint("%: %\0", to_string(name), as_str));
+                    TextUnformatted(tprint("%: %", to_string(name), any));
 
                     for ti_enum.values {
                         if it == 0 continue;
@@ -241,7 +232,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 s64_val: s64;
                 if ti_enum.internal_type.signed {
                     if ti_enum.internal_type.runtime_size == {
-                        case 1;  s64_val = <<cast(*s8)data;
+                        case 1; s64_val = <<cast(*s8)data;
                         case 2; s64_val = <<cast(*s16)data;
                         case 4; s64_val = <<cast(*s32)data;
                         case 8; s64_val = <<cast(*s64)data;
@@ -249,7 +240,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 }
                 else {
                     if ti_enum.internal_type.runtime_size == {
-                        case 1;  s64_val = <<cast(*u8)data;
+                        case 1; s64_val = <<cast(*u8)data;
                         case 2; s64_val = <<cast(*u16)data;
                         case 4; s64_val = <<cast(*u32)data;
                         case 8; s64_val = cast(s64) <<cast(*u64)data;
@@ -271,7 +262,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                             new_val := ti_enum.values[it_index];
                             if ti_enum.internal_type.signed {
                                 if ti_enum.internal_type.runtime_size == {
-                                    case 1;  <<cast(*s8)data = xx new_val;
+                                    case 1; <<cast(*s8)data  = xx new_val;
                                     case 2; <<cast(*s16)data = xx new_val;
                                     case 4; <<cast(*s32)data = xx new_val;
                                     case 8; <<cast(*s64)data = new_val;
@@ -306,11 +297,12 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             print_type_to_builder(*sb, type_ti);
             s := builder_to_string(*sb);
 
-            TextUnformatted(tprint("%: Type %\0", to_string(name), s));
-
+            TextUnformatted(tprint("%: Type %", to_string(name), s));
         case .OVERLOAD_SET;
             // @@
     }
 
 }
 
+#scope_file
+Reflection :: #import "Reflection";
