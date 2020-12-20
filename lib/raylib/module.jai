@@ -114,13 +114,21 @@ GetMousePosition :: () -> Vector2 {
     return v;
 }
 
-DrawTexturePro :: (texture: *Texture, sourceRec: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
+DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
     assert(texture != null);
+    sourceRec := sourceRec_;
 
     p0 := destRec.position;
     p1 := p0 + destRec.size;
 
     tex_size := make_vector2(xx texture.width, xx texture.height);
+
+
+    flip_x := false;
+    if sourceRec.width < 0 {
+        sourceRec.width = -sourceRec.width;
+        flip_x = true;
+    }
 
     assert(tex_size.x > 0 && tex_size.y > 0, tprint("texture '%' has size %x%\n", texture.debug_name, texture.width, texture.height));
 
@@ -131,6 +139,9 @@ DrawTexturePro :: (texture: *Texture, sourceRec: Rectangle, destRec: Rectangle, 
     t1 := sourceRec.position + sourceRec.size;
     t1.x /= tex_size.x;
     t1.y /= tex_size.y;
+
+    if flip_x
+        t0.x, t1.x = swap(t0.x, t1.x);
 
     im_set_texture(*context.state.im_context, texture);
     im_draw_rect(*context.state.im_context,
@@ -243,7 +254,9 @@ MatrixToFloatV  :: (mat: Matrix) -> float16 {
 rlMultMatrixf   :: (matf: *float) { Basic.assert(false); }
 
 
-GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 { return position; }
+GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 {
+    return position;
+}
 
 DrawText :: (text: *u8, posX: s32, posY: s32, fontSize: s32, color: Color) {
 }
@@ -400,12 +413,11 @@ DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Colo
     t2 := v2(1, 1);
     t3 := v2(1, 0);
 
+    im_set_texture(_ctx, null);
     vt0 := im_vertex(_ctx, p0, t0, ColorToNormalized(col1));
     vt1 := im_vertex(_ctx, p1, t1, ColorToNormalized(col2));
     vt2 := im_vertex(_ctx, p2, t2, ColorToNormalized(col3));
     vt3 := im_vertex(_ctx, p3, t3, ColorToNormalized(col4));
-
-    im_set_texture(_ctx, null);
     im_indices(_ctx, vt0, vt1, vt2, vt2, vt0, vt3);
 }
 
