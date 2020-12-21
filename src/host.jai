@@ -313,7 +313,6 @@ main :: () {
                     old_state = null;
                 }
 
-                logprint("host", "calling plugin_init");
                 plugin_init(old_state, host_state);
             }
         }

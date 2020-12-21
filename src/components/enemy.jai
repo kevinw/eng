@@ -10,10 +10,10 @@ rl :: #import "raylib";
 
 evilplant: LiveTexture;
 evilplant_sprite: struct {
-    idle: []Sprite;
-    hit: []Sprite;
-    attack_left: []Sprite;
-    attack_right: []Sprite;
+    idle:          []Sprite;
+    hit:           []Sprite;
+    attack_left:   []Sprite;
+    attack_right:  []Sprite;
 };
 
 ensure_sprites_loaded :: () {

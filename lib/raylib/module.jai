@@ -89,10 +89,15 @@ IsKeyDown :: (key: KeyboardKey) -> bool {
 _translate_keycode :: (key: KeyboardKey) -> Input.Key_Code {
     // temporary mapping from raylib keycode types back to the Jai input ones
     if key == {
-        case .KEY_TAB;     return .TAB;
-        case .KEY_ENTER;   return .ENTER;
-        case .KEY_ESCAPE;  return .ESCAPE;
-        case .KEY_SPACE;   return .SPACEBAR;
+        case .KEY_TAB;           return .TAB;
+        case .KEY_ENTER;         return .ENTER;
+        case .KEY_ESCAPE;        return .ESCAPE;
+        case .KEY_SPACE;         return .SPACEBAR;
+        case .KEY_DELETE;        return .DELETE;
+        case .KEY_LEFT_CONTROL;  return .CTRL;
+        case .KEY_RIGHT_CONTROL; return .CTRL;
+        case .KEY_LEFT_SHIFT;    return .SHIFT;
+        case .KEY_RIGHT_SHIFT;   return .SHIFT;
     }
 
     return cast(Input.Key_Code)key;
@@ -118,8 +123,8 @@ DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle,
     assert(texture != null);
     sourceRec := sourceRec_;
 
-    p0 := destRec.position;
-    p1 := p0 + destRec.size;
+    p0 := destRec.position - origin * 0.5;
+    p1 := p0 + destRec.size - origin * 0.5;
 
     tex_size := make_vector2(xx texture.width, xx texture.height);
 

@@ -165,7 +165,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                         bytes := cast(*u8)data;
                         floats: [4]float;
                         for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
-                        if ColorEdit4(name, floats) {
+                        if ColorEdit4(name, *floats) {
                             Undo.push(undo, data, 4);
                             for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
                         }

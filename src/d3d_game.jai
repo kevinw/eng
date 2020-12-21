@@ -5,6 +5,7 @@ State :: struct {
     using state_base: State_Base;
     renderer: Renderer;
     im_context: Im_Context_R;
+    multiview: Multiview_State;
 }
 
 first_draw: bool;
@@ -157,6 +158,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 #import "renderer_im";
 #import "renderer_im_impl";
 #import "Hash";
+#import "multiview";
 #import "Math";
 Gamepad :: #import "Gamepad";
 rl :: #import "raylib";

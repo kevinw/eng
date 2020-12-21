@@ -536,7 +536,6 @@ render_imgui_to_drawlists :: (state: *State) {
 
     set_play_mode_later: bool;
     defer if set_play_mode_later {
-        logprint("editor", "entering play mode");
         state.editor.play_mode = .Play;
     }
 
@@ -900,8 +899,8 @@ editor_update :: (state: *State) {
 
     if play_mode == .Play return;
 
-    ctrl_down := rl.IsKeyDown(.KEY_LEFT_CONTROL) || rl.IsKeyDown(.KEY_RIGHT_CONTROL);
-    shift_down := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
+    ctrl_down := is_key_down(.CTRL);
+    shift_down := is_key_down(.SHIFT);
 
     if !io.WantTextInput {
         if rl.IsKeyPressed(.KEY_P) {
@@ -1040,6 +1039,7 @@ editor_update :: (state: *State) {
     }
 
     if ctrl_down && rl.IsKeyPressed(.KEY_N) {
+        // new scene
         reset_world(*state.world);
     }
 
@@ -1402,4 +1402,9 @@ clear :: (using maybe: *Maybe) {
 }
 eq :: (using maybe: *Maybe, value_to_compare: $T) -> bool {
     return has_value && value == value_to_compare;
+}
+is_key_down    :: (key: Key_Code) -> bool {
+    res := (<<_local_host_state.input_button_states)[cast(int)key] & .DOWN != 0;
+    //logprint("=ed", "is_key_down %: % (%)", key, res, _local_host_state.input_button_states); 
+    return res;
 }

@@ -244,6 +244,29 @@ get_d3d_bind_flags :: (type: Buffer_Type) -> D3D11_BIND_FLAG {
     return 0;
 }
 
+create_texture :: (width: u32, height: u32, array_size:u32 = 1) {
+    using renderer := assert_state();
+
+    desc := D3D11_TEXTURE2D_DESC.{
+        MipLevels          = 1,
+        SampleDesc.Count   = 1,
+        Usage              = .D3D11_USAGE_IMMUTABLE,
+        BindFlags          = .D3D11_BIND_SHADER_RESOURCE,
+    };
+    desc.ArraySize = array_size;
+
+    tex: Texture;
+    tex.width = cast(u16)width;
+    tex.height = cast(u16)height;
+
+    textureData: D3D11_SUBRESOURCE_DATA;
+    textureData.pSysMem = null;
+
+    if S_OK != device.CreateTexture2D(xx device, *desc, *textureData, *tex.texture2D) {
+        flush_debug_messages();
+    }
+}
+
 create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
     assert_state();
     using renderer;
@@ -319,7 +342,7 @@ push_default_pass :: (clear_color: *Vector4 = null) #expand {
 
 check_result :: (hresult: HRESULT, loc := #caller_location) {
     if hresult != S_OK {
-        flush_debug_messages(renderer);
+        flush_debug_messages();
         assert(hresult == S_OK, tprint("HRESULT was %", formatInt(hresult, base=16)), loc=loc);
     }
 }
@@ -520,14 +543,14 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     {
         res := device.CreateTexture2D(device, *textureDesc, *textureData, *tex.texture2D);
         if res != S_OK {
-            flush_debug_messages(renderer);
+            flush_debug_messages();
             unload_and_return_error();
         }
     }
     {
         res := device.CreateShaderResourceView(device, xx tex.texture2D, null, *tex.view);
         if res != S_OK {
-            flush_debug_messages(renderer);
+            flush_debug_messages();
             unload_and_return_error();
         }
     }
@@ -543,7 +566,7 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     {
         res := device.CreateSamplerState(device, *sampler_desc, *tex.sampler_state);
         if res != S_OK || tex.sampler_state == null {
-            flush_debug_messages(renderer);
+            flush_debug_messages();
             unload_and_return_error();
         }
     }
@@ -641,7 +664,7 @@ _compile_shader_at_runtime :: (filename: string, target_profile: string, entrypo
     shader_blob, error_blob: *ID3DBlob;
     logprint("renderer", "compiling shader % in % (%)", entrypoint_name, filename, target_profile);
     if S_OK != D3DCompileFromFile(filename_w, null, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
-        flush_debug_messages(renderer);
+        flush_debug_messages();
         logprint("shader", "D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
         Release(error_blob);
         return false, null;
@@ -679,7 +702,7 @@ load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DB
     {
         res := device.CreateVertexShader(cast(*ID3D11Device)device, vs_blob.GetBufferPointer(vs_blob), vs_blob.GetBufferSize(vs_blob), null, *vert);
         if res != S_OK || vert == null {
-            flush_debug_messages(renderer);
+            flush_debug_messages();
             unload_and_return_shader_error("CreateVertexShader failed\n");
         }
     }
@@ -687,7 +710,7 @@ load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DB
     if 1 {
         res := CreateInputLayoutDescFromVertexShaderSignature(vs_blob, cast(*ID3D11Device)device, *input_layout, *input_layout_byte_length);
         if res != S_OK || input_layout == null {
-            flush_debug_messages(renderer);
+            flush_debug_messages();
             unload_and_return_shader_error("CreateInputLayoutDescFromVertexShaderSignature failed");
         }
     }
@@ -695,7 +718,7 @@ load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DB
     {
         res := device.CreatePixelShader(cast(*ID3D11Device)device, ps_blob.GetBufferPointer(ps_blob), ps_blob.GetBufferSize(ps_blob), null, *frag);
         if res != S_OK || frag == null {
-            flush_debug_messages(renderer);
+            flush_debug_messages();
             unload_and_return_shader_error("CreatePixelShader failed");
         }
     }
@@ -820,10 +843,12 @@ present :: () {
     assert_state();
     
     renderer.swap_chain.Present(cast(*IDXGISwapChain)renderer.swap_chain, 1, 0);
-    flush_debug_messages(renderer);
+    flush_debug_messages();
 }
 
-flush_debug_messages :: (using renderer: *Renderer) {
+flush_debug_messages :: () {
+    using renderer := assert_state();
+
     if !debug_info_queue
         return;
 
@@ -896,7 +921,7 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     pVertexShaderReflection: *ID3D11ShaderReflection;
 
     if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection) {
-        flush_debug_messages(renderer);
+        flush_debug_messages();
         return S_FALSE;
     }
 
