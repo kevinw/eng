@@ -1,7 +1,8 @@
 MAXIMUM_VIEWS :: 45; // must match shader value
 
 Multiview_State :: struct {
-    num_views: u16 = 45;
+    enabled := true;
+    num_views: u16 = 1;
     subview_w: int = 400;
 
     force_num_views: int;
@@ -49,7 +50,7 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
     {
         using offscreen;
         create_texture(*color, sz, array_size=num_views, type=.Render_Target_Color, label="multiview-offscreen-color");
-        create_texture(*depth, sz, format=.D24S8, type=.Render_Target_Depth, label="multiview-offscreen-depth");
+        create_texture(*depth, sz, array_size=num_views, format=.D24S8, type=.Render_Target_Depth, label="multiview-offscreen-depth");
         pass.color[0] = *color;
         pass.depth = *depth;
         pass.label = "multiview-offscreen";

@@ -925,6 +925,9 @@ editor_update :: (state: *State) {
             else
                 context.state.global_time_scale = 1;
         }
+        if rl.IsKeyPressed(.KEY_M) {
+            context.state.multiview.enabled = !context.state.multiview.enabled;
+        }
     }
 
     camera := get_main_camera_2D();

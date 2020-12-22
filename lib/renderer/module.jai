@@ -1,4 +1,3 @@
-
 // Common implementation
 
 Renderer_Base :: struct {
@@ -78,6 +77,9 @@ Pass :: struct { // TODO: rename to render target
     color: [4]*Texture;
     depth: *Texture;
     label: string;
+
+    frame_buffer_view: *ID3D11RenderTargetView;
+    depth_buffer_view: *ID3D11DepthStencilView;
 }
 
 Pipeline :: struct {
@@ -221,12 +223,18 @@ apply_bindings :: (shader: *Shader,
     sampler_states.allocator = __temporary_allocator;
 
     for textures {
+        assert(it.view != null, "texture had a null view");
         array_add(*shader_resource_views, it.view);
+
+        assert(it.sampler_state != null, "texture had a null sampler state");
         array_add(*sampler_states, it.sampler_state);
     }
 
     device_context.PSSetShaderResources(device_context, 0, cast(u32)shader_resource_views.count, shader_resource_views.data);
+    flush_debug_messages();
+
     device_context.PSSetSamplers(device_context, 0, cast(u32)sampler_states.count, sampler_states.data);
+    flush_debug_messages();
 
     //ID3D11DeviceContext_IASetVertexBuffers(_sg.d3d11.ctx, 0, SG_MAX_SHADERSTAGE_BUFFERS, d3d11_vbs, pip->d3d11_vb_strides, d3d11_vb_offsets);
     //ID3D11DeviceContext_IASetIndexBuffer(_sg.d3d11.ctx, d3d11_ib, pip->d3d11_index_format, ib_offset);
@@ -287,7 +295,9 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
 
     bind_flags: D3D11_BIND_FLAG;
     if type == {
-        case .Render_Target_Color; bind_flags |= .D3D11_BIND_RENDER_TARGET;
+        case .Render_Target_Color;
+            bind_flags |= .D3D11_BIND_RENDER_TARGET;
+            bind_flags |= .D3D11_BIND_SHADER_RESOURCE;
         case .Render_Target_Depth; bind_flags |= .D3D11_BIND_DEPTH_STENCIL;
         case .Normal;              bind_flags |= .D3D11_BIND_SHADER_RESOURCE;
     }
@@ -315,12 +325,41 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
 
     texture_data : *D3D11_SUBRESOURCE_DATA = null;
 
-    print("%", desc);
-
     assert(tex.texture2D == null, "TODO: figure out reinit semantics...");
     tex.size = size;
+    tex.debug_name = copy_string(label);
     if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
         flush_debug_messages();
+        return;
+    }
+
+    //print("CREATE TEXTURE % %x%\n", label, size.width, size.height);
+
+    if bind_flags & .D3D11_BIND_SHADER_RESOURCE != 0 {
+        //print("creating shader resource view for texture: %\n", label);
+        if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, null, *tex.view) {
+            flush_debug_messages();
+            return;
+        }
+
+        assert(!tex.sampler_state);
+
+        // Sampler
+        sampler_desc := D3D11_SAMPLER_DESC.{
+            //Filter         = .D3D11_FILTER_MIN_MAG_MIP_POINT,
+            Filter         = .D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+            AddressU       = .D3D11_TEXTURE_ADDRESS_WRAP,
+            AddressV       = .D3D11_TEXTURE_ADDRESS_WRAP,
+            AddressW       = .D3D11_TEXTURE_ADDRESS_WRAP,
+            ComparisonFunc = .D3D11_COMPARISON_NEVER,
+        };
+        {
+            res := renderer.device.CreateSamplerState(xx renderer.device, *sampler_desc, *tex.sampler_state);
+            if res != S_OK || tex.sampler_state == null {
+                flush_debug_messages();
+                return;
+            }
+        }
     }
 }
 
@@ -356,10 +395,23 @@ begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
         // the default pass--we render to the screen's render target and depth buffer
         framebuffers.data = *renderer.frame_buffer_view;
         framebuffers.count = 1;
-
         depth = renderer.depth_buffer_view;
     } else {
-        assert(false, "TODO: implement");
+        // TODO: do some kind of "init_pass" thing so we don't have to check these every time
+        if pass.frame_buffer_view == null {
+            assert(pass.color[0] != null);
+            check_result(renderer.device.CreateRenderTargetView(
+                cast(*ID3D11Device)renderer.device, cast(*ID3D11Resource)pass.color[0].texture2D, null, *pass.frame_buffer_view));
+        }
+        if pass.depth_buffer_view == null {
+            assert(pass.depth != null);
+            check_result(renderer.device.CreateDepthStencilView(
+                cast(*ID3D11Device)renderer.device, cast(*ID3D11Resource)pass.depth.texture2D, null, *pass.depth_buffer_view));
+        }
+        framebuffers.data = *pass.frame_buffer_view;
+        framebuffers.count = 1;
+
+        depth = pass.depth_buffer_view;
     }
 
     device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
@@ -380,11 +432,12 @@ begin_default_pass :: (clear_color: *Vector4 = null) {
 }
 
 end_pass :: () {
-    assert_state();
+    renderer := assert_state();
 
     assert(renderer.in_pass, "called end_pass without a corresponding begin_pass");
     renderer.in_pass = false;
     renderer.current_pass = null;
+    renderer.device_context1.ClearState(xx renderer.device_context1);
 }
 
 push_pass :: (pass: *Pass, clear_color: *Vector4 = null) #expand {
@@ -392,7 +445,7 @@ push_pass :: (pass: *Pass, clear_color: *Vector4 = null) #expand {
     `defer end_pass();
 }
 
-push_default_pass :: (clear_color: *Vector4 = null) #expand {
+push_default_pass :: (clear_color: *Vector4 = null, enabled := true) #expand {
     begin_default_pass(clear_color);
     `defer end_pass();
 }
@@ -513,11 +566,14 @@ apply_pipeline :: (pipeline: *Pipeline) {
 apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float = -1) {
     if width == -1 || height == -1 {
         if renderer.current_pass != null {
-            assert(false, "TODO: make sure to get size from render target?");
+            color := renderer.current_pass.color[0];
+            assert(color != null);
+            if width == -1  width = cast(float)color.width;
+            if height == -1 height = cast(float)color.height;
+        } else {
+            if width == -1 width = cast(float)renderer.depth_buffer_desc.Width;
+            if height == -1 height = cast(float)renderer.depth_buffer_desc.Height;
         }
-
-        if width == -1 width = cast(float)renderer.depth_buffer_desc.Width;
-        if height == -1 height = cast(float)renderer.depth_buffer_desc.Height;
     }
 
     assert(width > 0);
@@ -897,9 +953,8 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
 
 
 present :: () {
-    assert_state();
-    
-    renderer.swap_chain.Present(cast(*IDXGISwapChain)renderer.swap_chain, 1, 0);
+    using renderer := assert_state();
+    swap_chain.Present(cast(*IDXGISwapChain)swap_chain, 1, 0);
     flush_debug_messages();
 }
 
@@ -912,6 +967,8 @@ flush_debug_messages :: () {
     message_count := debug_info_queue.GetNumStoredMessages(debug_info_queue);
     if message_count == 0
         return;
+
+    did_have_message := false;
 
     for i: 0 .. message_count - 1 {
         auto_release_temp();
@@ -936,7 +993,12 @@ flush_debug_messages :: () {
         } else {
             print("%\n", str);
         }
+
+        did_have_message = true;
     }
+
+    if did_have_message
+        print_stack_trace(context.stack_trace);
 
     debug_info_queue.ClearStoredMessages(debug_info_queue);
 }
@@ -1057,7 +1119,7 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     return hr;
 }
 
-assert_state :: () -> *Renderer {
+assert_state :: inline () -> *Renderer {
     assert(renderer != null, "must call init(*renderer) first");
     return renderer;
 }

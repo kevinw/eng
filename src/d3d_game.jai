@@ -27,23 +27,46 @@ update_and_draw :: () {
 
     // draw
     {
-        push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-        im_set_texture(*im_context, null);
-        editor_draw(context.state);
+        im := *im_context;
 
-        im_ctx := *context.state.im_context;
+        if !multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+        defer if !multiview.enabled end_pass();
+
         {
+            // offscreen pass
+            if multiview.enabled begin_pass(*multiview.offscreen.pass);
+            defer if multiview.enabled end_pass();
+
             world_draw(*world);
             draw_all_drawables(*world);
-            im_flush(im_ctx);
-            physics_2d_draw_debug();
-            editor_draw_world(context.state);
-            screenlog_draw.draw_world();
+            im_flush(im);
         }
 
-        im_flush(*im_context);
+        {
+            // default pass
+            if multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            defer if multiview.enabled end_pass();
 
-        imgui_render(*ui);
+            im_set_texture(im, null);
+            editor_draw(context.state);
+
+            if multiview.enabled {
+                im_set_texture(im, multiview.offscreen.pass.color[0]);
+                assert(multiview.offscreen.pass.color[0] != null);
+                im_draw_rect(im, 0.0, 0.0, 800.0, 600.0);
+                im_set_texture(im, null);
+            }
+            
+            {
+                im_flush(im);
+                physics_2d_draw_debug();
+                editor_draw_world(context.state);
+                screenlog_draw.draw_world();
+            }
+
+            im_flush(im);
+            imgui_render(*ui);
+        }
 
     }
     present();
@@ -60,13 +83,13 @@ _update_raylib_temp :: (host_state: Host_State) {
 
 on_host_did_reload_game_dll :: (host_state: Host_State) {
     using context.state;
+    set_global_renderer_ptr(*renderer);
     set_context_funcs();
 
     context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
 
     Gamepad.init_gamepad();
 
-    set_global_renderer_ptr(*renderer);
     _update_raylib_temp(host_state);
     game_base_did_reload_dll();
 }
