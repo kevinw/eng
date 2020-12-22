@@ -12,6 +12,7 @@ Logger_State :: struct {
 
         use_world_pos := false;
         world_pos: Vector2;
+        mode: Log_Mode;
     }
 }
 
@@ -32,15 +33,22 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     assert(message.count < MAX_COUNT, tprint("expected a screenlog message with a reasonable count, got %", message.count));
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
+    
+    time_on_screen := TIME_ON_SCREEN;
+    if mode == .MINIMAL {
+        time_on_screen = 100;
+    }
 
-    if ident.count == 0 || ident[0] != #char "="
-        print("[%] %\n", ident, message);
+    if ident.count > 0
+        print_color("[%] ", ident, color=FOREGROUND_BLUE | FOREGROUND_GREEN);
+    if mode == .MINIMAL {
+        print_color("%\n", message, color=FOREGROUND_RED | FOREGROUND_INTENSITY);
+    } else {
+        print("%\n", message);
+    }
 
-    new_ident := sprint("%\0", ident);
-    new_ident.count -= 1;
-
-    new_message := sprint("%\0", message);
-    new_message.count -= 1;
+    new_ident := copy_string(ident);
+    new_message := copy_string(message);
 
     entry: *Logger_State.Entry;
     if new_ident.count > 1 && new_ident[0] == #char "=" {
@@ -56,7 +64,8 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     if entry == null
         entry = array_add(*entries);
 
-    entry.time = TIME_ON_SCREEN;
+    entry.mode = mode;
+    entry.time = time_on_screen;
     entry.ident = new_ident;
     entry.message = new_message;
 }
@@ -113,6 +122,7 @@ update :: (delta_time: float64) {
 
 #scope_file
 
+#import "Print_Color";
 #import "Math";
 #import "Basic";
 

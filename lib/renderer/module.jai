@@ -4,6 +4,23 @@
 Renderer_Base :: struct {
     current_pass: *Pass;
     in_pass: bool;
+
+    debug_message_callback: Debug_Message_Callback;
+}
+
+Debug_Message_Callback :: #type (msg: Debug_Message);
+
+Debug_Message :: struct {
+    text: string;
+    severity: Severity;
+
+    Severity :: enum u32 {
+        Corruption :: D3D11_MESSAGE_SEVERITY.CORRUPTION;
+        Error      :: D3D11_MESSAGE_SEVERITY.ERROR;
+        Warning    :: D3D11_MESSAGE_SEVERITY.WARNING;
+        Info       :: D3D11_MESSAGE_SEVERITY.INFO;
+        Message    :: D3D11_MESSAGE_SEVERITY.MESSAGE;
+    }
 }
 
 // D3D11 implementation
@@ -95,6 +112,16 @@ Buffer :: struct {
 
 
 ////////
+
+set_debug_callback :: (cb: Debug_Message_Callback) {
+    renderer := assert_state();
+    renderer.debug_message_callback = cb;
+}
+
+framebuffer_size :: () -> Vector2_u16 {
+    using renderer := assert_state();
+    return v2u16(xx depth_buffer_desc.Width, xx depth_buffer_desc.Height);
+}
 
 resize_swapchain :: (w: u32, h: u32) {
     using renderer := assert_state();
@@ -867,9 +894,18 @@ flush_debug_messages :: () {
 
         str: string;
         str.data = message.pDescription;
-        str.count = cast(s64)message.DescriptionByteLength;
+        // This byte length seems to include the null byte, so we'll make the
+        // string count one less.
+        str.count = cast(s64)message.DescriptionByteLength - 1; 
 
-        print("%\n", str);
+        if debug_message_callback != null {
+            debug_message: Debug_Message;
+            debug_message.severity = cast(Debug_Message.Severity)message.Severity;
+            debug_message.text     = str;
+            debug_message_callback(debug_message);
+        } else {
+            print("%\n", str);
+        }
     }
 
     debug_info_queue.ClearStoredMessages(debug_info_queue);

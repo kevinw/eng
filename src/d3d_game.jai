@@ -78,11 +78,11 @@ on_host_shutdown :: () {
 
 on_host_init :: (host_state: Host_State) {
     using context.state;
-    set_context_funcs();
 
     Gamepad.init_gamepad();
 
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
+    set_context_funcs();
     _update_raylib_temp(host_state);
     ui.d3dDevice = xx renderer.device;
     ui.d3dDeviceContext = xx renderer.device_context1;
@@ -95,6 +95,19 @@ on_host_init :: (host_state: Host_State) {
 set_context_funcs :: () {
     context.state.restart = restart;
     context.state.editor.callbacks.did_drag = editor_did_drag;
+
+    set_debug_callback(on_renderer_debug_message);
+}
+
+on_renderer_debug_message :: (debug_message: Debug_Message) {
+    log_mode: Log_Mode;
+    if debug_message.severity == {
+        case .Info;    log_mode = .EVERYDAY;
+        case .Message; log_mode = .EVERYDAY;
+        case;          log_mode = .MINIMAL;
+    }
+
+    logprint("renderer", log_mode, debug_message.text);
 }
 
 restart :: () {

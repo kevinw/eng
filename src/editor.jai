@@ -879,11 +879,27 @@ show_screen_log :: (open: *bool) {
         alpha_factor: float = 1.0;
         FADE_TIME :: 0.1;
         if it.time < FADE_TIME alpha_factor = max(cast(float)0.0, cast(float)it.time) / FADE_TIME;
-        color := GetColorU32(.Text, cast(float)(it.time / 0.5));
+
+        alpha := cast(float)(it.time / 0.5);
+        color: u32;
+        if it.mode == .MINIMAL
+            color = GetColorU32(make_ImVec4(1, 0, 0, alpha));
+        else
+            color = GetColorU32(.Text, alpha);
 
         ident := it.ident;
         if ident.count > 0 && ident[0] == #char "=" advance(*ident);
-        begin := tprint("[%] %", ident, it.message);
+
+        begin: string;
+        if ident.count > 0 {
+            begin = tprint("[%] %", ident, it.message);
+            draw_list.AddText(draw_list, pos, color, begin);
+            // TODO
+            // Make ImGui.CalcTextSize work and use it here to make the [ident]
+            // part of the message white.
+        } else {
+            begin = tprint("%", it.message);
+        }
 
         draw_list.AddText(draw_list, pos, color, begin);
         pos.y += GetTextLineHeightWithSpacing();
