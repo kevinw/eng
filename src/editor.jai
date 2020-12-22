@@ -1319,7 +1319,7 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
 load_scene :: (filename: string) {
     wbml_str, ok := File.read_entire_file(filename);
     if !ok {
-        logprint("error", "could not read '%' - load failed", filename);
+        logprint("error", .MINIMAL, "could not read '%' - load failed", filename);
         return;
     }
     reset_world(*context.state.world);
