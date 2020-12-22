@@ -90,6 +90,8 @@ on_host_init :: (host_state: Host_State) {
 
     im_context.renderer = *renderer;
     im_init_renderer(*im_context);
+
+    create_multiview_pass(framebuffer_size());
 }
 
 set_context_funcs :: () {

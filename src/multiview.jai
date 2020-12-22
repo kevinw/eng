@@ -1,12 +1,18 @@
 MAXIMUM_VIEWS :: 45; // must match shader value
 
 Multiview_State :: struct {
-    force_num_views: int;
-    num_views: int;
-    subview_w: int;
+    num_views: u16 = 45;
+    subview_w: int = 400;
 
-    pass: *Pass;
+    force_num_views: int;
+
+    offscreen: struct {
+        pass: Pass;
+        color: Texture;
+        depth: Texture;
+    }
 }
+
 
 toggle_multiview :: () {
     using ctx();
@@ -22,21 +28,31 @@ get_num_views :: () -> int {
     return min(MAXIMUM_VIEWS, max(1, cast(int)num_views));
 }
 
-calc_lkg_subquilt_size :: (fb_size: Vector2Int) -> Vector2Int {
+calc_lkg_subquilt_size :: (fb_size: Vector2_u16) -> Vector2_u16 {
     using ctx();
 
     if get_num_views() == 1
-        return v2int(fb_size.width, fb_size.height);
+        return v2u16(fb_size.width, fb_size.height);
 
     aspect := cast(float)fb_size.width / cast(float)fb_size.height;
-    width := max(10, cast(int)subview_w);
-    return v2int(width, cast(float)width / aspect);
+    width  := max(10, cast(int)subview_w);
+    return v2u16(xx width, cast(u16)(cast(float)width / aspect));
 }
 
-create_multiview_pass :: (fb_size: Vector2Int) {
+create_multiview_pass :: (fb_size: Vector2_u16) {
+    assert(fb_size.width > 0 && fb_size.height > 0);
     sz := calc_lkg_subquilt_size(fb_size);
     assert(sz.width > 0 && sz.height > 0);
+
+    using context.state.multiview;
+    // offscreen rendertarget
     {
+        using offscreen;
+        create_texture(*color, sz, array_size=num_views, type=.Render_Target_Color, label="multiview-offscreen-color");
+        create_texture(*depth, sz, format=.D24S8, type=.Render_Target_Depth, label="multiview-offscreen-depth");
+        pass.color[0] = *color;
+        pass.depth = *depth;
+        pass.label = "multiview-offscreen";
     }
 }
 

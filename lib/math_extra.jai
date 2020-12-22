@@ -1,14 +1,22 @@
-Vector2Int :: struct {
-    x: s32;
-    #place x; width: s32;
+Vector2Integer :: struct(T: Type) {
+    x: T;
+    #place x; width: T;
 
-    y: s32;
-    #place y; height: s32;
+    y: T;
+    #place y; height: T;
 }
 
-v2int :: (x: $X, y: $Y) -> Vector2Int {
-    v: Vector2Int = ---;
-    v.x = cast(s32)x;
-    v.y = cast(s32)y;
+Vector2_s32 :: Vector2Integer(s32);
+Vector2_u32 :: Vector2Integer(u32);
+Vector2_u16 :: Vector2Integer(u16);
+
+v2_constructor :: ($T: Type, x: T, y: T) -> Vector2Integer(T) {
+    v: Vector2Integer(T) = ---;
+    v.x = x;
+    v.y = y;
     return v;
 }
+
+v2int  :: #bake_arguments v2_constructor(T = s32);
+v2uint :: #bake_arguments v2_constructor(T = u32);
+v2u16  :: #bake_arguments v2_constructor(T = u16);

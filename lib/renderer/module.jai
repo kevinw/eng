@@ -64,6 +64,9 @@ Texture :: struct {
     width: u16;
     height: u16;
 
+    #place width;
+    size: Vector2_u16;
+
     texture2D:     *ID3D11Texture2D;
     view:          *ID3D11ShaderResourceView;
     sampler_state: *ID3D11SamplerState;
@@ -71,9 +74,9 @@ Texture :: struct {
     debug_name: string; @debug @owned
 }
 
-Pass :: struct {
-    color: [4]Texture;
-    depth: Texture;
+Pass :: struct { // TODO: rename to render target
+    color: [4]*Texture;
+    depth: *Texture;
     label: string;
 }
 
@@ -271,25 +274,52 @@ get_d3d_bind_flags :: (type: Buffer_Type) -> D3D11_BIND_FLAG {
     return 0;
 }
 
-create_texture :: (width: u32, height: u32, array_size:u32 = 1) {
+Create_Texture_Type :: enum {
+    Normal;
+    Render_Target_Color;
+    Render_Target_Depth;
+}
+
+create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1, 
+    type := Create_Texture_Type.Normal, format: Texture_Format = .BGRA8, label := "")
+{
     using renderer := assert_state();
+
+    bind_flags: D3D11_BIND_FLAG;
+    if type == {
+        case .Render_Target_Color; bind_flags |= .D3D11_BIND_RENDER_TARGET;
+        case .Render_Target_Depth; bind_flags |= .D3D11_BIND_DEPTH_STENCIL;
+        case .Normal;              bind_flags |= .D3D11_BIND_SHADER_RESOURCE;
+    }
 
     desc := D3D11_TEXTURE2D_DESC.{
         MipLevels          = 1,
         SampleDesc.Count   = 1,
-        Usage              = .D3D11_USAGE_IMMUTABLE,
-        BindFlags          = .D3D11_BIND_SHADER_RESOURCE,
+        Usage              = .D3D11_USAGE_DEFAULT,
     };
+    desc.Width     = size.width;
+    desc.Height    = size.height;
     desc.ArraySize = array_size;
 
-    tex: Texture;
-    tex.width = cast(u16)width;
-    tex.height = cast(u16)height;
+    if format == {
+        case .BGRA8;
+            desc.Format = .DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        case .D24S8;
+            bind_flags  |= .D3D11_BIND_DEPTH_STENCIL;
+            desc.Format =  .DXGI_FORMAT_D24_UNORM_S8_UINT;
+        case;
+            assert(false);
+    }
 
-    textureData: D3D11_SUBRESOURCE_DATA;
-    textureData.pSysMem = null;
+    desc.BindFlags = bind_flags;
 
-    if S_OK != device.CreateTexture2D(xx device, *desc, *textureData, *tex.texture2D) {
+    texture_data : *D3D11_SUBRESOURCE_DATA = null;
+
+    print("%", desc);
+
+    assert(tex.texture2D == null, "TODO: figure out reinit semantics...");
+    tex.size = size;
+    if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
         flush_debug_messages();
     }
 }
@@ -1081,3 +1111,4 @@ renderer: *Renderer;
 #import "Compiler";
 #import "String";
 #import "Build_Constants";
+#import "math_extra";
