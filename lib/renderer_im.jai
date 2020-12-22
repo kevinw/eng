@@ -154,7 +154,7 @@ im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0 := 
     im_draw_quad(ctx, p0, p01, p1, p10, t0, t01, t1, t10, c);
 }
 
-im_draw_rect :: inline (using ctx: *Im_Context, x0: float, y0: float, x1: float, y1: float, u0:=0.0, v0:=0.0, u1:=1.0, v1:=1.0, c: Vector4) {
+im_draw_rect :: inline (using ctx: *Im_Context, x0: float, y0: float, x1: float, y1: float, u0:=0.0, v0:=0.0, u1:=1.0, v1:=1.0, c:=Vector4.{1, 1, 1, 1}) {
 
     p0 := xy(x0, y0); p1 := xy(x1, y1);
     t0 := xy(u0, v0); t1 := xy(u1, v1);
