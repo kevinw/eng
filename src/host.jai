@@ -17,7 +17,7 @@ screenlog :: #import "screenlog";
 
 
 cmdline_args: struct {
-    topmost_window := false;
+    topmost_window := true;
     live_reload    := true;
     game_name      := DEFAULT_SRC_PLUGIN;
 };
@@ -33,6 +33,8 @@ transparent_while_not_focused := true;
 host_settings: struct {
     window_pos_x: s32;
     window_pos_y: s32;
+    window_width: s32;
+    window_height: s32;
 };
 
 //#add_context state: *void;
@@ -106,10 +108,8 @@ toggle_borderless_fullscreen :: () {
 //
 
 main :: () {
-    #if DEBUG_MODULE {
-        Debug.init();
-    }
-    
+    #if DEBUG_MODULE Debug.init();
+
     get_time();
 
     #if GUARD_ALLOCATOR {
@@ -167,8 +167,13 @@ main :: () {
     parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
+    win_width  := host_settings.window_width;
+    win_height := host_settings.window_height;
 
-    the_window = create_window(WINDOW_WIDTH, WINDOW_HEIGHT, "", window_x=win_x, window_y=win_y);
+    if win_width < 50 win_width = WINDOW_WIDTH;
+    if win_height < 50 win_height = WINDOW_HEIGHT;
+
+    the_window = create_window(win_width, win_height, "", window_x=win_x, window_y=win_y);
     host_state.window_handle                = the_window;
     host_state.input_button_states          = *input_button_states;
     host_state.toggle_borderless_fullscreen = toggle_borderless_fullscreen;
@@ -213,7 +218,9 @@ main :: () {
     frame_count := 0;
 
     window_did_move: bool;
+    window_did_resize: bool;
     window_move_record: Window_Move_Record;
+    window_resize_record: Window_Resize_Record;
 
     window_has_been_closed: bool;
     while true {
@@ -235,6 +242,11 @@ main :: () {
         for pending_moves if it.window == the_window {
             window_move_record = it;
             window_did_move = true;
+            remove it;
+        }
+        for pending_resizes if it.window == the_window {
+            window_resize_record = it;
+            window_did_resize = true;
             remove it;
         }
 
@@ -322,13 +334,17 @@ main :: () {
         plugin_tick(host_state);
     }
 
-    if window_did_move && !platform.is_window_borderless(the_window) {
+    if (window_did_move || window_did_resize) && !platform.is_window_borderless(the_window) {
+        if window_move_record.x == 0
+            window_move_record.x, window_move_record.y = platform.get_window_size(the_window);
+        if window_resize_record.width == 0
+            window_resize_record.width, window_resize_record.height = platform.get_window_size(the_window);
+
         builder: String_Builder;
         builder.allocator = __temporary_allocator;
-
-        append(*builder, "[1]\n\n");
-        print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\n",
-            window_move_record.x, window_move_record.y);
+        append(*builder, "[2]\n\n");
+        print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\nwindow_width %\nwindow_height %\n",
+            window_resize_record.width, window_resize_record.height);
 
         File.write_entire_file(host_config_name, builder_to_string(*builder));
     }
