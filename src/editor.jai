@@ -1038,14 +1038,12 @@ editor_update :: (state: *State) {
 
     if !io.WantCaptureKeyboard {
         for i: 0..7 {
-            name := tprint("%", (i + 1));
             key_code := cast(rl.KeyboardKey)(cast(s32)rl.KeyboardKey.KEY_ONE + i);
             if rl.IsKeyPressed(key_code) {
-                filename := tprint("prefabs/scenes/%.wbml", name);
+                filename := scene_filename_for_slot(i + 1);
                 if shift_down {
-                    save_scene(filename=name);
+                    save_scene(filename=filename);
                 } else {
-                    clear_selection();
                     load_scene(filename=filename);
                 }
             }
@@ -1080,9 +1078,14 @@ editor_update :: (state: *State) {
         Undo.redo(*undo_state);
 }
 
+scene_filename_for_slot :: (slot_index: int) -> string {
+    assert(slot_index >= 1 && slot_index <= 9);
+    filename := tprint("prefabs/scenes/%.wbml", slot_index);
+    return filename;
+}
+
 clear_selection :: () {
     using context.state.editor;
-
     if selected.count == 0 return;
 
     array_reset(*selected);
@@ -1145,6 +1148,10 @@ editor_toggle :: (using s: *State) {
     } else {
         logprint("editor", "error: unknown play_mode '%'", play_mode);
     }
+}
+
+load_scene :: (slot_index: int) {
+    load_scene(scene_filename_for_slot(slot_index));
 }
 
 #scope_file 
@@ -1325,6 +1332,8 @@ load_scene :: (filename: string) {
         logprint("error", .MINIMAL, "could not read '%' - load failed", filename);
         return;
     }
+
+    clear_selection();
     reset_world(*context.state.world);
     load_world(*context.state.world, wbml_str, filename);
     logprint("editor", "loaded scene '%'", filename);

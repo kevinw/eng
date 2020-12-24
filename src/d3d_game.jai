@@ -115,6 +115,8 @@ on_host_init :: (host_state: Host_State) {
     im_init_renderer(*im_context);
 
     create_multiview_pass(framebuffer_size());
+
+    load_scene(1);
 }
 
 set_context_funcs :: () {
