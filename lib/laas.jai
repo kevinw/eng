@@ -15,12 +15,14 @@ Lexer :: struct {
 Token :: struct {
     text: string;
     kind: Token_Kind;
+    line: int = -1;
 }
 
-make_Token :: inline (text: string, kind: Token_Kind) -> Token {
+make_Token :: inline (text: string, kind: Token_Kind, line := -1) -> Token {
     token: Token;
     token.text = text;
     token.kind = kind;
+    token.line = line;
     return token;
 }
 
@@ -45,12 +47,12 @@ get_next_token :: (using lexer: *Lexer, token: *Token, ignore_newline := false, 
 		token = *_token;
 
 	if lex_idx >= lexer_text.count {
-		<< token = Token.{"", .EOF};
+		<< token = Token.{"", .EOF, -1};
 		return false;
 	}
 	while _is_whitespace(lexer_text[lex_idx]) {
 		if !_inc(lexer) {
-			<< token = Token.{"", .EOF};
+			<< token = Token.{"", .EOF, -1};
 			return false;
 		}
 	}
@@ -75,11 +77,11 @@ get_next_token :: (using lexer: *Lexer, token: *Token, ignore_newline := false, 
         }
 
         token_text := String.slice(lexer_text, start, lex_idx-start);
-        << token = make_Token(token_text, .String);
+        << token = make_Token(token_text, .String, token_start_line);
     } else if is_symbol(r) {
-        << token = make_Token(String.slice(lexer_text, lex_idx, 1), .Symbol);
+        << token = make_Token(String.slice(lexer_text, lex_idx, 1), .Symbol, token_start_line);
     } else if r == #char "\n" {
-        << token = make_Token(String.slice(lexer_text, lex_idx, 0), .New_Line);
+        << token = make_Token(String.slice(lexer_text, lex_idx, 0), .New_Line, token_start_line);
     } else if starts_identifier(r) {
         start := lex_idx;
         while true {
@@ -93,7 +95,7 @@ get_next_token :: (using lexer: *Lexer, token: *Token, ignore_newline := false, 
         }
         token_text := String.slice(lexer_text, start, lex_idx-start);
         _dec(lexer);
-        << token = make_Token(token_text, .Identifier);
+        << token = make_Token(token_text, .Identifier, token_start_line);
     } else if (r >= #char "0" && r <= #char "9") || r == #char "." {
         start := lex_idx;
         found_a_dot := false;
@@ -131,7 +133,7 @@ get_next_token :: (using lexer: *Lexer, token: *Token, ignore_newline := false, 
         }
 
         _dec(lexer);
-        << token = make_Token(token_text, .Number);
+        << token = make_Token(token_text, .Number, token_start_line);
     } else {
         print("Unknown token: % at line % column % loc: %\n", lexer_text[lex_idx], token_start_line, token_start_char, loc);
         assert(false);

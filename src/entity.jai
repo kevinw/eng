@@ -573,6 +573,7 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
             entry.name = "id";
             entry.any.value_pointer = my_int;
             entry.any.type = type_info(int);
+            entry.serialize_even_if_default = true;
         }
     }
 
@@ -736,7 +737,7 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
                 }
 
                 id_number := wbml.get(value, "id", .Number);
-                assert(id_number != null, "expected value at % to have an 'id' number field");
+                assert(id_number != null, "expected value at line % to have an 'id' number field", value.line + 1);
 
                 entity_id := cast(s32)id_number._number.int_value;
                 assert(entity_id != 0, "wbml entity id was zero");

@@ -78,6 +78,9 @@ Node :: struct {
 		_union: Node_Union;
 		_quat: Node_Quat;
 	};
+
+    // maybe disable this in @Release builds?
+    line: int = -1;
 }
 
 Node_Number :: struct {
@@ -172,6 +175,7 @@ _get_from_object :: (node_object: *Node_Object, field_name: string, node_type: N
 Added_Field_Entry :: struct {
     name: string;
     any: Any;
+    serialize_even_if_default: bool;
 }
 
 On_Serialize_Func :: #type (any: *Any, added_fields: *[..]Added_Field_Entry);
@@ -419,8 +423,13 @@ serialize_with_type_info :: (
                 child_debug_name := dbgname;
                 #if BUILD_DEBUG_NAMES
                     child_debug_name = tprint("%.%", dbgname, it.name);
+
+                this_field_default := default;
+                if it.serialize_even_if_default
+                    this_field_default = null;
+
                 any_child_worked |= serialize_with_type_info(it.name, it.any.value_pointer, it.any.type, *sub_sb, indent_level,
-                    on_serialize, child_debug_name, default=default);
+                    on_serialize, child_debug_name, default=this_field_default);
             }
 
             for * ti_struct.members {
@@ -537,7 +546,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 
                     node := Node.{type = .Object};
                     node._object.fields = fields;
-					return new_clone(node);
+					return new_clone(node, line=root_token.line);
 
 				case "[";
 					elements: [..]*Node;
@@ -561,7 +570,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 
                     node := Node.{type = .Array};
                     node._array.elements = elements;
-					return new_clone(node);
+					return new_clone(node, line=root_token.line);
 
 				case ".";
 					type_token: laas.Token;
@@ -574,7 +583,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
                     node := Node.{type = .Union};
                     node._union.variant_name = type_token.text;
                     node._union.value = value;
-					return new_clone(node);
+					return new_clone(node, line=root_token.line);
 
 				case;
 					panic(tprint("Unhandled case: '%'", root_token.text));
@@ -585,7 +594,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 			str, length := unescape_string(root_token.text);
             node := Node.{type = .String};
             node._string = str;
-			return new_clone(node);
+			return new_clone(node, line=root_token.line);
 
 		case .Identifier;
 			if root_token.text == {
@@ -594,15 +603,15 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
                 case "TRUE";
                     node := Node.{type = .Bool};
                     node._bool.value = true;
-                    return new_clone(node);
+                    return new_clone(node, line=root_token.line);
 				case "false"; #through;
                 case "False"; #through;
                 case "FALSE";
                     node := Node.{type = .Bool};
                     node._bool.value = false;
-                    return new_clone(node);
+                    return new_clone(node, line=root_token.line);
 				case "nil";
-                    return new_clone(Node.{type = .Nil});
+                    return new_clone(Node.{type = .Nil}, line=root_token.line);
 				case "quat"; // :HashDirectives
 					w := parse_value(lexer); assert(w.type == .Number);
 					x := parse_value(lexer); assert(x.type == .Number);
@@ -613,11 +622,11 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
                     node._quat.x = x;
                     node._quat.y = y;
                     node._quat.z = z;
-					return new_clone(node);
+					return new_clone(node, line=root_token.line);
 				case;
                     node := Node.{type = .Enum_Value};
                     node._enum = root_token.text;
-                    return new_clone(node);
+                    return new_clone(node, line=root_token.line);
 			}
 
 		case .Number;
@@ -631,7 +640,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
             node._number.uint_value = cast(u64)(cast(s64)u64_value * sign);
             node._number.float_value = float64_value * cast(float64)sign;
             node._number.value_str = sprint((ifx is_negative_number then "-%" else "%"), root_token.text);
-			return new_clone(node);
+			return new_clone(node, line=root_token.line);
 		case;
 			panic(tprint("%", root_token));
 	}
@@ -959,11 +968,12 @@ print_indents :: inline (indent_level: int, sb: *String_Builder) {
         append(sb, "\t");
 }
 
-new_clone :: inline (data: $T) -> *T {
+new_clone :: inline (data: $T, line:int = -1) -> *T {
 	ptr := cast(*T)alloc(size_of(T));
 	if ptr != null {
         (<< ptr) = data;
     }
+    ptr.line = line;
 	return ptr;
 }
 
