@@ -105,6 +105,7 @@ Editor :: struct {
                 shader: *LiveShader;
             };
         };
+        gamepad_viz := false;
     };
 }
 
@@ -635,7 +636,19 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.entities show_entities_window(*windows.entities);
     if windows.inspector draw_inspector(*windows.inspector);
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
+    if windows.gamepad_viz show_gamepad_window(*windows.gamepad_viz);
+}
 
+show_gamepad_window :: (open: *bool) {
+    using context.state;
+    using ImGui;
+
+    defer End();
+    if !Begin("Gamepad", open) return;
+
+    Gamepad :: #import "Gamepad";
+
+    inspect("", *Gamepad.gamepad);
 }
 
 show_assets_window :: (open: *bool) {

@@ -52,7 +52,6 @@ update_and_draw :: () {
 
             if multiview.enabled {
                 im_set_texture(im, multiview.offscreen.pass.color[0]);
-                assert(multiview.offscreen.pass.color[0] != null);
                 im_draw_rect(im, 0.0, 0.0, 800.0, 600.0);
                 im_set_texture(im, null);
             }
@@ -88,7 +87,7 @@ on_host_did_reload_game_dll :: (host_state: Host_State) {
 
     context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
 
-    Gamepad.init_gamepad();
+    setup_gamepad(host_state);
 
     _update_raylib_temp(host_state);
     game_base_did_reload_dll();
@@ -99,10 +98,23 @@ on_host_shutdown :: () {
     game_base_shutdown();
 }
 
+setup_gamepad :: (host_state: Host_State) {
+    Gamepad.init_gamepad();
+
+    // this bit of trickery is to support live reloading with the host/game dll
+    // split.  the gamepad module does a thing where it points one of its own
+    // arrays into the .data of the input_button_states in the Input module.
+    //
+    // but Input.input_button_states is only valid for us in the host's memory,
+    // so we attempt to only accesss it through host_state.input_button_states.
+    assert(host_state.input_button_states != null);
+    Gamepad.gamepad.buttons.data = *(<<host_state.input_button_states)[Key_Code.GAMEPAD_0_BEGIN];
+}
+
 on_host_init :: (host_state: Host_State) {
     using context.state;
 
-    Gamepad.init_gamepad();
+    setup_gamepad(host_state);
 
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
     set_context_funcs();
@@ -200,6 +212,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 #import "Hash";
 #import "multiview";
 #import "Math";
+Input   :: #import "Input";
 Gamepad :: #import "Gamepad";
 rl :: #import "raylib";
 screenlog_draw :: #import "screenlog_draw";
