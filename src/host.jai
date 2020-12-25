@@ -247,7 +247,6 @@ main :: () {
         for pending_resizes if it.window == the_window {
             window_resize_record = it;
             window_did_resize = true;
-            remove it;
         }
 
         frame_count += 1;
@@ -335,8 +334,9 @@ main :: () {
     }
 
     if (window_did_move || window_did_resize) && !platform.is_window_borderless(the_window) {
-        if window_move_record.x == 0
-            window_move_record.x, window_move_record.y = platform.get_window_size(the_window);
+        if window_move_record.x == 0 {
+            window_move_record.x, window_move_record.y = platform.get_window_position(the_window);
+        }
         if window_resize_record.width == 0
             window_resize_record.width, window_resize_record.height = platform.get_window_size(the_window);
 
@@ -344,9 +344,11 @@ main :: () {
         builder.allocator = __temporary_allocator;
         append(*builder, "[2]\n\n");
         print_to_builder(*builder, "window_pos_x %\nwindow_pos_y %\nwindow_width %\nwindow_height %\n",
+            window_move_record.x, window_move_record.y,
             window_resize_record.width, window_resize_record.height);
 
-        File.write_entire_file(host_config_name, builder_to_string(*builder));
+        s := builder_to_string(*builder, __temporary_allocator);
+        File.write_entire_file(host_config_name, s);
     }
 
     logprint("host", "exit OK.");
