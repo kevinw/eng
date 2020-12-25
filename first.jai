@@ -288,7 +288,7 @@ generate_systems :: (metaprogram: *Metaprogram) {
                 p("        inline %(%);", it.name, String.join(..arg_names, separator=", "));
                 p("    }");
                 p("}");
-                add_build_string(builder_to_string(*sb), metaprogram.workspace);
+                add_build_string(builder_to_string(*sb, __temporary_allocator), metaprogram.workspace);
             }
 
             entry := array_add(*by_stage);
@@ -426,7 +426,7 @@ generate_systems :: (metaprogram: *Metaprogram) {
     }
     p(*sb, "}\n");
 
-    add_build_string(builder_to_string(*sb), metaprogram.workspace);
+    add_build_string(builder_to_string(*sb, __temporary_allocator), metaprogram.workspace);
 
     //print("created ECS code for workspace %\n", metaprogram.workspace);
 }

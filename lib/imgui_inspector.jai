@@ -293,9 +293,8 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
             sb: String_Builder;
             sb.allocator = __temporary_allocator;
-            defer free_buffers(*sb);
             print_type_to_builder(*sb, type_ti);
-            s := builder_to_string(*sb);
+            s := builder_to_string(*sb, __temporary_allocator);
 
             TextUnformatted(tprint("%: Type %", to_string(name), s));
         case .OVERLOAD_SET;

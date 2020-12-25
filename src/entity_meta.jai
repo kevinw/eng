@@ -56,7 +56,7 @@
     p(*sb, "}\n");
 
 
-    return builder_to_string(*sb);
+    return builder_to_string(*sb, __temporary_allocator);
 }());
 
 
@@ -90,7 +90,7 @@ foreach_component_type :: (inner_code_string: string) -> string {
 
         print_to_builder(*sb, "%\n", replaced);
     }
-    return builder_to_string(*sb);
+    return builder_to_string(*sb, __temporary_allocator);
 }
 
 runtime_bit_bucket_chooser :: (inner_code_string: string) -> string {

@@ -131,7 +131,6 @@ update :: (using col: *BoxCollider, transform: *Transform) {
         if cp.BodyGetPosition(body) != pos {
             cp.BodySetPosition(body, pos);
             cp.SpaceReindexShapesForBody(space, body);
-            logprint("=fda", "setting pos %", pos);
         }
     }
 }

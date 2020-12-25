@@ -12,7 +12,7 @@ is_name_a_System_Stage :: inline (name: string) -> bool    {
         print_to_builder(*sb, "0;\n");
             
 
-        return builder_to_string(*sb);
+        return builder_to_string(*sb, __temporary_allocator);
     }());
 }
 
