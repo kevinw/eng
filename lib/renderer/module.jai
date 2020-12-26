@@ -24,19 +24,6 @@ Debug_Message :: struct {
 
 // D3D11 implementation
 
-Shader :: struct {
-
-    // d3d11
-    vert: *ID3D11VertexShader;
-    frag: *ID3D11PixelShader;
-
-    vs_blob: *ID3DBlob;
-    ps_blob: *ID3DBlob;
-
-    input_layout: *ID3D11InputLayout;
-    input_layout_byte_length: u32;
-}
-
 Renderer :: struct {
     using base: Renderer_Base;
     current_index_buffer: *Buffer;
@@ -59,6 +46,19 @@ Renderer :: struct {
     white_texture: Texture;
 }
 
+Shader :: struct {
+    // d3d11
+    vert: *ID3D11VertexShader;
+    frag: *ID3D11PixelShader;
+
+    vs_blob: *ID3DBlob;
+    ps_blob: *ID3DBlob;
+
+    input_layout: *ID3D11InputLayout;
+    input_layout_byte_length: u32;
+}
+
+
 Texture :: struct {
     width: u16;
     height: u16;
@@ -68,6 +68,7 @@ Texture :: struct {
 
     texture2D:     *ID3D11Texture2D;
     view:          *ID3D11ShaderResourceView;
+    single_view:   *ID3D11ShaderResourceView;
     sampler_state: *ID3D11SamplerState;
 
     debug_name: string; @debug @owned
@@ -223,8 +224,12 @@ apply_bindings :: (shader: *Shader,
     sampler_states.allocator = __temporary_allocator;
 
     for textures {
-        assert(it.view != null, "texture had a null view");
-        array_add(*shader_resource_views, it.view);
+        if it.single_view != null {
+            array_add(*shader_resource_views, it.single_view);
+        } else {
+            assert(it.view != null, "texture had a null view");
+            array_add(*shader_resource_views, it.view);
+        }
 
         assert(it.sampler_state != null, "texture had a null sampler state");
         array_add(*sampler_states, it.sampler_state);
@@ -340,6 +345,18 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
         if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, null, *tex.view) {
             flush_debug_messages();
             return;
+        }
+
+        if array_size > 1 {
+            single_desc := D3D11_SHADER_RESOURCE_VIEW_DESC.{
+                ViewDimension = .D3D11_SRV_DIMENSION_TEXTURE2D,
+                Texture2D = .{
+                    MostDetailedMip = 0,
+                    MipLevels = cast,trunc(u32)-1
+                }
+            };
+            single_desc.Format = desc.Format;
+            renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, *single_desc, *tex.single_view);
         }
 
         assert(!tex.sampler_state);
@@ -862,10 +879,23 @@ _get_swapchain_framebuffer :: (using renderer: *Renderer) {
     assert(depth_buffer_view != null);
 }
 
-init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
-    renderer = renderer_ptr;
+init_from_main_window :: (main_renderer: *Renderer, new_renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
+    assert(main_renderer != null);
+    assert(new_renderer_ptr != null);
 
-    feature_levels := D3D_FEATURE_LEVEL.[ .D3D_FEATURE_LEVEL_11_1 ];
+    new_renderer_ptr.device = main_renderer.device;
+    new_renderer_ptr.device_context1 = main_renderer.device_context1;
+
+    // we'll make a new swap chain
+    init(new_renderer_ptr, hwnd, debug);
+}
+
+set_context :: (renderer_ptr: *Renderer) {
+    renderer = renderer_ptr;
+}
+
+init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
+    set_context(renderer_ptr);
 
     base_device: *ID3D11Device;
     base_device_context: *ID3D11DeviceContext;
@@ -875,6 +905,7 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     if debug
         create_device_flags |= .D3D11_CREATE_DEVICE_DEBUG;
 
+    feature_levels := D3D_FEATURE_LEVEL.[ .D3D_FEATURE_LEVEL_11_1 ];
     check_result(D3D11CreateDevice(null, .D3D_DRIVER_TYPE_HARDWARE, null, create_device_flags, feature_levels.data,
             feature_levels.count, D3D11_SDK_VERSION, *base_device, null, *base_device_context));
 
@@ -886,24 +917,26 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
         debug_info_queue.PushEmptyRetrievalFilter(xx debug_info_queue);
     }
 
-    device: *ID3D11Device1;
-    check_result(base_device.QueryInterface(xx base_device, *uid(ID3D11Device1.uuid), cast(**void)*device));
-    renderer.device = device;
-
-    device_context1: *ID3D11DeviceContext1;
-    check_result(base_device_context.QueryInterface(xx base_device_context, *uid(ID3D11DeviceContext1.uuid), cast(**void)*device_context1));
-    device_context := cast(*ID3D11DeviceContext)device_context1;
+    if renderer.device == null {
+        check_result(base_device.QueryInterface(xx base_device, *uid(ID3D11Device1.uuid), cast(**void)*renderer.device));
+    }
+    if renderer.device_context1 == null {
+        check_result(base_device_context.QueryInterface(xx base_device_context, *uid(ID3D11DeviceContext1.uuid), cast(**void)*renderer.device_context1));
+    }
 
     dxgi_device: *IDXGIDevice1;
-    check_result(device.QueryInterface(xx device, *uid(IDXGIDevice1.uuid), cast(**void)*dxgi_device));
+    check_result(renderer.device.QueryInterface(xx renderer.device, *uid(IDXGIDevice1.uuid), cast(**void)*dxgi_device));
+    defer Release(dxgi_device);
 
     dxgi_adapter: *IDXGIAdapter;
     dxgi_device.GetAdapter(cast(*IDXGIDevice)dxgi_device, *dxgi_adapter);
     assert(dxgi_adapter != null);
+    defer Release(dxgi_adapter);
 
     dxgi_factory: *IDXGIFactory2;
     dxgi_adapter.GetParent(cast(*IDXGIObject)dxgi_adapter, *uid(IDXGIFactory2.uuid), cast(**void)*dxgi_factory);
     assert(dxgi_factory != null, "no IDXGIFactory2 returned");
+    defer Release(dxgi_factory);
 
     swap_chain_desc := DXGI_SWAP_CHAIN_DESC1.{
         Width  = 0, // use window width
@@ -923,7 +956,7 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     };
 
     swap_chain: *IDXGISwapChain1;
-    check_result(dxgi_factory.CreateSwapChainForHwnd(dxgi_factory, cast(*IUnknown)device, hwnd, *swap_chain_desc, null, null, *swap_chain));
+    check_result(dxgi_factory.CreateSwapChainForHwnd(dxgi_factory, cast(*IUnknown)renderer.device, hwnd, *swap_chain_desc, null, null, *swap_chain));
     assert(swap_chain != null, "CreateSwapChainForHwnd did not create a swap chain!");
     renderer.swap_chain = swap_chain;
 
@@ -931,7 +964,6 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
 
 
     // TODO: move all this up into the function
-    renderer.device_context1 = device_context1;
     renderer.debug_info_queue = debug_info_queue;
 
     // generate utility textures

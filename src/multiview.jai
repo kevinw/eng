@@ -1,8 +1,8 @@
 MAXIMUM_VIEWS :: 45; // must match shader value
 
 Multiview_State :: struct {
-    enabled := true;
-    num_views: u16 = 1;
+    enabled := false;
+    num_views: u16 = 9;
     subview_w: int = 400;
 
     force_num_views: int;
@@ -13,7 +13,6 @@ Multiview_State :: struct {
         depth: Texture;
     }
 }
-
 
 toggle_multiview :: () {
     using ctx();

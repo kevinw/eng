@@ -174,6 +174,7 @@ main :: () {
     if win_height < 50 win_height = WINDOW_HEIGHT;
 
     the_window = create_window(win_width, win_height, "", window_x=win_x, window_y=win_y);
+
     host_state.window_handle                = the_window;
     host_state.input_button_states          = *input_button_states;
     host_state.toggle_borderless_fullscreen = toggle_borderless_fullscreen;
@@ -228,6 +229,7 @@ main :: () {
         update_window_events();
         for events_this_frame if it.type == {
             case .QUIT;
+                DestroyWindow(the_window); // for multiview stuff
                 window_has_been_closed = true;
             case .KEYBOARD;
                 if it.key_pressed && it.key_code == cast(Key_Code)#char "Q" && it.alt_pressed && it.ctrl_pressed

@@ -6,12 +6,15 @@ State :: struct {
     renderer: Renderer;
     im_context: Im_Context_R;
     multiview: Multiview_State;
+    mview_window: multiview_window.State;
 }
 
 first_draw: bool;
 
 update_and_draw :: () {
     using context.state;
+
+    set_context(*renderer);
 
     host_state := _local_host_state;
 
@@ -26,8 +29,8 @@ update_and_draw :: () {
     }
 
     // draw
+    im := *im_context;
     {
-        im := *im_context;
 
         if !multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         defer if !multiview.enabled end_pass();
@@ -49,12 +52,6 @@ update_and_draw :: () {
 
             im_set_texture(im, null);
             editor_draw(context.state);
-
-            if multiview.enabled {
-                im_set_texture(im, multiview.offscreen.pass.color[0]);
-                im_draw_rect(im, 0.0, 0.0, 800.0, 600.0);
-                im_set_texture(im, null);
-            }
             
             {
                 im_flush(im);
@@ -69,6 +66,22 @@ update_and_draw :: () {
 
     }
     present();
+
+    // draw second window
+    {
+        set_context(*context.state.mview_window.mview_renderer);
+        defer set_context(*context.state.renderer);
+
+        if multiview.enabled {
+            //push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            //world_draw(*world);
+            //draw_all_drawables(*world);
+            im_set_texture(im, multiview.offscreen.pass.color[0]);
+            im_draw_rect(im, 0, 0, 400, 400);
+            im_set_texture(im, null);
+        }
+        present();
+    }
 }
 
 _update_raylib_temp :: (host_state: Host_State) {
@@ -96,6 +109,7 @@ on_host_did_reload_game_dll :: (host_state: Host_State) {
 on_host_shutdown :: () {
     using context.state;
     game_base_shutdown();
+    multiview_window.close();
 }
 
 setup_gamepad :: (host_state: Host_State) {
@@ -129,6 +143,8 @@ on_host_init :: (host_state: Host_State) {
     create_multiview_pass(framebuffer_size());
 
     load_scene(1);
+
+    multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG);
 }
 
 set_context_funcs :: () {
@@ -216,3 +232,4 @@ Input   :: #import "Input";
 Gamepad :: #import "Gamepad";
 rl :: #import "raylib";
 screenlog_draw :: #import "screenlog_draw";
+multiview_window :: #import "multiview_window";
