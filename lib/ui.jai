@@ -168,11 +168,11 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
 #scope_file
 
 decompress_from_data_segment :: inline ($filename: string) -> string {
-    compressed :: #run compress(File.read_entire_file(filename));
+    compressed :: #run compress(File.read_entire_file(filename), filename);
     return decompress(compressed);
 }
 
-compress :: (bytes: string) -> string {
+compress :: (bytes: string, debug_name := "") -> string {
     assert(bytes.count > 0 && bytes.data != null);
 
     compressed_bytes_len := lz4.LZ4_compressBound(cast(s32)bytes.count);
@@ -188,7 +188,7 @@ compress :: (bytes: string) -> string {
     s: string;
     s.data = compressed_bytes_buf;
     s.count = res + size_of(s32);
-    print("Compressed into % bytes.\n", res);
+    print("[dataseg] compressed % into % bytes: '%'\n", bytes.count, res, debug_name);
     return s;
 }
 
