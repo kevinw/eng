@@ -5,6 +5,8 @@ State :: struct {
     using state_base: State_Base;
     renderer: Renderer;
     im_context: Im_Context_R;
+
+    showing_multiview_window: bool;
     multiview: Multiview_State;
     mview_window: multiview_window.State;
 }
@@ -67,13 +69,13 @@ update_and_draw :: () {
     }
     present();
 
-    // draw second window
-    {
+    if context.state.mview_window.window != null {
         set_context(*context.state.mview_window.mview_renderer);
         defer set_context(*context.state.renderer);
 
         if multiview.enabled {
-            //push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+
             //world_draw(*world);
             //draw_all_drawables(*world);
             im_set_texture(im, multiview.offscreen.pass.color[0]);
@@ -129,8 +131,8 @@ on_host_init :: (host_state: Host_State) {
     using context.state;
 
     setup_gamepad(host_state);
-
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
+
     set_context_funcs();
     _update_raylib_temp(host_state);
     ui.d3dDevice = xx renderer.device;
@@ -144,7 +146,11 @@ on_host_init :: (host_state: Host_State) {
 
     load_scene(1);
 
-    multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG);
+    if host_state.looking_glass_devices.count > 0 {
+        device := *host_state.looking_glass_devices[0];
+        multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
+            device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
+    }
 }
 
 set_context_funcs :: () {

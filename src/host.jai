@@ -1,20 +1,24 @@
 #import "Basic";
 #import "Windows";
 #import "Hotloader";
-#import "String";
 #import "config";
 #import "Process";
 #import "System";
 #import "util";
+#import "Math";
+#import "Input";
 
-File :: #import "File";
-String :: #import "String";
-Debug :: #import "Debug";
-Plugin :: #import "plugin";
-platform :: #import "platform";
-screenlog :: #import "screenlog";
+File            :: #import "File";
+String          :: #import "String";
+Debug           :: #import "Debug";
+Plugin          :: #import "plugin";
+Window_Creation :: #import "Window_Creation";
+platform        :: #import "platform";
+screenlog       :: #import "screenlog";
 #import "soloud";
 
+#load "host_common.jai";
+#load "host_lookingglass.jai";
 
 cmdline_args: struct {
     topmost_window := true;
@@ -25,7 +29,6 @@ cmdline_args: struct {
 WINDOW_WIDTH  :: 1280;
 WINDOW_HEIGHT :: 720;
 
-#load "host_common.jai";
 
 the_window: Window_Type;
 host_state: Host_State;
@@ -37,8 +40,6 @@ host_settings: struct {
     window_height: s32;
 };
 
-//#add_context state: *void;
-
 #if BUILDING_DLLS {
     #load "metaprogram_common.jai";
     #load "host_live_reload.jai";
@@ -48,14 +49,6 @@ panic :: (msg: string) {
     write_string(msg);
     debug_break();
 }
-
-///
-//
-//
-
-#import "Math";
-#import "Window_Creation";
-#import "Input";
 
 is_key_pressed :: (key: Key_Code) -> bool {
     return input_button_states[cast(int)key] & .START != 0;
@@ -100,17 +93,37 @@ toggle_borderless_fullscreen :: () {
             SetWindowPos(handle, HWND_TOP, 0, 0, w, h, SWP_FRAMECHANGED);
         }
     }
-
-
 }
 
+parse_commandline_arguments :: () {
+    args := get_command_line_arguments();
+    defer array_free(args);
 
-//
+    did_set_plugin_dll := false;
+    for args if it == {
+        case "--no-topmost";
+            print("skipping topmost window\n");
+            cmdline_args.topmost_window = false;
+        case "--no-live-reload";
+            print("no live reload\n");
+            cmdline_args.live_reload = false;
+        case;
+            if it_index > 0 {
+                if did_set_plugin_dll {
+                    print("error: more than one dll argument specified.\n");
+                    exit(1);
+                }
+
+                cmdline_args.game_name = copy_string(it);
+                did_set_plugin_dll = true;
+            }
+    }
+}
 
 main :: () {
-    #if DEBUG_MODULE Debug.init();
+    get_time(); // start the clock!
 
-    get_time();
+    #if DEBUG_MODULE Debug.init();
 
     #if GUARD_ALLOCATOR {
         GWP :: #import "gwpasan";
@@ -119,45 +132,13 @@ main :: () {
         context.allocator = GWP.allocator;
     }
 
-    found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
+    found, exe_path, exe_name := String.split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
         print("Error: unable to find my own exe\n");
         exit(1);
     }
 
-    {
-        args := get_command_line_arguments();
-        defer array_free(args);
-
-        did_set_plugin_dll := false;
-        for args if it == {
-            case "--no-topmost";
-                print("skipping topmost window\n");
-                cmdline_args.topmost_window = false;
-            case "--no-live-reload";
-                print("no live reload\n");
-                cmdline_args.live_reload = false;
-            case;
-                if it_index > 0 {
-                    if did_set_plugin_dll {
-                        print("error: more than one dll argument specified.\n");
-                        exit(1);
-                    }
-
-                    cmdline_args.game_name = copy_string(it);
-                    did_set_plugin_dll = true;
-                }
-        }
-    }
-
-    #if BUILDING_DLLS {
-        game_index := 0;
-        {
-            found_game_name, idx := array_find(all_games, cmdline_args.game_name);
-            if found_game_name
-                game_index = idx;
-        }
-    }
+    parse_commandline_arguments();
 
     context.logger_data = New(screenlog.Logger_State);
     context.logger = screenlog.context_func;
@@ -173,8 +154,11 @@ main :: () {
     if win_width < 50 win_width = WINDOW_WIDTH;
     if win_height < 50 win_height = WINDOW_HEIGHT;
 
-    the_window = create_window(win_width, win_height, "", window_x=win_x, window_y=win_y);
+    looking_glass_found, looking_glass_devices := LKG_discover_device(app_name="eng");
 
+    the_window = Window_Creation.create_window(win_width, win_height, "", window_x=win_x, window_y=win_y);
+
+    host_state.looking_glass_devices        = looking_glass_devices;
     host_state.window_handle                = the_window;
     host_state.input_button_states          = *input_button_states;
     host_state.toggle_borderless_fullscreen = toggle_borderless_fullscreen;
@@ -282,18 +266,6 @@ main :: () {
             if recompile_requested
                 do_recompile();
 
-            game_delta := 0;
-            if is_key_pressed(cast(Key_Code)#char "[") game_delta -= 1;
-            if is_key_pressed(cast(Key_Code)#char "]") game_delta += 1;
-            if game_delta != 0 {
-                game_index += game_delta;
-                if game_index < 0 game_index = all_games.count - 1;
-                if game_index >= all_games.count game_index = 0;
-                reload_new_dll_filename = all_games[game_index];
-                logprint("game switch", "loading new game from '%'", reload_new_dll_filename);
-                needs_complete_reload = true;
-            }
-
             if _recompile_thread == null && (frame_count % 2 == 0) && (
                 Plugin.should_reload(*module) || reload_new_dll_filename.count > 0
             ) {
@@ -336,9 +308,8 @@ main :: () {
     }
 
     if (window_did_move || window_did_resize) && !platform.is_window_borderless(the_window) {
-        if window_move_record.x == 0 {
+        if window_move_record.x == 0
             window_move_record.x, window_move_record.y = platform.get_window_position(the_window);
-        }
         if window_resize_record.width == 0
             window_resize_record.width, window_resize_record.height = platform.get_window_size(the_window);
 

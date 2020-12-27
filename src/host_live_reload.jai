@@ -4,13 +4,6 @@ _recompile_thread: *Thread;
 needs_complete_reload := false;
 reload_new_dll_filename: string;
 
-all_games := string.[
-    "game.dll",
-    "pong.dll",
-    "transform_test.dll",
-];
-
-
 //
 // plugin functions
 //
@@ -37,7 +30,7 @@ _do_recompile :: (t: *Thread) -> s64 {
     arguments: [..]string;
     array_add(*arguments, "jai", "-x64", "first.jai", "--", "reload", cmdline_args.game_name);
 
-    cmd_string := concatenate(..arguments, " ");
+    cmd_string := String.concatenate(..arguments, " ");
     defer free(cmd_string);
     print("Running jai compiler: %\n", cmd_string);
 
@@ -61,16 +54,16 @@ _do_recompile :: (t: *Thread) -> s64 {
 on_asset_change :: (using asset_change: *Asset_Change) {
     //print("%\n", <<asset_change);
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
-    if extension == "jai" && short_name != "host" && 
+    if extension == "jai" && !String.begins_with(short_name, "host") && 
         !String.begins_with(full_name, "./.") && 
         !String.begins_with(full_name, "./generated/")
     {
 
         logprint("host", "recompiling for %", full_name);
         do_recompile();
-    } else if extension == "dll" && begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
+    } else if extension == "dll" && String.begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
         reload_new_dll_filename = full_name;
-        if begins_with(reload_new_dll_filename, "./")
+        if String.begins_with(reload_new_dll_filename, "./")
             advance(*reload_new_dll_filename, 2);
         reload_new_dll_filename = copy_string(reload_new_dll_filename);
     } else {

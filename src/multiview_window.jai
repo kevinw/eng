@@ -1,7 +1,12 @@
-create :: (main_renderer: *Renderer, debug := true) {
+//
+// TODO: not sure this file should exist
+//
+
+create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, height: s32, parent: Window_Type = null) {
     using ctx();
     assert(window == null, "Window was already created.");
-    window = create_window(400, 400, "lkg window", 20, 20);
+    window = create_window(width, height, "lkg window", x, y, parent=parent);
+    platform.set_window_borderless(window, true);
     init_from_main_window(main_renderer=main_renderer,
         new_renderer_ptr=*mview_renderer, window, debug=debug);
 }
@@ -26,3 +31,4 @@ ctx :: () -> *State { return *context.state.mview_window; }
 #import "renderer";
 #import "Basic";
 #import "Windows";
+platform :: #import "platform";
