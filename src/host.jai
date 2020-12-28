@@ -62,6 +62,8 @@ is_window_fullscreen :: () -> bool {
 }
 
 window_rect: [4]s32;
+window_was_borderless: bool; // we store this because by the time the window
+                             // is closed, we can not query to see if it is (was) borderless or not
 
 toggle_borderless_fullscreen :: () {
     using platform;
@@ -70,6 +72,7 @@ toggle_borderless_fullscreen :: () {
     
     if is_window_borderless(handle) {
         set_window_borderless(handle, false);
+        window_was_borderless = false;
         set_window_always_on_top(handle, true);
         if window_rect[0] <= 0 window_rect[0] = 50;
         if window_rect[1] <= 0 window_rect[1] = 50;
@@ -81,6 +84,7 @@ toggle_borderless_fullscreen :: () {
         w, h := get_window_size(handle);
 
         set_window_borderless(handle, true);
+        window_was_borderless = true;
         window_rect[0] = x;
         window_rect[1] = y;
         window_rect[2] = w;
@@ -223,6 +227,9 @@ main :: () {
 
         // pass a copy of all events down into the plugin
         host_state.events_this_frame.count = 0;
+        host_state.mouse_delta_x = mouse_delta_x;
+        host_state.mouse_delta_y = mouse_delta_y;
+        host_state.mouse_delta_z = mouse_delta_z;
         for events_this_frame array_add(*host_state.events_this_frame, it);
 
         for pending_moves if it.window == the_window {
@@ -307,7 +314,7 @@ main :: () {
         plugin_tick(host_state);
     }
 
-    if (window_did_move || window_did_resize) && !platform.is_window_borderless(the_window) {
+    if (window_did_move || window_did_resize) && !window_was_borderless {
         if window_move_record.x == 0
             window_move_record.x, window_move_record.y = platform.get_window_position(the_window);
         if window_resize_record.width == 0

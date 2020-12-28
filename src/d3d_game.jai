@@ -33,7 +33,6 @@ update_and_draw :: () {
     // draw
     im := *im_context;
     {
-
         if !multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         defer if !multiview.enabled end_pass();
 

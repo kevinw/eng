@@ -44,8 +44,16 @@ use the animation to "go back" to the prefab when you zoom in on it
 
 Undo :: #import "undo";
 
+Camera :: struct {
+    position: Vector3;
+    rotation: Quaternion;
+}
+
 Editor :: struct {
     undo_state: Undo.Impl;
+
+    scene_camera: Camera;
+
 
     wants_keyboard: bool;
 
@@ -339,7 +347,22 @@ file_list_infos :: (path: string, recursive := false, follow_symlinks := false) 
 }
 
 
+look_rotation :: (forward: Vector3, up := Vector3.{0, 1, 0}) -> Quaternion {
+    m := make_look_at_matrix(.{0, 0, 0}, forward, up, x_is_forward = false);
+    return get_rotation(m);
+}
+
 editor_init :: (editor: *Editor) {
+    {
+        using editor;
+        pos :: Vector3.{400, 300, -35};
+        scene_camera.position = pos;
+        target := pos;
+        target.z = 0;
+        //scene_camera.rotation = get_rotation(make_look_at_matrix(pos, target, reference_up_vector=Vector3.{0, 1, 0}, x_is_forward = false));
+
+    }
+
     copy_File_Visit_Info :: (asset: *Asset, file_visit_info: File_Visit_Info) {
         asset.filename = file_visit_info.full_name;
         asset.short_name = file_visit_info.short_name;
@@ -614,6 +637,8 @@ render_imgui_to_drawlists :: (state: *State) {
             PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
             DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
+            if is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
+                SetMouseCursor(.ResizeAll);
         }
     }
 
@@ -946,6 +971,60 @@ editor_update :: (state: *State) {
     camera := get_main_camera_2D();
 
     // Move editor camera with WASD
+
+    if !io.WantTextInput && is_key_down(.MOUSE_BUTTON_RIGHT) {
+        {
+            // moving with WASD 
+
+            // TODO: qe as well
+
+            editor_cam_speed := Vector3.{250, 0, 50};
+            if is_key_down(.SHIFT) editor_cam_speed *= 2;
+
+            cam_movement_2D := inp.movement(inp.Input_Type.KEYBOARD_WASD);
+
+            cam_movement_input := v3(cam_movement_2D.x, 0, cam_movement_2D.y);
+            if cam_movement_input.x != 0 || cam_movement_input.y != 0
+                cam_movement_input = normalize(cam_movement_input);
+
+            cam_movement_local := cam_movement_input * editor_cam_speed * state.Time.unscaled_delta_time;
+
+            up      := rotate(Vector3.{0, 1, 0}, scene_camera.rotation);
+            forward := rotate(Vector3.{0, 0, 1}, scene_camera.rotation);
+            right   := rotate(Vector3.{1, 0, 0}, scene_camera.rotation);
+
+            if !is_approximately_zero(cam_movement_input.x) {
+                right_delta   := cam_movement_local.x * right;
+                scene_camera.position += right_delta;
+            }
+            if !is_approximately_zero(cam_movement_input.z) {
+                forward_delta := cam_movement_local.z * forward;
+                scene_camera.position += forward_delta;
+            }
+        }
+
+        {
+            // rotation with mouse delta
+            mouse_rotate_speed :: 0.15;
+            rotate_delta := mouse_rotate_speed * make_vector3(
+                // TODO: why are these backwards?
+                -cast(float)_local_host_state.mouse_delta_y,
+                cast(float)_local_host_state.mouse_delta_x,
+                0);
+
+            TO_RADIANS :: 3.141592 / 180.0;
+            x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
+            y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
+            z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
+
+            temp := x * y * z * scene_camera.rotation;
+            normalize_or_identity(*temp);
+            scene_camera.rotation = temp;
+        }
+    }
+
+
+    // old camera movement
     if !ctrl_down && camera && !io.WantTextInput {
         editor_cam_speed := 250.0;
         if rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT)
@@ -1430,6 +1509,7 @@ String :: #import "String";
 #import "tween";
 #import "Array_With_Holes";
 #import "Live_Types";
+#import "Sloppy_Math";
 Maybe :: struct(T: Type) {
     using value: T;
     has_value: bool;

@@ -8,11 +8,25 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     w:float = xx renderer.depth_buffer_desc.Width;
     h:float = xx renderer.depth_buffer_desc.Height;
     {
-        // TODO: only update this when necessary (when the framebuffer changes size)
+        // TODO: only update this when necessary
         using constants : *Constants;
         get_constant_buffer_ptr(*constants, *constant_buffer);
-        projection = orthographic_projection_matrix(0, w, h, 0, -1, 1);
+        proj := make_frustum_matrix(-w*.5, w*.5, -h*.5, h*.5, -50, 50, true);
+
+        cam := *context.state.editor.scene_camera;
+
+        forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
+        //logprint("=impl", "forward: % - cam.rotation: %", forward, cam.rotation);
+        look_at := cam.position + forward * 10;
+
+        view := make_look_at_matrix(
+            viewpoint = cam.position,
+            look_at   = look_at,
+            reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
+        view_projection = multiply(proj, view);
+        //view_projection  = orthographic_projection_matrix(200, w*.5 + 200, h*.5, 0, -100, 100);
     }
+//make_frustum_matrix :: (l: float, r: float, b: float, t: float, n: float, f: float, depth_range_01:=false) -> Matrix4 #must {
 
     // TODO: the following two memcpys could become an abstraction. moreover,
     // the buffer in debug mode could hold the type info of what it was created
@@ -62,8 +76,9 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
     constant_buffer = create_constant_buffer(Constants);
 
     ok: bool;
-    ok, shader   = load_shader_from_file("resources/shaders/unlit_texture.hlsl");
-    assert(ok);
+    filename ::"resources/shaders/unlit_texture.hlsl";
+    ok, shader   = load_shader_from_file(filename);
+    assert(ok, tprint("did not compile shader '%'", filename));
     pipeline = make_pipeline(*shader, .Triangles,
         cull_mode = .None,
         blend_mode = .Alpha_Blended,
@@ -89,7 +104,7 @@ Im_Context_R :: struct {
 #scope_file
 
 Constants :: struct {
-    projection: Matrix4;
+    view_projection: Matrix4;
 }
 
 to_array :: (elems: ..$A) -> []A { return elems; }
