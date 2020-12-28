@@ -355,7 +355,7 @@ look_rotation :: (forward: Vector3, up := Vector3.{0, 1, 0}) -> Quaternion {
 editor_init :: (editor: *Editor) {
     {
         using editor;
-        pos :: Vector3.{400, 300, -35};
+        pos :: Vector3.{500, 300, -300};
         scene_camera.position = pos;
         target := pos;
         target.z = 0;
@@ -662,6 +662,7 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.inspector draw_inspector(*windows.inspector);
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
     if windows.gamepad_viz show_gamepad_window(*windows.gamepad_viz);
+    //inspect("", *context.state.editor);
 }
 
 show_gamepad_window :: (open: *bool) {
@@ -975,37 +976,35 @@ editor_update :: (state: *State) {
     if !io.WantTextInput && is_key_down(.MOUSE_BUTTON_RIGHT) {
         {
             // moving with WASD 
-
-            // TODO: qe as well
-
-            editor_cam_speed := Vector3.{250, 0, 50};
+            editor_cam_speed := Vector3.{250, 250, 50};
             if is_key_down(.SHIFT) editor_cam_speed *= 2;
 
-            cam_movement_2D := inp.movement(inp.Input_Type.KEYBOARD_WASD);
+            input_dir: Vector3;
+            if is_key_down(#char "D") input_dir.x += 1;
+            if is_key_down(#char "A") input_dir.x -= 1;
+            if is_key_down(#char "Q") input_dir.y += 1;
+            if is_key_down(#char "E") input_dir.y -= 1;
+            if is_key_down(#char "W") input_dir.z += 1;
+            if is_key_down(#char "S") input_dir.z -= 1;
 
-            cam_movement_input := v3(cam_movement_2D.x, 0, cam_movement_2D.y);
-            if cam_movement_input.x != 0 || cam_movement_input.y != 0
-                cam_movement_input = normalize(cam_movement_input);
+            if input_dir.x != 0 || input_dir.y != 0 || input_dir.z != 0 {
+                input_dir   = normalize(input_dir);
+                local_move := input_dir * editor_cam_speed * state.Time.unscaled_delta_time;
 
-            cam_movement_local := cam_movement_input * editor_cam_speed * state.Time.unscaled_delta_time;
+                // camera-relative direction vectors
+                up      := rotate(Vector3.{0, 1, 0}, scene_camera.rotation);
+                forward := rotate(Vector3.{0, 0, 1}, scene_camera.rotation);
+                right   := rotate(Vector3.{1, 0, 0}, scene_camera.rotation);
 
-            up      := rotate(Vector3.{0, 1, 0}, scene_camera.rotation);
-            forward := rotate(Vector3.{0, 0, 1}, scene_camera.rotation);
-            right   := rotate(Vector3.{1, 0, 0}, scene_camera.rotation);
-
-            if !is_approximately_zero(cam_movement_input.x) {
-                right_delta   := cam_movement_local.x * right;
-                scene_camera.position += right_delta;
-            }
-            if !is_approximately_zero(cam_movement_input.z) {
-                forward_delta := cam_movement_local.z * forward;
-                scene_camera.position += forward_delta;
+                if !is_approximately_zero(input_dir.x) scene_camera.position += local_move.x * right;
+                if !is_approximately_zero(input_dir.y) scene_camera.position += local_move.y * up;
+                if !is_approximately_zero(input_dir.z) scene_camera.position += local_move.z * forward;
             }
         }
 
         {
             // rotation with mouse delta
-            mouse_rotate_speed :: 0.15;
+            mouse_rotate_speed :: 0.17;
             rotate_delta := mouse_rotate_speed * make_vector3(
                 // TODO: why are these backwards?
                 -cast(float)_local_host_state.mouse_delta_y,
@@ -1524,6 +1523,7 @@ clear :: (using maybe: *Maybe) {
 eq :: (using maybe: *Maybe, value_to_compare: $T) -> bool {
     return has_value && value == value_to_compare;
 }
+is_key_down    :: (ch: u8) -> bool { return is_key_down(cast,trunc(Key_Code)ch); }
 is_key_down    :: (key: Key_Code) -> bool {
     res := (<<_local_host_state.input_button_states)[cast(int)key] & .DOWN != 0;
     //logprint("=ed", "is_key_down %: % (%)", key, res, _local_host_state.input_button_states); 
