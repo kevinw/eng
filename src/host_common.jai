@@ -19,7 +19,15 @@ Host_State :: struct {
 
     looking_glass_devices: []Looking_Glass_Device;
 
+    change_window_state: #type (op: Window_State_Operation);
+
     toggle_borderless_fullscreen: #type ();
+}
+
+Window_State_Operation :: enum {
+    Toggle_Borderless_Fullscreen;
+    Toggle_Always_On_Top;
+    Toggle_Transparent_When_Out_Of_Focus;
 }
 
 Sanity_Check_Info :: struct {

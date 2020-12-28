@@ -20,26 +20,26 @@ screenlog       :: #import "screenlog";
 #load "host_common.jai";
 #load "host_lookingglass.jai";
 
+WINDOW_WIDTH  :: 1280;
+WINDOW_HEIGHT :: 720;
+
 cmdline_args: struct {
     topmost_window := true;
     live_reload    := true;
     game_name      := DEFAULT_SRC_PLUGIN;
 };
-
-WINDOW_WIDTH  :: 1280;
-WINDOW_HEIGHT :: 720;
-
-
 the_window: Window_Type;
 host_state: Host_State;
 transparent_while_not_focused := true;
-host_settings: struct {
+host_settings: struct { // gets serialized to disk to remember the window position
     window_pos_x: s32;
     window_pos_y: s32;
     window_width: s32;
     window_height: s32;
 };
-
+window_rect: [4]s32;
+window_was_borderless: bool; // we store this because by the time the window
+                             // is closed, we can not query to see if it is (was) borderless or not
 #if BUILDING_DLLS {
     #load "metaprogram_common.jai";
     #load "host_live_reload.jai";
@@ -50,25 +50,25 @@ panic :: (msg: string) {
     debug_break();
 }
 
-is_key_pressed :: (key: Key_Code) -> bool {
-    return input_button_states[cast(int)key] & .START != 0;
-}
-is_key_down    :: (key: Key_Code) -> bool {
-    return input_button_states[cast(int)key] & .DOWN != 0;
-}
-is_window_fullscreen :: () -> bool {
-    // Raylib had "true fullscreen" but we haven't reimplemented it yet.
-    return false;
+is_key_pressed :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .START != 0; }
+is_key_down    :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .DOWN != 0; }
+
+change_window_state :: (window_state_operation: Window_State_Operation) {
+    if window_state_operation == {
+        case .Toggle_Borderless_Fullscreen;
+            fullscreen := toggle_borderless_fullscreen(the_window);
+            logprint("host", ifx fullscreen then  "window borderless fullscreen" else "windowed mode");
+        case .Toggle_Always_On_Top;
+            top := platform.toggle_always_on_top(the_window);
+            logprint("host", ifx top then "window always on top" else "window not topmost");
+        case .Toggle_Transparent_When_Out_Of_Focus;
+            transparent_while_not_focused = !transparent_while_not_focused;
+            logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
+    }
 }
 
-window_rect: [4]s32;
-window_was_borderless: bool; // we store this because by the time the window
-                             // is closed, we can not query to see if it is (was) borderless or not
-
-toggle_borderless_fullscreen :: () {
+toggle_borderless_fullscreen :: (handle: Window_Type) -> bool {
     using platform;
-
-    handle := the_window;
     
     if is_window_borderless(handle) {
         set_window_borderless(handle, false);
@@ -79,6 +79,7 @@ toggle_borderless_fullscreen :: () {
         if window_rect[2] == 0 window_rect[2] = 1200;
         if window_rect[3] == 0 window_rect[3] = 675;
         set_window_rect(handle, window_rect[0], window_rect[1], window_rect[2], window_rect[3]);
+        return false;
     } else {
         x, y := get_window_position(handle);
         w, h := get_window_size(handle);
@@ -96,6 +97,7 @@ toggle_borderless_fullscreen :: () {
             h := GetSystemMetrics(SM_CYSCREEN);
             SetWindowPos(handle, HWND_TOP, 0, 0, w, h, SWP_FRAMECHANGED);
         }
+        return true;
     }
 }
 
@@ -165,7 +167,7 @@ main :: () {
     host_state.looking_glass_devices        = looking_glass_devices;
     host_state.window_handle                = the_window;
     host_state.input_button_states          = *input_button_states;
-    host_state.toggle_borderless_fullscreen = toggle_borderless_fullscreen;
+    host_state.change_window_state          = change_window_state;
     host_state.pending_resizes              = *pending_resizes;
 
     if cmdline_args.topmost_window
@@ -253,16 +255,6 @@ main :: () {
                 platform.set_window_opacity(the_window, 1.0);
 
             window_was_active = win_active;
-        }
-
-        if is_key_pressed(cast(Key_Code)#char "0") {
-            top := platform.toggle_always_on_top(the_window);
-            logprint("host", ifx top then "window always on top" else "window not topmost");
-        }
-
-        if is_key_pressed(cast(Key_Code)#char "9") {
-            transparent_while_not_focused = !transparent_while_not_focused;
-            logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         }
 
         #if BUILDING_DLLS {

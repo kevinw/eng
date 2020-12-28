@@ -83,9 +83,13 @@ game_base_update :: () {
             debug_draw = !debug_draw;
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
         }
-        if rl.IsKeyPressed(.KEY_F) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT) {
-            if _local_host_state.toggle_borderless_fullscreen
-                _local_host_state.toggle_borderless_fullscreen();
+        if _local_host_state.change_window_state != null {
+            if rl.IsKeyPressed(.KEY_F) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT)
+                _local_host_state.change_window_state(.Toggle_Borderless_Fullscreen);
+            if rl.IsKeyPressed(.KEY_ZERO)
+                _local_host_state.change_window_state(.Toggle_Always_On_Top);
+            if rl.IsKeyPressed(.KEY_NINE)
+                _local_host_state.change_window_state(.Toggle_Transparent_When_Out_Of_Focus);
         }
     }
 
