@@ -9,9 +9,9 @@ State :: struct {
     showing_multiview_window: bool;
     multiview: Multiview_State;
     mview_window: multiview_window.State;
-}
 
-first_draw: bool;
+    first_draw: bool;
+}
 
 update_and_draw :: () {
     using context.state;
