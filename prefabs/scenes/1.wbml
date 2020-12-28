@@ -136,13 +136,21 @@ Entity {
 	flags Has_Component_Rect
 	name "Plant"
 }
+Entity {
+	id 31
+	name "box"
+}
+Entity {
+	id 32
+	name "box"
+}
 Background {
 	component {
 		entity {
 			id 11
 		}
 	}
-	timer 722.995085
+	timer 824.921208
 	texture "resources/textures/space.png"
 	shader {
 		fs_filename "resources/shaders/glsl330/wave.fs"
@@ -228,6 +236,22 @@ BoxCollider {
 	}
 	collision PLATFORM
 }
+BoxCollider {
+	component {
+		entity {
+			id 31
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 32
+		}
+	}
+	collision PLATFORM
+}
 Cam {
 	component {
 		entity {
@@ -240,8 +264,8 @@ Cam {
 			y 180
 		}
 		target {
-			x 861.948914
-			y -210.457153
+			x 477.729156
+			y 200.000137
 		}
 	}
 }
@@ -349,10 +373,10 @@ Player {
 		}
 	}
 	grounded true
-	last_direction -1
-	sprite_timer 3194.608601
-	walk_timer 25.739861
-	last_walk_sprite_idx 7
+	last_direction 1
+	sprite_timer 113.330984
+	walk_timer 34.041356
+	last_walk_sprite_idx 4
 	damage {
 		delta {
 			x 28.698395
@@ -372,6 +396,7 @@ RectRenderer {
 		b 130
 		a 255
 	}
+	sorting_layer 3
 }
 RectRenderer {
 	component {
@@ -399,6 +424,7 @@ RectRenderer {
 		b 27
 		a 255
 	}
+	sorting_layer 1
 }
 RectRenderer {
 	component {
@@ -468,6 +494,7 @@ RectRenderer {
 		b 27
 		a 255
 	}
+	sorting_layer 1
 }
 RectRenderer {
 	component {
@@ -497,13 +524,33 @@ RectRenderer {
 	}
 	sorting_layer 10
 }
+RectRenderer {
+	component {
+		entity {
+			id 31
+		}
+	}
+	color {
+		a 255
+	}
+}
+RectRenderer {
+	component {
+		entity {
+			id 32
+		}
+	}
+	color {
+		a 255
+	}
+}
 SpriteRenderer {
 	component {
 		entity {
 			id 8
 		}
 	}
-	timer 3700.345418
+	timer 4209.976584
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -514,7 +561,7 @@ SpriteRenderer {
 			id 9
 		}
 	}
-	timer 3687.184529
+	timer 4196.815939
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -525,7 +572,7 @@ SpriteRenderer {
 			id 10
 		}
 	}
-	timer 3678.550496
+	timer 4188.181662
 	color {
 		g 121
 		b 121
@@ -540,7 +587,7 @@ SpriteRenderer {
 			id 12
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -551,7 +598,7 @@ SpriteRenderer {
 			id 13
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -562,7 +609,7 @@ SpriteRenderer {
 			id 14
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -573,7 +620,7 @@ SpriteRenderer {
 			id 15
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -584,7 +631,7 @@ SpriteRenderer {
 			id 16
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -595,7 +642,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -606,7 +653,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -617,7 +664,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -628,7 +675,7 @@ SpriteRenderer {
 			id 20
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -639,7 +686,7 @@ SpriteRenderer {
 			id 24
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -650,7 +697,7 @@ SpriteRenderer {
 			id 26
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -662,7 +709,7 @@ SpriteRenderer {
 			id 28
 		}
 	}
-	timer 3543.508015
+	timer 4053.139181
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -674,7 +721,7 @@ Transform {
 		}
 	}
 	position {
-		x 538.755615
+		x 560.940796
 		y 200
 	}
 }
@@ -727,6 +774,7 @@ Transform {
 	position {
 		x 325.124115
 		y 207.716003
+		z 11
 	}
 	scale {
 		x 43.333313
@@ -764,6 +812,7 @@ Transform {
 	position {
 		x 290.833344
 		y 73.125
+		z 11
 	}
 }
 Transform {
@@ -775,6 +824,7 @@ Transform {
 	position {
 		x 432.16452
 		y 101.875023
+		z 20
 	}
 	scale {
 		y 0.8
@@ -789,6 +839,7 @@ Transform {
 	position {
 		x 614.58313
 		y 58.1436
+		z 13.5
 	}
 	scale {
 		y 1.2
@@ -854,6 +905,7 @@ Transform {
 	position {
 		x 625.205933
 		y 172.522522
+		z -9
 	}
 }
 Transform {
@@ -990,11 +1042,12 @@ Transform {
 	}
 	position {
 		x 576.999146
-		y 208.966003
+		y 205.966003
+		z 11
 	}
 	scale {
 		x 43.333313
-		y 196.041656
+		y 205.042007
 	}
 }
 Transform {
@@ -1032,5 +1085,40 @@ Transform {
 	position {
 		x 951.251343
 		y 234.916641
+	}
+}
+Transform {
+	component {
+		entity {
+			id 31
+		}
+	}
+	position {
+		x 560.999023
+		y 184.966003
+		z 471
+	}
+	scale {
+		x 43.333313
+		y 784.041992
+	}
+}
+Transform {
+	component {
+		entity {
+			id 32
+		}
+	}
+	position {
+		x 249.998993
+		y 57.966
+		z 471
+	}
+	rotation {
+		w -12
+	}
+	scale {
+		x 43.333313
+		y 725.041992
 	}
 }
