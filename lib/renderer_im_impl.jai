@@ -11,19 +11,16 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
         // TODO: only update this when necessary
         using constants : *Constants;
         get_constant_buffer_ptr(*constants, *constant_buffer);
-        proj := make_frustum_matrix(-w*.5, w*.5, -h*.5, h*.5, -50, 50, true);
+        proj := make_projection_matrix(30, w/h, -50, 50, depth_range_01 = true);
 
         cam := *context.state.editor.scene_camera;
-
         forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
-        //logprint("=impl", "forward: % - cam.rotation: %", forward, cam.rotation);
         look_at := cam.position + forward * 10;
-
         view := make_look_at_matrix(
             viewpoint = cam.position,
             look_at   = look_at,
             reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
-        view_projection = multiply(proj, view);
+        view_projection = proj * view;
         //view_projection  = orthographic_projection_matrix(200, w*.5 + 200, h*.5, 0, -100, 100);
     }
 //make_frustum_matrix :: (l: float, r: float, b: float, t: float, n: float, f: float, depth_range_01:=false) -> Matrix4 #must {
