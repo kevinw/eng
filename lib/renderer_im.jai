@@ -20,6 +20,16 @@ im_init :: (using ctx: *Im_Context, index_elements := 4096, vertex_elements := 4
     offset = xy(0, 0);
 }
 
+im_set_z :: inline (using ctx: *Im_Context, z: float) {
+    current_depth_z = z;
+}
+
+im_push_z :: (using ctx: *Im_Context, z:float) #expand {
+    old_z := ctx.current_depth_z;
+    ctx.current_depth_z = z;
+    `defer ctx.current_depth_z = old_z;
+}
+
 im_set_texture :: (using ctx: *Im_Context, texture: *void) {
     draw_cmd := *draw_array[draw_array.count - 1];
     if draw_cmd.texture == texture  return;                     // Nothing to do.
@@ -239,7 +249,8 @@ im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4) -> u16
     assert(vertex_array.count < vertex_array.allocated);
 
     v := inline array_add(*vertex_array);
-    v.pos = p * scale + offset;
+    v.pos.xy = p * scale + offset;
+    v.pos.z = current_depth_z;
     v.tex = t;
     v.col = c;
     return cast(u16) (vertex_array.count - 1);
@@ -270,7 +281,10 @@ Im_Draw_Command :: struct {
 }
 
 Im_Vertex :: struct {
-    pos: Vector2;
+    // TODO: Is there a way to verify at compile time that the pipeline created
+    // actually matches a struct like this? If the shader has float2 for
+    // position, for example, we get no warnings or errors--just junk rendering.
+    pos: Vector3;
     tex: Vector2;
     col: Vector4;
 }
@@ -290,6 +304,7 @@ Im_Context :: struct {
     current_sampler: *void;
     current_index_per_primitive: u8 = 3;
     current_clip_rect: Vector4;
+    current_depth_z: float;
 }
 
 #scope_file

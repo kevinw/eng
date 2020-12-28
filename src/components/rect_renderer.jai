@@ -7,11 +7,14 @@ RectRenderer :: struct {
 _draw :: (it: *RectRenderer) {
     rect := entity_rect(it.entity);
 
+    transform := get_transform(it);
+    depth_z := ifx transform != null then transform.position.z else 0;
+
     //rl.DrawRectangleRec(rect, it.color);
 
     color2 := it.color;
     color2.r -= 100; color2.g -= 100; color2.b -= 100;
-    rl.DrawRectangleGradientEx(rect, it.color, color2, color2, it.color);
+    rl.DrawRectangleGradientEx(rect, it.color, color2, color2, it.color, depth_z = depth_z);
     //im_draw_rect(*context.state.im_context, rect.position, rect.size + rect.position);
 }
 

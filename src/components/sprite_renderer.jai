@@ -157,7 +157,13 @@ _draw :: (using it: *SpriteRenderer, transform: *Transform) {
             case .None;
                 if _current_frame.texture {
                     //logprint("sprite_renderer", "%", _current_frame.rect);
-                    draw_texture(_current_frame.texture, _current_frame.rect, dest_rect, _current_frame.offset, tint=color);
+                    rl.DrawTexturePro(
+                        texture = _current_frame.texture,
+                        sourceRec_ = _current_frame.rect,
+                        destRec = dest_rect,
+                        origin = _current_frame.offset,
+                        tint=color,
+                        depth_z = transform.position.z);
                 } else {
                     ok, entity_ptr := get_entity(it.entity);
                     assert(ok);

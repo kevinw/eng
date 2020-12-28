@@ -1,5 +1,11 @@
 # TODO
 
+## Immediate
+
+- get 45 view rendering in. it will be satisfying to see that work and we're relatively close~!
+    - the scene needs a camera component that will be used to actually draw things...
+    - inspecting the camera should show its render texture. (or cycle between its 45?)
+
 ## High Priority
 - flappy word - flappy bird mechanics, but you're swapping letters in words vertically
     - a column of characters. one or more words may be created from it. you're flapping the bird as you go, trying to fit into the gap that you create by removing a word.

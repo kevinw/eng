@@ -119,7 +119,7 @@ GetMousePosition :: () -> Vector2 {
     return v;
 }
 
-DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
+DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float = 0, tint: Color = .{1, 1, 1, 1}, depth_z:float = 0) {
     assert(texture != null);
     sourceRec := sourceRec_;
 
@@ -148,10 +148,11 @@ DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle,
     if flip_x
         t0.x, t1.x = swap(t0.x, t1.x);
 
-    im_set_texture(*context.state.im_context, texture);
-    im_draw_rect(*context.state.im_context,
-        p0, p1, t0, t1,
-        c = ColorToNormalized(tint));
+    im := *context.state.im_context;
+
+    im_push_z(im, depth_z);
+    im_set_texture(im, texture);
+    im_draw_rect(im, p0, p1, t0, t1, c = ColorToNormalized(tint));
 }
 
 DrawTexture :: (texture: *Texture, posX: s32, posY: s32, tint: Color) {
@@ -401,7 +402,7 @@ LoadImagePro :: (data: *void, width: s32, height: s32, format: s32) -> Image {
     return .{};
 }
 
-DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Color, col4: Color) {
+DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Color, col4: Color, depth_z:float = 0) {
     v2 :: make_vector2;
     ctx :: inline () -> *Im_Context { return *context.state.im_context; }
     _ctx := ctx();
@@ -418,6 +419,7 @@ DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Colo
     t2 := v2(1, 1);
     t3 := v2(1, 0);
 
+    im_push_z(_ctx, depth_z);
     im_set_texture(_ctx, null);
     vt0 := im_vertex(_ctx, p0, t0, ColorToNormalized(col1));
     vt1 := im_vertex(_ctx, p1, t1, ColorToNormalized(col2));

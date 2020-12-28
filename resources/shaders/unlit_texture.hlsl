@@ -16,7 +16,7 @@ cbuffer constants : register(b0)
 
 struct vs_in
 {
-    float2 position: POS;
+    float3 position: POS;
     float2 texcoord: TEX;
     float4 color:    COL;
 };
@@ -30,7 +30,7 @@ struct vs_out
 
 vs_out vs_main(vs_in input) {
     vs_out output;
-    output.position = mul(float4(input.position.x, input.position.y, 0, 1), view_projection);
+    output.position = mul(float4(input.position, 1), view_projection);
     output.texcoord = input.texcoord;
     output.color    = input.color;
     return output;
