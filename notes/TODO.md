@@ -5,6 +5,7 @@
 - get 45 view rendering in. it will be satisfying to see that work and we're relatively close~!
     - the scene needs a camera component that will be used to actually draw things...
     - inspecting the camera should show its render texture. (or cycle between its 45?)
+- make inverse projection mouse picking work. warning: mouse picking is potentially a rabbit hole...is there a simple CPU solution?
 
 ## High Priority
 - flappy word - flappy bird mechanics, but you're swapping letters in words vertically
@@ -62,7 +63,8 @@
 
 
 ## research ideas:
-    "on change" component for reactive programming, or for GPU uploads
+    - "on change" component for reactive programming, or for GPU uploads
         think about GetWriteWatch(), or using exception guards on virtualalloc pages, to know whether we need to write stuff to the gpu or not...
+    - [D3D11 Vendor Hacks](https://docs.google.com/spreadsheets/d/1J_HIRVlYK8iI4u6AJrCeb66L5W36UDkd9ExSCku9s_o/edit#gid=0)
 
 
