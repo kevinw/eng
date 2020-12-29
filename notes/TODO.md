@@ -2,10 +2,11 @@
 
 ## Immediate
 
-- get 45 view rendering in. it will be satisfying to see that work and we're relatively close~!
+- Get 45 view rendering in. it will be satisfying to see that work and we're relatively close~!
     - the scene needs a camera component that will be used to actually draw things...
     - inspecting the camera should show its render texture. (or cycle between its 45?)
-- make inverse projection mouse picking work. warning: mouse picking is potentially a rabbit hole...is there a simple CPU solution?
+- Depth of field 
+- GPU mouse picking
 
 ## High Priority
 - flappy word - flappy bird mechanics, but you're swapping letters in words vertically
@@ -25,12 +26,10 @@
 ## Medium Priority
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
 - Don't make an engine. Make a game. Find a way to center that.
-- Instanced rendering
 - 2 hour timer; procreate doodling
 - Try catching windows touch events and make rotation of entities with two fingers work via iPad remote desktop
 - research general "mistakes we made making this engine"
 - research network shared data stores. What would the minimum thing be.
-- cleanup selection and undo
 - In the UI, the color field should have a different background color to
   indicate that the prefab is overridden. As a first attempt at implementing
   this.
@@ -38,7 +37,14 @@
 - C library job systems
 - Temporal anti-aliasing implementation 
 - Motion blur implementation
-- A function to take the type info from an old chunk of memory and "upgrade" it
+- A function to take the type info from an old chunk of memory and "upgrade"
+  it. Copy the type table of the outgoing DLL, and then patch based on that!?
+  This would work for anything that has padding bytes at the end... would there
+  be a way to automatically pad all structs? or is there something else I could
+  do? mark things as "pinned in memory, but upgradable." or "not pinned in
+      memory, so feel free to memcopy them for me?" or getting into weird
+      garbage collection territory where we walk the pointers starting from the
+      context state?
 - Bring sub libraries into the tree. Maybe instead of a sub module we have a
   python script that downloads the repos and copies the right files into lib/
 
