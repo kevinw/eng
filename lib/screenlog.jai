@@ -52,12 +52,10 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
 
     entry: *Logger_State.Entry;
     if new_ident.count > 1 && new_ident[0] == #char "=" {
-        for * entries {
-            if it.ident == new_ident {
-                entry = it;
-                free_entry(entry);
-                break;
-            }
+        for * entries if it.ident == new_ident {
+            entry = it;
+            free_entry(entry);
+            break;
         }
     }
 

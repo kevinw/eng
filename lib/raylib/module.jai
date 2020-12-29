@@ -921,6 +921,7 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
 #import "Bitmap";
 #import "Math";
 #import "renderer_im";
+#import "renderer_im_impl";
 #import "stb_image_resize";
 Basic :: #import "Basic";
 Window_Creation :: #import "Window_Creation";

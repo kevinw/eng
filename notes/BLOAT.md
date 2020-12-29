@@ -1,4 +1,5 @@
 # bloat
+- all the places where we do assert(condition, tprint("message %", foo))
 - from imconfig.h
 ```
 //---- Avoid multiple STB libraries implementations, or redefine path/filenames to prioritize another version

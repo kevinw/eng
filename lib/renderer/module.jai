@@ -67,15 +67,14 @@ Texture :: struct {
     size: Vector2_u16;
 
     texture2D:     *ID3D11Texture2D;
-    view:          *ID3D11ShaderResourceView;
-    single_view:   *ID3D11ShaderResourceView;
+    views:         [..]*ID3D11ShaderResourceView; // 0 is the main one; 1-N are single views of an array texture
     sampler_state: *ID3D11SamplerState;
 
     debug_name: string; @debug @owned
 }
 
 Pass :: struct { // TODO: rename to render target
-    color: [4]*Texture;
+    color: [4]*Texture; // TODO...not sure this makes the most sense.
     depth: *Texture;
     label: string;
 
@@ -224,11 +223,18 @@ apply_bindings :: (shader: *Shader,
     sampler_states.allocator = __temporary_allocator;
 
     for textures {
-        if it.single_view != null {
-            array_add(*shader_resource_views, it.single_view);
+        local_texture := it;
+        if it == null {
+            logprint("renderer", "warning: passed a null texture to apply_bindings");
+            continue;
+        }
+        if it.views.count > 1 {
+            array_add(*shader_resource_views, it.views[1]);
         } else {
-            assert(it.view != null, "texture had a null view");
-            array_add(*shader_resource_views, it.view);
+            if it.views.count == 0
+                print("texture '%' has no views!\n", it.debug_name);
+            assert(it.views[0] != null, tprint("texture '%' had a null view", it.debug_name));
+            array_add(*shader_resource_views, it.views[0]);
         }
 
         assert(it.sampler_state != null, "texture had a null sampler state");
@@ -294,7 +300,7 @@ Create_Texture_Type :: enum {
 }
 
 create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1, 
-    type := Create_Texture_Type.Normal, format: Texture_Format = .BGRA8, label := "")
+    type := Create_Texture_Type.Normal, format: Texture_Format = .BGRA8, label := "") -> bool
 {
     using renderer := assert_state();
 
@@ -318,7 +324,7 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
 
     if format == {
         case .BGRA8;
-            desc.Format = .DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+            desc.Format = .DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
         case .D24S8;
             bind_flags  |= .D3D11_BIND_DEPTH_STENCIL;
             desc.Format =  .DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -334,29 +340,50 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
     tex.size = size;
     tex.debug_name = copy_string(label);
     if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
-        flush_debug_messages();
-        return;
+        flush_errors();
+        return false;
     }
 
     //print("CREATE TEXTURE % %x%\n", label, size.width, size.height);
 
     if bind_flags & .D3D11_BIND_SHADER_RESOURCE != 0 {
         //print("creating shader resource view for texture: %\n", label);
-        if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, null, *tex.view) {
-            flush_debug_messages();
-            return;
+
+        {
+            view: *ID3D11ShaderResourceView;
+            if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, null, *view) {
+                flush_errors();
+                return false;
+            }
+            array_add(*tex.views, view);
         }
 
         if array_size > 1 {
-            single_desc := D3D11_SHADER_RESOURCE_VIEW_DESC.{
-                ViewDimension = .D3D11_SRV_DIMENSION_TEXTURE2D,
-                Texture2D = .{
-                    MostDetailedMip = 0,
-                    MipLevels = cast,trunc(u32)-1
+            // TODO: here's a hack where I'm making a ShaderResourceView object
+            // for each single texture layer in a TextureArray. this is so that
+            // later, if we want to render just one texture out of the stack,
+            // we have an SRV ready. perhaps instead these should be made
+            // lazily though? It might be annoying that I have to keep the format
+            // around, but still...
+            for slice_index: 0..array_size - 1 {
+                single_desc := D3D11_SHADER_RESOURCE_VIEW_DESC.{
+                    ViewDimension = .D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+                    Texture2DArray = .{
+                        MostDetailedMip = 0,
+                        MipLevels = cast,trunc(u32)-1,
+                        ArraySize = 1,
+                    }
+                };
+                single_desc.Format = desc.Format;
+                single_desc.Texture2DArray.FirstArraySlice = slice_index;
+
+                view: *ID3D11ShaderResourceView;
+                if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, *single_desc, *view) {
+                    flush_errors();
+                    return false;
                 }
-            };
-            single_desc.Format = desc.Format;
-            renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, *single_desc, *tex.single_view);
+                array_add(*tex.views, view);
+            }
         }
 
         assert(!tex.sampler_state);
@@ -373,11 +400,13 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
         {
             res := renderer.device.CreateSamplerState(xx renderer.device, *sampler_desc, *tex.sampler_state);
             if res != S_OK || tex.sampler_state == null {
-                flush_debug_messages();
-                return;
+                flush_errors();
+                return false;
             }
         }
     }
+
+    return true;
 }
 
 create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
@@ -469,7 +498,7 @@ push_default_pass :: (clear_color: *Vector4 = null, enabled := true) #expand {
 
 check_result :: (hresult: HRESULT, loc := #caller_location) {
     if hresult != S_OK {
-        flush_debug_messages();
+        flush_errors();
         assert(hresult == S_OK, tprint("HRESULT was %", formatInt(hresult, base=16)), loc=loc);
     }
 }
@@ -674,16 +703,18 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     {
         res := device.CreateTexture2D(device, *textureDesc, *textureData, *tex.texture2D);
         if res != S_OK {
-            flush_debug_messages();
+            flush_errors();
             unload_and_return_error();
         }
     }
     {
-        res := device.CreateShaderResourceView(device, xx tex.texture2D, null, *tex.view);
+        view: *ID3D11ShaderResourceView;
+        res := device.CreateShaderResourceView(device, xx tex.texture2D, null, *view);
         if res != S_OK {
-            flush_debug_messages();
+            flush_errors();
             unload_and_return_error();
         }
+        array_add(*tex.views, view);
     }
 
     // Sampler
@@ -697,7 +728,7 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     {
         res := device.CreateSamplerState(device, *sampler_desc, *tex.sampler_state);
         if res != S_OK || tex.sampler_state == null {
-            flush_debug_messages();
+            flush_errors();
             unload_and_return_error();
         }
     }
@@ -795,7 +826,7 @@ _compile_shader_at_runtime :: (filename: string, target_profile: string, entrypo
     shader_blob, error_blob: *ID3DBlob;
     logprint("renderer", "compiling shader % in % (%)", entrypoint_name, filename, target_profile);
     if S_OK != D3DCompileFromFile(filename_w, null, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
-        flush_debug_messages();
+        flush_errors();
         logprint("shader", "D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
         Release(error_blob);
         return false, null;
@@ -833,7 +864,7 @@ load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DB
     {
         res := device.CreateVertexShader(cast(*ID3D11Device)device, vs_blob.GetBufferPointer(vs_blob), vs_blob.GetBufferSize(vs_blob), null, *vert);
         if res != S_OK || vert == null {
-            flush_debug_messages();
+            flush_errors();
             unload_and_return_shader_error("CreateVertexShader failed\n");
         }
     }
@@ -841,7 +872,7 @@ load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DB
     if 1 {
         res := CreateInputLayoutDescFromVertexShaderSignature(vs_blob, cast(*ID3D11Device)device, *input_layout, *input_layout_byte_length);
         if res != S_OK || input_layout == null {
-            flush_debug_messages();
+            flush_errors();
             unload_and_return_shader_error("CreateInputLayoutDescFromVertexShaderSignature failed");
         }
     }
@@ -849,7 +880,7 @@ load_shader_from_blobs :: (compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DB
     {
         res := device.CreatePixelShader(cast(*ID3D11Device)device, ps_blob.GetBufferPointer(ps_blob), ps_blob.GetBufferSize(ps_blob), null, *frag);
         if res != S_OK || frag == null {
-            flush_debug_messages();
+            flush_errors();
             unload_and_return_shader_error("CreatePixelShader failed");
         }
     }
@@ -983,10 +1014,14 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     }
 }
 
-
 present :: () {
     using renderer := assert_state();
     swap_chain.Present(cast(*IDXGISwapChain)swap_chain, 1, 0);
+    flush_debug_messages();
+}
+
+flush_errors :: () {
+    print_stack_trace(context.stack_trace);
     flush_debug_messages();
 }
 
@@ -1076,7 +1111,7 @@ set_global_renderer_ptr :: (new_renderer: *Renderer) {
 CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DDevice: *ID3D11Device, pInputLayout: **ID3D11InputLayout, inputLayoutByteLength: *u32) -> HRESULT {
     pVertexShaderReflection: *ID3D11ShaderReflection;
     if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection) {
-        flush_debug_messages();
+        flush_errors();
         return S_FALSE;
     }
     defer Release(pVertexShaderReflection);

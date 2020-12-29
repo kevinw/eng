@@ -30,15 +30,14 @@ update_and_draw :: () {
         logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
     }
 
-    // draw
+    // draw the main window
     im := *im_context;
     {
         if !multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         defer if !multiview.enabled end_pass();
 
         {
-            // offscreen pass
-            if multiview.enabled begin_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 1});
+            if multiview.enabled begin_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
             defer if multiview.enabled end_pass();
 
             world_draw(*world);
@@ -50,6 +49,15 @@ update_and_draw :: () {
             // default pass
             if multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
             defer if multiview.enabled end_pass();
+
+            if multiview.enabled {
+                // TODO: replace all this with "fullscreen triangle" function
+                push_ortho(im);
+                push_blend(im, blend = false);
+                im_set_texture(im, multiview.offscreen.pass.color[0]);
+                im_draw_rect(im, 0, 0, 1, 1);
+                im_flush(im);
+            }
 
             im_set_texture(im, null);
             editor_draw(context.state);
@@ -68,6 +76,7 @@ update_and_draw :: () {
     }
     present();
 
+    // draw the looking glass device window
     if context.state.mview_window.window != null {
         set_context(*context.state.mview_window.mview_renderer);
         defer set_context(*context.state.renderer);

@@ -1,9 +1,17 @@
+im_set_texture :: inline (using ctx: *Im_Context, texture: *Texture) {
+    _unsafe_im_set_texture(ctx, texture);
+}
+
 renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: [] Im_Vertex, draws: [] Im_Draw_Command) {
     ctx := cast(*Im_Context_R)im_ctx;
     using ctx;
 
     apply_viewport();
-    apply_pipeline(*pipeline);
+    if current_blend
+        apply_pipeline(*pipeline_blend);
+    else
+        apply_pipeline(*pipeline_no_blend);
+
 
     w:float = xx renderer.depth_buffer_desc.Width;
     h:float = xx renderer.depth_buffer_desc.Height;
@@ -17,15 +25,16 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
             view = matrix4_identity();
             translation = make_vector3(0, 0, 0);
         } else {
-            projection = make_projection_matrix(30, w/h, -50, 50, depth_range_01 = true);
             cam := *context.state.editor.scene_camera;
             forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
             look_at := cam.position + forward * 10;
+
+            projection = make_projection_matrix(30, w/h, -50, 50, depth_range_01 = true);
             view = make_look_at_matrix(
                 viewpoint = cam.position,
                 look_at   = look_at,
                 reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
-            translation = make_vector3(cast(float)context.state.Time.now, 0.0, 0.0);
+            translation = make_vector3(cast(float)sin(context.state.Time.now) * 3.0, 0.0, 0.0);
         }
     }
 
@@ -62,7 +71,10 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     apply_bindings(*shader, to_array(vertex_buffer), *index_buffer, color_texture);
     idx_buffer_offset: u32;
     for draw_cmd: draw_array {
-        draw(num_elements = draw_cmd.index_count, base_element = idx_buffer_offset);
+        num_instances := context.state.multiview.num_views;
+        draw(num_elements = draw_cmd.index_count,
+            num_instances = num_instances,
+            base_element = idx_buffer_offset);
         idx_buffer_offset += draw_cmd.index_count;
     }
 }
@@ -80,9 +92,18 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
     filename ::"resources/shaders/unlit_texture.hlsl";
     ok, shader   = load_shader_from_file(filename);
     assert(ok, tprint("did not compile shader '%'", filename));
-    pipeline = make_pipeline(*shader, .Triangles,
+    pipeline_blend = make_pipeline(*shader, .Triangles,
         cull_mode = .None,
         blend_mode = .Alpha_Blended,
+        depth_stencil_opts = .{
+            depth_write = false,
+            depth_compare_func = .Always,
+        },
+    );
+
+    pipeline_no_blend = make_pipeline(*shader, .Triangles,
+        cull_mode = .None,
+        blend_mode = .Default,
         depth_stencil_opts = .{
             depth_write = false,
             depth_compare_func = .Always,
@@ -98,7 +119,8 @@ Im_Context_R :: struct {
     vertex_buffer:   Buffer;
     index_buffer:    Buffer;
     constant_buffer: Buffer;
-    pipeline:        Pipeline;
+    pipeline_blend:    Pipeline;
+    pipeline_no_blend: Pipeline;
     shader:          Shader;
 }
 

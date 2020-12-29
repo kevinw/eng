@@ -1,11 +1,9 @@
-//foo.bar.
 // TODO: This should probably remain a Texture2D. the input for this im renderer shader isn't a multiview texture.
 // i'm just happening to use it to blit ONE of the views to screen. instead, let's make a special purpose "multiview blit"
 // shader for this? and then flip through them in time? and then provide multiple projection matrices to this shader instead.
 // THAT is the multiview variable that makes sense here.
 
-
-//Texture2DArray color_tex       : register(t0);
+//Texture2DArray color_tex     : register(t0);
 Texture2D color_tex            : register(t0);
 SamplerState color_tex_sampler : register(s0);
 
@@ -18,10 +16,10 @@ cbuffer constants : register(b0)
 
 struct vs_in
 {
-    float3 position: POS;
-    float2 texcoord: TEX;
-    float4 color:    COL;
-    uint instance_id: SV_InstanceID;
+    float3 position:    POS;
+    float2 texcoord:    TEX;
+    float4 color:       COL;
+    uint   instance_id: SV_InstanceID;
 };
 
 struct vs_out
@@ -29,12 +27,12 @@ struct vs_out
     float4 position: SV_POSITION;
     float2 texcoord: TEX;
     float4 color:    COL;
-    uint rendertarget_array_index: SV_RenderTargetArrayIndex;
+    uint   rendertarget_array_index: SV_RenderTargetArrayIndex;
 };
 
 vs_out vs_main(vs_in input) {
     float4x4 _view = view;
-    //_view[3].xyz += translation;
+    _view[3].xyz += translation * input.instance_id;
     float4x4 vp = mul(_view, projection);
 
     vs_out output;

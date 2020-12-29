@@ -30,7 +30,8 @@ im_push_z :: (using ctx: *Im_Context, z:float) #expand {
     `defer ctx.current_depth_z = old_z;
 }
 
-im_set_texture :: (using ctx: *Im_Context, texture: *void) {
+// impl provides type safe wrapper around this function
+_unsafe_im_set_texture :: (using ctx: *Im_Context, texture: *void) {
     draw_cmd := *draw_array[draw_array.count - 1];
     if draw_cmd.texture == texture  return;                     // Nothing to do.
     if draw_cmd.index_count         im_flush(ctx);
@@ -271,7 +272,17 @@ im_flush :: (using ctx: *Im_Context) {
 }
 
 
-im_push_ortho :: (using ctx: *Im_Context, flush := true) #expand {
+push_blend :: (using ctx: *Im_Context, blend := false, flush := true) #expand {
+    old_blend := ctx.current_blend;
+    ctx.current_blend = blend;
+    `defer {
+        if flush im_flush(ctx);
+        ctx.current_blend = old_blend;
+    }
+
+}
+
+push_ortho :: (using ctx: *Im_Context, flush := true) #expand {
     old_ortho := ctx.fullscreen_ortho;
     ctx.fullscreen_ortho = true;
     `defer {
@@ -295,6 +306,8 @@ Im_Vertex :: struct {
     pos: Vector3;
     tex: Vector2;
     col: Vector4;
+
+    instance_id: u32;
 }
 
 
@@ -313,6 +326,11 @@ Im_Context :: struct {
     current_index_per_primitive: u8 = 3;
     current_clip_rect: Vector4;
     current_depth_z: float;
+
+    // TODO: here 'true' means "alpha blend" and 'false' means "No blend". we
+    // should probably just have a unified way of talking about more specific
+    // blends
+    current_blend := true; 
 
     fullscreen_ortho: bool;
 }
