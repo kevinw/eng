@@ -404,7 +404,9 @@ editor_draw_world :: (state: *State) {
     if selected.count > 0 {
         for selected {
             ok, entity := get_entity(it);
-            if ok rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE);
+            if !ok continue;
+            rect, depth_z := entity_rect_and_depth(entity);
+            rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE, depth_z = depth_z);
         }
     } else if drag_state.dragging {
         rl.DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, rl.RED);
@@ -412,15 +414,13 @@ editor_draw_world :: (state: *State) {
 
     if hover.has_value {
         ok, entity := get_entity(hover, check_count = true);
-        if ok
-            rl.DrawRectangleLinesEx(entity_rect(entity), 1, rl.Color.{200, 200, 255, 128});
+        if ok {
+            rect, depth_z := entity_rect_and_depth(entity);
+            rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
+        }
     }
 
 }
-
-align_label_with_current_x_position:bool = false;
-test_drag_and_drop:bool = false;
-selection_mask: s32 = (1 << 2);
 
 editor_draw :: (state: *State) {
     render_imgui_to_drawlists(state);

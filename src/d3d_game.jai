@@ -38,7 +38,7 @@ update_and_draw :: () {
 
         {
             // offscreen pass
-            if multiview.enabled begin_pass(*multiview.offscreen.pass);
+            if multiview.enabled begin_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 1});
             defer if multiview.enabled end_pass();
 
             world_draw(*world);

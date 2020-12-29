@@ -11,19 +11,23 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
         // TODO: only update this when necessary
         using constants : *Constants;
         get_constant_buffer_ptr(*constants, *constant_buffer);
-        proj := make_projection_matrix(30, w/h, -50, 50, depth_range_01 = true);
 
-        cam := *context.state.editor.scene_camera;
-        forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
-        look_at := cam.position + forward * 10;
-        view := make_look_at_matrix(
-            viewpoint = cam.position,
-            look_at   = look_at,
-            reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
-        view_projection = proj * view;
-        //view_projection  = orthographic_projection_matrix(200, w*.5 + 200, h*.5, 0, -100, 100);
+        if im_ctx.fullscreen_ortho {
+            projection  = orthographic_projection_matrix(0, 1, 1, 0, -100, 100);
+            view = matrix4_identity();
+            translation = make_vector3(0, 0, 0);
+        } else {
+            projection = make_projection_matrix(30, w/h, -50, 50, depth_range_01 = true);
+            cam := *context.state.editor.scene_camera;
+            forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
+            look_at := cam.position + forward * 10;
+            view = make_look_at_matrix(
+                viewpoint = cam.position,
+                look_at   = look_at,
+                reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
+            translation = make_vector3(cast(float)context.state.Time.now, 0.0, 0.0);
+        }
     }
-//make_frustum_matrix :: (l: float, r: float, b: float, t: float, n: float, f: float, depth_range_01:=false) -> Matrix4 #must {
 
     // TODO: the following two memcpys could become an abstraction. moreover,
     // the buffer in debug mode could hold the type info of what it was created
@@ -100,8 +104,11 @@ Im_Context_R :: struct {
 
 #scope_file
 
+// TODO: generate the HLSL to insert into the shader via this struct!
 Constants :: struct {
-    view_projection: Matrix4;
+    projection: Matrix4;
+    view: Matrix4;
+    translation: Vector3;
 }
 
 to_array :: (elems: ..$A) -> []A { return elems; }

@@ -150,7 +150,7 @@ Background {
 			id 11
 		}
 	}
-	timer 824.921208
+	timer 832.791667
 	texture "resources/textures/space.png"
 	shader {
 		fs_filename "resources/shaders/glsl330/wave.fs"
@@ -242,7 +242,6 @@ BoxCollider {
 			id 31
 		}
 	}
-	collision PLATFORM
 }
 BoxCollider {
 	component {
@@ -264,8 +263,8 @@ Cam {
 			y 180
 		}
 		target {
-			x 477.729156
-			y 200.000137
+			x 593.315063
+			y 175.309799
 		}
 	}
 }
@@ -374,9 +373,9 @@ Player {
 	}
 	grounded true
 	last_direction 1
-	sprite_timer 113.330984
-	walk_timer 34.041356
-	last_walk_sprite_idx 4
+	sprite_timer 152.683302
+	walk_timer 39.983817
+	last_walk_sprite_idx 7
 	damage {
 		delta {
 			x 28.698395
@@ -550,7 +549,7 @@ SpriteRenderer {
 			id 8
 		}
 	}
-	timer 4209.976584
+	timer 4249.328878
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -561,7 +560,7 @@ SpriteRenderer {
 			id 9
 		}
 	}
-	timer 4196.815939
+	timer 4236.168234
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -572,7 +571,7 @@ SpriteRenderer {
 			id 10
 		}
 	}
-	timer 4188.181662
+	timer 4227.533956
 	color {
 		g 121
 		b 121
@@ -587,7 +586,7 @@ SpriteRenderer {
 			id 12
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -598,7 +597,7 @@ SpriteRenderer {
 			id 13
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -609,7 +608,7 @@ SpriteRenderer {
 			id 14
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -620,7 +619,7 @@ SpriteRenderer {
 			id 15
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -631,7 +630,7 @@ SpriteRenderer {
 			id 16
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -642,7 +641,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -653,7 +652,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -664,7 +663,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -675,7 +674,7 @@ SpriteRenderer {
 			id 20
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -686,7 +685,7 @@ SpriteRenderer {
 			id 24
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -697,7 +696,7 @@ SpriteRenderer {
 			id 26
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -709,7 +708,7 @@ SpriteRenderer {
 			id 28
 		}
 	}
-	timer 4053.139181
+	timer 4092.491476
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -721,7 +720,7 @@ Transform {
 		}
 	}
 	position {
-		x 560.940796
+		x 593.740356
 		y 200
 	}
 }

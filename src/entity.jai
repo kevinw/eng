@@ -254,7 +254,14 @@ operator + :: inline (rect: rl.Rectangle, pos: Vector2) -> rl.Rectangle {
 }
 
 
-entity_rect :: (entity: *Entity, verbose := false) -> rl.Rectangle {
+entity_rect_and_depth :: (entity: *Entity) -> (rl.Rectangle, depth_z: float) {
+    assert(entity != null);
+    xrs: *Transform;
+    rect := entity_rect(entity, out_transform = *xrs);
+    return rect, ifx xrs != null then xrs.position.z else 0;
+}
+
+entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = null) -> rl.Rectangle {
     if entity.flags & .Has_Component_Rect {
 
         // TODO: this is the kind of thing where we might be able to know based on the bitflag in the entity,
@@ -286,6 +293,9 @@ entity_rect :: (entity: *Entity, verbose := false) -> rl.Rectangle {
     if trs == null {
         logprint("=entity_rect", "no Transform in % %\n", entity.name, entity);
         return .{};
+    }
+    if out_transform != null {
+        <<out_transform = trs;
     }
 
     pos := trs.position.xy;

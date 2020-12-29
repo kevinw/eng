@@ -271,6 +271,14 @@ im_flush :: (using ctx: *Im_Context) {
 }
 
 
+im_push_ortho :: (using ctx: *Im_Context, flush := true) #expand {
+    old_ortho := ctx.fullscreen_ortho;
+    ctx.fullscreen_ortho = true;
+    `defer {
+        if flush im_flush(ctx);
+        ctx.fullscreen_ortho = old_ortho;
+    }
+}
 
 Im_Draw_Command :: struct {
     index_count : u32;
@@ -305,6 +313,8 @@ Im_Context :: struct {
     current_index_per_primitive: u8 = 3;
     current_clip_rect: Vector4;
     current_depth_z: float;
+
+    fullscreen_ortho: bool;
 }
 
 #scope_file

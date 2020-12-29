@@ -53,25 +53,27 @@ DrawCircleV :: (center: Vector2, radius: float, color: Color) {
     im_draw_circle(*context.state.im_context, center, make_vector2(radius, radius), color=ColorToNormalized(color));
 }
 
-DrawRectangleLinesEx :: (rec: Rectangle, lineThick: s32, color: Color) {
+DrawRectangleLinesEx :: (rec: Rectangle, lineThick: s32, color: Color, depth_z: float = 0) {
     if cast(float)lineThick > rec.width || cast(float)lineThick > rec.height {
         if rec.width > rec.height lineThick = cast(s32)rec.height/2;
         else if rec.width < rec.height lineThick = cast(s32)rec.width/2;
     }
 
-    DrawRectangle(cast(s32)rec.x, cast(s32)rec.y, cast(s32)rec.width, lineThick, color);
-    DrawRectangle(cast(s32)(rec.x - lineThick + rec.width), cast(s32)(rec.y + lineThick), lineThick, cast(s32)(rec.height - lineThick*2.0), color);
-    DrawRectangle(cast(s32)rec.x, cast(s32)(rec.y + rec.height - lineThick), cast(s32)rec.width, lineThick, color);
-    DrawRectangle(cast(s32)rec.x, cast(s32)(rec.y + lineThick), lineThick, cast(s32)(rec.height - lineThick*2), color);
+    DrawRectangle(cast(s32)rec.x, cast(s32)rec.y, cast(s32)rec.width, lineThick, color, depth_z=depth_z);
+    DrawRectangle(cast(s32)(rec.x - lineThick + rec.width), cast(s32)(rec.y + lineThick), lineThick, cast(s32)(rec.height - lineThick*2.0), color, depth_z=depth_z);
+    DrawRectangle(cast(s32)rec.x, cast(s32)(rec.y + rec.height - lineThick), cast(s32)rec.width, lineThick, color, depth_z=depth_z);
+    DrawRectangle(cast(s32)rec.x, cast(s32)(rec.y + lineThick), lineThick, cast(s32)(rec.height - lineThick*2), color, depth_z=depth_z);
 }
 
-DrawRectangle :: (posX: s32, posY: s32, width: s32, height: s32, color: Color) {
-    DrawRectangleV(make_vector2(cast(float)posX, cast(float)posY), make_vector2(cast(float)width, cast(float)height), color);
+DrawRectangle :: (posX: s32, posY: s32, width: s32, height: s32, color: Color, depth_z: float = 0) {
+    DrawRectangleV(make_vector2(cast(float)posX, cast(float)posY), make_vector2(cast(float)width, cast(float)height), color, depth_z=depth_z);
 }
 
-DrawRectangleV :: (position: Vector2, size: Vector2, color: Color) {
-    im_set_texture(*context.state.im_context, null);
-    im_draw_rect(*context.state.im_context,
+DrawRectangleV :: (position: Vector2, size: Vector2, color: Color, depth_z: float = 0) {
+    im := *context.state.im_context;
+    im_push_z(im, depth_z);
+    im_set_texture(im, null);
+    im_draw_rect(im,
         p0=position,
         p1=position+size,
         t0=make_vector2(0,0),

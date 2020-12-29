@@ -95,7 +95,7 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
     TRANSPARENT_BLACK: rl.Color;
 
     atlas_img := rl.GenImageColor(total_width, total_height, TRANSPARENT_BLACK);
-    toolbelt.print_time("generating atlas (% x %) for '%'", total_width, total_height, filename);
+    toolbelt.print_time("Sprite_Anim", "generating atlas (% x %) for '%'", total_width, total_height, filename);
     
     dest_rect: rl.Rectangle;
     for imgs {

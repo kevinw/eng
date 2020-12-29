@@ -75,13 +75,13 @@ draw_rect_outline :: inline (rect: Rectangle, thickness :s32 = 3, color := RED) 
 normalize :: Vector2Normalize;
 
 
-print_time :: (msg: string, args: ..Any) #expand {
+print_time :: (ident: string, msg: string, args: ..Any) #expand {
     // Measure the time from now until the end of the current scope,
     // printing a message now and then, showing the time it took to
     // get there.
 
     s := ifx args.count > 0 tprint(msg, ..args) else msg;
-    print("%...", s);
+    logprint(ident, "%...", s);
     `__print_time_now := GetTime();
     `defer print("took %\n", GetTime() - __print_time_now);
 }
