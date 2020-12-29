@@ -61,9 +61,9 @@ update_and_draw :: () {
 
             im_set_texture(im, null);
             editor_draw(context.state);
+            im_flush(im);
             
             {
-                im_flush(im);
                 physics_2d_draw_debug();
                 editor_draw_world(context.state);
                 screenlog_draw.draw_world();
