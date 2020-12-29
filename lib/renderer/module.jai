@@ -632,12 +632,12 @@ load_texture_from_file :: (filename: string) -> bool, Texture {
     assert(bitmap.width > 0);
     assert(bitmap.height > 0);
 
-    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, xx force_channels, bitmap.data);
+    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, xx force_channels, bitmap.data, debug_name=filename);
     tex.debug_name = copy_string(filename);
     return ok, tex;
 }
 
-load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: *void) -> bool, Texture {
+load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: *void, debug_name: string) -> bool, Texture {
     renderer := assert_state();
 
     textureDesc := D3D11_TEXTURE2D_DESC.{
@@ -663,6 +663,7 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     tex: Texture;
     tex.width  = cast(u16)width;
     tex.height = cast(u16)height;
+    tex.debug_name = copy_string(debug_name);
 
     unload_and_return_error :: () #expand {
         unload_texture(*tex);
@@ -977,9 +978,8 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
         tex_ok: bool;
 
         for 0..(SZ*SZ)-1 pixels[it] = 0xffffffff;
-        tex_ok, renderer.white_texture = load_texture_from_data(SZ, SZ, 4, pixels.data);
+        tex_ok, renderer.white_texture = load_texture_from_data(SZ, SZ, 4, pixels.data, debug_name = "white_texture");
         assert(tex_ok);
-        renderer.white_texture.debug_name = "white_texture";
     }
 }
 
@@ -1073,18 +1073,12 @@ set_global_renderer_ptr :: (new_renderer: *Renderer) {
 
 #scope_file
 
-//Function Creates an input layout from the vertex shader, after compilation.
-//Input layout can be reused with any vertex shaders that use the same input layout.
 CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DDevice: *ID3D11Device, pInputLayout: **ID3D11InputLayout, inputLayoutByteLength: *u32) -> HRESULT {
-    // Reflect shader info
-
     pVertexShaderReflection: *ID3D11ShaderReflection;
-
     if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection) {
         flush_debug_messages();
         return S_FALSE;
     }
-
     defer Release(pVertexShaderReflection);
      
     // get shader description
@@ -1100,6 +1094,12 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     
     // TODO: the compiler is only showing one input parameter without this...
     //print("Number of InputParameters: %\n", shaderDesc.InputParameters);
+
+    for i: 0..shaderDesc.BoundResources {
+        input_bind_desc: D3D11_SHADER_INPUT_BIND_DESC;
+        pVertexShaderReflection.GetResourceBindingDesc(pVertexShaderReflection, i, *input_bind_desc);
+        //print("input_bind_desc %: %\n%\n", i, to_string(input_bind_desc.Name), input_bind_desc);
+    }
     
     for i: 0..shaderDesc.InputParameters - 1 {
         paramDesc: D3D11_SIGNATURE_PARAMETER_DESC;

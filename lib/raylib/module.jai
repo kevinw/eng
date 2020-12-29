@@ -843,12 +843,12 @@ LoadTexture :: (filename: string) -> Texture {
     return tex;
 }
 
-LoadTextureFromImage :: (image: Bitmap) -> Texture {
+LoadTextureFromImage :: (image: Bitmap, debug_name: string) -> Texture {
     assert(image.format == .RGBA8);
     assert(image.width > 0);
     assert(image.height > 0);
 
-    ok, texture := load_texture_from_data(xx image.width, xx image.height, 4, image.data);
+    ok, texture := load_texture_from_data(xx image.width, xx image.height, 4, image.data, debug_name=debug_name);
     assert(ok);
     return texture;
 }

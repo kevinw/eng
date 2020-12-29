@@ -119,7 +119,7 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
         dest_rect.x += dest_rect.width;
     }
 
-    sprite_anim.atlas_texture = rl.LoadTextureFromImage(atlas_img);
+    sprite_anim.atlas_texture = rl.LoadTextureFromImage(atlas_img, debug_name=tprint("%_atlas", filename));
 
     for imgs
         sprite_anim.frames[it_index].texture = *sprite_anim.atlas_texture;
