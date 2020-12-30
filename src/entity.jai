@@ -611,22 +611,24 @@ component_on_serialize :: (any: *Any, added_fields: *[..]wbml.Added_Field_Entry)
         }
 
         any.value_pointer = heap_string;
-    } else if any.type == type_info(LiveShader) {
-        live_shader := cast(*LiveShader)any.value_pointer;
+    } else if any.type == type_info(*Shader) {
+        live_shader := cast(*Shader)any.value_pointer;
 
         any.type = type_info(LiveShader_Serialized);
         heap_val := New(LiveShader_Serialized);
-        if has_value(<<live_shader) {
-            if live_shader.vs_filename.count > 0 heap_val.vs_filename = copy_string(live_shader.vs_filename);
-            if live_shader.fs_filename.count > 0 heap_val.fs_filename = copy_string(live_shader.fs_filename);
+        if live_shader != null {
+            if live_shader.filename.count > 0 heap_val.filename = copy_string(live_shader.filename);
+            if live_shader.vs_main.count > 0  heap_val.vs_main =  copy_string(live_shader.vs_main);
+            if live_shader.ps_main.count > 0  heap_val.ps_main =  copy_string(live_shader.ps_main);
         }
         any.value_pointer = heap_val;
     }
 }
 
 LiveShader_Serialized :: struct {
-    vs_filename: string;
-    fs_filename: string;
+    filename: string;
+    vs_main: string;
+    ps_main: string;
 }
 
 
@@ -681,10 +683,13 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
                     <<live_texture_ptr = LiveTexture.Empty;
                 }
             }
-        } else if any.type == type_info(LiveShader) {
+        } else if any.type == type_info(*Shader) {
+            logprint("entity", "TODO: deserialize LiveShader from wbml");
+            /*
             fs_filename := wbml.get_string(node, "fs_filename");
             vs_filename := wbml.get_string(node, "vs_filename");
             <<(cast(*LiveShader)any.value_pointer) = LoadLiveShader(vs_filename, fs_filename);
+            */
         }
     }
 
@@ -1033,6 +1038,7 @@ Undo :: #import "undo";
 rl :: #import "raylib";
 Debug :: #import "Debug";
 #import "util";
+#import "renderer";
 
 #import "live_raylib";
 

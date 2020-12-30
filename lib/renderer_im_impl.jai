@@ -88,9 +88,8 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
     vertex_buffer = create_dynamic_buffer(cast(u32)(vertex_elements * size_of(Im_Vertex)), .Vertex);
     constant_buffer = create_constant_buffer(Constants);
 
-    ok: bool;
     filename ::"resources/shaders/unlit_texture.hlsl";
-    ok, shader   = load_shader_from_file(filename);
+    ok := load_shader_from_file(*shader, filename);
     assert(ok, tprint("did not compile shader '%'", filename));
     pipeline_blend = make_pipeline(*shader, .Triangles,
         cull_mode = .None,
@@ -114,14 +113,13 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
 Im_Context_R :: struct {
     using base: Im_Context;
 
-    renderer:      *Renderer;
-
-    vertex_buffer:   Buffer;
-    index_buffer:    Buffer;
-    constant_buffer: Buffer;
+    renderer:          *Renderer;
+    vertex_buffer:     Buffer;
+    index_buffer:      Buffer;
+    constant_buffer:   Buffer;
     pipeline_blend:    Pipeline;
     pipeline_no_blend: Pipeline;
-    shader:          Shader;
+    shader:            Shader;
 }
 
 #scope_file

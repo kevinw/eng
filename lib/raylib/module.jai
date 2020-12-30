@@ -240,27 +240,6 @@ GetScreenHeight :: () -> s32 {
     Basic.assert(renderer != null);
     return cast(s32)renderer.depth_buffer_desc.Height;
 }
-MatrixTranslate :: (x: float, y: float, z: float) -> Matrix {
-    return make_translation_matrix4(make_Vector3(x, y, z));
-}
-MatrixRotate    :: (axis: Vector3, angle_radians: float) -> Matrix {
-    Basic.assert(false);
-    return .{};
-}
-MatrixScale     :: (x: float, y: float, z: float) -> Matrix {
-    return make_scale_matrix4(make_Vector3(x, y, z));
-}
-MatrixMultiply  :: (a: Matrix, b: Matrix) -> Matrix { return multiply(a, b); }
-float16 :: struct {
-    v: [16]float;
-}
-MatrixToFloatV  :: (mat: Matrix) -> float16 { 
-    f16: float16;
-    f16.v = mat.floats;
-    return f16;
-}
-rlMultMatrixf   :: (matf: *float) { Basic.assert(false); }
-
 
 GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 {
     return position;
@@ -278,7 +257,6 @@ NPatchType :: enum {
     NPT_3PATCH_VERTICAL;    // Npatch defined by 1x3 tiles
     NPT_3PATCH_HORIZONTAL;
 }
-
 
 NPatchInfo :: struct {
     sourceRec: Rectangle;
@@ -338,9 +316,6 @@ Color :: struct {
     g: u8;
     b: u8;
     a: u8;
-}
-
-Shader :: struct {
 }
 
 SetShaderValue :: (shader: Shader, uniformLoc: s32, value: *void, uniformType: ShaderUniformDataType) {
@@ -828,9 +803,6 @@ MouseButton :: enum {
     MOUSE_MIDDLE_BUTTON :: 2;
 }
 
-
-BeginShaderMode :: (shader: Shader) {}
-EndShaderMode :: () {}
 
 DrawTextureNPatch :: (texture: *Texture, nPatchInfo: NPatchInfo, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
 }

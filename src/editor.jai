@@ -110,7 +110,7 @@ Editor :: struct {
             selected_asset_type: Asset.Type;
             selected_asset: union {
                 tex: *LiveTexture;
-                shader: *LiveShader;
+                shader: *Shader;
             };
         };
         gamepad_viz := false;
@@ -132,7 +132,7 @@ Asset :: struct {
     union {
         live_texture: LiveTexture;
         live_sprite: LiveSprite;
-        live_shader: LiveShader;
+        live_shader: *Shader;
     }
 }
 
@@ -189,21 +189,21 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
         return .Has_Custom_Control;
     else if ti == type_info(LiveTexture)
         return .Has_Custom_Control;
-    else if ti == type_info(LiveShader)
+    else if ti == type_info(*Shader)
         return .Has_Custom_Control;
     else if false && ti == type_info(Transform)
         return .Has_Custom_Control;
     return .None;
 }
 
-custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
-    if ti_struct == type_info(Entity_Handle)
+custom_ctrl :: (name: string, data: *void, ti: *Type_Info) {
+    if ti == type_info(Entity_Handle)
         entity_selector(name, cast(*Entity_Handle)data);
-    else if ti_struct == type_info(LiveTexture) 
+    else if ti == type_info(LiveTexture) 
         live_image_editor(cast(*LiveTexture)data);
-    else if ti_struct == type_info(LiveShader)
-        live_shader_editor(name, cast(*LiveShader)data);
-    else if false && ti_struct == type_info(Transform) {
+    else if ti == type_info(*Shader)
+        live_shader_editor(name, cast(**Shader)data);
+    else if false && ti == type_info(Transform) {
 
         /*
         TODO it would be nice to have the metaprogram notice an "editor" function like this...
@@ -279,17 +279,16 @@ custom_ctrl :: (name: string, data: *void, ti_struct: *Type_Info_Struct) {
     }
 }
 
-live_shader_editor :: (name: string, live_shader_ptr: *LiveShader) {
+live_shader_editor :: (name: string, live_shader: **Shader) {
     using ImGui;
 
-    live_shader := <<live_shader_ptr;
-    if !has_value(live_shader) {
+    if <<live_shader == null {
         PushPopID("null shader");
         if Button("No Shader Selected")
-            set_asset_selector_visible(live_shader_ptr);
+            set_asset_selector_visible(live_shader);
     } else {
         if Button("TODO: shadername here") {
-            set_asset_selector_visible(live_shader_ptr);
+            set_asset_selector_visible(live_shader);
             SetWindowFocus(ASSET_SELECTOR_WINDOW_NAME);
         }
         SameLine();
@@ -433,11 +432,11 @@ set_asset_selector_visible :: (live_texture_ptr: *LiveTexture) {
     selected_asset.tex = live_texture_ptr;
 }
 
-set_asset_selector_visible :: (live_shader_ptr: *LiveShader) {
+set_asset_selector_visible :: (live_shader_ptr: **Shader) {
     using context.state.editor.windows.asset_selector;
     visible = true;
     selected_asset_type = .Shader;
-    selected_asset.shader = live_shader_ptr;
+    selected_asset.shader = <<live_shader_ptr;
 }
 
 ASSET_SELECTOR_WINDOW_NAME :: "Assets##Selector";
@@ -512,9 +511,10 @@ render_asset_selector :: (window_open: *bool) {
             PushPopID(live_shader);
             if Button(tprint("%\0", label).data) {
                 if it == null {
-                    <<selected_asset.shader = LiveShader.Empty;
+                    selected_asset.shader = null;
                 } else {
-                    <<selected_asset.shader = LoadLiveShader("", it.filename);
+                    logprint("editor", "TODO: change shader");
+                    //<<selected_asset.shader = LoadLiveShader("", it.filename);
                 }
             }
         }
@@ -1041,7 +1041,7 @@ editor_update :: (state: *State) {
     
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
-            world_mouse_pos = get_mouse_world_pos(camera, state.screen.texture);
+            world_mouse_pos = get_mouse_world_pos(camera);
             hover.has_value = false;
             for handles(*state.world.entities) {
                 ok, entity := get_entity(it);
@@ -1073,7 +1073,7 @@ editor_update :: (state: *State) {
             }
 
             drag_state.dragging = true;
-            drag_state.origin = get_mouse_world_pos(camera, state.screen.texture);
+            drag_state.origin = get_mouse_world_pos(camera);
 
             if took_action {
                 for * selected {

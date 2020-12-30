@@ -55,14 +55,14 @@ on_host_init :: () {
 
     e, handle := create_entity(*world);
     trs := get_transform(e);
-    trs.scale = rl.make_Vector3(100, 100, 1);
-    trs.position = rl.make_Vector3(200, 200, 0);
+    trs.scale = make_vector3(100, 100, 1);
+    trs.position = make_vector3(200, 200, 0);
 
     shape_r := add_component(handle, Shape_Renderer);
     shape_r.shape = .Square;
 
     r := add_component(handle, Rotater);
-    r.speed = rl.make_Vector3(0, 0, 100);
+    r.speed = make_vector3(0, 0, 100);
 }
 
 on_host_did_reload_game_dll :: () {

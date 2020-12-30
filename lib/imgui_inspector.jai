@@ -69,7 +69,7 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Cat
 
 Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
 Categorize_Type_Func :: #type (ti: *Type_Info) -> Struct_Looks_Like;
-Custom_Ctrl_Func :: #type (name: string, data: *void, ti_struct: *Type_Info_Struct);
+Custom_Ctrl_Func :: #type (name: string, data: *void, ti_info: *Type_Info);
 
 push_or_commit_item :: (data: *void, size_in_bytes: int) {
     impl := *context.state.editor.undo_state;

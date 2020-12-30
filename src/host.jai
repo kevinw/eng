@@ -30,7 +30,7 @@ cmdline_args: struct {
 };
 the_window: Window_Type;
 host_state: Host_State;
-transparent_while_not_focused := true;
+transparent_while_not_focused := false;
 host_settings: struct { // gets serialized to disk to remember the window position
     window_pos_x: s32;
     window_pos_y: s32;

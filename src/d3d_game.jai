@@ -81,16 +81,13 @@ update_and_draw :: () {
     }
     present();
 
-    // draw the looking glass device window
+    // Draw the looking glass device window
     if context.state.mview_window.window != null {
         set_context(*context.state.mview_window.mview_renderer);
         defer set_context(*context.state.renderer);
 
         if multiview.enabled {
             push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-
-            //world_draw(*world);
-            //draw_all_drawables(*world);
             im_set_texture(im, multiview.offscreen.pass.color[0]);
             im_draw_rect(im, 0, 0, 400, 400);
             im_set_texture(im, null);
@@ -188,22 +185,23 @@ restart :: () {
     using context.state;
 }
 
-
 editor_did_drag :: (rect: rl.Rectangle) {
+    using context.state;
+
     color := rl.RED;
     color.b = cast(u8)random_get_within_range(100, 255);
-    block, block_h := envitem(*context.state.world,
+    block, block_h := envitem(*world,
         rect.x, rect.y, rect.width, rect.height,
         .PLATFORM, color, is_editor=true);
 
-    Undo.push_array(*context.state.editor.undo_state, *context.state.editor.selected);
+    Undo.push_array(*editor.undo_state, *editor.selected);
     set_selected(block_h);
-    Undo.commit(*context.state.editor.undo_state);
+    Undo.commit(*editor.undo_state);
 }
 
 handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resizes: *[..]Window_Resize_Record) {
-    // the jai input module queues up records for window resizes...
-    // here we resize the swapchain for the newest size.
+    // The Jai input module queues up records for window resizes.
+    // Here we resize the swapchain for the newest size.
     did_resize: bool;
     w, h: int;
     for * <<pending_resizes if it.window == window_handle {
@@ -229,7 +227,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     transform := get_component(entity, TRS);
     assert(transform != null);
     transform.position.xy = v2(x, y);
-    transform.scale = rl.make_Vector3(width, height, 1);
+    transform.scale = make_vector3(width, height, 1);
 
     box := add_component(entity_handle, BoxCollider, undo=undo);
     box.collision = .PLATFORM;
@@ -249,8 +247,8 @@ push_value :: (ptr_to_value: *$T, new_value: T) #expand {
 #import "renderer";
 #import "renderer_im";
 #import "renderer_im_impl";
-#import "Hash";
 #import "multiview";
+#import "Hash";
 #import "Math";
 Input   :: #import "Input";
 Gamepad :: #import "Gamepad";

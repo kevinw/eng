@@ -1,6 +1,5 @@
 Live_Asset_Database :: struct {
     textures: [..]LiveTextureEntry;
-    shaders:  [..]LiveShaderEntry;
     sprites:  [..]LiveSpriteEntry;
 }
 
@@ -15,7 +14,6 @@ has_value :: (thing: LiveThing) -> bool {
 }
 
 LiveTexture :: LiveThing(LiveTextureEntry);
-LiveShader  :: LiveThing(LiveShaderEntry);
 LiveSprite  :: LiveThing(LiveSpriteEntry);
 
 LiveEntry :: struct {
@@ -33,15 +31,6 @@ LiveTextureEntry :: struct {
 
     filename: string;
     using resource: rl.Texture;
-}
-
-LiveShaderEntry :: struct {
-    using live_entry: LiveEntry;
-
-    vs_filename: string;
-    fs_filename: string;
-
-    using resource: rl.Shader;
 }
 
 #scope_file

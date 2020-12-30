@@ -30,12 +30,6 @@ State_Base :: struct {
     debug_draw := false;
     world: World;
     canary2 := 4000;
-
-    screen: struct {
-        shader: rl.Shader;
-        texture: rl.RenderTexture;
-    };
-
     restart: ();
     canary3 := -99;
 }

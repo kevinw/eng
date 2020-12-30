@@ -4,9 +4,20 @@ push_mode_2D :: (camera: Camera2D) #expand {
 }
 
 begin_mode_2D :: (camera: Camera2D) {
+
+    float16 :: struct {
+        v: [16]float;
+    }
+    MatrixToFloatV  :: (mat: Matrix) -> float16 { 
+        f16: float16;
+        f16.v = mat.floats;
+        return f16;
+    }
+
     rlglDraw();                         // Draw Buffers (Only OpenGL 3+ and ES2)
     rlLoadIdentity();                   // Reset current matrix (modelview)
     floats := MatrixToFloatV(get_cam_matrix_2D(camera));
+    rlMultMatrixf   :: (matf: *float) { assert(false); }
     rlMultMatrixf(floats.v.data);
 }
 
@@ -27,10 +38,23 @@ get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
     //   3. Move by -target
     DEG2RAD :: 3.141592 / 180.0;
 
+    MatrixTranslate :: (x: float, y: float, z: float) -> Matrix {
+        return make_translation_matrix4(make_vector3(x, y, z));
+    }
+    MatrixRotate    :: (axis: Vector3, angle_radians: float) -> Matrix {
+        assert(false);
+        return .{};
+    }
+    MatrixScale     :: (x: float, y: float, z: float) -> Matrix {
+        return make_scale_matrix4(make_Vector3(x, y, z));
+    }
+    MatrixMultiply  :: (a: Matrix, b: Matrix) -> Matrix { return multiply(a, b); }
+
     matOrigin := MatrixTranslate(-camera.target.x, -camera.target.y, 0.0);
     matRotation := MatrixRotate(Vector3.{ 0.0, 0.0, 1.0 }, camera.rotation*DEG2RAD);
     matScale := MatrixScale(camera.zoom, camera.zoom, 1.0);
     matTranslation := MatrixTranslate(camera.offset.x, camera.offset.y, 0.0);
+
 
     return MatrixMultiply(MatrixMultiply(matOrigin, MatrixMultiply(matScale, matRotation)), matTranslation);
 }
@@ -100,25 +124,6 @@ midpoint :: inline (rect: Rectangle) -> Vector2 {
     v.x = rect.x + rect.width * 0.5;
     v.y = rect.y + rect.height * 0.5;
     return v;
-}
-
-set_shader_val :: (shader: Shader, name: string, val: $T) {
-    location := GetShaderLocation(shader, to_temp_c_string(name));
-    if location == -1 return; // TODO: should we warn here?
-
-    uniform_type: ShaderUniformDataType;
-    #if T == Vector2 || T == [2]float32
-        uniform_type = .UNIFORM_VEC2;
-    else if T == Vector3 || T == [3]float32
-        uniform_type = .UNIFORM_VEC3;
-    else if T == Vector4 || T == [4]float32
-        uniform_type = .UNIFORM_VEC4;
-    else if T == float
-        uniform_type = .UNIFORM_FLOAT;
-    else
-        print("unknown type %", T);
-
-    SetShaderValue(shader, location, *val, uniform_type);
 }
 
 Vector2_Scale :: inline (a: Vector2, b: Vector2) -> Vector2 {
@@ -286,7 +291,7 @@ rect_from_points :: (p1: Vector2, p2: Vector2) -> Rectangle {
     return rect(x, y, width, height);
 }
 
-get_mouse_world_pos :: (camera: *Camera2D, screen_texture: RenderTexture) -> Vector2 {
+get_mouse_world_pos :: (camera: *Camera2D/*, screen_texture: RenderTexture*/) -> Vector2 {
     // render texture
     //rt_multiplier := v2(cast(float)screen_texture.texture.width  / GetScreenWidth(),
                         //cast(float)screen_texture.texture.height / GetScreenHeight());

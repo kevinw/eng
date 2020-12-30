@@ -2,10 +2,13 @@
 
 ## Immediate
 
-- Depth of field 
+- Depth of field
+    - Second: visualize intermediate textures easily with a single log call
+
 - GPU mouse picking
 - make the projection translation start left and end up right of the camera
 - disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
+- before things get too elaborate or complicated, try using Matrix4x3 
 
 ## High Priority
 - [HLSL shaders](https://github.com/microsoft/ShaderConductor) for other platforms
