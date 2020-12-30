@@ -1,5 +1,3 @@
-GAME_NAME :: "beat_platformer";
-
 #load "game_base.jai";
 #import "Basic";
 #import "Sprite_Anim";

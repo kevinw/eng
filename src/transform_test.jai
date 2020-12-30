@@ -6,7 +6,6 @@
   x make the shape in the transform test draggable?
 */
 
-GAME_NAME :: "transform_test";
 #load "game_base.jai";
 
 State :: struct {
@@ -46,12 +45,9 @@ on_host_init :: () {
     using context.state;
 
     game_base_init();
-    SetWindowTitle(GAME_NAME);
 
     screen.texture = LoadRenderTexture(gameWidth, gameHeight);
     screen.shader = LoadShader(null, null);
-
-    //
 
     e, handle := create_entity(*world);
     trs := get_transform(e);
@@ -66,15 +62,12 @@ on_host_init :: () {
 }
 
 on_host_did_reload_game_dll :: () {
-    SetWindowTitle(GAME_NAME);
     game_base_did_reload_dll();
 }
 
 on_host_shutdown :: () {
     game_base_shutdown();
 }
-
-
 
 #scope_file
 rl :: #import "raylib";

@@ -166,7 +166,7 @@ Physics_2D_State :: struct {
     space: *cp.Space;
 }
 
-#import "entity"(GAME_NAME);
+#import "entity";
 
 rl :: #import "raylib";
 cp :: #import "Chipmunk";

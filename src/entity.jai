@@ -24,9 +24,6 @@ velocity_system :: (td: *Transform, vd: *Velocity @const, n: u32, dt: float) {
 we have now, and this kind of thing...
 */
 
-#module_parameters(GAME_NAME := "");
-#assert(GAME_NAME.count > 0);
-
 #load "components/transform.jai";
 #load "components/camera.jai";
 #load "components/sprite_renderer.jai";
@@ -274,11 +271,9 @@ entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = 
             if ok return rect;
         }
 
-        #if GAME_NAME == "beat_platformer" {
-            enemy := get_component(entity, Enemy);
-            if enemy != null
-                return enemy_rect(enemy);
-        }
+        enemy := get_component(entity, Enemy);
+        if enemy != null
+            return enemy_rect(enemy);
 
         editor_selectable_rect := get_component(entity, Editor_Selectable_Rect);
         if editor_selectable_rect != null {

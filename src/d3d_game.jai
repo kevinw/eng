@@ -1,4 +1,3 @@
-GAME_NAME :: "d3d_game";
 #load "game_base.jai";
 
 State :: struct {
