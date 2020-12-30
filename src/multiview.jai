@@ -7,6 +7,8 @@ Multiview_State :: struct {
 
     force_num_views: int;
 
+    device_params: Looking_Glass_Device;
+
     offscreen: struct {
         pass: Pass;
         color: Texture;
@@ -56,8 +58,23 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
     }
 }
 
+Lenticular_Constants :: struct {
+    pitch: float;
+    slope: float;
+    center: float;
+    subpixelSize: float;
+    tile: Vector4;
+    viewPortion: Vector4;
+    aspect: Vector4;
+    fringe: float;
+    verticalOffset: float;
+
+    _ScreenParams: Vector4;
+}
 #scope_file
 #import "Basic";
+#import "Math";
+#import "host_common";
 #import "renderer";
 #import "math_extra";
 

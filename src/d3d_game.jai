@@ -62,7 +62,8 @@ update_and_draw :: () {
             }
 
             {
-                push_value(*multiview.num_views, 1); // the im draw stuff here should only render 1 view
+                // the im draw stuff here (And probably?) should only render 1 view.
+                push_value(*multiview.num_views, 1); 
 
                 im_set_texture(im, null);
                 editor_draw(context.state);
@@ -81,15 +82,21 @@ update_and_draw :: () {
     present();
 
     // Draw the looking glass device window
-    if context.state.mview_window.window != null {
-        set_context(*context.state.mview_window.mview_renderer);
+    if mview_window.window != null {
+        set_context(*mview_window.mview_renderer);
         defer set_context(*context.state.renderer);
-
+        push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         if multiview.enabled {
-            push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            push_ortho(im);
+            push_blend(im, blend = false);
             im_set_texture(im, multiview.offscreen.pass.color[0]);
-            im_draw_rect(im, 0, 0, 400, 400);
-            im_set_texture(im, null);
+            im_draw_rect(im, 0, 0, 1, 1);
+            im_flush(im);
+
+            //im_set_texture(im, multiview.offscreen.pass.color[0]);
+            //im_draw_rect(im, 0, 0, 400, 400);
+            //im_set_texture(im, null);
+            //im_flush(im);
         }
         present();
     }
@@ -157,6 +164,7 @@ on_host_init :: (host_state: Host_State) {
 
     if host_state.looking_glass_devices.count > 0 {
         device := *host_state.looking_glass_devices[0];
+        multiview.device_params = <<device;
         multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
             device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
     }
@@ -249,6 +257,7 @@ push_value :: (ptr_to_value: *$T, new_value: T) #expand {
 #import "multiview";
 #import "Hash";
 #import "Math";
+#import "Window_Creation";
 Input   :: #import "Input";
 Gamepad :: #import "Gamepad";
 rl :: #import "raylib";

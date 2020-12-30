@@ -182,7 +182,7 @@ Sloppy_Math :: #import "Sloppy_Math";
 
 #load "../lib/ui.jai";
 #if BUILDING_DLLS {
-#load "host_common.jai";
+#import "host_common";
 }
 #load "plugin_exports.jai";
 #load "editor.jai";
