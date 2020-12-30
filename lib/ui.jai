@@ -144,11 +144,11 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
     fonts := ImGui.GetIO().Fonts;
     #if #run Compiler.get_build_options().optimization_level != .RELEASE {
         // In debug builds, load the TTF files from disk.
-        logprint("ui", "loading font %", font_file);
-        logprint("ui", "loading font %", font_file_mono);
         fonts.AddFontFromFileTTF(fonts, font_file, 15);
+        logprint("ui", "loading font %", font_file);
         ui.small_font     = fonts.AddFontFromFileTTF(fonts, font_file, 14);
-        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, 16);
+        logprint("ui", "loading font %", font_file_mono);
+        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, 14);
     } else {
         // In release builds, just include the font files in the data segment.
         font_file_bytes      := decompress_from_data_segment(font_file);
