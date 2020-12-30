@@ -3,7 +3,7 @@ MAXIMUM_VIEWS :: 45; // must match shader value
 Multiview_State :: struct {
     enabled := true;
     num_views: u16 = 45;
-    subview_w: int = 400;
+    subview_w: int = 800;
 
     force_num_views: int;
 

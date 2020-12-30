@@ -2,19 +2,15 @@
 
 ## Immediate
 
-- Get 45 view rendering in. it will be satisfying to see that work and we're relatively close~!
-    - the scene needs a camera component that will be used to actually draw things...
-    - inspecting the camera should show its render texture. (or cycle between its 45?)
 - Depth of field 
 - GPU mouse picking
+- make the projection translation start left and end up right of the camera
+- disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
 
 ## High Priority
-- flappy word - flappy bird mechanics, but you're swapping letters in words vertically
-    - a column of characters. one or more words may be created from it. you're flapping the bird as you go, trying to fit into the gap that you create by removing a word.
 - [HLSL shaders](https://github.com/microsoft/ShaderConductor) for other platforms
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - Join the [berlin minigame jam discord](https://discord.gg/evM44ns)
-- make sure that stack traces are working and if they aren't report a bug
 - Make the editor prompt you to save changes to a scene on exit.
 - 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 - Maybe show the current task in the game as an overlay!
@@ -66,6 +62,8 @@
       re-entry.
     - a `loglocals()` function which would be a quick way to throw local
       VARIABLES ONTO THE SCREEN.
+- flappy word - flappy bird mechanics, but you're swapping letters in words vertically
+    - a column of characters. one or more words may be created from it. you're flapping the bird as you go, trying to fit into the gap that you create by removing a word.
 
 
 ## research ideas:

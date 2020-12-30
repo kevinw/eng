@@ -901,6 +901,7 @@ show_screen_log :: (open: *bool) {
     using ImGui;
     using context.state;
 
+    // we use a zero sized window and draw text manually using its foreground drawlist
     SetNextWindowPos(.{0, 0});
     SetNextWindowSize(.{0, 0});
     flags :: WindowFlags.NoDecoration | .NoInputs | .NoBackground | .NoMouseInputs;
@@ -908,7 +909,8 @@ show_screen_log :: (open: *bool) {
     if !Begin("Screenlog", open, flags) return;
 
     PushPopStyleVar(.ItemSpacing, .{0,1});
-    PushPopFont(context.state.ui.small_font);
+    //PushPopFont(context.state.ui.small_font);
+    PushPopFont(context.state.ui.monospace_font);
 
     logger_state := screenlog.get_context_state();
 

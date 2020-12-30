@@ -395,8 +395,7 @@ get_defaults_node_for_component_bit :: (world: *World, component_bit: Component_
 }
 
 world_update :: (world: *World, delta_time: float) {
-    #if GAME_NAME == "beat_platformer"
-        enemy_update_all();
+    enemy_update_all();
     run_all(world, .update);
 }
 

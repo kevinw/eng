@@ -33,6 +33,9 @@ update_and_draw :: () {
     // draw the main window
     im := *im_context;
     {
+        // TODO: just always render the world to an offscreen texture, since
+        // we'll want to do postprocessing and stuff anyways.
+
         if !multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         defer if !multiview.enabled end_pass();
 
@@ -59,17 +62,19 @@ update_and_draw :: () {
                 im_flush(im);
             }
 
-            im_set_texture(im, null);
-            editor_draw(context.state);
-            im_flush(im);
-            
             {
+                push_value(*multiview.num_views, 1); // the im draw stuff here should only render 1 view
+
+                im_set_texture(im, null);
+                editor_draw(context.state);
+                im_flush(im);
+
                 physics_2d_draw_debug();
                 editor_draw_world(context.state);
                 screenlog_draw.draw_world();
+                im_flush(im);
             }
 
-            im_flush(im);
             imgui_render(*ui);
         }
 
@@ -235,6 +240,11 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
     return entity, entity_handle;
 }
 
+push_value :: (ptr_to_value: *$T, new_value: T) #expand {
+    old_val := <<ptr_to_value;
+    <<ptr_to_value = new_value;
+    `defer <<ptr_to_value = old_val;
+}
 
 #import "renderer";
 #import "renderer_im";
