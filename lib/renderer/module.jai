@@ -1,6 +1,20 @@
 // Common implementation
 
-SUPPORT_RELOADABLE_SHADERS :: true;
+/*
+
+ok so here's the problem!
+
+    i made a mistake when making ANOTHER renderer for the second window.
+    really i should have made a swap chain object (or something), and then
+    created another one of those, and then used push_swapchain(*lkg_swapchain).
+
+    an example of the problem: Renderer_Base here has reloadable_shaders, storing
+    a list of filenames linked to shader pointers. but...the shaders are for the same device!
+    it doesn't make sense to have two "virtual devices." part of the problem is naming it "Renderer."
+
+    but really the second window should not have a second renderer pointer.
+
+    */
 
 Renderer_Base :: struct {
     current_pass: *Pass;

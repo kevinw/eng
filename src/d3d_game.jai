@@ -163,14 +163,18 @@ on_host_init :: (host_state: Host_State) {
 
     load_scene(1);
 
+    multiview_framebuffer_size := framebuffer_size();
+
     if host_state.looking_glass_devices.count > 0 {
         device := *host_state.looking_glass_devices[0];
+        multiview_framebuffer_size.x = cast(u16)device.width;
+        multiview_framebuffer_size.y = cast(u16)device.height;
         multiview.device_params = <<device;
         multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
             device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
     }
 
-    create_multiview_pass(framebuffer_size());
+    create_multiview_pass(multiview_framebuffer_size);
 }
 
 set_context_funcs :: () {

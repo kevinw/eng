@@ -103,7 +103,7 @@ resize_swapchain :: (w: u32, h: u32) {
     Release(depth_buffer_view);
     check_result(swap_chain.ResizeBuffers(
         xx swap_chain,
-        BufferCount = 0,
+        BufferCount = 0, // preserve the buffer count
         Width = w,
         Height = h,
         NewFormat = .DXGI_FORMAT_UNKNOWN, // UNKNOWN here means "keep the format the same"
@@ -150,7 +150,8 @@ draw :: (num_elements: int = -1, num_instances: u32 = 1, base_element: u32 = 0) 
 apply_bindings :: (shader: *Shader,
     vertex_buffers: []Buffer,
     index_buffer: *Buffer,
-    textures: ..*Texture
+    textures: ..*Texture,
+    force_array_texture := false
 ) {
 
     device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
@@ -189,7 +190,7 @@ apply_bindings :: (shader: *Shader,
             logprint("renderer", "warning: passed a null texture to apply_bindings");
             continue;
         }
-        if it.views.count > 1 {
+        if !force_array_texture && it.views.count > 1 {
             array_add(*shader_resource_views, it.views[1]);
         } else {
             if it.views.count == 0
@@ -881,6 +882,8 @@ _get_swapchain_framebuffer :: (using renderer: *Renderer) {
     depth_buffer_desc.Format    = .DXGI_FORMAT_D24_UNORM_S8_UINT;
     depth_buffer_desc.BindFlags = .D3D11_BIND_DEPTH_STENCIL;
 
+    //print("swap chain frame buffer %x%\n", depth_buffer_desc.Width, depth_buffer_desc.Height);
+
     check_result(device.CreateTexture2D(cast(*ID3D11Device)device, *depth_buffer_desc, null, *depth_buffer));
     assert(depth_buffer != null);
 
@@ -944,24 +947,26 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     defer Release(dxgi_factory);
 
     swap_chain_desc := DXGI_SWAP_CHAIN_DESC1.{
-        Width  = 0, // use window width
-        Height = 0, // use window height
-        Format = .DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
-        Stereo = FALSE,
-        SampleDesc = .{
-            Count   = 1,
-            Quality = 0,
+        Width        = 0, // use window width
+        Height       = 0, // use window height
+        Format       = .DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+        Stereo       = FALSE,
+        SampleDesc   = .{
+            Count    = 1,
+            Quality  = 0,
         },
-        BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        BufferCount = 2,
-        Scaling     = .DXGI_SCALING_STRETCH,
-        SwapEffect  = .DXGI_SWAP_EFFECT_DISCARD,
-        AlphaMode   = .DXGI_ALPHA_MODE_UNSPECIFIED,
-        Flags       = 0,
+        BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        BufferCount  = SWAPCHAIN_BUFFER_COUNT,
+        Scaling      = .DXGI_SCALING_STRETCH,
+        SwapEffect   = .DXGI_SWAP_EFFECT_DISCARD, 
+        //SwapEffect   = .DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        AlphaMode    = .DXGI_ALPHA_MODE_UNSPECIFIED,
+        Flags        = 0,
     };
 
     swap_chain: *IDXGISwapChain1;
-    check_result(dxgi_factory.CreateSwapChainForHwnd(dxgi_factory, cast(*IUnknown)renderer.device, hwnd, *swap_chain_desc, null, null, *swap_chain));
+    check_result(dxgi_factory.CreateSwapChainForHwnd(dxgi_factory,
+        cast(*IUnknown)renderer.device, hwnd, *swap_chain_desc, null, null, *swap_chain));
     assert(swap_chain != null, "CreateSwapChainForHwnd did not create a swap chain!");
     renderer.swap_chain = swap_chain;
 
@@ -978,10 +983,8 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     SZ :: 16;
     {
         pixels: [SZ * SZ]u32;
-        
         tex_ok: bool;
-
-        for 0..(SZ*SZ)-1 pixels[it] = 0xffffffff;
+        for 0..(SZ*SZ)-1 pixels[it] = 0xffffffff; // TODO: release mode compile time
         tex_ok, renderer.white_texture = load_texture_from_data(SZ, SZ, 4, pixels.data, debug_name = "white_texture");
         assert(tex_ok);
     }
@@ -1178,6 +1181,8 @@ create_d3d_blob_from_str :: (blob_bytes: string) -> *ID3DBlob {
     memcpy(blob.GetBufferPointer(blob), blob_bytes.data, blob_bytes.count);
     return blob;
 }
+
+SWAPCHAIN_BUFFER_COUNT :: 3;
 
 #import "Bitmap";
 #import "Render/Texture_Format";

@@ -5,6 +5,7 @@
 create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, height: s32, parent: Window_Type = null) {
     using ctx();
     assert(window == null, "Window was already created.");
+    logprint("multiview_window", "Creating window with width=%, height=%", width, height);
     window = create_window(width, height, "lkg window", x, y, parent=parent);
     platform.set_window_borderless(window, true);
     init_from_main_window(main_renderer=main_renderer,

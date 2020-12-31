@@ -7,6 +7,7 @@
 #import "util";
 #import "Math";
 #import "Input";
+#import "DPI";
 
 File            :: #import "File";
 String          :: #import "String";
@@ -17,7 +18,7 @@ platform        :: #import "platform";
 screenlog       :: #import "screenlog";
 #import "soloud";
 
-#load "host_common.jai";
+#import "host_common";
 #load "host_lookingglass.jai";
 
 WINDOW_WIDTH  :: 1280;
@@ -130,6 +131,8 @@ main :: () {
     get_time(); // start the clock!
 
     #if DEBUG_MODULE Debug.init();
+
+    os_dpi_init(); // must be called before any window creation
 
     #if GUARD_ALLOCATOR {
         GWP :: #import "gwpasan";

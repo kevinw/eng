@@ -3,7 +3,7 @@ MAXIMUM_VIEWS :: 45; // must match shader value
 Multiview_State :: struct {
     enabled := true;
     num_views: u16 = 45;
-    subview_w: int = 800;
+    subview_w: int = 700;
 
     force_num_views: int;
 
@@ -42,7 +42,9 @@ calc_lkg_subquilt_size :: (fb_size: Vector2_u16) -> Vector2_u16 {
 
     aspect := cast(float)fb_size.width / cast(float)fb_size.height;
     width  := max(10, cast(int)subview_w);
-    return v2u16(xx width, cast(u16)(cast(float)width / aspect));
+    res := v2u16(xx width, cast(u16)(cast(float)width / aspect));
+    print("calc_lkg_subquilt_size: % -> %\n", fb_size, res);
+    return res;
 }
 
 create_multiview_pass :: (fb_size: Vector2_u16) {
@@ -52,15 +54,16 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
 
     using context.state.multiview;
 
-    // TODO: we need a Material which wraps up a shader, constant blocks, blend modes, and 
+    // TODO: we need a Material which wraps up a shader, constant blocks, blend
+    // modes, and ...
     ok := load_shader_from_file(*lenticular_shader, "resources/shaders/lenticular.hlsl");
     assert(ok);
 
     pipeline = make_pipeline(*lenticular_shader, .Triangles,
-        cull_mode = .None,
+        cull_mode  = .None,
         blend_mode = .Default,
         depth_stencil_opts = .{
-            depth_write = false,
+            depth_write        = false,
             depth_compare_func = .Always,
         },
     );
@@ -75,6 +78,7 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
         pass.label = "multiview-offscreen";
     }
 
+    // TODO: @Speed make this immutable and just recreate it when necessary?
     constant_buffer = create_constant_buffer(Lenticular_Constants);
     {
         lenticular_constants: *Lenticular_Constants;
@@ -89,8 +93,13 @@ draw_lightfield :: () {
     apply_viewport();
     apply_pipeline(*pipeline);
     apply_constant_buffers(.Fragment, *constant_buffer);
-    apply_bindings(*lenticular_shader, .[], null, offscreen.pass.color[0]);
-    draw(3);
+
+    apply_bindings(*lenticular_shader, .[], null, offscreen.pass.color[0],
+        // TODO: instead of passing a hacky bool here, should we instead notice
+        // during reflection that the texture at slot N is a TextureArray? yes
+        force_array_texture=true
+    );
+    draw(3); // fullscreen tri
 }
 
 Lenticular_Constants :: struct {
@@ -109,7 +118,7 @@ Lenticular_Constants :: struct {
 apply_settings_to_buffer_ptr :: (using constants: *Lenticular_Constants) {
     using ctx();
 
-    print("device_params: %\n", formatStruct(device_params, use_newlines_if_long_form=true));
+    //print("device_params: %\n", formatStruct(device_params, use_newlines_if_long_form=true));
 
     assert(device_params.width > 0);
     use_aspect := cast(float)device_params.width / cast(float)device_params.height;
@@ -139,7 +148,7 @@ apply_settings_to_buffer_ptr :: (using constants: *Lenticular_Constants) {
         cast(float)(1.0 + 1.0 / cast(float)color.width),    // z is 1.0 + 1.0/width
         cast(float)(1.0 + 1.0 / cast(float)color.height));  // w is 1.0 + 1.0/height
 
-    print("%\n", <<constants);
+    //print("%\n", <<constants);
 }
 
 #scope_file

@@ -99,7 +99,7 @@ float4 ps_main (vs_out i) : SV_TARGET {
     float fringeAmt = 1.0 - abs(fringe) * floor(fmod(yPixel, 2.0));
     col *= fringeAmt;
 
-    col = col *0.1 + 0.9* float4(1, 0, 1, 1);
+    //col = col *0.1 + 0.9* float4(1, 0, 1, 1);
 
     return col;
 }

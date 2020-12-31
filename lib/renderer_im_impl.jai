@@ -34,7 +34,7 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
                 viewpoint = cam.position,
                 look_at   = look_at,
                 reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
-            translation = make_vector3(cast(float)sin(context.state.Time.now) * 3.0, 0.0, 0.0);
+            translation = make_vector3(0.005, 0.0, 0.0);
         }
     }
 

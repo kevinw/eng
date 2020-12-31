@@ -2,6 +2,9 @@
 
 ## Immediate
 
+- finish lenticular 3d
+    - gonna need a swapchain/renderer rework
+- basic [performance timings](http://reedbeta.com/blog/gpu-profiling-101/)
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
 

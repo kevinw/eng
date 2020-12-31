@@ -13,6 +13,10 @@ try_reload_live_resource :: (full_name_stripped: string, extension: string) {
         case "jpeg";
             did_reload = TryReloadLiveTexturePath(full_name_stripped);
         case "hlsl";
+            // TODO: this is a hack until we have multiple swapchains, not multiple renderers
+            set_context(*context.state.mview_window.mview_renderer);
+            did_reload = reload_shaders_with_filename(full_name_stripped);
+            set_context(*context.state.renderer);
             did_reload = reload_shaders_with_filename(full_name_stripped);
         case "aseprite"; #through;
         case "ase";
