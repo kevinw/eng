@@ -10,7 +10,7 @@ reload_new_dll_filename: string;
 Plugin_Init_Func               :: #type (old_value: *void, host_state: Host_State);
 Plugin_Deinit_Func             :: #type (shutting_down: bool) -> *void;
 Plugin_Tick_Func               :: #type (host_state: Host_State);
-Plugin_On_Resource_Change_Func :: #type (change: *Asset_Change);
+Plugin_On_Resource_Change_Func :: #type (full_name: string, extension: string);
 Plugin_Sanity_Checks_Func      :: #type (sanity_check_info: Sanity_Check_Info);
 
 plugin_init:        Plugin_Init_Func;
@@ -52,25 +52,32 @@ _do_recompile :: (t: *Thread) -> s64 {
 }
 
 on_asset_change :: (using asset_change: *Asset_Change) {
+    if extension == "pdb" return;
+    if extension == "ini" && short_name == "imgui" return;
+
     //print("%\n", <<asset_change);
     //print("change: % % % %\n", short_name, full_name, extension, time_of_last_change);
     if extension == "jai" && !String.begins_with(short_name, "host") && 
         !String.begins_with(full_name, "./.") && 
-        !String.begins_with(full_name, "./generated/")
+        !String.begins_with(full_name, "./generated/") &&
+        !String.begins_with(full_name, ".build/")
     {
-
+        // Source changes mean we recompile the game DLL.
         logprint("host", "recompiling for %", full_name);
         do_recompile();
     } else if extension == "dll" && String.begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
+        // If we notice that the compiler has built a new game dll for us, we
+        // unload the old plugin and load this new one!
         reload_new_dll_filename = full_name;
         if String.begins_with(reload_new_dll_filename, "./")
             advance(*reload_new_dll_filename, 2);
         reload_new_dll_filename = copy_string(reload_new_dll_filename);
     } else {
-        // all other changes go to the plugin, which may want to live reload
+        // All other changes go to the plugin, which may want to live reload
         // textures, etc.
-        if plugin_on_resource_change != null
-            plugin_on_resource_change(asset_change);
+        if plugin_on_resource_change != null {
+            plugin_on_resource_change(asset_change.full_name, asset_change.extension);
+        }
     }
 }
 
@@ -78,6 +85,8 @@ get_func_ptrs_from_dll :: (module: *Plugin.Module) {
     // these functions are implemented plugin-side in plugin_exports.jai
 
     // required functions
+
+    // TODO: just use GetProcAddress which returns a struct full of function pointers?
 
     plugin_tick = cast(Plugin_Tick_Func)GetProcAddress(module.native_module, "plugin_tick");
     if !plugin_tick panic("Could not load plugin_tick func");

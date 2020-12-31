@@ -31,23 +31,39 @@ Debug_Message :: struct {
     }
 }
 
-#if SUPPORT_RELOADABLE_SHADERS {
-    reload_shaders_with_filename :: (filename: string) -> (did_reload: bool) {
-        using renderer := assert_state();
-        for reloadable_shaders if it.filename == filename
-            for shader: it.shaders
+reload_shaders_with_filename :: (filename: string) -> (did_reload: bool) {
+    using renderer := assert_state();
+    did_reload := false;
+    for reloadable_shaders {
+        if it.filename == filename {
+            for shader: it.shaders {
                 reload_shader(shader);
-        return false;
+                did_reload = true;
+            }
+        }
+    }
+    return did_reload;
+}
+
+add_reloadable_shader :: (filename: string, shader: *Shader) -> *Shader_Reload_Entry, bool {
+    using renderer := assert_state();
+    assert(filename.count > 0);
+
+    entry: *Shader_Reload_Entry;
+    for * reloadable_shaders {
+        if it.filename == filename {
+            entry = it;
+            break;
+        }
+    }
+    if !entry {
+        entry = array_add(*reloadable_shaders);
+        entry.filename = copy_string(filename);
     }
 
-    add_reloadable_shader :: (filename: string, shader: *Shader) -> bool {
-        assert(filename.count > 0);
-
-        using renderer := assert_state();
-        entry := array_add_if_unique_by_lambda(*reloadable_shaders, filename, e => *e.filename);
-        return array_add_if_unique(*entry.shaders, shader);
-    }
-} // SUPPORT_RELOADABLE_SHADERS
+    did_add := array_add_if_unique(*entry.shaders, shader);
+    return entry, did_add;
+}
 
 Create_Texture_Type :: enum {
     Normal;
@@ -118,18 +134,4 @@ push_default_pass :: (clear_color: *Vector4 = null, enabled := true) #expand {
 }
 
 #load "renderer_d3d11.jai";
-
-#scope_file
-
-array_add_if_unique_by_lambda :: inline (array: *[..] $T, item: $V, predicate: #type (t: *T) -> *V) -> *T {
-    for * <<array
-        if <<predicate(it) == item
-            return it;
-
-    new_entry := array_add(array);
-    new_entry_value := predicate(new_entry);
-    <<new_entry_value = item;
-    return new_entry;
-}
-
 

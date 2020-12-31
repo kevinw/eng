@@ -62,7 +62,7 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
         memcpy(gpu_indices, indices_32.data, indices_32.count * size_of(u32));
     }
 
-    apply_constant_buffers(*constant_buffer);
+    apply_constant_buffers(.Vertex, *constant_buffer);
 
     color_texture := current_texture;
     if color_texture == null

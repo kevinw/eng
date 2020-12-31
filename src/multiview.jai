@@ -9,6 +9,10 @@ Multiview_State :: struct {
 
     device_params: Looking_Glass_Device;
 
+    lenticular_shader: Shader;
+    constant_buffer: Buffer;
+    pipeline: Pipeline;
+
     offscreen: struct {
         pass: Pass;
         color: Texture;
@@ -47,6 +51,20 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
     assert(sz.width > 0 && sz.height > 0);
 
     using context.state.multiview;
+
+    // TODO: we need a Material which wraps up a shader, constant blocks, blend modes, and 
+    ok := load_shader_from_file(*lenticular_shader, "resources/shaders/lenticular.hlsl");
+    assert(ok);
+
+    pipeline = make_pipeline(*lenticular_shader, .Triangles,
+        cull_mode = .None,
+        blend_mode = .Default,
+        depth_stencil_opts = .{
+            depth_write = false,
+            depth_compare_func = .Always,
+        },
+    );
+
     // offscreen rendertarget
     {
         using offscreen;
@@ -56,6 +74,23 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
         pass.depth = *depth;
         pass.label = "multiview-offscreen";
     }
+
+    constant_buffer = create_constant_buffer(Lenticular_Constants);
+    {
+        lenticular_constants: *Lenticular_Constants;
+        get_constant_buffer_ptr(*lenticular_constants, *constant_buffer);
+        apply_settings_to_buffer_ptr(lenticular_constants);
+    }
+}
+
+draw_lightfield :: () {
+    using ctx();
+
+    apply_viewport();
+    apply_pipeline(*pipeline);
+    apply_constant_buffers(.Fragment, *constant_buffer);
+    apply_bindings(*lenticular_shader, .[], null, offscreen.pass.color[0]);
+    draw(3);
 }
 
 Lenticular_Constants :: struct {
@@ -67,22 +102,52 @@ Lenticular_Constants :: struct {
     viewPortion: Vector4;
     aspect: Vector4;
     fringe: float;
-    verticalOffset: float;
 
     _ScreenParams: Vector4;
 }
+
+apply_settings_to_buffer_ptr :: (using constants: *Lenticular_Constants) {
+    using ctx();
+
+    print("device_params: %\n", formatStruct(device_params, use_newlines_if_long_form=true));
+
+    assert(device_params.width > 0);
+    use_aspect := cast(float)device_params.width / cast(float)device_params.height;
+    assert(use_aspect > 0);
+ 
+    pitch        = device_params.pitch;
+    slope        = device_params.tilt;
+    center       = device_params.center;
+    subpixelSize = device_params.subp;
+    viewColumns := 5; // TODO: no
+    viewRows    := 9;
+    tile         = make_vector4(xx viewColumns, xx viewRows, xx num_views, xx num_views);
+    //viewPortion
+    aspect       = make_vector4(
+        use_aspect,
+        // if it's the default aspect (-1), just use the same aspect as the screen
+        use_aspect, //quiltSettings.aspect < 0 ? cal.aspect : quiltSettings.aspect,
+        0, //quiltSettings.overscan ? 1 : 0
+        0,
+    );
+    fringe       = device_params.fringe;
+
+    color := *offscreen.color;
+    _ScreenParams = make_vector4(
+        cast(float)color.width,   // width of the camera’s target texture in pixels
+        cast(float)color.height,  // height of the camera’s target texture in pixels
+        cast(float)(1.0 + 1.0 / cast(float)color.width),    // z is 1.0 + 1.0/width
+        cast(float)(1.0 + 1.0 / cast(float)color.height));  // w is 1.0 + 1.0/height
+
+    print("%\n", <<constants);
+}
+
 #scope_file
 #import "Basic";
 #import "Math";
 #import "host_common";
 #import "renderer";
 #import "math_extra";
-
-Blitter :: struct {
-    pass: Pass;
-    pipeline: Pipeline;
-    //bindings: Bindings;
-}
 
 ctx :: () -> *Multiview_State {
     return *context.state.multiview;

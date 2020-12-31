@@ -18,8 +18,12 @@ plugin_sanity_checks :: (sanity_check_info: Sanity_Check_Info) {
 }
 
 #program_export
-plugin_on_resource_change :: (using change: *Asset_Change) {
+plugin_on_resource_change :: (full_name: string, extension: string) {
     assert(context.state != null);
+
+    assert(full_name.count > 0);
+    assert(extension.count > 0);
+
     full_name_stripped := strip_dot_slash(full_name);
     try_reload_live_resource(full_name_stripped, extension);
 }

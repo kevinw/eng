@@ -33,11 +33,11 @@ Shader :: struct {
     input_layout: *ID3D11InputLayout; @noui
     input_layout_byte_length: u32; @noui
 
-    #if SUPPORT_RELOADABLE_SHADERS {
-        vs_main: string;  @owned
-        ps_main: string;  @owned
-        filename: string; @owned
-    }
+    // TODO: this stuff should probably be above us, in the live reload
+    // infrastructure...not sure it belongs here.
+    vs_main: string;  @owned
+    ps_main: string;  @owned
+    filename: string; @owned
 }
 
 
@@ -513,13 +513,13 @@ make_pipeline :: (
     if blend_mode != .Default {
         using blend_desc: D3D11_BLEND_DESC;
         RenderTarget[0] = .{
-            BlendEnable = TRUE,
-            SrcBlend = .D3D11_BLEND_SRC_ALPHA,
-            DestBlend = .D3D11_BLEND_INV_SRC_ALPHA,
-            BlendOp = .D3D11_BLEND_OP_ADD,
-            SrcBlendAlpha = .D3D11_BLEND_ONE,
-            DestBlendAlpha = .D3D11_BLEND_ZERO,
-            BlendOpAlpha = .D3D11_BLEND_OP_ADD,
+            BlendEnable           = TRUE,
+            SrcBlend              = .D3D11_BLEND_SRC_ALPHA,
+            DestBlend             = .D3D11_BLEND_INV_SRC_ALPHA,
+            BlendOp               = .D3D11_BLEND_OP_ADD,
+            SrcBlendAlpha         = .D3D11_BLEND_ONE,
+            DestBlendAlpha        = .D3D11_BLEND_ZERO,
+            BlendOpAlpha          = .D3D11_BLEND_OP_ADD,
             RenderTargetWriteMask = 0x0f,
         };
         check_result(device.CreateBlendState(device, *blend_desc, *pipeline.blend_state));
@@ -529,11 +529,14 @@ make_pipeline :: (
 }
 
 apply_pipeline :: (pipeline: *Pipeline) {
-    assert_state();
+    renderer := assert_state();
+    assert(pipeline != null);
+    assert(pipeline.shader != null);
 
     device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
 
     using pipeline;
+
 
     device_context.IASetPrimitiveTopology(device_context, primitive_type);
     device_context.IASetInputLayout(device_context, shader.input_layout);
@@ -577,7 +580,13 @@ apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float 
     renderer.device_context1.RSSetViewports(xx renderer.device_context1, 1, *viewport);
 }
 
-apply_constant_buffers :: (constant_buffers: ..*Buffer) {
+Shader_Stage :: enum {
+    Vertex;
+    Fragment;
+}
+
+
+apply_constant_buffers :: (stage: Shader_Stage, constant_buffers: ..*Buffer) {
     assert_state();
     device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
 
@@ -585,7 +594,10 @@ apply_constant_buffers :: (constant_buffers: ..*Buffer) {
     buffers.allocator = __temporary_allocator;
     for constant_buffers array_add(*buffers, it.d3d_buffer);
 
-    device_context.VSSetConstantBuffers(device_context, 0, cast(u32)buffers.count, buffers.data);
+    if stage == {
+        case .Vertex;   device_context.VSSetConstantBuffers(device_context, 0, cast(u32)buffers.count, buffers.data);
+        case .Fragment; device_context.PSSetConstantBuffers(device_context, 0, cast(u32)buffers.count, buffers.data);
+    }
 }
 
 load_texture_from_file :: (filename: string) -> bool, Texture {
@@ -743,24 +755,20 @@ run_fxc :: (filename: string, target_profile: string, entrypoint_name: string) -
     return blob_bytes;
 }
 
-#if SUPPORT_RELOADABLE_SHADERS {
-    reload_shader :: (shader: *Shader) -> bool {
-        assert(shader.filename.count > 0);
-        assert(shader.vs_main.count > 0);
-        logprint("renderer", "reloading shader: %", shader.filename);
-        return _load_shader_from_file_at_runtime(shader, shader.filename, shader.vs_main, shader.ps_main);
-    }
+reload_shader :: (shader: *Shader) -> bool {
+    assert(shader.filename.count > 0);
+    assert(shader.vs_main.count > 0);
+    logprint("renderer", "reloading shader: %", shader.filename);
+    return _load_shader_from_file_at_runtime(shader, shader.filename, shader.vs_main, shader.ps_main);
 }
 
 load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_main", $ps_main := "ps_main") -> bool {
     #if #run get_build_options().optimization_level != .RELEASE {
         ok := _load_shader_from_file_at_runtime(shader, filename, vs_main, ps_main);
-        #if SUPPORT_RELOADABLE_SHADERS {
-            shader.vs_main = copy_string(vs_main);
-            shader.ps_main = copy_string(ps_main);
-            shader.filename = copy_string(filename);
-            if ok add_reloadable_shader(filename, shader);
-        }
+        shader.vs_main = copy_string(vs_main);
+        shader.ps_main = copy_string(ps_main);
+        shader.filename = copy_string(filename);
+        if ok add_reloadable_shader(filename, shader);
         return ok;
     } else {
         vs_blob_str := #run run_fxc(filename, "vs_5_0", vs_main);

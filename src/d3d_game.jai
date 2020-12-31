@@ -87,11 +87,14 @@ update_and_draw :: () {
         defer set_context(*context.state.renderer);
         push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         if multiview.enabled {
+            draw_lightfield();
+            /*
             push_ortho(im);
             push_blend(im, blend = false);
             im_set_texture(im, multiview.offscreen.pass.color[0]);
             im_draw_rect(im, 0, 0, 1, 1);
             im_flush(im);
+            */
 
             //im_set_texture(im, multiview.offscreen.pass.color[0]);
             //im_draw_rect(im, 0, 0, 400, 400);
@@ -158,8 +161,6 @@ on_host_init :: (host_state: Host_State) {
     im_context.renderer = *renderer;
     im_init_renderer(*im_context);
 
-    create_multiview_pass(framebuffer_size());
-
     load_scene(1);
 
     if host_state.looking_glass_devices.count > 0 {
@@ -168,6 +169,8 @@ on_host_init :: (host_state: Host_State) {
         multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
             device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
     }
+
+    create_multiview_pass(framebuffer_size());
 }
 
 set_context_funcs :: () {

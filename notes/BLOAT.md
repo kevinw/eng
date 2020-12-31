@@ -1,6 +1,7 @@
 # bloat
 - all the places where we do assert(condition, tprint("message %", foo))
 - from imconfig.h
+- imgui.ini - do we need it? can it at least get a different name, and go in a user appdata temp dir somewhere?
 ```
 //---- Avoid multiple STB libraries implementations, or redefine path/filenames to prioritize another version
 // By default the embedded implementations are declared static and not available outside of imgui cpp files.
