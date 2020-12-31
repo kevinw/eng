@@ -13,7 +13,6 @@ GetDevicePropertyBi            :: (dev_index: s32) -> s32   #foreign HoloPlayCor
 GetDevicePropertyPitch         :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyPitch";
 GetDevicePropertyCenter        :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyCenter";
 GetDevicePropertyTilt          :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyTilt";
-GetDevicePropertyDisplayAspect :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyDisplayAspect";
 GetDevicePropertyFringe        :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyFringe";
 GetDevicePropertySubp          :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertySubp";
 
