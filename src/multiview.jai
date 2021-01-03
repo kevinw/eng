@@ -50,12 +50,12 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
     // modes, and ...
     {
         shader_defines :: "QUILT_TEXTURE\01\0";
-        ok := load_shader_from_file(*lenticular_shader_quilt, "resources/shaders/lenticular2.hlsl", defines=shader_defines);
+        ok := load_shader_from_file(*lenticular_shader_quilt, "resources/shaders/lenticular.hlsl", defines=shader_defines);
         assert(ok);
     }
 
     {
-        ok := load_shader_from_file(*lenticular_shader, "resources/shaders/lenticular2.hlsl");
+        ok := load_shader_from_file(*lenticular_shader, "resources/shaders/lenticular.hlsl");
         assert(ok);
     }
 

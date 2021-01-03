@@ -1,106 +1,98 @@
-#define QUILT_TEXTURE
-
-#ifdef QUILT_TEXTURE
-Texture2D      color_tex         : register(t0);
-SamplerState   color_tex_sampler : register(s0);
-#else
-Texture2DArray color_tex         : register(t0);
-SamplerState   color_tex_sampler : register(s0);
-#endif
-
 cbuffer Lenticular_Constants : register(b0) {
+    // Calibration values
     float pitch;
-    float slope;
+    float tilt;
     float center;
-    float subpixelSize;
-    float4 tile;
-    float4 viewPortion;
-    float4 aspect;
-    float fringe;
+    int invView;
+    float subp;
+    float displayAspect;
+    int ri;
+    int bi;
 
-    float4 _ScreenParams;
-};
+    // Quilt settings
+    float3 tile;
+    float pad0;
+    float2 viewPortion;
+    float quiltAspect;
+    int overscan;
+    int quiltInvert;
 
-struct vs_out
-{
-    float4 position:  SV_POSITION;
-    float2 uv:        TEXCOORD0;
-};
-
-void vs_main(
-    in uint id:          SV_VertexID,
-    out float4 position: SV_Position,
-    out float2 texcoord: TEXCOORD0)
-{
-        //Buffer/Layout-less fullscreen triangle vertex shader
-        texcoord.x = (id == 2) ? 2.0 : 0.0;
-        texcoord.y = (id == 1) ? 2.0 : 0.0;
-        position = float4(texcoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 1.0, 1.0);
+    int debug;
 }
 
-float4 ps_main (vs_out i) : SV_TARGET {
-    // first handle aspect
-    // note: recreated this using step functions because my mac didn't like the conditionals
-    // if ((aspect.x > aspect.y && aspect.z < 0.5) || (aspect.x < aspect.y && aspect.z > 0.5))
-    // 	viewUV.x *= aspect.x / aspect.y;
-    // else 
-    // 	viewUV.y *= aspect.y / aspect.x;
-    float2 viewUV = i.uv;
-
-    viewUV -= 0.5;
-    float modx = saturate(
-        step(aspect.y, aspect.x) * step(aspect.z, 0.5) +
-        step(aspect.x, aspect.y) * step(0.5, aspect.z));
-    viewUV.x = modx * viewUV.x * aspect.x / aspect.y +
-               (1.0 - modx) * viewUV.x;
-    viewUV.y = modx * viewUV.y +
-               (1.0 - modx) * viewUV.y * aspect.y / aspect.x;
-    viewUV += 0.5;
-    clip(viewUV);
-    clip(-viewUV + 1.0);
-
-    // then sample quilt
-    float4 col = float4(0,0,0,1);
-    [unroll]
-    for (int subpixel = 0; subpixel < 3; subpixel++) {
-        // determine view for this subpixel based on pitch, slope, center
-        float viewLerp = i.uv.x + subpixel * subpixelSize;
-        viewLerp += i.uv.y * slope;
-        viewLerp *= pitch;
-        viewLerp -= center;
-        // make sure it's positive and between 0-1
-        viewLerp = 1.0 - fmod(viewLerp + ceil(abs(viewLerp)), 1.0);
-        // translate to quilt coordinates
-        float view = floor(viewLerp * tile.z); // multiply by total views
 #ifdef QUILT_TEXTURE
-        float2 quiltCoords = float2(
-            (fmod(view, tile.x) + viewUV.x) / tile.x,
-            (floor(view / tile.x) + viewUV.y) / tile.y
-        );
-        quiltCoords *= viewPortion.xy;
-        col[subpixel] = color_tex.Sample(color_tex_sampler, quiltCoords)[subpixel];
+Texture2D      screenTex : register(t0);
 #else
-        // When using a texture array, the UV lookup is a float3 of (viewUV.x,
-        // viewUV.y, and z=layer index into the array).
-        float3 quiltCoords = float3(viewUV, view);
-        col[subpixel] = color_tex.Sample(color_tex_sampler, quiltCoords)[subpixel];
+Texture2DArray screenTex : register(t0);
 #endif
-    }
+SamplerState screenTex_sampler : register(s0);
 
+#ifdef QUILT_TEXTURE
+float2 texArr(float3 uvz)
+{
+	// decide which section to take from based on the z.
+	float z = floor(uvz.z * tile.z);
+	float x = (fmod(z, tile.x) + uvz.x) / tile.x;
+	float y = (floor(z / tile.x) + uvz.y) / tile.y;
+	return float2(x, 1.0-y) * viewPortion.xy;
+}
+#else
+float3 texArr(float3 uvz) {
+    return float3(uvz.x, uvz.y, tile.z - uvz.z * tile.z);
+}
+#endif
 
-    // fringe
-    // if fringe is negative, that means it's the odd pixels
-    // this is so we don't have to store a separate bool for odd or even
-    // so that's why we're adding ceil fringe
-    // if it's positive it's like we're adding 1
-    // so pixel 2 will become pixel 3 and 3 % 2 == 1
-    // and so our fringe amount will be multiplied by 1 instead of 0,
-    // so for a fringe of 0.2 would make the fringe amount 1 -> 0.8
-    float yPixel = i.uv.y * _ScreenParams.y + ceil(fringe * 0.5);
-    float fringeAmt = 1.0 - abs(fringe) * floor(fmod(yPixel, 2.0));
-    col *= fringeAmt;
+void vs_main(in uint id: SV_VertexID,
+             out float2 texcoord: TEXCOORD0,
+             out float4 position: SV_Position)
+{
+    // Buffer/Layout-less fullscreen triangle vertex shader
+    texcoord.x = (id == 2) ? 2.0 : 0.0;
+    texcoord.y = (id == 1) ? 2.0 : 0.0;
+    position = float4(texcoord * float2(2.0, -2.0) + float2(-1.0, 1.0), 1.0, 1.0);
+}
 
-    //col = col *0.1 + 0.9* float4(1, 0, 1, 1);
+void ps_main(in float2 texCoordsFromVert: TEXCOORD0, out float4 fragColor: SV_TARGET)
+{
+    float2 texCoords = texCoordsFromVert;
+#ifdef QUILT_TEXTURE
+    texCoords.y = 1.0 - texCoords.y;
+#endif
 
-    return col;
+	if (debug == 1)
+	{
+#ifdef QUILT_TEXTURE
+		fragColor = screenTex.Sample(screenTex_sampler, texCoords.xy);
+#else
+		fragColor = screenTex.Sample(screenTex_sampler, float3(texCoords.xy, 0.0));
+#endif
+	}
+	else
+    {
+		float invert = 1.0;
+		if (invView + quiltInvert == 1) invert = -1.0;
+		float3 nuv = float3(texCoords.xy, 0.0);
+		nuv -= 0.5;
+		float modx = clamp (step(quiltAspect, displayAspect) * step(float(overscan), 0.5) + step(displayAspect, quiltAspect) * step(0.5, float(overscan)), 0, 1);
+        nuv.x *= 1;
+		nuv.x = modx * nuv.x * displayAspect / quiltAspect + (1.0-modx) * nuv.x;
+		nuv.y = modx * nuv.y + (1.0-modx) * nuv.y * quiltAspect / displayAspect; 
+		nuv += 0.5;
+		clip (nuv);
+		clip (1.0-nuv);
+		float4 rgb[3];
+		for (int i=0; i < 3; i++)
+		{
+#ifdef QUILT_TEXTURE
+			nuv.z = (texCoords.x + i * subp + texCoords.y * tilt) * pitch - center;
+#else
+			nuv.z = (texCoords.x + i * subp + (1.0 - texCoords.y) * tilt) * pitch - center;
+#endif
+			nuv.z = fmod(nuv.z + ceil(abs(nuv.z)), 1.0);
+			nuv.z *= invert;
+
+			rgb[i] = screenTex.Sample(screenTex_sampler, texArr(nuv));
+		}
+		fragColor = float4(rgb[ri].r, rgb[1].g, rgb[bi].b, 1.0);
+	}
 }
