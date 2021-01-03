@@ -4,11 +4,8 @@ State :: struct {
     using state_base: State_Base;
     renderer: Renderer;
     im_context: Im_Context_R;
-
-    showing_multiview_window: bool;
     multiview: Multiview_State;
     mview_window: multiview_window.State;
-
     first_draw: bool;
 }
 
@@ -31,76 +28,70 @@ update_and_draw :: () {
 
     // draw the main window
     im := *im_context;
+
+    lkg_aspect: float;
+    main_monitor_aspect: float;
+
+    // looking glass window
     {
-        // TODO: just always render the world to an offscreen texture, since
-        // we'll want to do postprocessing and stuff anyways.
-
-        if !multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-        defer if !multiview.enabled end_pass();
-
+        push_renderer_context(*mview_window.mview_renderer, "lkg display");
         {
-            if multiview.enabled begin_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
-            defer if multiview.enabled end_pass();
-
+            // render quilt
+            push_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
             world_draw(*world);
             draw_all_drawables(*world);
             im_flush(im);
         }
 
-        {
-            // default pass
-            if multiview.enabled begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-            defer if multiview.enabled end_pass();
+        begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+        lkg_aspect = framebuffer_aspect();
+        draw_lenticular_lightfield_to_backbuffer();
+        end_pass();
+        present();
+    }
 
-            if multiview.enabled {
-                // TODO: replace all this with "fullscreen triangle" function
+    // default pass for main monitor
+    {
+        push_renderer_context(*context.state.renderer, "main monitor");
+        begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+        main_monitor_aspect := framebuffer_aspect();
+        {
+            // the im draw stuff here (And probably?) should only render 1 view.
+            multiview.num_views_this_frame = multiview.num_views; // just to visualize in the editor
+            push_value(*multiview.num_views, 1); 
+
+            // TODO: replace all this with "fullscreen triangle" function
+            {
+                /*
+                // TODO: we should just render another camera...but for now
+                // i'll just blit one of the quilt views here.
                 push_ortho(im);
                 push_blend(im, blend = false);
                 im_set_texture(im, multiview.offscreen.pass.color[0]);
-                im_draw_rect(im, 0, 0, 1, 1);
+                factor := lkg_aspect / main_monitor_aspect;
+                offset := 0.5-factor*.5; // TODO: remove this, this is a hack
+                im_draw_rect(im, 0 + offset, 0, factor + offset, 1);
                 im_flush(im);
+                */
+
+                world_draw(*world);
+                draw_all_drawables(*world);
+                im_flush(im);
+
             }
 
-            {
-                // the im draw stuff here (And probably?) should only render 1 view.
-                push_value(*multiview.num_views, 1); 
-
-                im_set_texture(im, null);
-                editor_draw(context.state);
-                im_flush(im);
-
-                physics_2d_draw_debug();
-                editor_draw_world(context.state);
-                screenlog_draw.draw_world();
-                im_flush(im);
-            }
-
-            imgui_render(*ui);
-        }
-
-    }
-    present();
-
-    // Draw the looking glass device window
-    if mview_window.window != null {
-        set_context(*mview_window.mview_renderer);
-        defer set_context(*context.state.renderer);
-        push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-        if multiview.enabled {
-            draw_lightfield();
-            /*
-            push_ortho(im);
-            push_blend(im, blend = false);
-            im_set_texture(im, multiview.offscreen.pass.color[0]);
-            im_draw_rect(im, 0, 0, 1, 1);
+            im_set_texture(im, null);
+            editor_draw(context.state);
             im_flush(im);
-            */
 
-            //im_set_texture(im, multiview.offscreen.pass.color[0]);
-            //im_draw_rect(im, 0, 0, 400, 400);
-            //im_set_texture(im, null);
-            //im_flush(im);
+            physics_2d_draw_debug();
+            editor_draw_world(context.state);
+            screenlog_draw.draw_world();
+            im_flush(im);
         }
+
+        imgui_render(*ui);
+        end_pass();
         present();
     }
 }
@@ -165,17 +156,36 @@ on_host_init :: (host_state: Host_State) {
 
     multiview_framebuffer_size := framebuffer_size();
 
+    device: *Looking_Glass_Device;
     if host_state.looking_glass_devices.count > 0 {
-        device := *host_state.looking_glass_devices[0];
-        multiview_framebuffer_size.x = cast(u16)device.width;
-        multiview_framebuffer_size.y = cast(u16)device.height;
-        multiview.device_params = <<device;
-        multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
-            device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
+        device = *host_state.looking_glass_devices[0];
+    } else {
+        device = *fake_lkg_device;
     }
+
+    multiview_framebuffer_size.x = cast(u16)device.width;
+    multiview_framebuffer_size.y = cast(u16)device.height;
+    multiview.device_params = <<device;
+    multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
+        device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
 
     create_multiview_pass(multiview_framebuffer_size);
 }
+
+fake_lkg_device :: Looking_Glass_Device.{
+    xpos    = 20,
+    ypos    = 20,
+    width   = 768,
+    height  = 1024,
+    pitch   = 246.945389,
+    tilt    = -0.185653,
+    center  = -0.122283,
+    invView = 0,
+    subp    = 0.000217,
+    fringe  = 0,
+    ri      = 0,
+    bi      = 2,
+};
 
 set_context_funcs :: () {
     context.state.restart = restart;

@@ -25,21 +25,27 @@ Renderer :: struct {
 Shader :: struct {
     // d3d11
     vert: *ID3D11VertexShader; @noui
-    frag: *ID3D11PixelShader; @noui
+    frag: *ID3D11PixelShader;  @noui
 
     vs_blob: *ID3DBlob; @noui
     ps_blob: *ID3DBlob; @noui
 
     input_layout: *ID3D11InputLayout; @noui
-    input_layout_byte_length: u32; @noui
+    input_layout_byte_length: u32;    @noui
 
     // TODO: this stuff should probably be above us, in the live reload
     // infrastructure...not sure it belongs here.
-    vs_main: string;  @owned
-    ps_main: string;  @owned
+    vs_main:  string; @owned
+    ps_main:  string; @owned
     filename: string; @owned
+    defines:  string; @owned
 }
 
+
+Shader_Define :: struct {
+    name:       string;
+    definition: string;
+}
 
 Texture :: struct {
     width: u16;
@@ -87,6 +93,11 @@ Buffer :: struct {
 framebuffer_size :: () -> Vector2_u16 {
     using renderer := assert_state();
     return v2u16(xx depth_buffer_desc.Width, xx depth_buffer_desc.Height);
+}
+
+framebuffer_aspect :: () -> float {
+    using renderer := assert_state();
+    return cast(float)depth_buffer_desc.Width / cast(float)depth_buffer_desc.Height;
 }
 
 resize_swapchain :: (w: u32, h: u32) {
@@ -455,6 +466,7 @@ unload_shader :: (using shader: *Shader, free_strings: bool = true) {
         free(shader.filename);
         free(shader.vs_main);
         free(shader.ps_main);
+        //array_free(shader.defines); // @Leak
     }
 }
 
@@ -601,12 +613,20 @@ apply_constant_buffers :: (stage: Shader_Stage, constant_buffers: ..*Buffer) {
     }
 }
 
-load_texture_from_file :: (filename: string) -> bool, Texture {
+Sampling_Type :: enum {
+    Point;
+    Linear;
+}
+
+
+load_texture_from_file :: (filename: string, sampling_type: Sampling_Type = .Point) -> bool, Texture {
     renderer := assert_state();
 
     bitmap: Bitmap;
 
     force_channels:s32 = 4; // TODO: texture compression instead of RGBA everything!
+
+    // TODO: can we use bitmap_load to load BGRA?
 
     if !bitmap_load(*bitmap, filename, requested_bytes_per_pixel = force_channels)
         return false, .{};
@@ -614,12 +634,12 @@ load_texture_from_file :: (filename: string) -> bool, Texture {
     assert(bitmap.width > 0);
     assert(bitmap.height > 0);
 
-    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, xx force_channels, bitmap.data, debug_name=filename);
+    ok, tex := load_texture_from_data(cast(u32)bitmap.width, cast(u32)bitmap.height, xx force_channels, bitmap.data, sampling_type, debug_name=filename);
     tex.debug_name = copy_string(filename);
     return ok, tex;
 }
 
-load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: *void, debug_name: string) -> bool, Texture {
+load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: *void, sampling_type: Sampling_Type = .Point, debug_name := "") -> bool, Texture {
     renderer := assert_state();
 
     textureDesc := D3D11_TEXTURE2D_DESC.{
@@ -672,12 +692,18 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
 
     // Sampler
     sampler_desc := D3D11_SAMPLER_DESC.{
-        Filter         = .D3D11_FILTER_MIN_MAG_MIP_POINT,
         AddressU       = .D3D11_TEXTURE_ADDRESS_WRAP,
         AddressV       = .D3D11_TEXTURE_ADDRESS_WRAP,
         AddressW       = .D3D11_TEXTURE_ADDRESS_WRAP,
         ComparisonFunc = .D3D11_COMPARISON_NEVER,
     };
+
+    if sampling_type == {
+        case .Point;  sampler_desc.Filter = .D3D11_FILTER_MIN_MAG_MIP_POINT;
+        case .Linear; sampler_desc.Filter = .D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        case; assert(false);
+    }
+
     {
         res := device.CreateSamplerState(device, *sampler_desc, *tex.sampler_state);
         if res != S_OK || tex.sampler_state == null {
@@ -724,19 +750,41 @@ run_fxc_on_string :: (shader_string: string, target_profile: string, entrypoint_
 }
 
 // fxc is the directx command line HLSL compiler.
-run_fxc :: (filename: string, target_profile: string, entrypoint_name: string) -> (compiled_blob: string) {
+run_fxc :: (filename: string, target_profile: string, entrypoint_name: string, defines_string_in: string = "") -> (compiled_blob: string) {
     temp_file := tprint("temp.%.%.cso", target_profile, entrypoint_name);
 
     file_delete(temp_file);
+
 
     args: [..]string;
     args.allocator = __temporary_allocator;
     array_add(*args, find_fxc(), "/nologo");
     //array_add(*args, "/Od", "/Zi");
-    array_add(*args, "/O3");
-    array_add(*args, "/T", target_profile);
-    array_add(*args, "/E", entrypoint_name);
-    array_add(*args, "/Fo", temp_file);
+    array_add(*args, 
+        "/O3", // currently this function is only run in release mode
+        "/T", target_profile,
+        "/E", entrypoint_name,
+        "/Fo", temp_file
+    );
+
+    if defines_string_in.count > 0 {
+        defines_string := defines_string_in;
+        assert(defines_string[defines_string.count - 1] == #char "\0");
+        defines_string.count -= 1;
+
+        defs := split(defines_string, "\0"); // jai compile time string hack
+        if defs.count > 0 {
+            assert(defs.count % 2 == 0);
+            i := 0;
+            while i < defs.count {
+                name       := defs[i];
+                definition := defs[i + 1];
+                array_add(*args, tprint("/D %=%", name, definition));
+                i += 2;
+            }
+        }
+    }
+
     array_add(*args, filename);
 
     print("%\n", join(..args, separator = " "));
@@ -760,20 +808,27 @@ reload_shader :: (shader: *Shader) -> bool {
     assert(shader.filename.count > 0);
     assert(shader.vs_main.count > 0);
     logprint("renderer", "reloading shader: %", shader.filename);
-    return _load_shader_from_file_at_runtime(shader, shader.filename, shader.vs_main, shader.ps_main);
+    return _load_shader_from_file_at_runtime(shader, shader.filename, shader.vs_main, shader.ps_main, shader.defines);
 }
 
-load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_main", $ps_main := "ps_main") -> bool {
+clone_array :: (array: []$T) -> []T {
+    clone: [..]T;
+    for array array_add(*clone, it);
+    return clone;
+}
+
+load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_main", $ps_main := "ps_main", $defines := "") -> bool {
     #if #run get_build_options().optimization_level != .RELEASE {
-        ok := _load_shader_from_file_at_runtime(shader, filename, vs_main, ps_main);
-        shader.vs_main = copy_string(vs_main);
-        shader.ps_main = copy_string(ps_main);
+        ok := _load_shader_from_file_at_runtime(shader, filename, vs_main, ps_main, defines=defines);
+        shader.vs_main  = copy_string(vs_main);
+        shader.ps_main  = copy_string(ps_main);
+        shader.defines  = copy_string(defines);
         shader.filename = copy_string(filename);
         if ok add_reloadable_shader(filename, shader);
         return ok;
     } else {
-        vs_blob_str := #run run_fxc(filename, "vs_5_0", vs_main);
-        ps_blob_str := #run run_fxc(filename, "ps_5_0", ps_main);
+        vs_blob_str := #run run_fxc(filename, "vs_5_0", vs_main, defines_string_in=defines);
+        ps_blob_str := #run run_fxc(filename, "ps_5_0", ps_main, defines_string_in=defines);
         assert(vs_blob_str.count > 0);
         assert(ps_blob_str.count > 0);
         assert(vs_blob_str != ps_blob_str);
@@ -783,13 +838,45 @@ load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_ma
     }
 }
 
-_compile_shader_at_runtime :: (filename: string, target_profile: string, entrypoint_name: string) -> (ok: bool, blob: *ID3DBlob) {
+_compile_shader_at_runtime :: (filename: string, target_profile: string, entrypoint_name: string, defines_in: string) -> (ok: bool, blob: *ID3DBlob) {
     assert(filename.count > 0);
     filename_w := utf8_to_wide(filename);
 
     shader_blob, error_blob: *ID3DBlob;
     logprint("renderer", "compiling shader % in % (%)", entrypoint_name, filename, target_profile);
-    if S_OK != D3DCompileFromFile(filename_w, null, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
+
+    flags := D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS;
+    #if #run get_build_options().optimization_level != .RELEASE {
+        flags |= D3DCOMPILE_DEBUG;
+    } else {
+        flags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
+    }
+
+    d3d_defines: [..]D3D_SHADER_MACRO;
+    d3d_defines.allocator = __temporary_allocator;
+    if defines_in.count > 0 {
+        defines := defines_in;
+        assert(defines[defines.count - 1] == #char "\0");
+        defines.count -= 1;
+
+        defs := split(defines, "\0"); // jai compile time string hack
+        assert(defs.count % 2 == 0);
+        i := 0;
+        while i < defs.count {
+            name       := defs[i];
+            definition := defs[i + 1];
+
+            entry := array_add(*d3d_defines);
+            entry.Name = name.data;
+            entry.Definition = definition.data;
+            i += 2;
+        }
+
+        // null marker at the end.
+        array_add(*d3d_defines, .{ null, null });
+    }
+
+    if S_OK != D3DCompileFromFile(filename_w, d3d_defines.data, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
         flush_errors();
         logprint("shader", "D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
         Release(error_blob);
@@ -800,11 +887,11 @@ _compile_shader_at_runtime :: (filename: string, target_profile: string, entrypo
     return true, shader_blob;
 }
 
-_load_shader_from_file_at_runtime :: (shader: *Shader, filename: string, vs_main := "vs_main", ps_main := "ps_main") -> bool {
+_load_shader_from_file_at_runtime :: (shader: *Shader, filename: string, vs_main := "vs_main", ps_main := "ps_main", defines: string) -> bool {
     renderer := assert_state();
-    vs_ok, vs_blob := _compile_shader_at_runtime(filename, "vs_5_0", vs_main);
+    vs_ok, vs_blob := _compile_shader_at_runtime(filename, "vs_5_0", vs_main, defines_in=defines);
     if !vs_ok return false;
-    ps_ok, ps_blob := _compile_shader_at_runtime(filename, "ps_5_0", ps_main);
+    ps_ok, ps_blob := _compile_shader_at_runtime(filename, "ps_5_0", ps_main, defines_in=defines);
     if !ps_ok return false;
     // @Leak ....defer release blobs?
     return load_shader_from_blobs(shader, vs_blob, ps_blob);
@@ -853,6 +940,7 @@ load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compile
     old_filename := shader.filename;
     old_vs_main  := shader.vs_main;
     old_ps_main  := shader.ps_main;
+    old_defines  := shader.defines;
 
     unload_shader(shader, free_strings = false);
     <<shader = new_shader;
@@ -862,6 +950,7 @@ load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compile
     shader.filename = old_filename;
     shader.vs_main  = old_vs_main;
     shader.ps_main  = old_ps_main;
+    shader.defines  = old_defines;
 
     return true;
 }

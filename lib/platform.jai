@@ -35,10 +35,17 @@ is_window_active :: inline (native_handle: *void) -> bool {
     return true;
 }
 
-set_window_borderless :: (native_handle: *void, borderless: bool) {
+set_window_borderless :: (native_handle: *void, borderless: bool, x:s32 = -1, y: s32 = -1, w:s32 = -1, h:s32 = -1) {
     #if OS == .WINDOWS {
-        if borderless SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_POPUP);
-        else SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+        if borderless {
+            SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+            if x != -1 {
+                assert(y != -1 && w != -1 && h != -1);
+                SetWindowPos(native_handle, HWND_TOP, x, y, w, h, SWP_FRAMECHANGED);
+            }
+        } else {
+            SetWindowLongW(native_handle, GWL_STYLE, WS_VISIBLE | WS_OVERLAPPEDWINDOW);
+        }
     }
 }
 

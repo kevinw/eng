@@ -1,5 +1,12 @@
+#define QUILT_TEXTURE
+
+#ifdef QUILT_TEXTURE
+Texture2D      color_tex         : register(t0);
+SamplerState   color_tex_sampler : register(s0);
+#else
 Texture2DArray color_tex         : register(t0);
 SamplerState   color_tex_sampler : register(s0);
+#endif
 
 cbuffer Lenticular_Constants : register(b0) {
     float pitch;
@@ -12,14 +19,6 @@ cbuffer Lenticular_Constants : register(b0) {
     float fringe;
 
     float4 _ScreenParams;
-};
-
-struct vs_in
-{
-    float3 position:  POS;
-    float2 texcoord:  TEX;
-    float4 color:     COL;
-    uint   instance_id: SV_InstanceID;
 };
 
 struct vs_out
@@ -47,6 +46,7 @@ float4 ps_main (vs_out i) : SV_TARGET {
     // else 
     // 	viewUV.y *= aspect.y / aspect.x;
     float2 viewUV = i.uv;
+
     viewUV -= 0.5;
     float modx = saturate(
         step(aspect.y, aspect.x) * step(aspect.z, 0.5) +
@@ -78,7 +78,7 @@ float4 ps_main (vs_out i) : SV_TARGET {
             (floor(view / tile.x) + viewUV.y) / tile.y
         );
         quiltCoords *= viewPortion.xy;
-        col[subpixel] = tex2D(_MainTex, quiltCoords)[subpixel];
+        col[subpixel] = color_tex.Sample(color_tex_sampler, quiltCoords)[subpixel];
 #else
         // When using a texture array, the UV lookup is a float3 of (viewUV.x,
         // viewUV.y, and z=layer index into the array).
@@ -86,6 +86,7 @@ float4 ps_main (vs_out i) : SV_TARGET {
         col[subpixel] = color_tex.Sample(color_tex_sampler, quiltCoords)[subpixel];
 #endif
     }
+
 
     // fringe
     // if fringe is negative, that means it's the odd pixels

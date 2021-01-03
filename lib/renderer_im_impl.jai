@@ -12,9 +12,6 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     else
         apply_pipeline(*pipeline_no_blend);
 
-
-    w:float = xx renderer.depth_buffer_desc.Width;
-    h:float = xx renderer.depth_buffer_desc.Height;
     {
         // TODO: only update this when necessary
         using constants : *Constants;
@@ -29,12 +26,12 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
             forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
             look_at := cam.position + forward * 10;
 
-            projection = make_projection_matrix(30, w/h, -50, 50, depth_range_01 = true);
+            projection = make_projection_matrix(30, framebuffer_aspect(), -50, 50, depth_range_01 = true);
             view = make_look_at_matrix(
                 viewpoint = cam.position,
                 look_at   = look_at,
                 reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
-            translation = make_vector3(0.005, 0.0, 0.0);
+            translation = make_vector3(0.39, 0.0, 0.0);
         }
     }
 

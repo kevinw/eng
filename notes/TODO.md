@@ -1,5 +1,7 @@
 # TODO
 
+random ideas: a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
+
 ## Immediate
 
 - finish lenticular 3d
@@ -10,8 +12,10 @@
 
 - GPU mouse picking
 - make the projection translation start left and end up right of the camera
+- automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 - disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
 - before things get too elaborate or complicated, try using Matrix4x3 
+- color palettes
 
 ## High Priority
 - [HLSL shaders](https://github.com/microsoft/ShaderConductor) for other platforms

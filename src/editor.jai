@@ -650,6 +650,7 @@ render_imgui_to_drawlists :: (state: *State) {
     }
 
     using editor;
+    inspect("", *context.state.multiview);
     if windows.prefab_cache {
         defer End();
         if Begin("prefab cache", *windows.prefab_cache)
@@ -967,7 +968,8 @@ editor_update :: (state: *State) {
                 context.state.global_time_scale = 1;
         }
         if rl.IsKeyPressed(.KEY_M) {
-            context.state.multiview.enabled = !context.state.multiview.enabled;
+            logprint("editor", "TODO: implement multiview toggling again");
+            // context.state.multiview.enabled = !context.state.multiview.enabled;
         }
     }
 

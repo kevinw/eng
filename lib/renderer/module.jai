@@ -122,6 +122,17 @@ set_context :: (renderer_ptr: *Renderer) {
     renderer = renderer_ptr;
 }
 
+push_renderer_context :: (renderer_ptr: *Renderer, debug_string := "") #expand {
+    assert(renderer_ptr != null);
+    old_val := renderer;
+    renderer = renderer_ptr;
+    //print("pushing renderer % %\n", renderer, debug_string);
+    `defer {
+        renderer = old_val;
+        //print("popped renderer back to % from %\n", renderer, debug_string);
+    }
+}
+
 assert_state :: inline () -> *Renderer {
     assert(renderer != null, "must call init(*renderer) first");
     return renderer;
