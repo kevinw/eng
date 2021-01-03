@@ -1,26 +1,25 @@
 # TODO
 
-random ideas: a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
-
 ## Immediate
 
-- finish lenticular 3d
-    - gonna need a swapchain/renderer rework
+- fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later
+- swapchain/renderer rework - we need one renderer, but two swapchains
 - basic [performance timings](http://reedbeta.com/blog/gpu-profiling-101/)
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
-
 - GPU mouse picking
 - make the projection translation start left and end up right of the camera
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 - disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
+    - copy frustum visualization code from LKG Unity plugin
+    - at runtime, have the LKG camera follow the player
 - before things get too elaborate or complicated, try using Matrix4x3 
 - color palettes
 
 ## High Priority
 - [HLSL shaders](https://github.com/microsoft/ShaderConductor) for other platforms
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
-- Join the [berlin minigame jam discord](https://discord.gg/evM44ns)
+- Join the [Berlin mini-game jam discord](https://discord.gg/evM44ns)
 - Make the editor prompt you to save changes to a scene on exit.
 - 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 - Maybe show the current task in the game as an overlay!
@@ -39,7 +38,6 @@ random ideas: a badguy who's left-right eye perspective is BACKWARDS. it literal
 - In the UI, the color field should have a different background color to
   indicate that the prefab is overridden. As a first attempt at implementing
   this.
-- @bug saving changes sometimes results in the DLL being loaded twice.
 - C library job systems
 - Temporal anti-aliasing implementation 
 - Motion blur implementation
@@ -47,7 +45,7 @@ random ideas: a badguy who's left-right eye perspective is BACKWARDS. it literal
   it. Copy the type table of the outgoing DLL, and then patch based on that!?
   This would work for anything that has padding bytes at the end... would there
   be a way to automatically pad all structs? or is there something else I could
-  do? mark things as "pinned in memory, but upgradable." or "not pinned in
+  do? Mark things as "pinned in memory, but upgradable." or "not pinned in
       memory, so feel free to memcopy them for me?" or getting into weird
       garbage collection territory where we walk the pointers starting from the
       context state?
@@ -61,7 +59,7 @@ random ideas: a badguy who's left-right eye perspective is BACKWARDS. it literal
 - add debug allocators to chipmunk
 - Research binary pack formats; C libraries that do virtual file systems
 - Idle thought: what if each component was a DLL and a compiler error in one
-  wouldn’t necessarily halt the others
+  wouldn't necessarily halt the others
 - Actually put the speaker in. Have your distance show as a circle on screen
   for the maximum radius it affects you.
 - A function for collecting the local variables of a function up until a
@@ -77,6 +75,8 @@ random ideas: a badguy who's left-right eye perspective is BACKWARDS. it literal
 
 
 ## research ideas:
+    - a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
+    - find out if we can provide the layout of buffers to Renderdoc via some API
     - "on change" component for reactive programming, or for GPU uploads
         think about GetWriteWatch(), or using exception guards on virtualalloc pages, to know whether we need to write stuff to the gpu or not...
     - [D3D11 Vendor Hacks](https://docs.google.com/spreadsheets/d/1J_HIRVlYK8iI4u6AJrCeb66L5W36UDkd9ExSCku9s_o/edit#gid=0)
