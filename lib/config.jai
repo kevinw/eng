@@ -3,8 +3,9 @@
 #import "Reflection";
 Log :: #import "Log";
 
-for_expansion :: (handler: *Text_File_Handler, body: Code, pointer: bool, reverse: bool) #expand {
-    #assert(!pointer && !reverse);
+
+for_expansion :: (handler: *Text_File_Handler, body: Code, flags: For_Flags) #expand {
+    #assert !(flags & .POINTER) && !(flags & .REVERSE);
 
     while true {
         line, found := consume_next_line(handler);

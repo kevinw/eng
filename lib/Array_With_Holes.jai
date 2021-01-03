@@ -351,7 +351,7 @@ handles :: (arr: *$A/Array_With_Holes) -> HandleIterator(A) {
 //
 // Iterate through the non-dead handles in the bucket.
 //
-for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, reverse: bool) #expand {
+for_expansion :: (handles: *HandleIterator($A), body: Code, flags: For_Flags) #expand {
     arr := handles.arr;
     assert(arr != null);
     {
@@ -360,7 +360,7 @@ for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, rever
             tprint("gen (address %) of first item for % at root addr % was not %: %",
                 *arr.items[0].generation, arr.debug_name, arr.items, SENTINEL_GENERATION, arr.items[0].generation));
     }
-    #assert(!reverse);
+    #assert !(flags & .REVERSE);
 
     index := 0;
     n := 1; // start at one to ignore the first freelist hole
@@ -385,7 +385,7 @@ for_expansion :: (handles: *HandleIterator($A), body: Code, pointer: bool, rever
 //
 // Iterate through the non-dead values of the bucket.
 //
-for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse: bool) #expand {
+for_expansion :: (arr: *$A/Array_With_Holes, body: Code, flags: For_Flags) #expand {
     assert(arr.items.data != null);
     {
         unlock_freelist(arr);
@@ -394,7 +394,7 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
                 *arr.items[0].generation, arr.debug_name, arr.items, SENTINEL_GENERATION, arr.items[0].generation));
     }
 
-    #assert(!reverse);
+    #assert !(flags & .REVERSE);
 
     index := 0;
     n := 1; // start at one to ignore the first freelist hole
@@ -404,7 +404,7 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, pointer: bool, reverse:
         
         if slot.generation <= 0 continue; // dead
 
-        #if pointer `it := *slot.value;
+        #if (flags & .POINTER) `it := *slot.value;
         else `it := slot.value;
         `it_index := index; // TODO: not sure it_index is useful here...
 
