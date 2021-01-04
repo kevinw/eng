@@ -471,8 +471,9 @@ unload_shader :: (using shader: *Shader, free_strings: bool = true) {
 }
 
 Depth_Compare_Func :: enum {
-    Less   :: D3D11_COMPARISON_LESS;
-    Always :: D3D11_COMPARISON_ALWAYS;
+    Less    :: D3D11_COMPARISON_LESS;
+    Always  :: D3D11_COMPARISON_ALWAYS;
+    Greater :: D3D11_COMPARISON_GREATER;
 }
 
 
@@ -498,7 +499,6 @@ make_pipeline :: (
         case; assert(false);
     }
 
-    // d3d11
     rasterizer_desc := D3D11_RASTERIZER_DESC1.{
         FillMode = .D3D11_FILL_SOLID,
     };
@@ -512,7 +512,7 @@ make_pipeline :: (
         case; assert(false, "TODO: impl");
     }
 
-    // depth stencil state
+    // Depth stencil state
     depth_stencil_desc := D3D11_DEPTH_STENCIL_DESC.{
         DepthWriteMask = .D3D11_DEPTH_WRITE_MASK_ALL,
     };
@@ -1160,6 +1160,161 @@ get_constant_buffer_ptr :: (ptr: **$T, buffer: *Buffer) #expand {
 
     <<ptr = cast(*T)mappedSubresource.pData;
 }
+
+/// start profiler
+
+Profiler :: struct(T: Type) {
+    Event          :: T;
+    MAX_QUERIES    :: #run type_info(T).values.count;
+    NUM_FRAMES     :: 3; // with 2 we get Sleeps() ... i think the dxgi flip model thing defaults to 3 frames by default. is this "good" for an action game???
+    AVERAGING_TIME :: 0.5;
+
+    r:              *Renderer;
+
+    disjoint_query: [NUM_FRAMES]*ID3D11Query;
+    query:          [MAX_QUERIES][NUM_FRAMES]*ID3D11Query;
+
+    frame_query:   s8;        // Which of the two sets of queries are we currently issuing?
+    frame_collect: s8 = -1;	// Which of the two did we last collect?
+
+    last_frame_timings:      [MAX_QUERIES]float; // Last frame's timings (each relative to previous timestamp)
+    averaged_timings:        [MAX_QUERIES]float; // Timings averaged over AVERAGING_TIMES second
+
+    averaging_timings_total: [MAX_QUERIES]float; // Total timings thus far within this averaging period
+	frame_count_average:     s32;                // Frames rendered in current averaging period
+    averaging_begin_time:    float;              // Time at which current averaging period started
+}
+
+init_profiler :: (using profiler: *Profiler($T)) -> bool {
+    r = assert_state();
+    frame_collect = 1 - NUM_FRAMES;
+
+	query_desc := D3D11_QUERY_DESC.{ .D3D11_QUERY_TIMESTAMP_DISJOINT, 0 };
+
+    for frame: 0..NUM_FRAMES - 1
+        if S_OK != renderer.device.CreateQuery(xx renderer.device, *query_desc, *disjoint_query[frame]) {
+            logprint("renderer_d3d11", .MINIMAL, "error: could not create timestamp disjoint query for frame %", frame);
+            return false;
+        }
+
+	query_desc.Query = .D3D11_QUERY_TIMESTAMP;
+
+    ti := type_info(profiler.Event);
+    for value: ti.values {
+        name := ti.names[it_index];
+        for frame: 0..NUM_FRAMES - 1 {
+            if S_OK != renderer.device.CreateQuery(xx renderer.device, *query_desc, *query[value][frame]) {
+                logprint("renderer_d3d11", .MINIMAL, "error: could not create timestamp query for frame %", frame);
+                return false;
+            }
+        }
+    }
+
+	return true;
+}
+
+begin_frame :: (using profiler: *Profiler($T)) {
+    profiler_asserts(profiler);
+    r.device_context1.Begin(xx r.device_context1, xx disjoint_query[frame_query]);
+	timestamp(profiler, Event.BeginFrame);
+}
+
+timestamp :: (using profiler: *Profiler($T), event: T) {
+    profiler_asserts(profiler);
+	r.device_context1.End(xx r.device_context1, xx query[event][frame_query]);
+}
+
+profiler_asserts :: inline (using profiler: *Profiler($T)) {
+    assert(profiler != null);
+    assert(profiler.r != null);
+    assert(frame_query >= 0 && frame_query < NUM_FRAMES);
+    assert(profiler.disjoint_query[frame_query] != null);
+}
+
+end_frame :: (using profiler: *Profiler($T)) {
+    profiler_asserts(profiler);
+	timestamp(profiler, Event.EndFrame);
+	r.device_context1.End(xx r.device_context1, xx disjoint_query[frame_query]);
+
+    frame_query += 1;
+    if frame_query == NUM_FRAMES
+        frame_query = 0;
+}
+
+shutdown_profiler :: (using profiler: *Profiler($T)) {
+    for frame: 0..1
+        Release(disjoint_query[frame]);
+
+    for value: type_info(profiler.Event).values
+        for frame: 0..1
+            Release(query[value][frame]);
+}
+
+wait_for_data_and_update :: (using profiler: *Profiler($T)) {
+	if frame_collect < 0 {
+		// Haven't run enough frames yet to have data
+		frame_collect += 1;
+		return;
+	}
+
+	// Wait for data
+    device_ctx := cast(*ID3D11DeviceContext)r.device_context1;
+	while device_ctx.GetData(xx device_ctx, xx disjoint_query[frame_collect], null, 0, 0) == S_FALSE {
+        print("SLEEPING\n");
+		Sleep(1);
+	}
+
+	iFrame := frame_collect;
+    frame_collect += 1;
+    if frame_collect == NUM_FRAMES
+        frame_collect = 0;
+
+	timestamp_disjoint: D3D11_QUERY_DATA_TIMESTAMP_DISJOINT;
+	if S_OK != device_ctx.GetData(device_ctx, xx disjoint_query[iFrame], *timestamp_disjoint, size_of(type_of(timestamp_disjoint)), 0)
+	{
+        logprint("profiler", .MINIMAL, "error: Couldn't retrieve timestamp disjoint query data");
+		return;
+	}
+
+	if timestamp_disjoint.Disjoint {
+		// Throw out this frame's data
+		print("Timestamps disjoint\n");
+		return;
+	}
+
+	timestamp_prev: u64;
+	if S_OK != device_ctx.GetData(device_ctx, xx query[Event.BeginFrame][iFrame], *timestamp_prev, size_of(u64), 0)
+	{
+		print("Couldn't retrieve timestamp query data for %\n", Event.BeginFrame);
+		return;
+	}
+
+    for event_idx: 1..query.count - 1 {
+        timestamp: u64;
+        if S_OK != device_ctx.GetData(device_ctx, xx query[event_idx][iFrame], *timestamp, size_of(u64), 0) {
+			print("Couldn't retrieve timestamp query data for %\n", cast(Event)event_idx);
+			return;
+        }
+
+		last_frame_timings[event_idx] = cast(float)(timestamp - timestamp_prev) / cast(float)timestamp_disjoint.Frequency;
+		timestamp_prev = timestamp;
+
+		averaging_timings_total[event_idx] += last_frame_timings[event_idx];
+    }
+
+	frame_count_average += 1;
+	if cast(float)get_time() > averaging_begin_time + AVERAGING_TIME {
+        for event_idx: 0..query.count - 1 {
+			averaged_timings[event_idx] = averaging_timings_total[event_idx] / frame_count_average;
+			averaging_timings_total[event_idx] = 0.0;
+		}
+		frame_count_average = 0;
+		averaging_begin_time = cast(float)get_time();
+	}
+}
+
+
+//// end profiler
 
 
 #scope_file

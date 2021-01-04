@@ -110,13 +110,14 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
 Im_Context_R :: struct {
     using base: Im_Context;
 
-    renderer:          *Renderer;
-    vertex_buffer:     Buffer;
-    index_buffer:      Buffer;
-    constant_buffer:   Buffer;
-    pipeline_blend:    Pipeline;
-    pipeline_no_blend: Pipeline;
-    shader:            Shader;
+    renderer:            *Renderer;
+    vertex_buffer:       Buffer;
+    index_buffer:        Buffer;
+    constant_buffer:     Buffer;
+    pipeline_blend:      Pipeline;
+    pipeline_no_blend:   Pipeline;
+    pipeline_depth_test: Pipeline;
+    shader:              Shader;
 }
 
 #scope_file

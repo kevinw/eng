@@ -112,6 +112,7 @@ Editor :: struct {
             };
         };
         gamepad_viz := false;
+        profiler    := true;
     };
 }
 
@@ -648,7 +649,6 @@ render_imgui_to_drawlists :: (state: *State) {
     }
 
     using editor;
-    inspect("", *context.state.multiview);
     if windows.prefab_cache {
         defer End();
         if Begin("prefab cache", *windows.prefab_cache)
@@ -661,7 +661,22 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.inspector draw_inspector(*windows.inspector);
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
     if windows.gamepad_viz show_gamepad_window(*windows.gamepad_viz);
+    if windows.profiler show_profiler_window(*windows.profiler);
+    //inspect("", *context.state.multiview);
     //inspect("", *context.state.editor);
+}
+
+show_profiler_window :: (open: *bool) {
+    using context.state;
+    using ImGui;
+    
+    defer End();
+    if !Begin("Profiler", open) return;
+
+    if profiler_text.count > 0
+        TextUnformatted(profiler_text);
+    else
+        TextUnformatted("No data.");
 }
 
 show_gamepad_window :: (open: *bool) {

@@ -4,7 +4,6 @@
 
 - fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later
 - swapchain/renderer rework - we need one renderer, but two swapchains
-- basic [performance timings](http://reedbeta.com/blog/gpu-profiling-101/)
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
 - GPU mouse picking
@@ -75,6 +74,7 @@
 
 
 ## research ideas:
+    - a version of __temporary_allocator that ping pongs between VirtualAlloc guard pages so you know immediately if you're reading junk data
     - a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
     - find out if we can provide the layout of buffers to Renderdoc via some API
     - "on change" component for reactive programming, or for GPU uploads

@@ -1,5 +1,17 @@
 #load "game_base.jai";
 
+Profiler_Timestamps :: enum {
+	BeginFrame;
+
+    MultiviewWorldRender;
+    LenticularBlit;
+
+    EditorWorldRender;
+    EditorUI;
+
+	EndFrame;
+}
+
 State :: struct {
     using state_base:  State_Base;
 
@@ -8,6 +20,9 @@ State :: struct {
     multiview:         Multiview_State;
     mview_window:      multiview_window.State;
     first_draw:        bool;
+
+    profiler_text: string;
+    profiler:          Profiler(Profiler_Timestamps);
 }
 
 update_and_draw :: () {
@@ -27,11 +42,10 @@ update_and_draw :: () {
         logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
     }
 
+    begin_frame(*profiler);
+
     // draw the main window
     im := *im_context;
-
-    lkg_aspect: float;
-    main_monitor_aspect: float;
 
     // looking glass window
     {
@@ -42,13 +56,14 @@ update_and_draw :: () {
             world_draw(*world);
             draw_all_drawables(*world);
             im_flush(im);
+            timestamp(*profiler, .MultiviewWorldRender);
         }
 
         begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-        lkg_aspect = framebuffer_aspect();
         draw_lenticular_lightfield_to_backbuffer();
         end_pass();
         present();
+        timestamp(*profiler, .LenticularBlit);
     }
 
     // default pass for main monitor
@@ -65,9 +80,12 @@ update_and_draw :: () {
                 world_draw(*world);
                 draw_all_drawables(*world);
                 im_flush(im);
+                timestamp(*profiler, .EditorWorldRender);
             }
 
             im_set_texture(im, null);
+            wait_for_data_and_update(*profiler);
+            update_profiler_text();
             editor_draw(context.state);
             im_flush(im);
 
@@ -75,12 +93,47 @@ update_and_draw :: () {
             editor_draw_world(context.state);
             screenlog_draw.draw_world();
             im_flush(im);
+            timestamp(*profiler, .EditorUI);
         }
+
 
         imgui_render(*ui);
         end_pass();
         present();
     }
+
+    end_frame(*profiler);
+}
+
+update_profiler_text :: () {
+    using context.state;
+
+    dTDrawTotal:float = 0.0;
+
+    for event_idx: 0..profiler.query.count - 1
+        dTDrawTotal += profiler.averaged_timings[event_idx];
+
+    fmt :: #bake_arguments formatFloat(trailing_width = 2);
+    profiler_text = tprint(#string END
+Draw time: % ms (% FPS)
+END,
+/*
+  Multiview World Render: % ms
+  Lenticular Blit: % ms
+  Editor World Render: % ms
+  Editor UI: % ms
+GPU frame time: % ms
+END,
+*/
+        fmt(1000.0 * dTDrawTotal),
+/*
+        fmt(1000.0 * profiler.averaged_timings[profiler.Event.MultiviewWorldRender]),
+        fmt(1000.0 * profiler.averaged_timings[profiler.Event.LenticularBlit]),
+        fmt(1000.0 * profiler.averaged_timings[profiler.Event.EditorWorldRender]),
+        fmt(1000.0 * profiler.averaged_timings[profiler.Event.EditorUI]),
+        fmt(1000.0 * (dTDrawTotal + profiler.averaged_timings[profiler.Event.EndFrame]))
+*/
+    );
 }
 
 _update_raylib_temp :: (host_state: Host_State) {
@@ -106,7 +159,10 @@ on_host_did_reload_game_dll :: (host_state: Host_State) {
 }
 
 on_host_shutdown :: () {
+    // TODO: the notion of some kind of "hard exit" so that we can do leak
+    // tracking, but keep exiting fast when we don't care about the details.
     using context.state;
+    shutdown_profiler(*profiler);
     game_base_shutdown();
     multiview_window.close();
 }
@@ -129,6 +185,9 @@ on_host_init :: (host_state: Host_State) {
 
     setup_gamepad(host_state);
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
+
+    profiler_ok := init_profiler(*profiler);
+    assert(profiler_ok);
 
     set_context_funcs();
     _update_raylib_temp(host_state);
