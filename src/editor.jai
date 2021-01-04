@@ -11,8 +11,7 @@ still: inspirations:
         - easy transition from one mode to another
         - player follows the editor camera around?
 
-1. camera controls
-2. pause the game as is, or reset it back? --
+pause the game as is, or reset it back? --
      i think a major difference could be that some
      entities could be maintained. for example, if the player
      state survives through a playmode->editmode->playmode transition
@@ -35,8 +34,7 @@ timers are key:
     player timer can keep going
     maybe timers have a bitflag, and the editor can control which ones tick forward
 
-edit a prefab
-place a prefab
+editing a prefab
 
 idea: animate the changes from a prefab to the current instance to show the difference
 use the animation to "go back" to the prefab when you zoom in on it
