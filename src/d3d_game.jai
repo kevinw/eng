@@ -1,12 +1,13 @@
 #load "game_base.jai";
 
 State :: struct {
-    using state_base: State_Base;
-    renderer: Renderer;
-    im_context: Im_Context_R;
-    multiview: Multiview_State;
-    mview_window: multiview_window.State;
-    first_draw: bool;
+    using state_base:  State_Base;
+
+    renderer:          Renderer;
+    im_context:        Im_Context_R;
+    multiview:         Multiview_State;
+    mview_window:      multiview_window.State;
+    first_draw:        bool;
 }
 
 update_and_draw :: () {
@@ -60,24 +61,10 @@ update_and_draw :: () {
             multiview.num_views_this_frame = multiview.num_views; // just to visualize in the editor
             push_value(*multiview.num_views, 1); 
 
-            // TODO: replace all this with "fullscreen triangle" function
             {
-                /*
-                // TODO: we should just render another camera...but for now
-                // i'll just blit one of the quilt views here.
-                push_ortho(im);
-                push_blend(im, blend = false);
-                im_set_texture(im, multiview.offscreen.pass.color[0]);
-                factor := lkg_aspect / main_monitor_aspect;
-                offset := 0.5-factor*.5; // TODO: remove this, this is a hack
-                im_draw_rect(im, 0 + offset, 0, factor + offset, 1);
-                im_flush(im);
-                */
-
                 world_draw(*world);
                 draw_all_drawables(*world);
                 im_flush(im);
-
             }
 
             im_set_texture(im, null);
