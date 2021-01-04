@@ -265,17 +265,17 @@ custom_ctrl :: (name: string, data: *void, ti: *Type_Info) {
         }
 
         xrs := cast(*Transform)data;
-        DragFloat3("pos", cast(*[3]float)*xrs.position);
-        DragFloat3("scl", cast(*[3]float)*xrs.scale);
+        DragFloat3("pos", cast([3]float)*xrs.position);
+        DragFloat3("scl", cast([3]float)*xrs.scale);
 
         quat := cast(*Vector4)*xrs.rotation;
         euler := quaternion_to_euler(<<quat);
-        if DragFloat3("rotation", cast(*[3]float)*euler.x) {
+        if DragFloat3("rotation", cast([3]float)*euler.x) {
             <<quat = euler_to_quaternion(euler.x, euler.y, euler.z);
             logprint("=quat", "changed euler % to quat %", euler, <<quat);
         }
 
-        DragFloat4("quat", cast(*[4]float)quat);
+        DragFloat4("quat", cast([4]float)quat);
     }
 }
 

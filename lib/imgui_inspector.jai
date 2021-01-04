@@ -153,19 +153,19 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             } else {
                 if category == {
                     case .Float2;
-                        DragFloat2(name, cast(*[2]float)data);
+                        DragFloat2(name, cast([2]float)data);
                         push_or_commit_item(data, size_of(float) * 2);
                     case .Float3;
-                        DragFloat3(name, cast(*[3]float)data);
+                        DragFloat3(name, cast([3]float)data);
                         push_or_commit_item(data, size_of(float) * 3);
                     case .Float4;
-                        DragFloat4(name, cast(*[4]float)data);
+                        DragFloat4(name, cast([4]float)data);
                         push_or_commit_item(data, size_of(float) * 4);
                     case .Color_Byte4;
                         bytes := cast(*u8)data;
                         floats: [4]float;
                         for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
-                        if ColorEdit4(name, *floats) {
+                        if ColorEdit4(name, floats) {
                             Undo.push(undo, data, 4);
                             for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
                         }
