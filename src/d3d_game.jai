@@ -115,7 +115,7 @@ update_profiler_text :: () {
 
     fmt :: #bake_arguments formatFloat(trailing_width = 2);
     profiler_text = tprint(#string END
-Draw time: % ms (% FPS)
+Draw time: % ms
 END,
 /*
   Multiview World Render: % ms
