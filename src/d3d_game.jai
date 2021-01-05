@@ -15,14 +15,14 @@ Profiler_Timestamps :: enum {
 State :: struct {
     using state_base:  State_Base;
 
-    renderer:          Renderer;
-    im_context:        Im_Context_R;
-    multiview:         Multiview_State;
-    mview_window:      multiview_window.State;
-    first_draw:        bool;
+    renderer:      Renderer;
+    im_context:    Im_Context_R;
+    multiview:     Multiview_State;
+    mview_window:  multiview_window.State;
+    first_draw:    bool;
 
     profiler_text: string;
-    profiler:          Profiler(Profiler_Timestamps);
+    profiler:      Profiler(Profiler_Timestamps);
 }
 
 update_and_draw :: () {
@@ -203,26 +203,33 @@ on_host_init :: (host_state: Host_State) {
     multiview_framebuffer_size := framebuffer_size();
 
     device: *Looking_Glass_Device;
+    borderless_lkg_window := true;
     if host_state.looking_glass_devices.count > 0 {
         device = *host_state.looking_glass_devices[0];
     } else {
         device = *fake_lkg_device;
+        borderless_lkg_window = false;
     }
 
     multiview_framebuffer_size.x = cast(u16)device.width;
     multiview_framebuffer_size.y = cast(u16)device.height;
     multiview.device_params = <<device;
     multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
-        device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle);
+        device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle,
+        borderless=borderless_lkg_window);
 
     create_multiview_pass(multiview_framebuffer_size);
+
+    // we tell the host about the extra window we created
+    if mview_window.window != null
+        array_add(*host_state.debug_extra_window_handles, mview_window.window);
 }
 
 fake_lkg_device :: Looking_Glass_Device.{
     xpos    = 20,
     ypos    = 20,
-    width   = 768,
-    height  = 1024,
+    width   = 384,
+    height  = 512,
     pitch   = 246.945389,
     tilt    = -0.185653,
     center  = -0.122283,

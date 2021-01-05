@@ -1,13 +1,14 @@
 //
-// TODO: not sure this file should exist
+// TODO: this file should not exist
 //
 
-create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, height: s32, parent: Window_Type = null) {
+create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, height: s32, parent: Window_Type = null, borderless := true) {
     using ctx();
     assert(window == null, "Window was already created.");
     logprint("multiview_window", "Creating window with width=%, height=%", width, height);
     window = create_window(width, height, "", x, y, parent=parent);
-    platform.set_window_borderless(window, true, x, y, width, height);
+    if borderless
+        platform.set_window_borderless(window, true, x, y, width, height);
     init_from_main_window(main_renderer=main_renderer,
         new_renderer_ptr=*mview_renderer, window, debug=debug);
 }

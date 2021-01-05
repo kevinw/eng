@@ -29,7 +29,7 @@ cmdline_args: struct {
     live_reload    := true;
     game_name      := DEFAULT_SRC_PLUGIN;
 };
-the_window: Window_Type;
+the_window: Window_Type; // the application main window
 host_state: Host_State;
 transparent_while_not_focused := false;
 host_settings: struct { // gets serialized to disk to remember the window position
@@ -127,10 +127,37 @@ parse_commandline_arguments :: () {
     }
 }
 
+#if OS == .WINDOWS {
+    set_window_NOT_always_on_top :: (window: *void) #c_call {
+        SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
+    old_exception_filter: #type (i: *EXCEPTION_POINTERS) -> s32 #c_call;
+
+    _host_handle_exception :: (pExceptionInfo: *EXCEPTION_POINTERS) -> s32 #c_call {
+        // make our windows not always on top if we crash, so the debugger
+        // doesn't get obscured
+        set_window_NOT_always_on_top(the_window);
+        for host_state.debug_extra_window_handles
+            set_window_NOT_always_on_top(it);
+
+        if old_exception_filter == null return 0;
+        return old_exception_filter(pExceptionInfo);
+    }
+
+}
+
 main :: () {
     get_time(); // start the clock!
 
-    #if DEBUG_MODULE Debug.init();
+    #if DEBUG_MODULE {
+        Debug.init();
+
+        // we install our own exception handler to make our windows not always
+        // on top in case of an exception
+        #if OS == .WINDOWS
+            old_exception_filter = SetUnhandledExceptionFilter(_host_handle_exception);
+    }
 
     os_dpi_init(); // must be called before any window creation
 
