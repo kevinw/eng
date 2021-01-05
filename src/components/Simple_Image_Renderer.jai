@@ -6,7 +6,7 @@ Simple_Image_Renderer :: struct {
 }
 
 on_enable :: (it: *Simple_Image_Renderer, entity: *Entity) {
-    entity_handle := get_entity_handle(entity);
+    entity_handle:Entity_Handle = get_entity_handle(entity);
     add_or_get_component(entity_handle, Editor_Selectable_Rect);
 }
 

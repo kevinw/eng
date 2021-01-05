@@ -485,12 +485,12 @@ add_or_get_component :: (entity_or_handle: $E, component_ti: *Type_Info_Struct, 
     return add_component(entity_or_handle, component_ti, undo=undo, on_enable=run_on_enable), true;
 }
 
-add_or_get_component :: (entity_or_handle: $E, $component_type: Type) -> *Component {
+add_or_get_component :: (entity_handle: Entity_Handle, $component_type: Type) -> *component_type {
     check_canaries();
 
-    component_ptr := get_component(entity_or_handle, component_type);
+    component_ptr := get_component(entity_handle, component_type);
     if component_ptr != null return component_ptr;
-    return add_component(entity_or_handle, component_type);
+    return add_component(entity_handle, component_type);
 }
 
 add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct, undo: *Undo.Impl=null, $on_enable := true) -> *Component {

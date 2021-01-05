@@ -157,7 +157,8 @@ player_has_been_damaged :: (using player: *Player) -> bool {
 }
 
 on_enable :: (using it: *Player, in_entity: *Entity) {
-    editor_rect = add_component(it.entity, Editor_Selectable_Rect);
+    entity_handle: Entity_Handle = it.entity;
+    editor_rect = add_or_get_component(cast(Entity_Handle)entity_handle, Editor_Selectable_Rect);
 }
 
 update :: (using player: *Player) {
