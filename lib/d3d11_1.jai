@@ -200,17 +200,17 @@ IDXGISwapChain1 :: struct {
 IDXGISwapChain1_VTable :: struct {
     using swap_chain_vtable : IDXGISwapChain_VTable;
 
-    GetDesc1: (pDesc: *DXGI_SWAP_CHAIN_DESC1) -> HRESULT #foreign;
-    GetFullscreenDesc: (pDesc: *DXGI_SWAP_CHAIN_FULLSCREEN_DESC) -> HRESULT #foreign;
-    GetHwnd: (pHwnd: *HWND) -> HRESULT #foreign;
-    GetCoreWindow: (refiid: REFIID, ppUnk: **void) -> HRESULT #foreign;
-    Present1: (SyncInterval: u32, PresentFlags: u32, pPresentParameters: *DXGI_PRESENT_PARAMETERS) -> HRESULT #foreign;
-    IsTemporaryMonoSupported: () -> BOOL #foreign;
-    GetRestrictToOutput: (ppRestrictToOutput: **IDXGIOutput) -> HRESULT #foreign;
-    SetBackgroundColor: (pColor: *DXGI_RGBA) -> HRESULT #foreign;
-    GetBackgroundColor: (pColor: *DXGI_RGBA) -> HRESULT #foreign;
-    SetRotation: (Rotation: DXGI_MODE_ROTATION ) -> HRESULT #foreign;
-    GetRotation: (pRotation: *DXGI_MODE_ROTATION) -> HRESULT #foreign;
+    GetDesc1: (this: *IDXGISwapChain1, pDesc: *DXGI_SWAP_CHAIN_DESC1) -> HRESULT #foreign;
+    GetFullscreenDesc: (this: *IDXGISwapChain1, pDesc: *DXGI_SWAP_CHAIN_FULLSCREEN_DESC) -> HRESULT #foreign;
+    GetHwnd: (this: *IDXGISwapChain1, pHwnd: *HWND) -> HRESULT #foreign;
+    GetCoreWindow: (this: *IDXGISwapChain1, refiid: REFIID, ppUnk: **void) -> HRESULT #foreign;
+    Present1: (this: *IDXGISwapChain1, SyncInterval: u32, PresentFlags: u32, pPresentParameters: *DXGI_PRESENT_PARAMETERS) -> HRESULT #foreign;
+    IsTemporaryMonoSupported: (this: *IDXGISwapChain1) -> BOOL #foreign;
+    GetRestrictToOutput: (this: *IDXGISwapChain1, ppRestrictToOutput: **IDXGIOutput) -> HRESULT #foreign;
+    SetBackgroundColor: (this: *IDXGISwapChain1, pColor: *DXGI_RGBA) -> HRESULT #foreign;
+    GetBackgroundColor: (this: *IDXGISwapChain1, pColor: *DXGI_RGBA) -> HRESULT #foreign;
+    SetRotation: (this: *IDXGISwapChain1, Rotation: DXGI_MODE_ROTATION ) -> HRESULT #foreign;
+    GetRotation: (this: *IDXGISwapChain1, pRotation: *DXGI_MODE_ROTATION) -> HRESULT #foreign;
 }
 
 DXGI_PRESENT_PARAMETERS :: struct {
