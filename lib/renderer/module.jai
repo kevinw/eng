@@ -92,6 +92,11 @@ Buffer_Type :: enum u8 {
     Constant;
 }
 
+Buffer_Usage_Flags :: enum_flags u8 {
+    Default :: 0;
+    Staging :: 1;
+}
+
 Primitive_Type :: enum u8 {
     Triangles;
 }

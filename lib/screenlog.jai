@@ -39,12 +39,15 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
         time_on_screen = 100;
     }
 
-    if ident.count > 0
-        print_color("[%] ", ident, color=FOREGROUND_BLUE | FOREGROUND_GREEN);
-    if mode == .MINIMAL {
-        print_color("%\n", message, color=FOREGROUND_RED | FOREGROUND_INTENSITY);
-    } else {
-        print("%\n", message);
+    if ident.count > 0 {
+        if !String.ends_with(ident, "!") {
+            print_color("[%] ", ident, color=FOREGROUND_BLUE | FOREGROUND_GREEN);
+            if mode == .MINIMAL {
+                print_color("%\n", message, color=FOREGROUND_RED | FOREGROUND_INTENSITY);
+            } else {
+                print("%\n", message);
+            }
+        }
     }
 
     new_ident := copy_string(ident);
@@ -123,6 +126,7 @@ update :: (delta_time: float64) {
 #import "Print_Color";
 #import "Math";
 #import "Basic";
+String :: #import "String";
 
 TIME_ON_SCREEN :: 2.0;
 MAX_COUNT :: 200000;

@@ -1,7 +1,6 @@
 request_window_close :: (native_handle: *void) {
     #if OS == .WINDOWS {
         PostMessageW :: (hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> BOOL #foreign user32;
-        user32 :: #foreign_system_library "user32";
         PostMessageW(native_handle, WM_CLOSE, 0, 0);
     }
 }
@@ -61,6 +60,21 @@ set_window_rect :: (native_handle: *void, x: s32, y: s32, w: s32, h: s32) {
     }
 }
 
+get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
+    #if OS == .WINDOWS {
+        last_point: POINT;
+        MapWindowPoints :: (hwnd1: *void, hwnd2: *void, points: *POINT, point_count: u32) -> s32 #foreign user32;
+        assert(window != null);
+        point: POINT;
+        GetCursorPos(*point);
+        MapWindowPoints(null, window, *point, 1);
+        return point.x, point.y;
+    }
+
+    return 0, 0;
+}
+
+
 get_window_position :: (native_handle: *void) -> (x: s32, y: s32) {
     assert(native_handle != null);
     rect: RECT;
@@ -96,6 +110,9 @@ toggle_always_on_top :: (native_handle: *void) -> bool {
 }
 
 #scope_file
-#if OS == .WINDOWS #import "Windows";
+#if OS == .WINDOWS {
+    #import "Windows";
+    user32 :: #foreign_system_library "user32";
+}
 #import "Basic";
 #import "Math";

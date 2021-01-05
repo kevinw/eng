@@ -14,6 +14,8 @@ _draw :: (it: *RectRenderer) {
 
     color2 := it.color;
     color2.r -= 100; color2.g -= 100; color2.b -= 100;
+
+    im_push_entity_handle(it.entity);
     rl.DrawRectangleGradientEx(rect, it.color, color2, color2, it.color, depth_z = depth_z);
     //im_draw_rect(*context.state.im_context, rect.position, rect.size + rect.position);
 }

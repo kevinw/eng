@@ -30,6 +30,13 @@ im_push_z :: (using ctx: *Im_Context, z:float) #expand {
     `defer ctx.current_depth_z = old_z;
 }
 
+im_push_entity_handle :: (entity_handle: Handle_Type) #expand {
+    ctx := *context.state.im_context;
+    old_handle := context.state.im_context.entity_handle;
+    ctx.entity_handle = entity_handle;
+    `defer ctx.entity_handle = old_handle;
+}
+
 // impl provides type safe wrapper around this function
 _unsafe_im_set_texture :: (using ctx: *Im_Context, texture: *void) {
     draw_cmd := *draw_array[draw_array.count - 1];
@@ -297,6 +304,8 @@ Im_Draw_Command :: struct {
     clip_rect: Vector4;
     texture: *void;
     sampler: *void;
+
+    entity_handle: Handle_Type;
 }
 
 Im_Vertex :: struct {
@@ -308,6 +317,10 @@ Im_Vertex :: struct {
     col: Vector4;
 
     instance_id: u32;
+
+    // TODO: just use these in the editor only!
+    entity_id:         u32;
+    entity_generation: s32;
 }
 
 
@@ -331,6 +344,9 @@ Im_Context :: struct {
     // should probably just have a unified way of talking about more specific
     // blends
     current_blend := true; 
+
+    track_mouse := false;
+    entity_handle: Handle_Type;
 
     fullscreen_ortho: bool;
 }
@@ -367,3 +383,6 @@ push_fresh_command :: (using ctx: *Im_Context) -> *Im_Draw_Command {
 
     return draw;
 }
+
+#scope_file
+#import "Array_With_Holes";

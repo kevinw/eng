@@ -77,6 +77,9 @@ update_and_draw :: () {
             push_value(*multiview.num_views, 1); 
 
             {
+                im.track_mouse = true;
+                defer im.track_mouse = false;
+
                 world_draw(*world);
                 draw_all_drawables(*world);
                 im_flush(im);

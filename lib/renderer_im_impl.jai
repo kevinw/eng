@@ -1,10 +1,87 @@
+
 im_set_texture :: inline (using ctx: *Im_Context, texture: *Texture) {
     _unsafe_im_set_texture(ctx, texture);
+}
+
+
+ObjectIDInfo :: struct { // must match unlit_texture.hlsl
+    entity_id:         u32;
+    entity_generation: s32;
+    depth:             float;
 }
 
 renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: [] Im_Vertex, draws: [] Im_Draw_Command) {
     ctx := cast(*Im_Context_R)im_ctx;
     using ctx;
+
+    MAX_MOUSEPICK_COUNT :: 50;
+    if track_mouse && !did_init {
+        mousepick_objectids         = create_structured_buffer(size_of(ObjectIDInfo), MAX_MOUSEPICK_COUNT);
+        mousepick_objectids_staging = create_structured_buffer(size_of(ObjectIDInfo), MAX_MOUSEPICK_COUNT, .Staging);
+        mousepick_objectids_count   = create_count_buffer();
+        did_init = true;
+    }
+
+    reset_mousepick_counts := false;
+    if track_mouse {
+        if current_frame != context.state.Time.frame_count {
+            // note, this will happen asynchronously. we're getting previous values
+            gpu_copy_buffer_count(dest=*mousepick_objectids_count, src=*mousepick_objectids);
+            gpu_copy_buffer(dest=*mousepick_objectids_staging, src=*mousepick_objectids);
+
+            current_frame = context.state.Time.frame_count;
+            reset_mousepick_counts = true;
+
+            MousePick :: struct {
+                infos: [MAX_MOUSEPICK_COUNT]ObjectIDInfo;
+            }
+            total_objs := 0;
+            count: u32;
+            {
+                gpu_count: *u32;
+                get_constant_buffer_ptr(*gpu_count, *mousepick_objectids_count, usage=.Read);
+                count = <<gpu_count;
+            }
+            {
+                logprint("=mousepick_count!", "count: %", count);
+                if count > 0 {
+                    buf: *MousePick;
+                    get_constant_buffer_ptr(*buf, *mousepick_objectids_staging, usage=.Read);
+                    for count_i: 0..count-1 {
+                        if count_i >= MAX_MOUSEPICK_COUNT break;
+                        it := buf.infos[count_i];
+                        if count_i < 10
+                            logprint(tprint("=mousepick%!", count_i),
+                                "%: id=%, gen=%", count_i, it.entity_id, it.entity_generation);
+                    }
+                }
+
+                /*
+
+                print_hex_bytes :: (sb: *String_Builder, data: []u8) {
+                    count := 0;
+                    for data {
+                        print_to_builder(sb, "% ", formatInt(it, base=16, minimum_digits=2));
+                        count += 1;
+                        if count >= 8 {
+                            count = 0;
+                            print("\n");
+                        }
+                    }
+                    print_to_builder(sb, "\n");
+                }
+
+                sb: String_Builder;
+                sb.allocator = __temporary_allocator;
+                slice: []u8;
+                slice.data = cast(*u8)buf;
+                slice.count = size_of(MousePick);
+                print_hex_bytes(*sb, slice);
+                logprint("=mousebuf!", builder_to_string(*sb, allocator=__temporary_allocator));
+                */
+            }
+        }
+    }
 
     apply_viewport();
     if current_blend
@@ -16,6 +93,7 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
         // TODO: only update this when necessary
         using constants : *Constants;
         get_constant_buffer_ptr(*constants, *constant_buffer);
+
 
         if im_ctx.fullscreen_ortho {
             projection  = orthographic_projection_matrix(0, 1, 1, 0, -100, 100);
@@ -32,6 +110,22 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
                 look_at   = look_at,
                 reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
             translation = make_vector3(0.39, 0.0, 0.0);
+        }
+    }
+
+    if track_mouse {
+        mouse_x, mouse_y := platform.get_client_mouse_pos(get_swapchain_native_window_handle());
+
+        using fragment_constants: *Fragment_Constants;
+        get_constant_buffer_ptr(*fragment_constants, *fragment_constant_buffer);
+        currently_drawing_entity_id         = im_ctx.entity_handle.id;
+        currently_drawing_entity_generation = im_ctx.entity_handle.generation;
+        if im_ctx.track_mouse {
+            mouse_xy.x = cast(float)mouse_x;
+            mouse_xy.y = cast(float)mouse_y;
+        } else {
+            mouse_xy.x = -1;
+            mouse_xy.y = -1;
         }
     }
 
@@ -60,12 +154,19 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     }
 
     apply_constant_buffers(.Vertex, *constant_buffer);
+    if track_mouse
+        apply_constant_buffers(.Fragment, *fragment_constant_buffer);
 
     color_texture := current_texture;
     if color_texture == null
         color_texture = *renderer.white_texture;
 
+
+    pick_buffer: *Buffer = null;
+    if track_mouse
+        pick_buffer = *mousepick_objectids;
     apply_bindings(*shader, to_array(vertex_buffer), *index_buffer, color_texture);
+    apply_uav(pick_buffer, new_count = ifx reset_mousepick_counts then cast(u32)0 else 0xffffffff);
     idx_buffer_offset: u32;
     for draw_cmd: draw_array {
         num_instances := context.state.multiview.num_views;
@@ -74,6 +175,8 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
             base_element = idx_buffer_offset);
         idx_buffer_offset += draw_cmd.index_count;
     }
+    if pick_buffer != null
+        apply_uav(null);
 }
 
 im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_elements := 4096, draw_elements := 64) {
@@ -83,7 +186,9 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
 
     index_buffer  = create_dynamic_buffer(cast(u32)(index_elements * size_of(u32)), .Index);
     vertex_buffer = create_dynamic_buffer(cast(u32)(vertex_elements * size_of(Im_Vertex)), .Vertex);
-    constant_buffer = create_constant_buffer(Constants);
+
+    constant_buffer          = create_constant_buffer(Constants);
+    fragment_constant_buffer = create_constant_buffer(Fragment_Constants);
 
     filename ::"resources/shaders/unlit_texture.hlsl";
     ok := load_shader_from_file(*shader, filename);
@@ -110,14 +215,21 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
 Im_Context_R :: struct {
     using base: Im_Context;
 
-    renderer:            *Renderer;
-    vertex_buffer:       Buffer;
-    index_buffer:        Buffer;
-    constant_buffer:     Buffer;
-    pipeline_blend:      Pipeline;
-    pipeline_no_blend:   Pipeline;
-    pipeline_depth_test: Pipeline;
-    shader:              Shader;
+    renderer:                 *Renderer;
+    vertex_buffer:            Buffer;
+    index_buffer:             Buffer;
+    constant_buffer:          Buffer;
+    fragment_constant_buffer: Buffer;
+    pipeline_blend:           Pipeline;
+    pipeline_no_blend:        Pipeline;
+    pipeline_depth_test:      Pipeline;
+    shader:                   Shader;
+
+    mousepick_objectids:         Buffer;
+    mousepick_objectids_staging: Buffer;
+    mousepick_objectids_count:   Buffer;
+    did_init:  bool = false;
+    current_frame: u64 = 99999; // we just use this to check if we have changed frames, so start at a high number
 }
 
 #scope_file
@@ -129,8 +241,16 @@ Constants :: struct {
     translation: Vector3;
 }
 
+Fragment_Constants :: struct {
+    mouse_xy: Vector2;
+    currently_drawing_entity_id: u32;
+    currently_drawing_entity_generation: s32;
+}
+
 to_array :: (elems: ..$A) -> []A { return elems; }
 
+Window_Creation :: #import "Window_Creation";
+platform :: #import "platform";
 #import "renderer_im";
 #import "renderer";
 #import "Basic";

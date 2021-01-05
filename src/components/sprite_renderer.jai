@@ -138,6 +138,8 @@ _draw :: (using it: *SpriteRenderer, transform: *Transform) {
         transform = *default_transform;
     position := *transform.position;
 
+    im_push_entity_handle(it.entity);
+
     // DEPRECATED - this is the old atlas parsing sprite thing. prefer aseprite and 'sprite_anim' now!
     if sprite.count > 0 {
         sprite_rect, offset := sprite_get_rect(sprite, timer, fps);

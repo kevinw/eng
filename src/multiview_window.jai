@@ -3,6 +3,13 @@
 //
 
 create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, height: s32, parent: Window_Type = null, borderless := true) {
+    #if OS == .WINDOWS {
+        // on windows, jai's Window_Creation module tries to initialize the
+        // same window class creation twice, because it's a module level
+        // variable...should we instead maybe ask the plugin's host to make the
+        // window for us? not sure
+        window_class_initted = true;
+    }
     using ctx();
     assert(window == null, "Window was already created.");
     logprint("multiview_window", "Creating window with width=%, height=%", width, height);

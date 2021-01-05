@@ -1,3 +1,6 @@
+D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL:u32: 0xffffffff;
+D3D11_KEEP_UNORDERED_ACCESS_VIEWS          :u32: 0xffffffff;
+
 ID3D11Device1 :: struct {
     using vtable: *ID3D11Device1_VTable;
     uuid :: "a04bfb29-08ef-43d6-a49c-a9bdbdcbe686";

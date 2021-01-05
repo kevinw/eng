@@ -83,7 +83,7 @@ Pipeline :: struct {
 
 Buffer :: struct {
     d3d_buffer: *ID3D11Buffer;
-
+    uav_view:   *ID3D11UnorderedAccessView;  // TODO: not needed until we do compute
     element_count: u32; // not sure this should be here...
 }
 
@@ -98,6 +98,16 @@ framebuffer_size :: () -> Vector2_u16 {
 framebuffer_aspect :: () -> float {
     using renderer := assert_state();
     return cast(float)depth_buffer_desc.Width / cast(float)depth_buffer_desc.Height;
+}
+
+get_swapchain_native_window_handle :: () -> *void {
+    using renderer := assert_state();
+    hwnd: HWND;
+    if S_OK != swap_chain.GetHwnd(swap_chain, *hwnd) {
+        logprint("renderer_d3d11", .MINIMAL, "error: could not GetHwnd from swapchain");
+    }
+    return hwnd;
+
 }
 
 resize_swapchain :: (w: u32, h: u32) {
@@ -158,10 +168,28 @@ draw :: (num_elements: int = -1, num_instances: u32 = 1, base_element: u32 = 0) 
     }
 }
 
+gpu_copy_buffer :: (dest: *Buffer, src: *Buffer) {
+    using renderer := assert_state();
+    assert(dest.d3d_buffer != null);
+    assert(src.d3d_buffer != null);
+    device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
+    device_context.CopyResource(device_context, cast(*ID3D11Resource)dest.d3d_buffer, cast(*ID3D11Resource)src.d3d_buffer);
+}
+
+gpu_copy_buffer_count :: (dest: *Buffer, src: *Buffer, offset: u32 = 0) {
+    using renderer := assert_state();
+    assert(dest.d3d_buffer != null);
+    assert(src.d3d_buffer != null);
+    assert(src.uav_view != null);
+    device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
+    device_context.CopyStructureCount(device_context, dest.d3d_buffer, offset, src.uav_view);
+}
+
 apply_bindings :: (shader: *Shader,
     vertex_buffers: []Buffer,
     index_buffer: *Buffer,
     textures: ..*Texture,
+    uav_buffer :*Buffer = null, // hack: should probably be a better way to provide bindings
     force_array_texture := false
 ) {
 
@@ -220,8 +248,44 @@ apply_bindings :: (shader: *Shader,
     device_context.PSSetSamplers(device_context, 0, cast(u32)sampler_states.count, sampler_states.data);
     flush_debug_messages();
 
-    //ID3D11DeviceContext_IASetVertexBuffers(_sg.d3d11.ctx, 0, SG_MAX_SHADERSTAGE_BUFFERS, d3d11_vbs, pip->d3d11_vb_strides, d3d11_vb_offsets);
-    //ID3D11DeviceContext_IASetIndexBuffer(_sg.d3d11.ctx, d3d11_ib, pip->d3d11_index_format, ib_offset);
+}
+
+apply_uav :: (uav_buffer: *Buffer, new_count:u32 = 0xffffffff, bind_point:u32 = 1) {
+    using renderer := assert_state();
+    device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
+
+    if uav_buffer != null {
+        assert(uav_buffer.uav_view != null, "buffer did not have a uav_view");
+
+        initial_counts: [1]u32; 
+        initial_counts[0] = new_count;
+        // -1 for new_count means "keep the same"
+
+        device_context.OMSetRenderTargetsAndUnorderedAccessViews(device_context,
+            D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, null, null, bind_point, 1,
+            *uav_buffer.uav_view, initial_counts.data);
+    } else {
+        device_context.OMSetRenderTargetsAndUnorderedAccessViews(device_context,
+            D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, null, null, bind_point, 0,
+            null, null);
+    }
+}
+
+create_count_buffer :: () -> Buffer {
+    // 32 bit buffer for receiving a count from an AppendStructuredBuffer
+    assert_state();
+    using renderer;
+
+    constant_buffer_desc := D3D11_BUFFER_DESC.{
+        ByteWidth      = 4,
+        Usage          = .D3D11_USAGE_STAGING,
+        BindFlags      = 0,
+        CPUAccessFlags = .D3D11_CPU_ACCESS_READ,
+    };
+
+    buf: Buffer;
+    check_result(device.CreateBuffer(xx device, *constant_buffer_desc, null, *buf.d3d_buffer));
+    return buf;
 }
 
 create_constant_buffer :: ($T: Type) -> Buffer {
@@ -256,6 +320,78 @@ create_dynamic_buffer :: (size_in_bytes: u32, type: Buffer_Type) -> Buffer {
     buffer.element_count = 0;
     return buffer;
 }
+
+create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
+    assert_state();
+    using renderer;
+
+    desc: D3D11_BUFFER_DESC;
+    desc.ByteWidth = cast(u32)(size_of(D) * data.count);
+    desc.Usage     = .D3D11_USAGE_IMMUTABLE;
+    desc.BindFlags = get_d3d_bind_flags(type);
+
+    subresource_data: D3D11_SUBRESOURCE_DATA;
+    subresource_data.pSysMem = data.data;
+
+    buffer: Buffer;
+    check_result(device.CreateBuffer(xx device, *desc, *subresource_data, *buffer.d3d_buffer));
+    buffer.element_count = cast(u32)data.count;
+    return buffer;
+}
+
+create_structured_buffer :: (struct_size: u32, count: u32, usage: Buffer_Usage_Flags = .Default) -> Buffer {
+    // TODO: WARNING: APPEND FLAG BELOW IS FOR An AppendStructuredBuffer specifcally.
+    using renderer := assert_state();
+
+
+    d3d_usage: D3D11_USAGE;
+    d3d_cpu_access_flags: D3D11_CPU_ACCESS_FLAG  = 0;
+    d3d_bind_flags: D3D11_BIND_FLAG = D3D11_BIND_FLAG.D3D11_BIND_SHADER_RESOURCE | .D3D11_BIND_UNORDERED_ACCESS;
+
+    if usage == {
+        case .Default;
+            d3d_usage = .D3D11_USAGE_DEFAULT;
+        case .Staging;
+            d3d_bind_flags       = 0; // a staging buffer cannot be bound to a shader
+            d3d_usage            = .D3D11_USAGE_STAGING;
+            d3d_cpu_access_flags = .D3D11_CPU_ACCESS_READ;
+        case;
+            assert(false);
+    }
+
+    desc: D3D11_BUFFER_DESC;
+    desc.ByteWidth           = cast(u32)(count * struct_size);
+    desc.BindFlags           = d3d_bind_flags;
+    desc.MiscFlags           = .D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    desc.StructureByteStride = struct_size;
+    desc.Usage               = d3d_usage;
+    desc.CPUAccessFlags      = d3d_cpu_access_flags;
+
+    buf: Buffer;
+    check_result(device.CreateBuffer(xx device, *desc, null, *buf.d3d_buffer));
+    buf.element_count = cast(u32)count;
+
+    // create uav view (only needed for compute I think?)
+    if usage != .Staging {
+        uav_desc := D3D11_UNORDERED_ACCESS_VIEW_DESC.{
+            Format = .DXGI_FORMAT_UNKNOWN,
+            ViewDimension = .D3D11_UAV_DIMENSION_BUFFER,
+        };
+        uav_desc.Buffer = .{
+            FirstElement = 0,
+            Flags        = cast(u32)D3D11_BUFFER_UAV_FLAG_APPEND,
+        };
+        uav_desc.Buffer.NumElements = count;
+        check_result(device.CreateUnorderedAccessView(xx device,
+            xx buf.d3d_buffer,
+            *uav_desc,
+            *buf.uav_view));
+    }
+
+    return buf;
+
+}
+
 
 get_d3d_bind_flags :: (type: Buffer_Type) -> D3D11_BIND_FLAG {
     if type == {
@@ -374,24 +510,6 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
     }
 
     return true;
-}
-
-create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
-    assert_state();
-    using renderer;
-
-    desc: D3D11_BUFFER_DESC;
-    desc.ByteWidth = cast(u32)(size_of(D) * data.count);
-    desc.Usage     = .D3D11_USAGE_IMMUTABLE;
-    desc.BindFlags = get_d3d_bind_flags(type);
-
-    subresource_data: D3D11_SUBRESOURCE_DATA;
-    subresource_data.pSysMem = data.data;
-
-    buffer: Buffer;
-    check_result(device.CreateBuffer(xx device, *desc, *subresource_data, *buffer.d3d_buffer));
-    buffer.element_count = cast(u32)data.count;
-    return buffer;
 }
 
 begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
@@ -838,7 +956,7 @@ load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_ma
     }
 }
 
-_compile_shader_at_runtime :: (filename: string, target_profile: string, entrypoint_name: string, defines_in: string) -> (ok: bool, blob: *ID3DBlob) {
+_compile_shader_at_runtime :: (filename: string, stage: Shader_Stage, target_profile: string, entrypoint_name: string, defines_in: string) -> (ok: bool, blob: *ID3DBlob) {
     assert(filename.count > 0);
     filename_w := utf8_to_wide(filename);
 
@@ -854,6 +972,20 @@ _compile_shader_at_runtime :: (filename: string, target_profile: string, entrypo
 
     d3d_defines: [..]D3D_SHADER_MACRO;
     d3d_defines.allocator = __temporary_allocator;
+
+    if stage == {
+        case .Fragment; 
+            e := array_add(*d3d_defines);
+            e.Name = "FRAG";
+            e.Definition = "1";
+        case .Vertex;
+            e := array_add(*d3d_defines);
+            e.Name = "VERT";
+            e.Definition = "1";
+        case;
+            assert(false);
+    }
+
     if defines_in.count > 0 {
         defines := defines_in;
         assert(defines[defines.count - 1] == #char "\0");
@@ -872,9 +1004,11 @@ _compile_shader_at_runtime :: (filename: string, target_profile: string, entrypo
             i += 2;
         }
 
-        // null marker at the end.
-        array_add(*d3d_defines, .{ null, null });
     }
+
+    // null marker at the end.
+    if d3d_defines.count > 0
+        array_add(*d3d_defines, .{ null, null });
 
     if S_OK != D3DCompileFromFile(filename_w, d3d_defines.data, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
         flush_errors();
@@ -889,9 +1023,9 @@ _compile_shader_at_runtime :: (filename: string, target_profile: string, entrypo
 
 _load_shader_from_file_at_runtime :: (shader: *Shader, filename: string, vs_main := "vs_main", ps_main := "ps_main", defines: string) -> bool {
     renderer := assert_state();
-    vs_ok, vs_blob := _compile_shader_at_runtime(filename, "vs_5_0", vs_main, defines_in=defines);
+    vs_ok, vs_blob := _compile_shader_at_runtime(filename, .Vertex, "vs_5_0", vs_main, defines_in=defines);
     if !vs_ok return false;
-    ps_ok, ps_blob := _compile_shader_at_runtime(filename, "ps_5_0", ps_main, defines_in=defines);
+    ps_ok, ps_blob := _compile_shader_at_runtime(filename, .Fragment, "ps_5_0", ps_main, defines_in=defines);
     if !ps_ok return false;
     // @Leak ....defer release blobs?
     return load_shader_from_blobs(shader, vs_blob, ps_blob);
@@ -1148,13 +1282,28 @@ get_buffer_ptr :: (buffer: *Buffer, ptr: **$T) #expand {
     <<ptr = cast(*T)mapped_subresource.pData;
 }
 
-get_constant_buffer_ptr :: (ptr: **$T, buffer: *Buffer) #expand {
+Map_Usage :: enum {
+    Write_Discard;
+    Read;
+}
+
+// TODO: remove the duplication in these two functions
+get_constant_buffer_ptr :: (ptr: **$T, buffer: *Buffer, usage: Map_Usage = .Write_Discard) #expand {
     assert_state();
     assert(buffer != null);
+    assert(buffer.d3d_buffer != null);
     constant_buffer := buffer.d3d_buffer;
     mappedSubresource: D3D11_MAPPED_SUBRESOURCE;
     subresource_index :: 0;
-    check_result(renderer.device_context1.Map(xx renderer.device_context1, xx constant_buffer, subresource_index, .D3D11_MAP_WRITE_DISCARD, 0, *mappedSubresource));
+
+    map_usage: D3D11_MAP;
+    if usage == {
+        case .Write_Discard; map_usage = .D3D11_MAP_WRITE_DISCARD;
+        case .Read;          map_usage = .D3D11_MAP_READ;
+        case; assert(false);
+    }
+
+    check_result(renderer.device_context1.Map(xx renderer.device_context1, xx constant_buffer, subresource_index, map_usage, 0, *mappedSubresource));
     assert(mappedSubresource.pData != null);
     `defer renderer.device_context1.Unmap(xx renderer.device_context1, xx constant_buffer, 0);
 

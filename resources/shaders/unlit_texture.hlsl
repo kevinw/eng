@@ -8,20 +8,19 @@ TODO generate this constants cbuffer from Jai? ...or vice versa?
     - arguments for generating from Jai:
         in some sense, the shader code is "less central" and "downstream" from the source of truth in Jai-land
 */
-cbuffer constants : register(b0) 
-{
-    float4x4 projection;
-    float4x4 view;
-    float3 translation;
-}
 
-struct vs_in
-{
-    float3 position:    POS;
-    float2 texcoord:    TEX;
-    float4 color:       COL;
-    uint   instance_id: SV_InstanceID;
+#define SUPPORT_MOUSE_PICKING
+
+#ifdef SUPPORT_MOUSE_PICKING
+struct ObjectIDInfo {
+    uint entity_id;
+    int entity_generation;
+
+    float depth;
 };
+
+AppendStructuredBuffer<ObjectIDInfo> pick_objects : register(u1); // uav starts at one since the rendertarget counts as one
+#endif
 
 struct vs_out
 {
@@ -29,6 +28,22 @@ struct vs_out
     float2 texcoord: TEX;
     float4 color:    COL;
     uint   rendertarget_array_index: SV_RenderTargetArrayIndex;
+};
+
+#ifdef VERT
+
+cbuffer constants : register(b0) 
+{
+    float4x4 projection;
+    float4x4 view;
+    float3 translation;
+}
+struct vs_in
+{
+    float3 position:    POS;
+    float2 texcoord:    TEX;
+    float4 color:       COL;
+    uint   instance_id: SV_InstanceID;
 };
 
 vs_out vs_main(vs_in input) {
@@ -43,7 +58,25 @@ vs_out vs_main(vs_in input) {
     output.rendertarget_array_index = input.instance_id;
     return output;
 }
+#endif
 
-float4 ps_main(vs_out input): SV_TARGET {
-    return input.color * color_tex.Sample(color_tex_sampler, input.texcoord);
+#ifdef FRAG
+cbuffer mousepick_constants : register(b0) {
+    float2 mouse_xy;
+    uint   currently_drawing_entity_id;
+    int   currently_drawing_entity_generation;
 }
+
+[earlydepthstencil]
+float4 ps_main(vs_out input): SV_TARGET {
+    float4 col = input.color * color_tex.Sample(color_tex_sampler, input.texcoord);
+    if (distance(input.position, mouse_xy) <= 1) {
+        ObjectIDInfo obj;
+        obj.entity_id         = currently_drawing_entity_id;
+        obj.entity_generation = currently_drawing_entity_generation;
+        obj.depth = 42;
+        pick_objects.Append(obj);
+    }
+    return col;
+}
+#endif

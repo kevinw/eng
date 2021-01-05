@@ -76,6 +76,7 @@
 
 
 ## research ideas:
+    - building a debug "bundled" version would mean better stack traces during debugging 
     - a version of __temporary_allocator that ping pongs between VirtualAlloc guard pages so you know immediately if you're reading junk data
     - a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
     - find out if we can provide the layout of buffers to Renderdoc via some API
