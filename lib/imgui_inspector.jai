@@ -38,19 +38,9 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Cat
 
     // @Speed @Memoize
 
-    seen_offsets: [..]int;
-    seen_offsets.allocator = __temporary_allocator;
-
     num_floats: int;
-
-    for member:ti_struct.members {
-        if !array_add_if_unique(*seen_offsets, member.offset_in_bytes) {
-            // we skip #place directives by ignoring fields which are at byte
-            // offsets we've already seen.
-            continue;
-        }
-
-        if member.type.type == {
+    for uniquely_placed_members(ti_struct) {
+        if it.type.type == {
             case .FLOAT; num_floats += 1;
             // case .INTEGER;  // TODO: do integer sizes 32, 64???
             case; return .None;
@@ -163,11 +153,12 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                         push_or_commit_item(data, size_of(float) * 4);
                     case .Color_Byte4;
                         bytes := cast(*u8)data;
+                        // TODO: no need to round trip to floats here; ImGui supports editing bytes with the .Uint8 flag
                         floats: [4]float;
                         for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
-                        if ColorEdit4(name, *floats) {
+                        if ColorEdit4(name, *floats, ImGui.ColorEditFlags.Float | .NoInputs) {
                             Undo.push(undo, data, 4);
-                            for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255.0); }
+                            for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255); }
                         }
                         if IsItemDeactivatedAfterEdit()
                             Undo.commit(undo);
@@ -184,7 +175,8 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                         PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
                         if TreeNodeEx(tree_node_str.data, tree_node_flags) {
                             PopStyleColor();
-                            for * member: ti_struct.members
+
+                            for * member: uniquely_placed_members(ti_struct)
                                 if should_display_struct_member(member)
                                     inspect(member.name.data, data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func, custom_ctrl);
 
@@ -218,14 +210,18 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 if ti_enum.internal_type.runtime_size > 4 {
                     TextUnformatted("TODO: 64bit enum_flags");
                 } else {
-                    any: Any;
-                    any.value_pointer = data;
-                    any.type = ti_enum;
-                    TextUnformatted(tprint("%: %", to_string(name), any));
+                    //any: Any;
+                    //any.value_pointer = data;
+                    //any.type = ti_enum;
+                    //TextUnformatted(tprint("%: %", to_string(name), any));
+                    TextUnformatted(to_string(name));
 
+                    PushPopIndent(GetFrameHeight() * 0.5);
+                    PushPopStyleVar(.ItemInnerSpacing, .{0, 0});
+                    PushPopStyleVar(.FramePadding, .{0, 0});
                     for ti_enum.values {
                         if it == 0 continue;
-                        CheckboxFlags(to_temp_c_string(ti_enum.names[it_index]), data, cast(u32)it);
+                        CheckboxFlags(tprint(" %\0", ti_enum.names[it_index]).data, data, cast(u32)it);
                     }
                 }
             } else { // a non-flags enum
@@ -304,4 +300,22 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 }
 
 #scope_file
+
+uniquely_placed_members :: (ti_struct: *Type_Info_Struct) -> []Type_Info_Struct_Member {
+    // skips struct members with #place modifiers
+    // that place them at exactly the same byte
+    // offset as a previous member.
+
+    unique_members: [..]Type_Info_Struct_Member;
+    unique_members.allocator = __temporary_allocator;
+
+    seen_offsets: [..]int;
+    seen_offsets.allocator = __temporary_allocator;
+
+    for ti_struct.members
+        if array_add_if_unique(*seen_offsets, it.offset_in_bytes)
+            array_add(*unique_members, it);
+    return unique_members;
+}
+
 Reflection :: #import "Reflection";

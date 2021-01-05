@@ -1,14 +1,15 @@
 # TODO
 
 ## Immediate
-
+ 
+- materials
+    - how does TheForge do it?
 - fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
 - GPU mouse picking
-- make the projection translation start left and end up right of the camera
-- automate structs for HLSL packing rules (maybe with a macro usable by other folks)
+- make the multiview projection translation start left and end up right of the camera
 - disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
     - copy frustum visualization code from LKG Unity plugin
     - at runtime, have the LKG camera follow the player
@@ -16,7 +17,6 @@
 - color palettes
 
 ## High Priority
-- [HLSL shaders](https://github.com/microsoft/ShaderConductor) for other platforms
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - Join the [Berlin mini-game jam discord](https://discord.gg/evM44ns)
 - Make the editor prompt you to save changes to a scene on exit.
@@ -26,6 +26,7 @@
 - ImGui compiler node visualizer (bonus points for using the node editor)
 - `on_enable` needs to be called after all sibling components get added. Then I
   can fix `Cam_Follow` to set it's target position on startup.
+- automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 
 ## Medium Priority
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
@@ -53,6 +54,7 @@
 
 ## Low Priority
 - [delta time fix](https://blogs.unity3d.com/2020/10/01/fixing-time-deltatime-in-unity-2020-2-for-smoother-gameplay-what-did-it-take/)
+- [HLSL shaders](https://github.com/microsoft/ShaderConductor) for other platforms
 - The meta-program should check the type of `on_enable` and give you a helpful
   error message if you forget the `*Entity` argument.
 - add debug allocators to chipmunk

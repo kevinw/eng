@@ -54,9 +54,9 @@ Texture :: struct {
     #place width;
     size: Vector2_u16;
 
-    texture2D:     *ID3D11Texture2D;
-    views:         [..]*ID3D11ShaderResourceView; // 0 is the main one; 1-N are single views of an array texture
-    sampler_state: *ID3D11SamplerState;
+    texture2D:     *ID3D11Texture2D; @noui // TODO: this @noui should be replaced by a filter in the editor stuff
+    views:         [..]*ID3D11ShaderResourceView; @noui // 0 is the main one; 1-N are single views of an array texture
+    sampler_state: *ID3D11SamplerState; @noui
 
     debug_name: string; @debug @owned
 }

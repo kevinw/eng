@@ -32,3 +32,8 @@ PushPopStyleVar :: (idx: ImGui.StyleVar, var: float) #expand {
     ImGui.PushStyleVar(idx, var);
     `defer ImGui.PopStyleVar();
 }
+
+PushPopIndent :: (indent: float) #expand {
+    ImGui.Indent(indent);
+    `defer ImGui.Unindent(indent);
+}
