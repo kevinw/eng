@@ -290,13 +290,9 @@ entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = 
     }
 
 
-    trs := get_transform(entity);
     if trs == null {
         logprint("=entity_rect", "no Transform in % %\n", entity.name, entity);
         return .{};
-    }
-    if out_transform != null {
-        <<out_transform = trs;
     }
 
     pos := trs.position.xy;
