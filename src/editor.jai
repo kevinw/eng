@@ -910,6 +910,9 @@ show_screen_log :: (open: *bool) {
     pos: ImVec2 = .{250, 20};
     draw_list := GetForegroundDrawList();
     for logger_state.entries {
+        if it.message.data == null || it.message.count == 0
+            continue;
+        
         alpha_factor: float = 1.0;
         FADE_TIME :: 0.1;
         if it.time < FADE_TIME alpha_factor = max(cast(float)0.0, cast(float)it.time) / FADE_TIME;

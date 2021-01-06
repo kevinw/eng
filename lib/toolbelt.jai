@@ -3,6 +3,10 @@ push_mode_2D :: (camera: Camera2D) #expand {
     `defer EndMode2D();
 }
 
+screenp :: (msg: string, args: ..Any, ident := "", loc := #caller_location) {
+    screenlog.screen_print(tprint(msg, ..args), loc=loc);
+}
+
 begin_mode_2D :: (camera: Camera2D) {
 
     float16 :: struct {
@@ -526,4 +530,5 @@ New_Ident :: (name: string, flags: u32 = 0) -> *Code_Ident {
 #import "raymath";
 #import "Compiler";
 #import "Math";
+screenlog :: #import "screenlog";
 platform :: #import "platform";

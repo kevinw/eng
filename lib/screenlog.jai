@@ -13,12 +13,14 @@ Logger_State :: struct {
         use_world_pos := false;
         world_pos: Vector2;
         mode: Log_Mode;
+
+        loc: Source_Code_Location;
     }
 }
 
 free_entry :: (using entry: *Logger_State.Entry) {
     free(message);
-    free(ident);
+    if ident.count > 0 free(ident);
 }
 
 get_context_state :: () -> *Logger_State {
@@ -28,8 +30,35 @@ get_context_state :: () -> *Logger_State {
     return logger_state;
 }
 
+locations_equal :: inline (a: Source_Code_Location, b: Source_Code_Location) -> bool {
+    return a.fully_pathed_filename == b.fully_pathed_filename &&
+        a.line_number == b.line_number &&
+        a.character_number == b.character_number;
+}
 
-context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *void) {
+screen_print :: (message: string, ident := "", loc := #caller_location) {
+    using ctx := get_context_state();
+
+    for * entries if locations_equal(loc, it.loc) && it.ident == ident {
+        if it.message != message {
+            free_entry(it);
+            it.message = copy_string(message);
+            it.ident = ifx ident.count > 0 then copy_string(ident) else "";
+        }
+
+        return;
+    }
+
+    entry := array_add(*entries);
+    entry.loc = loc;
+    entry.mode = .EVERYDAY;
+    entry.time = TIME_ON_SCREEN;
+    entry.ident = ifx ident.count > 0 then copy_string(ident) else "";
+    entry.message = copy_string(message);
+}
+
+context_func :: (message: string, ident_in: string, mode: Log_Mode, logger_data: *void) {
+    ident := ident_in;
     assert(message.count < MAX_COUNT, tprint("expected a screenlog message with a reasonable count, got %", message.count));
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
@@ -40,18 +69,18 @@ context_func :: (message: string, ident: string, mode: Log_Mode, logger_data: *v
     }
 
     if ident.count > 0 {
-        if !String.ends_with(ident, "!") {
-            print_color("[%] ", ident, color=FOREGROUND_BLUE | FOREGROUND_GREEN);
-            if mode == .MINIMAL {
-                print_color("%\n", message, color=FOREGROUND_RED | FOREGROUND_INTENSITY);
-            } else {
-                print("%\n", message);
-            }
+        print_color("[%] ", ident, color=FOREGROUND_BLUE | FOREGROUND_GREEN);
+        if mode == .MINIMAL {
+            print_color("%\n", message, color=FOREGROUND_RED | FOREGROUND_INTENSITY);
+        } else {
+            print("%\n", message);
         }
     }
 
-    new_ident := copy_string(ident);
-    new_message := copy_string(message);
+    // TODO: @Perf avoid the string copies here if the incoming strings are identical.
+
+    new_ident := ifx ident.count > 0 then copy_string(ident) else "";
+    new_message := ifx message.count > 0 then copy_string(message) else "";
 
     entry: *Logger_State.Entry;
     if new_ident.count > 1 && new_ident[0] == #char "=" {
