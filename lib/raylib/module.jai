@@ -121,7 +121,12 @@ GetMousePosition :: () -> Vector2 {
     return v;
 }
 
-DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float = 0, tint: Color = .{1, 1, 1, 1}, depth_z:float = 0) {
+
+DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float = 0, tint: Color = WHITE, depth_z:float = 0) {
+    DrawTexturePro(texture, sourceRec_, destRec, origin, rotation, ColorToNormalized(tint), depth_z);
+}
+
+DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float = 0, tint: Vector4 = .{1, 1, 1, 1}, depth_z:float = 0) {
     assert(texture != null);
     sourceRec := sourceRec_;
 
@@ -129,7 +134,6 @@ DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle,
     p1 := p0 + destRec.size - origin * 0.5;
 
     tex_size := make_vector2(xx texture.width, xx texture.height);
-
 
     flip_x := false;
     if sourceRec.width < 0 {
@@ -154,7 +158,7 @@ DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle,
 
     im_push_z(im, depth_z);
     im_set_texture(im, texture);
-    im_draw_rect(im, p0, p1, t0, t1, c = ColorToNormalized(tint));
+    im_draw_rect(im, p0, p1, t0, t1, tint);
 }
 
 DrawTexture :: (texture: *Texture, posX: s32, posY: s32, tint: Color) {

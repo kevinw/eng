@@ -137,14 +137,18 @@ draw :: (using it: *Enemy, transform: *Transform) {
     OFF := v2(32, 37);
 
     dest_rect_pos := position.xy - OFF + offset;
-
     dest_rect := rect(dest_rect_pos.x, dest_rect_pos.y, sprite_rect.width, sprite_rect.height);
 
-    color := rl.WHITE;
-    if being_damaged(*damage) {
-        color = rl.ColorFromNormalized(Vector4.{1, .5, .5, 1});
+    color: Vector4 = ---;
+    if being_damaged(*damage)
+        color = Vector4.{1, .5, .5, 1};
+    else
+        color = Vector4.{1, 1, 1, 1};
+
+    {
+        im_push_entity_handle(it.entity);
+        DrawTexturePro(*evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
     }
-    DrawTexturePro(*evilplant, sprite_rect, dest_rect, v2(0, 0), 0, color);
 
     if debug_draw {
         draw_point(position.xy, 4, rl.RED);

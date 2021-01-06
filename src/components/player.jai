@@ -455,17 +455,19 @@ draw :: (using player: *Player) {
     dest_rect.height *= squish;
     dest_rect.y += squish_offset;
 
-    color := rl.WHITE;
-    Color :: rl.Color;
+    color := Vector4.{1, 1, 1, 1};
     if is_being_knocked_back
-        color = Color.{255, 100, 100, 255};
+        color = Vector4.{1, .4, .4, 1};
 
     //dest_rect.x = round(dest_rect.x);
     //dest_rect.y = round(dest_rect.y);
     //dest_rect.width = round(dest_rect.width);
     //dest_rect.height = round(dest_rect.height);
 
-    DrawTexturePro(*gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
+    {
+        im_push_entity_handle(player.entity);
+        DrawTexturePro(*gino, sprite_rect, dest_rect, v2(0, 0), 0, color);
+    }
 
     //screenlog.world(position, "%", position);
 

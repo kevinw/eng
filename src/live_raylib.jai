@@ -118,6 +118,10 @@ DrawTexturePro :: (texture: *LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.
     rl.DrawTexturePro(*texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
+DrawTexturePro :: (texture: *LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.Rectangle, offset: Vector2 = .{0, 0}, rotation:float = 0, color := Vector4.{1, 1, 1, 1}) {
+    rl.DrawTexturePro(*texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
+}
+
 UnloadLiveTexture :: (texture: LiveTexture) {
     texture._entry.count -= 1;
     if texture._entry.count == 0 {
