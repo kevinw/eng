@@ -358,7 +358,6 @@ editor_init :: (editor: *Editor) {
         target := pos;
         target.z = 0;
         //scene_camera.rotation = get_rotation(make_look_at_matrix(pos, target, reference_up_vector=Vector3.{0, 1, 0}, x_is_forward = false));
-
     }
 
     copy_File_Visit_Info :: (asset: *Asset, file_visit_info: File_Visit_Info) {
@@ -1429,7 +1428,7 @@ load_scene :: (filename: string) {
     logprint("editor", "loaded scene '%'", filename);
 
     using context.state.editor;
-    set_owned_string(*last_loaded_scene_filename, filename);
+    copy_into_owned_string(*last_loaded_scene_filename, filename);
 
     cam := find_component(Cam);
     if !cam {
@@ -1440,7 +1439,7 @@ load_scene :: (filename: string) {
     }
 }
 
-set_owned_string :: (str: *string, new_value: string) {
+copy_into_owned_string :: (str: *string, new_value: string) {
     assert(str != null);
     free(str.data);
     <<str = copy_string(new_value);
@@ -1494,22 +1493,24 @@ ButtonEx :: (label: *u8, size:ImGui.ImVec2 = .{}, enabled := true) -> bool {
 #load "../lib/imgui_inspector.jai";
 #load "../lib/imgui_macros.jai";
 
-#import "toolbelt";
-#import "Math";
-#import "Input";
-screenlog :: #import "screenlog";
-wbml :: #import "wbml";
-inp :: #import "inp";
-File :: #import "File";
+File           :: #import "File";
 File_Utilities :: #import "File_Utilities";
-rl :: #import "raylib";
-String :: #import "String";
+String         :: #import "String";
+#import "Math";
+#import "Sloppy_Math";
+#import "Input";
 #import "Random";
+
+screenlog      :: #import "screenlog";
+wbml           :: #import "wbml";
+inp            :: #import "inp";
+rl             :: #import "raylib";
+#import "toolbelt";
 #import "tween";
 #import "Array_With_Holes";
 #import "Live_Types";
-#import "Sloppy_Math";
 #import "renderer_im_impl";
+
 Maybe :: struct(T: Type) {
     using value: T;
     has_value: bool;
