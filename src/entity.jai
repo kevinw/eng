@@ -259,6 +259,12 @@ entity_rect_and_depth :: (entity: *Entity) -> (rl.Rectangle, depth_z: float) {
 }
 
 entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = null) -> rl.Rectangle {
+
+    trs := get_transform(entity);
+    if out_transform != null {
+        <<out_transform = trs;
+    }
+
     if entity.flags & .Has_Component_Rect {
 
         // TODO: this is the kind of thing where we might be able to know based on the bitflag in the entity,
