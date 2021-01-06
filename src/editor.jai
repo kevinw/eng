@@ -393,6 +393,9 @@ editor_init :: (editor: *Editor) {
     }
 }
 
+is_valid_drag_rect :: (rectangle: rl.Rectangle) -> bool {
+    return rectangle.width > 5 || rectangle.height > 5;
+}
 
 editor_draw_world :: (state: *State) {
     using context.state.editor;
@@ -407,7 +410,9 @@ editor_draw_world :: (state: *State) {
             rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE, depth_z = depth_z);
         }
     } else if drag_state.dragging {
-        rl.DrawRectangleLinesEx(rect_from_points(drag_state.origin, world_mouse_pos), 3, rl.RED);
+        dragging_rect := rect_from_points(drag_state.origin, world_mouse_pos);
+        if is_valid_drag_rect(dragging_rect)
+            rl.DrawRectangleLinesEx(dragging_rect, 3, rl.RED);
     }
 
     if hover.has_value {
@@ -1077,7 +1082,7 @@ editor_update :: (state: *State) {
         } else if drag_state.dragging && !ImGui.IsMouseDown(0) {
             if selected.count == 0 {
                 rect := rect_from_points(drag_state.origin, world_mouse_pos);
-                if rect.width > 5 && rect.height > 5 {
+                if is_valid_drag_rect(rect) {
                     if callbacks.did_drag != null
                         callbacks.did_drag(rect);
                 }
