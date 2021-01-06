@@ -80,7 +80,7 @@ float4 ps_main(vs_out input): SV_TARGET {
     float4 col = input.color * color_tex.Sample(color_tex_sampler, input.texcoord);
 
 #ifdef MOUSE_PICKING
-    if (distance(floor(input.position), mouse_xy) <= 0.5) { // TODO: do this without a distance() call probably...
+    if (distance(floor(input.position.xy), mouse_xy) <= 0.5) { // TODO: do this without a distance() call probably...
         ObjectIDInfo obj;
         obj.entity_id         = input.entity_id;
         obj.entity_generation = input.entity_generation;

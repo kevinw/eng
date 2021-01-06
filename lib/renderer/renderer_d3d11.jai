@@ -884,6 +884,11 @@ run_fxc :: (filename: string, stage: Shader_Stage, target_profile: string, entry
         "/Fo", temp_file
     );
 
+    _add_define :: (name: string, definition: string) #expand {
+        assert(name.count > 0);
+        array_add(*args, tprint("/D %=%", name, definition));
+    }
+
     if defines_string_in.count > 0 {
         defines_string := defines_string_in;
         assert(defines_string[defines_string.count - 1] == #char "\0");
@@ -894,16 +899,14 @@ run_fxc :: (filename: string, stage: Shader_Stage, target_profile: string, entry
             assert(defs.count % 2 == 0);
             i := 0;
             while i < defs.count {
-                name       := defs[i];
-                definition := defs[i + 1];
-                array_add(*args, tprint("/D %=%", name, definition));
+                _add_define(defs[i], defs[i + 1]);
                 i += 2;
             }
         }
     }
     if stage == {
-        case .Vertex;   array_add(*args, tprint("/D %=%", "VERT", "1"));
-        case .Fragment; array_add(*args, tprint("/D %=%", "FRAG", "1"));
+        case .Vertex;   _add_define("VERT", "1");
+        case .Fragment; _add_define("FRAG", "1");
         case; assert(false);
     }
 
