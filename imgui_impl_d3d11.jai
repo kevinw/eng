@@ -381,7 +381,7 @@ END;
         blob_data := vertexShaderBlob.GetBufferPointer(vertexShaderBlob);
         blob_size := vertexShaderBlob.GetBufferSize(vertexShaderBlob);
 } else {
-        blob :: #run run_fxc_on_string(vertexShader, "vs_4_0", "main");
+        blob :: #run run_fxc_on_string(vertexShader, .Vertex, "vs_4_0", "main");
         blob_data := blob.data;
         blob_size := cast(u64)blob.count;
 }
@@ -441,7 +441,7 @@ END;
         blob_data := pixelShaderBlob.GetBufferPointer(pixelShaderBlob);
         blob_size := pixelShaderBlob.GetBufferSize(pixelShaderBlob);
 } else {
-        blob :: #run run_fxc_on_string(pixelShader, "ps_4_0", "main");
+        blob :: #run run_fxc_on_string(pixelShader, .Fragment, "ps_4_0", "main");
         blob_data := blob.data;
         blob_size := cast(u64)blob.count;
 }

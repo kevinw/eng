@@ -859,20 +859,19 @@ get_temporary_filename :: () -> string {
     return wide_to_utf8(temp_filename.data);
 }
 
-run_fxc_on_string :: (shader_string: string, target_profile: string, entrypoint_name: string) -> (compiled_blob: string) {
+run_fxc_on_string :: (shader_string: string, stage: Shader_Stage, target_profile: string, entrypoint_name: string) -> (compiled_blob: string) {
     assert(shader_string.count > 0);
     tempfile := get_temporary_filename();
     write_entire_file(tempfile, shader_string);
     defer file_delete(tempfile);
-    return run_fxc(tempfile, target_profile, entrypoint_name);
+    return run_fxc(tempfile, stage, target_profile, entrypoint_name);
 }
 
 // fxc is the directx command line HLSL compiler.
-run_fxc :: (filename: string, target_profile: string, entrypoint_name: string, defines_string_in: string = "") -> (compiled_blob: string) {
+run_fxc :: (filename: string, stage: Shader_Stage, target_profile: string, entrypoint_name: string, defines_string_in: string = "") -> (compiled_blob: string) {
     temp_file := tprint("temp.%.%.cso", target_profile, entrypoint_name);
 
     file_delete(temp_file);
-
 
     args: [..]string;
     args.allocator = __temporary_allocator;
@@ -902,6 +901,12 @@ run_fxc :: (filename: string, target_profile: string, entrypoint_name: string, d
             }
         }
     }
+    if stage == {
+        case .Vertex;   array_add(*args, tprint("/D %=%", "VERT", "1"));
+        case .Fragment; array_add(*args, tprint("/D %=%", "FRAG", "1"));
+        case; assert(false);
+    }
+
 
     array_add(*args, filename);
 
@@ -945,8 +950,8 @@ load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_ma
         if ok add_reloadable_shader(filename, shader);
         return ok;
     } else {
-        vs_blob_str := #run run_fxc(filename, "vs_5_0", vs_main, defines_string_in=defines);
-        ps_blob_str := #run run_fxc(filename, "ps_5_0", ps_main, defines_string_in=defines);
+        vs_blob_str := #run run_fxc(filename, .Vertex,   "vs_5_0", vs_main, defines_string_in=defines);
+        ps_blob_str := #run run_fxc(filename, .Fragment, "ps_5_0", ps_main, defines_string_in=defines);
         assert(vs_blob_str.count > 0);
         assert(ps_blob_str.count > 0);
         assert(vs_blob_str != ps_blob_str);
