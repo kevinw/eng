@@ -518,31 +518,6 @@ render_asset_selector :: (window_open: *bool) {
             }
         }
     }
-
-    // TODO: the stuff below relies on methods that the new ImGui wrapper hasn't correctly bound yet.
-    // specifically functions whose ABI is weird because of the return value optimization in C++.
-    // once we can call GetWindowPos() without crashing this will work.
-
-    //window_pos := ImGui.GetWindowPos();
-    //print("window pos %\n", window_pos);
-    //window_visible_x2 := window_pos.x;
-
-    /*
-    style := GetStyle();
-    buttons_count := 20;
-    window_visible_x2: float = GetWindowPos().x + GetWindowContentRegionMax().x;
-    button_sz :: ImVec2.{40, 40};
-    for n: 0..buttons_count - 1 {
-        PushID(cast(*void)n);
-        defer PopID();
-
-        Button("Box", button_sz);
-        last_button_x2 := GetItemRectMax().x;
-        next_button_x2 := last_button_x2 + style.ItemSpacing.x + button_sz.x; // Expected position if next button was on same line
-        if n + 1 < buttons_count && next_button_x2 < window_visible_x2
-            SameLine();
-    }
-    */
 }
 
 edit_entity_name :: (handle: Entity_Handle) {
@@ -1057,15 +1032,17 @@ editor_update :: (state: *State) {
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
             world_mouse_pos = get_mouse_world_pos(camera);
-            hover.has_value = false;
-            for handles(*state.world.entities) {
-                ok, entity := get_entity(it);
-                assert(ok);
-                e_rect := entity_rect(entity, true);
-                if overlaps(e_rect, world_mouse_pos) {
-                    hover.value = it;
-                    hover.has_value = true;
-                }
+            clear(*hover);
+            handle: Entity_Handle;
+            for get_hovered_entities(*context.state.im_context) {
+                handle.id = it.entity_id;
+                handle.generation = it.entity_generation;
+                ok, entity := get_entity(handle);
+                if !ok continue;
+
+                // TODO: click through the stack based on depth
+                set(*hover, handle);
+                break;
             }
         }
 
@@ -1527,6 +1504,7 @@ String :: #import "String";
 #import "Array_With_Holes";
 #import "Live_Types";
 #import "Sloppy_Math";
+#import "renderer_im_impl";
 Maybe :: struct(T: Type) {
     using value: T;
     has_value: bool;

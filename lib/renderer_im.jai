@@ -3,6 +3,8 @@
 // To draw something, this needs to be provided by the user.
 // renderer_im_impl.jai has an implementation using the "renderer" library.
 
+// TODO: parameterize options like mouse picking to keep Im_Vertex slim where we don't need it
+
 Im_Draw_Callback :: #type (ctx: *Im_Context, index_array: [] u16, vertex_array: [] Im_Vertex, draw_array: [] Im_Draw_Command);
 
 im_init :: (using ctx: *Im_Context, index_elements := 4096, vertex_elements := 4096, draw_elements:=64, callback: Im_Draw_Callback) {
@@ -261,6 +263,10 @@ im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4) -> u16
     v.pos.z = current_depth_z;
     v.tex = t;
     v.col = c;
+
+    v.entity_id = entity_handle.id;
+    v.entity_generation = entity_handle.generation;
+
     return cast(u16) (vertex_array.count - 1);
 }
 
@@ -304,8 +310,6 @@ Im_Draw_Command :: struct {
     clip_rect: Vector4;
     texture: *void;
     sampler: *void;
-
-    entity_handle: Handle_Type;
 }
 
 Im_Vertex :: struct {
@@ -345,6 +349,7 @@ Im_Context :: struct {
     // blends
     current_blend := true; 
 
+    // mouse pick
     track_mouse := false;
     entity_handle: Handle_Type;
 

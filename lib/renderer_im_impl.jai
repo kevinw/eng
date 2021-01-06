@@ -10,6 +10,11 @@ ObjectIDInfo :: struct { // must match unlit_texture.hlsl
     depth:             float;
 }
 
+get_hovered_entities :: (im_ctx: *Im_Context) -> []ObjectIDInfo {
+    ctx := cast(*Im_Context_R)im_ctx;
+    return ctx.mousepick_hovered;
+}
+
 renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: [] Im_Vertex, draws: [] Im_Draw_Command) {
     ctx := cast(*Im_Context_R)im_ctx;
     using ctx;
@@ -43,42 +48,18 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
                 count = <<gpu_count;
             }
             {
-                logprint("=mousepick_count!", "count: %", count);
+                mousepick_hovered.count = 0;
                 if count > 0 {
                     buf: *MousePick;
                     get_constant_buffer_ptr(*buf, *mousepick_objectids_staging, usage=.Read);
                     for count_i: 0..count-1 {
                         if count_i >= MAX_MOUSEPICK_COUNT break;
                         it := buf.infos[count_i];
-                        if count_i < 10
-                            logprint(tprint("=mousepick%!", count_i),
-                                "%: id=%, gen=%", count_i, it.entity_id, it.entity_generation);
+                        array_add(*mousepick_hovered, buf.infos[count_i]);
                     }
                 }
-
-                /*
-
-                print_hex_bytes :: (sb: *String_Builder, data: []u8) {
-                    count := 0;
-                    for data {
-                        print_to_builder(sb, "% ", formatInt(it, base=16, minimum_digits=2));
-                        count += 1;
-                        if count >= 8 {
-                            count = 0;
-                            print("\n");
-                        }
-                    }
-                    print_to_builder(sb, "\n");
-                }
-
-                sb: String_Builder;
-                sb.allocator = __temporary_allocator;
-                slice: []u8;
-                slice.data = cast(*u8)buf;
-                slice.count = size_of(MousePick);
-                print_hex_bytes(*sb, slice);
-                logprint("=mousebuf!", builder_to_string(*sb, allocator=__temporary_allocator));
-                */
+                // TODO: @Perf just insert sorted by depth to begin with
+                Sort.quick_sort(mousepick_hovered, (a, b) => Sort.compare_floats(a.depth, b.depth));
             }
         }
     }
@@ -225,10 +206,13 @@ Im_Context_R :: struct {
     pipeline_depth_test:      Pipeline;
     shader:                   Shader;
 
+    // mousepick
+    did_init:  bool = false;
+    mousepick_hovered: [..]ObjectIDInfo;
+
     mousepick_objectids:         Buffer;
     mousepick_objectids_staging: Buffer;
     mousepick_objectids_count:   Buffer;
-    did_init:  bool = false;
     current_frame: u64 = 99999; // we just use this to check if we have changed frames, so start at a high number
 }
 
@@ -255,3 +239,4 @@ platform :: #import "platform";
 #import "renderer";
 #import "Basic";
 #import "Math";
+Sort :: #import "Sort";
