@@ -74,6 +74,7 @@ Editor :: struct {
 
     selected: [..]Selected_Object;
     hover: Maybe(Entity_Handle);
+    tentative_hover_click: Maybe(Entity_Handle);
 
     editing_entity_name: Maybe(Entity_Handle);
     editing_entity_grab_focus := false;
@@ -421,7 +422,6 @@ editor_draw_world :: (state: *State) {
             rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
         }
     }
-
 }
 
 editor_draw :: (state: *State) {
@@ -943,6 +943,22 @@ show_screen_log :: (open: *bool) {
     }
 }
 
+hovered_entity_handles :: () -> []Entity_Handle {
+    // returns valid entity handles underneath the mouse
+    handles: [..]Entity_Handle;
+    handles.allocator = __temporary_allocator;
+
+    handle: Entity_Handle;
+    for get_hovered_entities(*context.state.im_context) {
+        handle.id = it.entity_id;
+        handle.generation = it.entity_generation;
+        ok, entity := get_entity(handle);
+        if ok array_add(*handles, handle);
+    }
+
+    return handles;
+}
+
 editor_update :: (state: *State) {
     using context.state.editor;
 
@@ -1040,31 +1056,32 @@ editor_update :: (state: *State) {
         if set_if_different(*mouse_pos, rl.GetMousePosition()) {
             world_mouse_pos = get_mouse_world_pos(camera);
             clear(*hover);
-            handle: Entity_Handle;
-            for get_hovered_entities(*context.state.im_context) {
-                handle.id = it.entity_id;
-                handle.generation = it.entity_generation;
-                ok, entity := get_entity(handle);
-                if !ok continue;
-
-                // TODO: click through the stack based on depth
-                set(*hover, handle);
+            for hovered_entity_handles() {
+                set(*hover, it);
                 break;
             }
         }
+        
+        if ImGui.IsMouseReleased(0) {
+            // If the mouse has released but not dragged, we do selection stuff.
+            if distance_squared(v3(drag_state.origin), v3(get_mouse_world_pos(camera))) < 0.1 {
+                Undo.push_array(*undo_state, *selected);
 
-        if ImGui.IsMouseClicked(0) {
-            Undo.push_array(*undo_state, *selected);
-
-            took_action := false;
-            if hover.has_value {
-                set_or_toggle_selected(hover.value);
-                took_action = true;
+                if !tentative_hover_click.has_value {
+                    took_action := false;
+                    if hover.has_value {
+                        set_or_toggle_selected_in_hover_stack();
+                    } else {
+                        clear_selection();
+                    }
+                }
             }
 
-            if !took_action
-                clear_selection();
+            clear(*tentative_hover_click);
+        }
 
+        if ImGui.IsMouseClicked(0) {
+            clear(*tentative_hover_click);
             for * selected {
                 trs := get_transform_or_null(it.handle);
                 if trs != null
@@ -1074,13 +1091,27 @@ editor_update :: (state: *State) {
             drag_state.dragging = true;
             drag_state.origin = get_mouse_world_pos(camera);
 
-            if took_action {
-                for * selected {
-                    trs := get_transform_or_null(it.handle);
-                    if trs
-                        it.original_pos = trs.position.xy;
-                }
+            hovered := hovered_entity_handles();
+
+            //if selected is hovered now, it gets dragged
+            //otherwise, if there's something hovered, it becomes selected and started dragging
+
+            selected_is_hovered := false;
+            for selected_obj: selected
+                for hovered_handle: hovered
+                    if hovered_handle == selected_obj.handle
+                        selected_is_hovered = true;
+
+            if !selected_is_hovered && hover.has_value {
+                set_selected(hover.value);
+                set(*tentative_hover_click, hover.value);
             }
+
+            for * selected {
+                trs := get_transform_or_null(it.handle);
+                if trs it.original_pos = trs.position.xy;
+            }
+
         } else if drag_state.dragging && !ImGui.IsMouseDown(0) {
             if selected.count == 0 {
                 rect := rect_from_points(drag_state.origin, world_mouse_pos);
@@ -1181,6 +1212,28 @@ clear_selection :: () {
     if selected.count == 0 return;
 
     array_reset(*selected);
+}
+
+set_or_toggle_selected_in_hover_stack :: () {
+    using context.state.editor;
+
+    hovered := hovered_entity_handles();
+    last_idx := -1;
+    for hovered_handle, hovered_idx: hovered {
+        for sel: selected {
+            if sel.handle == hovered_handle {
+                last_idx = hovered_idx;
+            }
+        }
+    }
+    last_idx += 1;
+    if last_idx >= hovered.count {
+        last_idx = 0;
+    }
+
+    if last_idx >= 0 && last_idx < hovered.count {
+        set_selected(hovered[last_idx]);
+    }
 }
 
 set_or_toggle_selected :: (entity_handle:  Entity_Handle) {
