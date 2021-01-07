@@ -698,8 +698,7 @@ show_assets_window :: (open: *bool) {
 
         if do_spawn {
             pos: Vector3;
-            camera := get_main_camera();
-            if camera != null { pos = get_worldspace_center(camera); }
+            logprint("editor", "todo: implement get_worldspace_center(camera) for new camera struct");
 
             entity_handle: Entity_Handle;
             entity: *Entity;
@@ -1101,6 +1100,8 @@ editor_update :: (state: *State) {
 
             if !selected_is_hovered {
                 if hover.has_value {
+                    Undo.push_array(*undo_state, *selected);
+                    editor_undo_push_transform(hover.value);
                     set_selected(hover.value);
                     set(*tentative_hover_click, hover.value);
                 } else {
@@ -1188,11 +1189,14 @@ editor_update :: (state: *State) {
         Undo.commit(*undo_state);
     }
 
-    if ctrl_down && rl.IsKeyPressed(.KEY_Z) && Undo.can_undo(*undo_state) {
-        Undo.undo(*undo_state);
+    if ctrl_down && rl.IsKeyPressed(.KEY_Z) {
+        if !Undo.try_undo(*undo_state)
+            logprint("=editor_undo", "nothing to undo");
     }
-    if ctrl_down && rl.IsKeyPressed(.KEY_Y) && Undo.can_redo(*undo_state)
-        Undo.redo(*undo_state);
+    if ctrl_down && rl.IsKeyPressed(.KEY_Y) {
+        if !Undo.try_redo(*undo_state)
+            logprint("=editor_redo", "nothing to redo");
+    }
 }
 
 scene_filename_for_slot :: (slot_index: int) -> string {
@@ -1226,7 +1230,20 @@ set_or_toggle_selected_in_hover_stack :: () {
     }
 
     if last_idx >= 0 && last_idx < hovered.count {
-        set_selected(hovered[last_idx]);
+        handle := hovered[last_idx];
+        editor_undo_push_transform(handle);
+        set_selected(handle);
+    }
+}
+
+editor_undo_push_transform :: (handle: Entity_Handle) {
+    // call this when we're about to move an entity by changing the values of
+    // its transform
+    trs := get_transform_or_null(handle);
+    if trs != null {
+        Undo.push(*context.state.editor.undo_state, trs);
+    } else {
+        logprint("editor", "editor_undo_push_transform: no transform for handle: %", handle);
     }
 }
 
@@ -1466,8 +1483,9 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
         }
     }
 
-    if pos.has_value
-        set_worldspace_center(camera, pos.value);
+    if pos.has_value {
+        logprint("editor", "TODO: implement set_worldspace_center for new camera struct");
+    }
 }
 
 load_scene :: (filename: string) {

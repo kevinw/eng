@@ -1,16 +1,19 @@
 //
-// A tiny typeless undo.
+// A tiny (mostly) typeless undo.
 //
 // thanks https://rxi.github.io/a_simple_undo_system.html
 // (the comments in this file are mostly rxi's)
 //
-// Note: items must be stable in memory, i.e., their addresses cannot change.
+// Note: items we track must be stable in memory, i.e., their addresses cannot
+// change.
 //
 
 //
 // TODO: max undo stack size
 // TODO: use Any or Type_Info*s to maintain more metadata for UI?
 //
+
+VERBOSE :: false;
 
 Impl :: struct {
     undo: [..]Item; // Stores changes that can be undone
@@ -75,6 +78,8 @@ push_string :: (using impl: *Impl, str: *string, loc := #caller_location) {
 }
 
 push_array :: (using impl: *Impl, array: *[..]$T, loc := #caller_location) {
+    #if VERBOSE logprint("undo", "push_array % - %", T, array);
+
     // don't push more than once for the same array.
     for temp if it.pointer == array {
         assert(it.action == .Array_Replacement);
@@ -129,6 +134,8 @@ array_reset :: (using impl: *Impl, array: *[..]$T) {
 }
 
 push :: (impl: *Impl, obj: *$T, loc := #caller_location) {
+    #if VERBOSE logprint("undo", "push: %", <<obj);
+
     // This undo.push() overload accepts a pointer to any type, and will get
     // the Type_Info's runtime size for you.
 
@@ -136,6 +143,7 @@ push :: (impl: *Impl, obj: *$T, loc := #caller_location) {
 }
 
 push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int, loc := #caller_location) {
+
     // The undo.push() function takes a pointer and size value. When it is
     // called the temp stack is first scanned to check if we already have an
     // item for the given data block — if so the function already has the
@@ -161,6 +169,11 @@ push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int, loc := #caller_
 }
 
 commit :: (using impl: *Impl) {
+    #if VERBOSE {
+        logprint("undo", "commit");
+        print_stack_trace(context.stack_trace);
+    }
+
     // When undo.commit() is called each item is popped from the temp stack and
     // the stored data is compared to the current data at the item's pointer.
     // Any differences are pushed as items to the undo stack. When the first
@@ -256,6 +269,23 @@ push_scope :: (impl: *Impl, obj: *$T) #expand {
     `defer commit(impl);
 }
 
+try_undo :: (using impl: *Impl) -> bool {
+    if can_undo(impl) {
+        _undo(impl);
+        return true;
+    }
+
+    return false;
+}
+
+try_redo :: (using impl: *Impl) -> bool {
+    if can_redo(impl) {
+        _redo(impl);
+        return true;
+    }
+    return false;
+}
+
 undo :: (using impl: *Impl) {
     // When undo.undo() is called each item on the undo stack is popped until
     // the null item is reached. The data stored for each item is pushed to the
@@ -276,6 +306,8 @@ redo :: (using impl: *Impl) {
 }
 
 #scope_file
+_undo :: undo;
+_redo :: redo; // the compiler is being weird about "undo" and "redo" as variables here...
 
 print_hex_bytes :: (data: *void, size_in_bytes: int) {
     s: []u8;
