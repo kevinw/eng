@@ -14,6 +14,7 @@ String          :: #import "String";
 Debug           :: #import "Debug";
 Plugin          :: #import "plugin";
 Window_Creation :: #import "Window_Creation";
+Compiler        :: #import "Compiler";
 platform        :: #import "platform";
 screenlog       :: #import "screenlog";
 #import "soloud";
@@ -199,6 +200,13 @@ main :: () {
     host_state.input_button_states          = *input_button_states;
     host_state.change_window_state          = change_window_state;
     host_state.pending_resizes              = *pending_resizes;
+    host_state.built_with_backend           = #run (() -> Host_Build_Backend {
+        if Compiler.get_build_options().backend == {
+            case .X64; return .X64;
+            case .LLVM; return .LLVM;
+        }
+        assert(false);
+    })();
 
     if cmdline_args.topmost_window
         platform.set_window_always_on_top(the_window);
@@ -298,7 +306,7 @@ main :: () {
             if _recompile_thread == null && (frame_count % 2 == 0) && (
                 Plugin.should_reload(*module) || reload_new_dll_filename.count > 0
             ) {
-                if Plugin.should_reload(*module) logprint("host", "Plugin.should_reload(*module) was true");
+                //if Plugin.should_reload(*module) logprint("host", "Plugin.should_reload(*module) was true");
                 //if reload_new_dll_filename.count > 0 logprint("host", "reload_new_dll_filename was %", reload_new_dll_filename);
 
                 old_state := plugin_deinit(shutting_down = false);

@@ -1,5 +1,18 @@
 # jai wishlist
 
+## parser
+
+```
+Foo :: struct {
+} @note
+
+// the above is legal, but the below is not:
+
+Foo :: struct {
+    struct {} @note
+}
+```
+
 ## standard library
 
 - Rename `__temp_allocator` to `temp_allocator`.

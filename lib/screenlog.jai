@@ -18,9 +18,20 @@ Logger_State :: struct {
     }
 }
 
+copy_loc :: (loc: Source_Code_Location) -> Source_Code_Location {
+    res := loc;
+    res.fully_pathed_filename = copy_string(res.fully_pathed_filename);
+    return res;
+}
+
 free_entry :: (using entry: *Logger_State.Entry) {
     free(message);
     if ident.count > 0 free(ident);
+
+    free(loc.fully_pathed_filename);
+    loc.fully_pathed_filename = "";
+    loc.line_number = 0;
+    loc.character_number = 0;
 }
 
 get_context_state :: () -> *Logger_State {
@@ -43,17 +54,18 @@ screen_print :: (message: string, ident := "", loc := #caller_location) {
         if it.message != message {
             free_entry(it);
             it.message = copy_string(message);
+            it.loc     = copy_loc(loc);
             it.ident = ifx ident.count > 0 then copy_string(ident) else "";
         }
-
+        it.time = TIME_ON_SCREEN;
         return;
     }
 
     entry := array_add(*entries);
-    entry.loc = loc;
-    entry.mode = .EVERYDAY;
-    entry.time = TIME_ON_SCREEN;
-    entry.ident = ifx ident.count > 0 then copy_string(ident) else "";
+    entry.loc     = copy_loc(loc);
+    entry.mode    = .EVERYDAY;
+    entry.time    = TIME_ON_SCREEN;
+    entry.ident   = ifx ident.count > 0 then copy_string(ident) else "";
     entry.message = copy_string(message);
 }
 

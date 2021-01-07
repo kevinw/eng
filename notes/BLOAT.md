@@ -1,5 +1,9 @@
 # bloat
 - all the places where we do assert(condition, tprint("message %", foo))
+- non-editor build
+    - no undo
+    - no resources/ folder
+    - no textual WBML parsing
 - from imconfig.h
 - imgui.ini - do we need it? can it at least get a different name, and go in a user appdata temp dir somewhere?
 ```

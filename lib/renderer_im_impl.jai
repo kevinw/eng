@@ -75,22 +75,16 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
         using constants : *Constants;
         get_constant_buffer_ptr(*constants, *constant_buffer);
 
-
         if im_ctx.fullscreen_ortho {
             projection  = orthographic_projection_matrix(0, 1, 1, 0, -100, 100);
             view = matrix4_identity();
             translation = make_vector3(0, 0, 0);
         } else {
-            cam := *context.state.editor.scene_camera;
-            forward := rotate(Vector3.{0, 0, 1}, cam.rotation);
-            look_at := cam.position + forward * 10;
-
-            projection = make_projection_matrix(30, framebuffer_aspect(), -50, 50, depth_range_01 = true);
-            view = make_look_at_matrix(
-                viewpoint = cam.position,
-                look_at   = look_at,
-                reference_up_vector = Vector3.{0, 1, 0}, x_is_forward = false);
-            translation = make_vector3(0.39, 0.0, 0.0);
+            cam     := *context.state.editor.scene_camera;
+            calc_matrices(cam);
+            projection  = cam.projection_matrix;
+            view        = cam.view_matrix;
+            translation = cam.per_view_translation;
         }
     }
 
@@ -239,4 +233,5 @@ platform :: #import "platform";
 #import "renderer";
 #import "Basic";
 #import "Math";
+#import "camera";
 Sort :: #import "Sort";

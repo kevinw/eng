@@ -123,6 +123,8 @@ set_global_renderer_ptr :: (new_renderer: *Renderer) {
     renderer = new_renderer;
 }
 
+get_renderer_ptr :: () -> *Renderer { return renderer; }
+
 set_context :: (renderer_ptr: *Renderer) {
     renderer = renderer_ptr;
 }

@@ -42,16 +42,10 @@ use the animation to "go back" to the prefab when you zoom in on it
 
 Undo :: #import "undo";
 
-Camera :: struct {
-    position: Vector3;
-    rotation: Quaternion;
-}
-
 Editor :: struct {
     undo_state: Undo.Impl;
 
     scene_camera: Camera;
-
 
     wants_keyboard: bool;
 
@@ -79,7 +73,7 @@ Editor :: struct {
     editing_entity_name: Maybe(Entity_Handle);
     editing_entity_grab_focus := false;
 
-    world_mouse_pos: Vector2;
+    world_mouse_pos: Vector3;
     mouse_pos: Latch(Vector2);
 
     last_click_time: float64 = -99999; // nocheckin
@@ -359,6 +353,7 @@ editor_init :: (editor: *Editor) {
         target := pos;
         target.z = 0;
         //scene_camera.rotation = get_rotation(make_look_at_matrix(pos, target, reference_up_vector=Vector3.{0, 1, 0}, x_is_forward = false));
+        scene_camera.matrices_need_update = true;
     }
 
     copy_File_Visit_Info :: (asset: *Asset, file_visit_info: File_Visit_Info) {
@@ -410,7 +405,7 @@ editor_draw_world :: (state: *State) {
             rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE, depth_z = depth_z);
         }
     } else if drag_state.dragging {
-        dragging_rect := rect_from_points(drag_state.origin, world_mouse_pos);
+        dragging_rect := rect_from_points(drag_state.origin, world_mouse_pos.xy);
         if is_valid_drag_rect(dragging_rect)
             rl.DrawRectangleLinesEx(dragging_rect, 3, rl.RED);
     }
@@ -984,11 +979,10 @@ editor_update :: (state: *State) {
         }
     }
 
-    camera := get_main_camera_2D();
-
     // Move editor camera with WASD
 
     if !io.WantTextInput && is_key_down(.MOUSE_BUTTON_RIGHT) {
+        update := false; // camera did move
         {
             // moving with WASD 
             editor_cam_speed := Vector3.{250, 250, 50};
@@ -1011,50 +1005,53 @@ editor_update :: (state: *State) {
                 forward := rotate(Vector3.{0, 0, 1}, scene_camera.rotation);
                 right   := rotate(Vector3.{1, 0, 0}, scene_camera.rotation);
 
-                if !is_approximately_zero(input_dir.x) scene_camera.position += local_move.x * right;
-                if !is_approximately_zero(input_dir.y) scene_camera.position += local_move.y * up;
-                if !is_approximately_zero(input_dir.z) scene_camera.position += local_move.z * forward;
+                if !is_approximately_zero(input_dir.x) { scene_camera.position += local_move.x * right; update = true; }
+                if !is_approximately_zero(input_dir.y) { scene_camera.position += local_move.y * up; update = true; }
+                if !is_approximately_zero(input_dir.z) { scene_camera.position += local_move.z * forward; update = true; }
             }
         }
 
         {
             // rotation with mouse delta
             mouse_rotate_speed :: 0.17;
-            rotate_delta := mouse_rotate_speed * make_vector3(
-                // TODO: why are these backwards?
-                -cast(float)_local_host_state.mouse_delta_y,
-                cast(float)_local_host_state.mouse_delta_x,
-                0);
+            if _local_host_state.mouse_delta_x != 0 || _local_host_state.mouse_delta_y != 0 {
+                rotate_delta := mouse_rotate_speed * make_vector3(
+                    // TODO: why are these backwards?
+                    -cast(float)_local_host_state.mouse_delta_y,
+                     cast(float)_local_host_state.mouse_delta_x,
+                    0);
 
-            TO_RADIANS :: 3.141592 / 180.0;
-            x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
-            y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
-            z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
+                TO_RADIANS :: 3.141592 / 180.0;
+                x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
+                y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
+                z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
 
-            temp := x * y * z * scene_camera.rotation;
-            normalize_or_identity(*temp);
-            scene_camera.rotation = temp;
+                temp := x * y * z * scene_camera.rotation;
+                normalize_or_identity(*temp);
+                scene_camera.rotation = temp;
+                update = true;
+            }
+        }
+
+        if update {
+            scene_camera.matrices_need_update = true;
         }
     }
 
 
-    // old camera movement
-    if !ctrl_down && camera && !io.WantTextInput {
-        editor_cam_speed := 250.0;
-        if rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT)
-            editor_cam_speed *= 2;
-
-        cam_movement := inp.movement(inp.Input_Type.KEYBOARD_WASD);
-        cam_movement += Vector2_Scale(v2(1, -1), inp.movement(inp.Input_Type.GAMEPAD_RIGHT_STICK));
-        if cam_movement.x != 0 || cam_movement.y != 0
-            cam_movement = normalize(cam_movement);
-
-        camera.target += Vector2_Scale(v2(1, -1), cam_movement) * editor_cam_speed * state.Time.unscaled_delta_time;
-    }
-    
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
-        if set_if_different(*mouse_pos, rl.GetMousePosition()) {
-            world_mouse_pos = get_mouse_world_pos(camera);
+        mouse_x, mouse_y := platform.get_client_mouse_pos(_local_host_state.window_handle);
+        screen_mouse_pos := v2(mouse_x, mouse_y);
+        if set_if_different(*mouse_pos, screen_mouse_pos) {
+            mouse_ray := screen_point_to_ray(*scene_camera, screen_mouse_pos);
+            mouse_ray.direction *= -1; // TODO: why is this necessary???
+
+            // TODO: instead of using XY_PLANE which is at zero, we should use
+            // a plane at the Z of the 2D rectangle we're moving.
+            intersected, enter := raycast(XY_PLANE, mouse_ray);
+            if intersected
+                world_mouse_pos = mouse_ray.origin + mouse_ray.direction * enter;
+
             clear(*hover);
             for hovered_entity_handles() {
                 set(*hover, it);
@@ -1064,7 +1061,7 @@ editor_update :: (state: *State) {
         
         if ImGui.IsMouseReleased(0) {
             // If the mouse has released but not dragged, we do selection stuff.
-            if distance_squared(v3(drag_state.origin), v3(get_mouse_world_pos(camera))) < 0.1 {
+            if distance_squared(v3(drag_state.origin), world_mouse_pos) < 0.1 {
                 Undo.push_array(*undo_state, *selected);
 
                 if !tentative_hover_click.has_value {
@@ -1089,7 +1086,7 @@ editor_update :: (state: *State) {
             }
 
             drag_state.dragging = true;
-            drag_state.origin = get_mouse_world_pos(camera);
+            drag_state.origin = world_mouse_pos.xy;
 
             hovered := hovered_entity_handles();
 
@@ -1114,7 +1111,7 @@ editor_update :: (state: *State) {
 
         } else if drag_state.dragging && !ImGui.IsMouseDown(0) {
             if selected.count == 0 {
-                rect := rect_from_points(drag_state.origin, world_mouse_pos);
+                rect := rect_from_points(drag_state.origin, world_mouse_pos.xy);
                 if is_valid_drag_rect(rect) {
                     if callbacks.did_drag != null
                         callbacks.did_drag(rect);
@@ -1125,20 +1122,13 @@ editor_update :: (state: *State) {
             drag_state.dragging = false;
 
         } else if drag_state.dragging && ImGui.IsMouseDown(0) {
-            delta := world_mouse_pos - drag_state.origin;
+            delta := world_mouse_pos.xy - drag_state.origin;
             for selected {
                 trs := get_transform_or_null(it);
                 if trs != null
                     trs.position.xy = it.original_pos + delta;
             }
         }
-
-        wheel := rl.GetMouseWheelMove();
-        if camera != null && wheel != 0 {
-            camera.zoom = clamp(camera.zoom + cast(float)wheel * 0.05, 0.25, 3.0);
-            logprint("=camera zoom", "camera zoom %", camera.zoom);
-        }
-
     } // WantCaptureMouse
 
     if rl.IsKeyPressed(.KEY_DELETE) {
@@ -1557,15 +1547,19 @@ String         :: #import "String";
 #import "Input";
 #import "Random";
 
+
 screenlog      :: #import "screenlog";
 wbml           :: #import "wbml";
 inp            :: #import "inp";
 rl             :: #import "raylib";
+platform       :: #import "platform";
+#import "math_extra";
 #import "toolbelt";
 #import "tween";
 #import "Array_With_Holes";
 #import "Live_Types";
 #import "renderer_im_impl";
+#import "camera";
 
 Maybe :: struct(T: Type) {
     using value: T;

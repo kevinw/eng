@@ -23,6 +23,13 @@ Host_State :: struct {
     change_window_state: #type (op: Window_State_Operation);
 
     toggle_borderless_fullscreen: #type ();
+
+    built_with_backend: Host_Build_Backend;
+}
+
+Host_Build_Backend :: enum u32 { // so we don't have to #import Compiler...
+    X64    :: 0;
+    LLVM   :: 1;
 }
 
 Window_State_Operation :: enum {

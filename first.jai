@@ -45,8 +45,8 @@ END,
     building_dlls,
     graphics_layer_debug,
 );
-    print("------\n%", constants);
-    print("%------\n", add_build_string_constants);
+    //print("------\n%", constants);
+    //print("%------\n", add_build_string_constants);
 
     add_build_string(add_build_string_constants, workspace);
 

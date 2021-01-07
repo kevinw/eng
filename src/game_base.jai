@@ -61,8 +61,11 @@ game_base_update :: () {
         Time.frame_count += 1;
     }
 
-    editor_update(context.state);
-    screenlog.update(Time.delta_time);
+    {
+        push_renderer_context(*context.state.renderer, "main monitor");
+        editor_update(context.state);
+        screenlog.update(Time.delta_time);
+    }
     sound_update(*sound_state);
 
     if !editor.wants_keyboard {
