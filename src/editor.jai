@@ -697,8 +697,8 @@ show_assets_window :: (open: *bool) {
         }
 
         if do_spawn {
-            pos: Vector3;
-            logprint("editor", "todo: implement get_worldspace_center(camera) for new camera struct");
+            pos: Vector3 = editor.scene_camera.position;
+            pos.z = 0;
 
             entity_handle: Entity_Handle;
             entity: *Entity;
@@ -1484,7 +1484,8 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
     }
 
     if pos.has_value {
-        logprint("editor", "TODO: implement set_worldspace_center for new camera struct");
+        context.state.editor.scene_camera.position.xy = pos.value;
+        context.state.editor.scene_camera.matrices_need_update = true;
     }
 }
 

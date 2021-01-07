@@ -57,9 +57,6 @@ update :: (cam_follow: *Cam_Follow, cam: *Cam) {
     cam.camera.position = transform.position;
     cam.camera.rotation = transform.rotation;
     cam.camera.matrices_need_update = true;
-
-    screenp("camera % transform.position=% target_transform=%", cam_follow.mode, transform.position, target_transform.position);
-
 }
 
 #scope_file
