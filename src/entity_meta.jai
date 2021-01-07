@@ -6,6 +6,11 @@
 
 // some inspiration maybe: https://github.com/skypjack/entt/wiki/Crash-Course:-entity-component-system
 
+#placeholder all_component_types;
+#placeholder Component_Bit;
+#placeholder component_bit_to_ti;
+#placeholder component_ti_to_bit;
+
 // declare a list of all component type infos
 #insert #run (() -> string {
     Compiler :: #import "Compiler";
