@@ -947,7 +947,7 @@ hovered_entity_handles :: () -> []Entity_Handle {
     for get_hovered_entities(*context.state.im_context) {
         handle.id = it.entity_id;
         handle.generation = it.entity_generation;
-        ok, entity := get_entity(handle);
+        ok, entity := get_entity(handle, check_count = true);
         if ok array_add(*handles, handle);
     }
 
@@ -1099,9 +1099,13 @@ editor_update :: (state: *State) {
                     if hovered_handle == selected_obj.handle
                         selected_is_hovered = true;
 
-            if !selected_is_hovered && hover.has_value {
-                set_selected(hover.value);
-                set(*tentative_hover_click, hover.value);
+            if !selected_is_hovered {
+                if hover.has_value {
+                    set_selected(hover.value);
+                    set(*tentative_hover_click, hover.value);
+                } else {
+                    clear_selection();
+                }
             }
 
             for * selected {
