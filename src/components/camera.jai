@@ -1,41 +1,18 @@
 Cam :: struct {
     using component: Component;
-    cam2D: rl.Camera2D;
-    cam2D.zoom = 1.2;
+    using camera: Camera;
 }
 
 Cam_Follow :: struct {
     using component: Component;
     target_entity: Entity_Handle;
-
-    mode: Mode;
-
-    Mode :: enum u16 {
+    mode: enum u16 {
         Smooth :: 0;
         Center :: 1;
     }
 }
 
-get_main_camera :: () -> *Cam {
-    return find_component(Cam);
-}
-
-get_main_camera_2D :: () -> *rl.Camera2D {
-    cam := get_main_camera();
-    if cam != null
-        return *cam.cam2D;
-    else
-        return null;
-}
-
-get_worldspace_center :: (cam: *Cam) -> Vector3 {
-    return v3(cam.cam2D.target +
-        rl.make_Vector2(context.state.gameWidth/2.0, context.state.gameHeight/2.0));
-}
-
-set_worldspace_center :: (cam: *Cam, position: Vector2) {
-    cam.cam2D.target = position - v2(context.state.gameWidth/2.0, context.state.gameHeight/2.0);
-}
+get_main_camera :: () => find_component(Cam);
 
 on_enable :: (cam_follow: *Cam_Follow, entity: *Entity) {
     /*
@@ -51,41 +28,48 @@ on_enable :: (cam_follow: *Cam_Follow, entity: *Entity) {
     */
 }
 
-update :: (cam_follow: *Cam_Follow, camera: *Cam) {
-    minSpeed :: 30.0;
+update :: (cam_follow: *Cam_Follow, cam: *Cam) {
+    minSpeed        :: 30.0;
     minEffectLength :: 10.0;
-    fractionSpeed :: 2.9;
+    fractionSpeed   :: 2.9;
 
-    if context.state.editor.play_mode != .Play return;
+    //if context.state.editor.play_mode != .Play
+        //return;
 
-    transform := get_transform(cam_follow.target_entity);
-    if !transform return;
+    transform := get_transform(cam.entity);
 
-    using context;
-    using camera;
+    target_transform := get_transform(cam_follow.target_entity);
+    if !target_transform
+        return;
+
     if cam_follow.mode == {
         case .Smooth;
-            cam2D.offset = rl.make_Vector2(state.gameWidth/2, state.gameHeight/2);
-            diff := transform.position.xy - cam2D.target;
-            length := Vector2Length(diff);
-            if length > minEffectLength {
-                speed := max(fractionSpeed*length, minSpeed);
-                cam2D.target = Vector2Add(cam2D.target, Vector2Scale(diff, speed*state.Time.delta_time/length));
+            diff := target_transform.position.xy - transform.position.xy;
+            len  := length(diff);
+            if len > minEffectLength {
+                speed := max(fractionSpeed * len, minSpeed);
+                transform.position.xy += Vector2Scale(diff, speed * context.state.Time.delta_time / len);
             }
         case .Center;
-            cam2D.target = transform.position.xy;
+            transform.position.xy = target_transform.position.xy;
     } 
-}
 
+    cam.camera.position = transform.position;
+    cam.camera.rotation = transform.rotation;
+    cam.camera.matrices_need_update = true;
+
+    screenp("camera % transform.position=% target_transform=%", cam_follow.mode, transform.position, target_transform.position);
+
+}
 
 #scope_file
 
 rl :: #import "raylib";
 #import "raymath";
 #import "Math";
+#import "camera";
 
 /*
-
 even_out_state: struct {
     eveningOut: int;
     evenOutTarget: float;

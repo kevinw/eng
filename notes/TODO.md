@@ -75,6 +75,7 @@
 
 
 ## research ideas:
+    - a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
     - indexing https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
     - late latch mouse position: https://github.com/nlguillemot/LateLatching/blob/master/main.cpp
     - building a debug "bundled" version would mean better stack traces during debugging 

@@ -19,6 +19,8 @@ State :: struct {
     im_context:    Im_Context_R;
     multiview:     Multiview_State;
     mview_window:  multiview_window.State;
+
+    current_im_camera: *Camera;
 }
 
 update_and_draw :: () {
@@ -41,6 +43,16 @@ update_and_draw :: () {
     // looking glass window
     {
         push_renderer_context(*mview_window.mview_renderer, "lkg display");
+
+        cam: *Camera;
+        game_camera := get_main_camera();
+        if game_camera == null {
+            cam = *context.state.editor.scene_camera;
+        } else {
+            cam = *game_camera.camera;
+        }
+
+        push_value(*current_im_camera, cam);
         {
             // render quilt
             push_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
@@ -60,6 +72,7 @@ update_and_draw :: () {
     // default pass for main monitor
     {
         push_renderer_context(*context.state.renderer, "main monitor");
+        push_value(*current_im_camera, *editor.scene_camera);
         begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         main_monitor_aspect := framebuffer_aspect();
         {

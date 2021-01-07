@@ -3,19 +3,18 @@ Camera :: struct {
     rotation: Quaternion;
     fov:      float       = 30;
 
-
     near_plane: float     = -50;
     far_plane:  float     = 50;
 
     per_view_translation := Vector3.{0.39, 0.0, 0.0};
 
-    matrices_need_update := true;
-    last_calced_renderer: *Renderer; // TODO: I believe this goes away once we make the looking glass display have its own camera.
+    matrices_need_update := true;    @noserialize @noui
+    last_calced_renderer: *Renderer; @noserialize @noui // TODO: I believe this goes away once we make the looking glass display have its own camera.
 
     struct {
-        view_matrix:       Matrix4;
-        projection_matrix: Matrix4;
-        inverse_view_projection_matrix: Matrix4;
+        view_matrix:       Matrix4;              @noserialize @noui
+        projection_matrix: Matrix4;              @noserialize @noui
+        inverse_view_projection_matrix: Matrix4; @noserialize @noui
     }
 }
 

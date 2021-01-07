@@ -80,7 +80,7 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
             view = matrix4_identity();
             translation = make_vector3(0, 0, 0);
         } else {
-            cam     := *context.state.editor.scene_camera;
+            cam := context.state.current_im_camera;
             calc_matrices(cam);
             projection  = cam.projection_matrix;
             view        = cam.view_matrix;
