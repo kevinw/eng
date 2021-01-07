@@ -45,7 +45,7 @@ Undo :: #import "undo";
 Editor :: struct {
     undo_state: Undo.Impl;
 
-    scene_camera: Camera;
+    scene_camera: Camera; // editor view camera
 
     wants_keyboard: bool;
 

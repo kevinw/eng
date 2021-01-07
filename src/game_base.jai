@@ -29,6 +29,11 @@ State_Base :: struct {
     live: Live_Asset_Database;
     debug_draw := false;
     world: World;
+
+    profiler_text: string;
+    profiler:      Profiler(Profiler_Timestamps);
+    first_update:    bool;
+
     canary2 := 4000;
     restart: ();
     canary3 := -99;
@@ -41,8 +46,14 @@ game_base_shutdown :: () {
     sound_deinit(*sound_state);
 }
 
-game_base_update :: () {
+game_base_update :: (host_state: Host_State) {
     using context.state;
+
+    if !first_update {
+        first_update = true;
+        logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
+    }
+
 
     ImGui_Impl_NewFrame(*ui, rl.GetWindowHandle(), rl.GetScreenWidth(), rl.GetScreenHeight());
 
@@ -74,8 +85,8 @@ game_base_update :: () {
             editor_toggle(context.state);
         if rl.IsKeyPressed(.KEY_R) && !shift && restart != null
             restart();
-        if rl.IsKeyPressed(.KEY_MINUS)  change_global_time_scale(-1);
-        if rl.IsKeyPressed(.KEY_EQUAL)  change_global_time_scale(+1);
+        if rl.IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
+        if rl.IsKeyPressed(.KEY_EQUAL) change_global_time_scale(+1);
         if rl.IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
@@ -83,10 +94,8 @@ game_base_update :: () {
         if _local_host_state.change_window_state != null {
             if rl.IsKeyPressed(.KEY_F) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT)
                 _local_host_state.change_window_state(.Toggle_Borderless_Fullscreen);
-            if rl.IsKeyPressed(.KEY_ZERO)
-                _local_host_state.change_window_state(.Toggle_Always_On_Top);
-            if rl.IsKeyPressed(.KEY_NINE)
-                _local_host_state.change_window_state(.Toggle_Transparent_When_Out_Of_Focus);
+            if rl.IsKeyPressed(.KEY_ZERO) _local_host_state.change_window_state(.Toggle_Always_On_Top);
+            if rl.IsKeyPressed(.KEY_NINE) _local_host_state.change_window_state(.Toggle_Transparent_When_Out_Of_Focus);
         }
     }
 

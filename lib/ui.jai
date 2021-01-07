@@ -131,33 +131,35 @@ imgui_render :: (ui: *UI_State) {
 imgui_init :: (ui: *UI_State, window_handle: *void) {
     ImGui_Impl_CreateContext(ui);
     ImGui.StyleColorsDark();
-    style := ImGui.GetStyle();
-    style.ScaleAllSizes(style, 1.1);
-    style.FrameRounding = 1.5;
-    style.GrabRounding = 3.0;
-    style.TabRounding = 5.0;
+    {
+        using style := ImGui.GetStyle();
+        ScaleAllSizes(style, 1.1);
+        FrameRounding = 1.5;
+        GrabRounding = 3.0;
+        TabRounding = 5.0;
+    }
 
     //dark_theme_2();
 
-    font_file      :: "resources/fonts/Roboto-Regular.ttf";
-    font_file_mono :: "resources/fonts/consola.ttf";
+    font_file      :: "resources/fonts/Roboto-Regular.ttf"; regular_size :: 15; small_size :: 14;
+    font_file_mono :: "resources/fonts/consola.ttf";        mono_size :: 11;
     fonts := ImGui.GetIO().Fonts;
     #if #run Compiler.get_build_options().optimization_level != .RELEASE {
         // In debug builds, load the TTF files from disk.
-        fonts.AddFontFromFileTTF(fonts, font_file, 15);
+        fonts.AddFontFromFileTTF(fonts, font_file, regular_size);
         logprint("ui", "loading font %", font_file);
-        ui.small_font     = fonts.AddFontFromFileTTF(fonts, font_file, 14);
+        ui.small_font     = fonts.AddFontFromFileTTF(fonts, font_file, small_size);
         logprint("ui", "loading font %", font_file_mono);
-        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, 14);
+        ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, mono_size);
     } else {
         // In release builds, just include the font files in the data segment.
         font_file_bytes      := decompress_from_data_segment(font_file);
         font_file_mono_bytes := decompress_from_data_segment(font_file_mono);
 
         // By default, AddFontFromMemoryTTF transfers ownership so we don't need to free the decompressed bytes buffers.
-        fonts.AddFontFromMemoryTTF(fonts, font_file_bytes.data, cast(s32)font_file_bytes.count, 15);
-        ui.small_font     = fonts.AddFontFromMemoryTTF(fonts, font_file_bytes.data, cast(s32)font_file_bytes.count, 14);
-        ui.monospace_font = fonts.AddFontFromMemoryTTF(fonts, font_file_mono_bytes.data, cast(s32)font_file_bytes.count, 18);
+        fonts.AddFontFromMemoryTTF(fonts, font_file_bytes.data, cast(s32)font_file_bytes.count, regular_size);
+        ui.small_font     = fonts.AddFontFromMemoryTTF(fonts, font_file_bytes.data, cast(s32)font_file_bytes.count, small_size);
+        ui.monospace_font = fonts.AddFontFromMemoryTTF(fonts, font_file_mono_bytes.data, cast(s32)font_file_bytes.count, mono_size);
     }
 
     ImGui_Impl_Init(ui, window_handle);

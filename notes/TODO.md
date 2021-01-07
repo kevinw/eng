@@ -75,6 +75,8 @@
 
 
 ## research ideas:
+    - indexing https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
+    - late latch mouse position: https://github.com/nlguillemot/LateLatching/blob/master/main.cpp
     - building a debug "bundled" version would mean better stack traces during debugging 
     - a version of __temporary_allocator that ping pongs between VirtualAlloc guard pages so you know immediately if you're reading junk data
     - a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...

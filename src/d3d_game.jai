@@ -19,10 +19,6 @@ State :: struct {
     im_context:    Im_Context_R;
     multiview:     Multiview_State;
     mview_window:  multiview_window.State;
-    first_draw:    bool;
-
-    profiler_text: string;
-    profiler:      Profiler(Profiler_Timestamps);
 }
 
 update_and_draw :: () {
@@ -35,12 +31,7 @@ update_and_draw :: () {
     Gamepad.update_gamepad();
     handle_input_module_renderer_resize(host_state.window_handle, host_state.pending_resizes);
     ImGui_Impl_ProcessInputEvents(*ui, host_state.events_this_frame);
-    game_base_update();
-
-    if !first_draw {
-        first_draw = true;
-        logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
-    }
+    game_base_update(host_state);
 
     begin_frame(*profiler);
 
