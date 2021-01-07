@@ -1317,17 +1317,18 @@ draw_inspector :: (open: *bool) {
 
     entity: *Entity;
     entity_handle: Entity_Handle;
+    if selected.count > 1 {
+        Text("Multiple objects are selected.");
+        return;
+    }
+
+    ok: bool;
     if selected.count == {
         case 0; 
             // do nothing
         case 1;
-            ok: bool;
             entity_handle = selected[0].handle;
             ok, entity = get_entity(entity_handle);
-            if ok Text(tprint("Entity %\0", entity_handle.id).data);
-        case;
-            Text("Multiple objects are selected.");
-            return;
     }
 
     classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
@@ -1379,6 +1380,10 @@ draw_inspector :: (open: *bool) {
                 Undo.commit(*undo_state);
             }
         }
+    }
+
+    if entity != null {
+        Text(tprint("Entity %\0", entity_handle.id).data);
     }
 }
 

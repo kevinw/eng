@@ -133,9 +133,9 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
     ImGui.StyleColorsDark();
     style := ImGui.GetStyle();
     style.ScaleAllSizes(style, 1.1);
-    style.FrameRounding = 4.0;
-    style.GrabRounding = 4.0;
-    style.TabRounding = 6.0;
+    style.FrameRounding = 1.5;
+    style.GrabRounding = 3.0;
+    style.TabRounding = 5.0;
 
     //dark_theme_2();
 
