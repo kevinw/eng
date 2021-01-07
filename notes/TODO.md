@@ -8,7 +8,6 @@
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
-- GPU mouse picking
 - make the multiview projection translation start left and end up right of the camera
 - disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
     - copy frustum visualization code from LKG Unity plugin
