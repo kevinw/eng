@@ -23,6 +23,80 @@ State :: struct {
     current_im_camera: *Camera;
 }
 
+Particle :: struct {
+    position: Vector3;
+    velocity: Vector3;
+    radius: float;
+    color: Vector4;
+}
+
+particles: [..]Particle;
+
+
+is_key_pressed    :: (ch: u8) -> bool { return is_key_pressed(cast,trunc(Key_Code)ch); }
+is_key_pressed    :: (key: Key_Code) -> bool {
+    return (<<_local_host_state.input_button_states)[cast(int)key] & .START != 0;
+}
+
+_draw_world :: () {
+    if is_key_pressed(#char "P")
+        particles.count = 0;
+    if particles.count == 0 {
+        N :: 4000;
+        array_resize(*particles, N);
+        R01 :: random_get_zero_to_one;
+        R   :: random_get_within_range;
+        for * particles {
+            it.position = make_vector3(R(0, 1000), R(-300, 700), R(-300, 1500));
+            it.velocity = make_vector3(R01(), R01(), R01()) * 4;
+            it.radius = R01() * 6;
+            C :: 0.7;
+            it.color = make_vector4(R01() * C, R01() * C, R01() * C, 1);
+        }
+    }
+    Sort.quick_sort(particles, (p1, p2) => Sort.compare_floats(p1.position.z, p2.position.z));
+    ctx := *context.state.im_context;
+    t0 := make_vector2(0, 0);
+    t1 := make_vector2(1, 1);
+
+    t01 := xy(t0.x, t1.y);
+    t10 := xy(t1.x, t0.y);
+
+    im_set_texture(ctx, null);
+
+    for * particles {
+        it.position += it.velocity * context.state.Time.delta_time;
+        
+        r2 := make_vector3(it.radius, it.radius, 0);
+        p0 := (it.position - r2).xy;
+        p1 := (it.position + r2).xy;
+
+        p01 := xy(p0.x, p1.y);
+        p10 := xy(p1.x, p0.y);
+
+        c := it.color;
+
+        im_set_primitive(ctx, 3);
+        im_ensure_space_for(ctx, index_count=6, vertex_count=4);
+
+        im_set_z(ctx, it.position.z);
+
+        v0 := im_vertex(ctx, p0, t0, c);
+        v1 := im_vertex(ctx, p01, t01, c);
+        v2 := im_vertex(ctx, p1, t1, c);
+        v3 := im_vertex(ctx, p10, t10, c);
+
+        im_indices(ctx, v0, v1, v2, v2, v0, v3);
+    }
+    im_set_z(ctx, 0);
+    im_flush(ctx);
+
+    world := context.state.world;
+    world_draw(*world);
+    draw_all_drawables(*world);
+    im_flush(ctx);
+}
+
 update_and_draw :: () {
     using context.state;
 
@@ -56,9 +130,7 @@ update_and_draw :: () {
         {
             // render quilt
             push_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
-            world_draw(*world);
-            draw_all_drawables(*world);
-            im_flush(im);
+            _draw_world();
             timestamp(*profiler, .MultiviewWorldRender);
         }
 
@@ -81,12 +153,8 @@ update_and_draw :: () {
             push_value(*multiview.num_views, 1); 
 
             {
-                im.track_mouse = true;
-                defer im.track_mouse = false;
-
-                world_draw(*world);
-                draw_all_drawables(*world);
-                im_flush(im);
+                push_value(*im.track_mouse, true);
+                _draw_world();
                 timestamp(*profiler, .EditorWorldRender);
             }
 
@@ -335,5 +403,6 @@ push_value :: (ptr_to_value: *$T, new_value: T) #expand {
 #import "Window_Creation";
 Input   :: #import "Input";
 Gamepad :: #import "Gamepad";
+Sort :: #import "Sort";
 rl :: #import "raylib";
 multiview_window :: #import "multiview_window";
