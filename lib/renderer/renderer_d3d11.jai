@@ -1018,7 +1018,7 @@ _compile_shader_at_runtime :: (filename: string, stage: Shader_Stage, target_pro
     if d3d_defines.count > 0
         array_add(*d3d_defines, .{ null, null });
 
-    if S_OK != D3DCompileFromFile(filename_w, d3d_defines.data, null, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
+    if S_OK != D3DCompileFromFile(filename_w, d3d_defines.data, xx D3D_COMPILE_STANDARD_FILE_INCLUDE, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
         flush_errors();
         logprint("shader", "D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
         Release(error_blob);

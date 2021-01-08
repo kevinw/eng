@@ -10,6 +10,7 @@ TODO generate this constants cbuffer from Jai? ...or vice versa?
 */
 
 #define MOUSE_PICKING
+//#define IRIDESCENCE
 
 #ifdef MOUSE_PICKING
 struct ObjectIDInfo {
@@ -75,12 +76,21 @@ cbuffer mousepick_constants : register(b0) {
     float2 mouse_xy;
 }
 
+#ifdef IRIDESCENCE
+#include "iridescence.hlsl"
+#endif
+
 [earlydepthstencil]
 float4 ps_main(vs_out input): SV_TARGET {
     float4 col = input.color * color_tex.Sample(color_tex_sampler, input.texcoord);
 
+#ifdef IRIDESCENCE
+    // TODO: @Perf this could probably be in the vertex shader.
+    ApplyIridescence(col.rgb, input.rendertarget_array_index);
+#endif
+
 #ifdef MOUSE_PICKING
-    if (distance(floor(input.position.xy), mouse_xy) <= 0.5) { // TODO: do this without a distance() call probably...
+    if (distance(floor(input.position.xy), mouse_xy) <= 0.5) { // TODO: @Perf do this without a distance() call
         ObjectIDInfo obj;
         obj.entity_id         = input.entity_id;
         obj.entity_generation = input.entity_generation;
