@@ -610,7 +610,7 @@ render_imgui_to_drawlists :: (state: *State) {
             PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
             DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
-            if is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
+            if !GetIO().WantCaptureMouse && is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
                 SetMouseCursor(.ResizeAll);
         }
     }
@@ -985,7 +985,7 @@ editor_update :: (state: *State) {
 
     // Move editor camera with WASD
 
-    if !io.WantTextInput && is_key_down(.MOUSE_BUTTON_RIGHT) {
+    if !io.WantTextInput && !io.WantCaptureMouse && is_key_down(.MOUSE_BUTTON_RIGHT) {
         update := false; // camera did move
         {
             // moving with WASD 
