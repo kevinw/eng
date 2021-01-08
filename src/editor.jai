@@ -1121,27 +1121,30 @@ editor_update :: (state: *State) {
                 if trs it.original_pos = trs.position.xy;
             }
 
-        } else if drag_state.dragging && !ImGui.IsMouseDown(0) {
-            if selected.count == 0 {
-                rect := rect_from_points(drag_state.origin, world_mouse_pos.xy);
-                if is_valid_drag_rect(rect) {
-                    if callbacks.did_drag != null
-                        callbacks.did_drag(rect);
-                }
-            } else
-                Undo.commit(*undo_state);
-
-            drag_state.dragging = false;
-
-        } else if drag_state.dragging && ImGui.IsMouseDown(0) {
-            delta := world_mouse_pos.xy - drag_state.origin;
-            for selected {
-                trs := get_transform_or_null(it);
-                if trs != null
-                    trs.position.xy = it.original_pos + delta;
-            }
         }
     } // WantCaptureMouse
+
+    if ImGui.IsMouseClicked(0) {
+    } else if drag_state.dragging && !ImGui.IsMouseDown(0) {
+        if selected.count == 0 {
+            rect := rect_from_points(drag_state.origin, world_mouse_pos.xy);
+            if is_valid_drag_rect(rect) {
+                if callbacks.did_drag != null
+                    callbacks.did_drag(rect);
+            }
+        } else
+            Undo.commit(*undo_state);
+
+        drag_state.dragging = false;
+
+    } else if drag_state.dragging && ImGui.IsMouseDown(0) {
+        delta := world_mouse_pos.xy - drag_state.origin;
+        for selected {
+            trs := get_transform_or_null(it);
+            if trs != null
+                trs.position.xy = it.original_pos + delta;
+        }
+    }
 
     if rl.IsKeyPressed(.KEY_DELETE) {
         if selected.count > 0 {
