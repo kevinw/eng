@@ -98,7 +98,6 @@ update_and_draw :: () {
 
             physics_2d_draw_debug();
             editor_draw_world(context.state);
-            screenlog_draw.draw_world();
             im_flush(im);
             timestamp(*profiler, .EditorUI);
         }
@@ -148,7 +147,6 @@ _update_raylib_temp :: (host_state: Host_State) {
 
     // These go away once we remove the fake raylib module entirely.
     rl._XXX_SetRenderer(*renderer);
-    rl._XXX_SetNativeWindow(host_state.window_handle);
     rl._XXX_SetHostInputButtonStates(host_state.input_button_states);
 }
 
@@ -338,5 +336,4 @@ push_value :: (ptr_to_value: *$T, new_value: T) #expand {
 Input   :: #import "Input";
 Gamepad :: #import "Gamepad";
 rl :: #import "raylib";
-screenlog_draw :: #import "screenlog_draw";
 multiview_window :: #import "multiview_window";

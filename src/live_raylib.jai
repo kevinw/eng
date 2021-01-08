@@ -41,12 +41,12 @@ get_path_for_asset :: (sprite_anim: *Sprite_Anim) -> string {
 }
 
 
-LoadLiveTexture :: (filename: string, raylib_texture: rl.Texture) -> LiveTexture {
+LoadLiveTexture :: (filename: string, texture: Texture) -> LiveTexture {
     // create a new live entry for a texture loaded elsewhere (through aseprite for example)
 
     new_entry := array_add(*context.state.live.textures);
     new_entry.filename = copy_string(filename);
-    new_entry.resource = raylib_texture;
+    new_entry.resource = texture;
     new_entry.count = 1;
 
     obj: LiveTexture;
@@ -96,18 +96,16 @@ LoadLiveTexture :: (filename: string) -> LiveTexture {
         new_entry := array_add(*context.state.live.textures);
         assert(old_pointer == null || context.state.live.textures.data == old_pointer, "moved!?");
         new_entry.filename = copy_string(filename);
-        new_entry.resource = load_raylib_texture(filename);
+
+        tex_ok: bool;
+        tex_ok, new_entry.resource = load_texture_from_file(filename);
+        assert(tex_ok);
+
         obj._entry = new_entry;
     }
 
     obj._entry.count += 1;
     return obj;
-}
-
-load_raylib_texture :: (filename: string) -> rl.Texture {
-    ok, texture := load_texture_from_file(filename);
-    assert(ok);
-    return texture;
 }
 
 DrawTexture :: (texture: *LiveTexture, posX: s32, posY: s32, tint: rl.Color) {
@@ -122,24 +120,15 @@ DrawTexturePro :: (texture: *LiveTexture, src_rect: rl.Rectangle, dest_rect: rl.
     rl.DrawTexturePro(*texture._entry.resource, src_rect, dest_rect, offset, rotation, color);
 }
 
-UnloadLiveTexture :: (texture: LiveTexture) {
-    texture._entry.count -= 1;
-    if texture._entry.count == 0 {
-        rl.UnloadTexture(texture._entry.resource);
-        free(texture._entry.filename);
-        for * context.state.live.textures
-            if texture._entry == it
-                remove it;
-    }
-}
-
 TryReloadLiveTexturePath :: (filename: string) -> bool {
     found := false;
 
     for * context.state.live.textures {
         if it.filename == filename {
-            rl.UnloadTexture(it.resource);
-            it.resource = load_raylib_texture(it.filename);
+            print("TODO: implement unload texture!\n");
+            tex_ok: bool;
+            tex_ok, it.resource = load_texture_from_file(it.filename);
+            assert(tex_ok);
             found = true;
         }
     }

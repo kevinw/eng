@@ -1,66 +1,5 @@
-push_mode_2D :: (camera: Camera2D) #expand {
-    begin_mode_2D(camera);
-    `defer EndMode2D();
-}
-
 screenp :: (msg: string, args: ..Any, ident := "", loc := #caller_location) {
     screenlog.screen_print(tprint(msg, ..args), loc=loc);
-}
-
-begin_mode_2D :: (camera: Camera2D) {
-
-    float16 :: struct {
-        v: [16]float;
-    }
-    MatrixToFloatV  :: (mat: Matrix) -> float16 { 
-        f16: float16;
-        f16.v = mat.floats;
-        return f16;
-    }
-
-    rlglDraw();                         // Draw Buffers (Only OpenGL 3+ and ES2)
-    rlLoadIdentity();                   // Reset current matrix (modelview)
-    floats := MatrixToFloatV(get_cam_matrix_2D(camera));
-    rlMultMatrixf   :: (matf: *float) { assert(false); }
-    rlMultMatrixf(floats.v.data);
-}
-
-get_cam_matrix_2D :: (camera: Camera2D) -> Matrix {
-    // The camera in world-space is set by
-    //   1. Move it to target
-    //   2. Rotate by -rotation and scale by (1/zoom)
-    //      When setting higher scale, it's more intuitive for the world to become bigger (= camera become smaller),
-    //      not for the camera getting bigger, hence the invert. Same deal with rotation.
-    //   3. Move it by (-offset);
-    //      Offset defines target transform relative to screen, but since we're effectively "moving" screen (camera)
-    //      we need to do it into opposite direction (inverse transform)
-
-    // Having camera transform in world-space, inverse of it gives the modelview transform.
-    // Since (A*B*C)' = C'*B'*A', the modelview is
-    //   1. Move to offset
-    //   2. Rotate and Scale
-    //   3. Move by -target
-    DEG2RAD :: 3.141592 / 180.0;
-
-    MatrixTranslate :: (x: float, y: float, z: float) -> Matrix {
-        return make_translation_matrix4(make_vector3(x, y, z));
-    }
-    MatrixRotate    :: (axis: Vector3, angle_radians: float) -> Matrix {
-        assert(false);
-        return .{};
-    }
-    MatrixScale     :: (x: float, y: float, z: float) -> Matrix {
-        return make_scale_matrix4(make_Vector3(x, y, z));
-    }
-    MatrixMultiply  :: (a: Matrix, b: Matrix) -> Matrix { return multiply(a, b); }
-
-    matOrigin := MatrixTranslate(-camera.target.x, -camera.target.y, 0.0);
-    matRotation := MatrixRotate(Vector3.{ 0.0, 0.0, 1.0 }, camera.rotation*DEG2RAD);
-    matScale := MatrixScale(camera.zoom, camera.zoom, 1.0);
-    matTranslation := MatrixTranslate(camera.offset.x, camera.offset.y, 0.0);
-
-
-    return MatrixMultiply(MatrixMultiply(matOrigin, MatrixMultiply(matScale, matRotation)), matTranslation);
 }
 
 sin_min_max :: (val: float, min: float, max: float) -> float {
@@ -130,13 +69,6 @@ midpoint :: inline (rect: Rectangle) -> Vector2 {
     return v;
 }
 
-Vector2_Scale :: inline (a: Vector2, b: Vector2) -> Vector2 {
-    v: Vector2 = ---;
-    v.x = a.x * b.x;
-    v.y = a.y * b.y;
-    return v;
-}
-
 Int2 :: struct {
     x: s16;
     y: s16;
@@ -189,12 +121,6 @@ sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
     new_slice.count = j - i;
     //print("sprites_with_prefix of % total w prefix '%': %\n", sprites.count, prefix, new_slice.count);
     return new_slice;
-}
-
-blit_render_texture_to_screen :: (rt: *RenderTexture) {
-    source_rect := make_Rectangle(0, 0, rt.texture.width, -cast(s32)rt.texture.height);
-    dest_rect   := make_Rectangle(0, 0, GetScreenWidth(), GetScreenHeight());
-    DrawTexturePro(*rt.texture, source_rect, dest_rect, Vector2.{0, 0}, 0, WHITE);
 }
 
 parse_spriter_atlas :: (filename: string) -> []Sprite {

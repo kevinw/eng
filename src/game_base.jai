@@ -55,7 +55,7 @@ game_base_update :: (host_state: Host_State) {
     }
 
 
-    ImGui_Impl_NewFrame(*ui, rl.GetWindowHandle(), rl.GetScreenWidth(), rl.GetScreenHeight());
+    ImGui_Impl_NewFrame(*ui, host_state.window_handle, rl.GetScreenWidth(), rl.GetScreenHeight());
 
     system_now := get_time();
     absolute_delta_time: float64;
@@ -113,25 +113,6 @@ change_global_time_scale :: (delta: float) {
         global_time_scale = 1;
 
     logprint("=time_scale", "time scale %", global_time_scale);
-}
-
-game_base_push_drawing :: () #expand {
-    rl.BeginDrawing();
-    `defer {
-        rl.rlglDraw();
-
-        ImGui.Render();
-        ok := ImGui_Impl_RenderDrawData(ui, ImGui.GetDrawData());
-        assert(ok);
-
-        screenlog.draw();
-        host_debug_draw();
-        rl.EndDrawing();
-    }
-    // TODO: @Speed the EndDrawing implied by PushDrawing is calling
-    // rlglDraw() again, but rlglDraw() above ImGui.Render() is necessary
-    // for us to be able to overlay IMGUI onto raylib
-    // https://github.com/raysan5/raylib/issues/1216
 }
 
 game_base_draw_compile_error :: () {

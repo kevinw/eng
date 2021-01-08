@@ -2,6 +2,7 @@
 
 ## Immediate
  
+- shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
 - materials
     - how does TheForge do it?
 - fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later

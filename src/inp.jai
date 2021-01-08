@@ -13,8 +13,8 @@ get_gamepad_dpad :: (gamepad: int) -> Vector2 {
 }
 
 get_gamepad_stick :: (gamepad: int, x_axis: rl.GamepadAxis, y_axis: rl.GamepadAxis, DEAD_ZONE := 0.17) -> Vector2 {
-    stick := rl.make_Vector2(rl.GetGamepadAxisMovement(gamepad, x_axis),
-                             rl.GetGamepadAxisMovement(gamepad, y_axis));
+    stick := make_vector2(GetGamepadAxisMovement(gamepad, x_axis),
+                          GetGamepadAxisMovement(gamepad, y_axis));
 
     if abs(stick.x) < DEAD_ZONE stick.x = 0;
     if abs(stick.y) < DEAD_ZONE stick.y = 0;
@@ -85,7 +85,25 @@ movement :: (input_types := Input_Type.ALL, axes := Axes.BOTH, gamepad_index := 
 }
 
 #scope_file
+
+GetGamepadAxisMovement :: (gamepad: int, axis: rl.GamepadAxis) -> float {
+    assert(gamepad == 0);
+    if axis == {
+        case .GAMEPAD_AXIS_LEFT_X;  return Gamepad.gamepad.left_stick.x;
+        case .GAMEPAD_AXIS_LEFT_Y;  return Gamepad.gamepad.left_stick.y;
+        case .GAMEPAD_AXIS_RIGHT_X; return Gamepad.gamepad.right_stick.y;
+        case .GAMEPAD_AXIS_RIGHT_Y; return Gamepad.gamepad.right_stick.y;
+        case;
+            assert(false, "TODO");
+    }
+
+    return 0;
+}
+
+
+
 rl :: #import "raylib";
+Gamepad :: #import "Gamepad";
 #import "raymath";
 #import "Math";
 #import "Basic";

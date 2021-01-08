@@ -1,9 +1,14 @@
+//
+// this project started by using raylib to render things, but then I made my
+// own d3d11 backend. these are are stubs for the parts of the code base that
+// still reference "rl" or "raylib"
+//
+
 #scope_file
 #import "renderer";
 #import "Basic";
 Gamepad :: #import "Gamepad";
 renderer: *Renderer;
-_native_window: *void;
 _input_button_states: *[Input.NUM_BUTTON_STATES]Input.Key_Current_State;
 Input :: #import "Input";
 #scope_export
@@ -12,7 +17,6 @@ Texture :: R.Texture;
 Image :: Bitmap;
 
 _XXX_SetRenderer :: (renderer_ptr: *Renderer) { renderer = renderer_ptr; }
-_XXX_SetNativeWindow :: (native_window: *void) { _native_window = native_window; }
 _XXX_SetHostInputButtonStates :: (host_button_states: *[Input.NUM_BUTTON_STATES] Input.Key_Current_State) {
     assert(host_button_states != null, "cannot pass a null pointer to _XXX_SetHostInputButtonStates");
     _input_button_states = host_button_states;
@@ -112,16 +116,6 @@ IsKeyPressed :: (key: KeyboardKey) -> bool {
     return (<<_input_button_states)[cast(int)key_code] & .START != 0;
 }
 
-GetMousePosition :: () -> Vector2 {
-    x, y := Window_Creation.get_mouse_pointer_position();
-
-    v: Vector2 = ---;
-    v.x = cast(float)x;
-    v.y = cast(float)y;
-    return v;
-}
-
-
 DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle, origin: Vector2, rotation: float = 0, tint: Color = WHITE, depth_z:float = 0) {
     DrawTexturePro(texture, sourceRec_, destRec, origin, rotation, ColorToNormalized(tint), depth_z);
 }
@@ -176,20 +170,6 @@ DrawTexture :: (texture: *Texture, posX: s32, posY: s32, tint: Color) {
 }
 
 
-GetGamepadAxisMovement :: (gamepad: int, axis: GamepadAxis) -> float {
-    assert(gamepad == 0);
-    if axis == {
-        case .GAMEPAD_AXIS_LEFT_X;  return Gamepad.gamepad.left_stick.x;
-        case .GAMEPAD_AXIS_LEFT_Y;  return Gamepad.gamepad.left_stick.y;
-        case .GAMEPAD_AXIS_RIGHT_X; return Gamepad.gamepad.right_stick.y;
-        case .GAMEPAD_AXIS_RIGHT_Y; return Gamepad.gamepad.right_stick.y;
-        case;
-            assert(false, "TODO");
-    }
-
-    return 0;
-}
-
 get_gamepad_button :: (raylib_button: GamepadButton) -> Gamepad.Gamepad_Code {
     if raylib_button == {
         case .GAMEPAD_BUTTON_LEFT_FACE_UP;     return .DPAD_UP;
@@ -225,16 +205,7 @@ IsGamepadButtonPressed :: (gamepad: int, button: GamepadButton) -> bool {
     
 //------
 
-rlglDraw :: () {}
 Matrix :: Matrix4;
-rlLoadIdentity :: () {}
-GetWindowHandle :: () -> *void { return _native_window; }
-GetMonitorWidth :: (monitor: s32) -> s32 { return 0; }
-GetMonitorHeight :: (monitor: s32) -> s32 { return 0; }
-GetWindowPosition :: () -> Vector2 { return .{}; }
-SetWindowPosition :: (x: s32, y: s32)  {}
-SetWindowSize :: (width: s32, height: s32) {}
-ToggleFullscreen :: () {}
 GetScreenWidth :: () -> s32 { 
     // XXX
     Basic.assert(renderer != null);
@@ -243,10 +214,6 @@ GetScreenWidth :: () -> s32 {
 GetScreenHeight :: () -> s32 {
     Basic.assert(renderer != null);
     return cast(s32)renderer.depth_buffer_desc.Height;
-}
-
-GetScreenToWorld2D :: (position: Vector2, camera: Camera2D) -> Vector2 {
-    return position;
 }
 
 DrawText :: (text: *u8, posX: s32, posY: s32, fontSize: s32, color: Color) {
@@ -302,18 +269,9 @@ GamepadAxis :: enum {
     GAMEPAD_AXIS_RIGHT_TRIGGER;
 }
 
-
-Camera2D :: struct {
-    offset: Vector2;
-    target: Vector2;
-    rotation: float;
-    zoom: float;
-}
-
 DrawTriangleStrip :: (points: *Vector2, pointsCount: s32, color: Color) {
     print("TODO: DrawTriangleStrip\n");
 }
-
 
 Color :: struct {
     r: u8;
@@ -321,27 +279,6 @@ Color :: struct {
     b: u8;
     a: u8;
 }
-
-SetShaderValue :: (shader: Shader, uniformLoc: s32, value: *void, uniformType: ShaderUniformDataType) {
-
-}
-
-ShaderUniformDataType :: enum {
-    UNIFORM_FLOAT :: 0;
-    UNIFORM_VEC2;
-    UNIFORM_VEC3;
-    UNIFORM_VEC4;
-    UNIFORM_INT;
-    UNIFORM_IVEC2;
-    UNIFORM_IVEC3;
-    UNIFORM_IVEC4;
-    UNIFORM_SAMPLER2D;
-}
-
-GetShaderLocation :: (shader: Shader, uniformName: *u8) -> s32 { return 0; }
-
-UnloadShader :: (shader: Shader) {}
-LoadShader :: (vsFileName: *u8, fsFileName: *u8) -> Shader { return .{}; }
 
 LIGHTGRAY :: Color.{  200, 200, 200, 255  };
 GRAY :: Color.{  130, 130, 130, 255  };
@@ -369,6 +306,7 @@ BLACK :: Color.{  0, 0, 0, 255  };
 BLANK :: Color.{  0, 0, 0, 0  };
 MAGENTA :: Color.{  255, 0, 255, 255  };
 RAYWHITE :: Color.{  245, 245, 245, 255  };
+
 Rectangle :: struct {
     x: float;
     y: float;
@@ -377,10 +315,6 @@ Rectangle :: struct {
 
     #place x;     position: Vector2;
     #place width; size: Vector2;
-}
-
-LoadImagePro :: (data: *void, width: s32, height: s32, format: s32) -> Image {
-    return .{};
 }
 
 DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Color, col4: Color, depth_z:float = 0) {
@@ -417,8 +351,7 @@ LoadImageEx :: (pixels: *Color, width: s32, height: s32) -> Image {
     return bmp;
 }
 
-UnloadImage :: (image: Bitmap) {
-}
+UnloadImage :: bitmap_unload;
 
 ImageFromImage :: (image: Image, rec: Rectangle) -> Image {
     result := image;
@@ -567,7 +500,7 @@ ImageDraw :: (dst: *Image, src: Image, srcRecIn: Rectangle, dstRecIn: Rectangle,
         pDstBase += strideDst;
     }
 
-    if useSrcMod UnloadImage(srcMod);     // Unload source modified image
+    if useSrcMod UnloadImage(*srcMod);     // Unload source modified image
 }
 
 SetPixelColor :: inline (dstPtr: *void, color: Color, format: Texture_Format)
@@ -784,30 +717,6 @@ GamepadButton :: enum {
     GAMEPAD_BUTTON_RIGHT_THUMB;
 }
 
-IsMouseButtonPressed :: (button: MouseButton) -> bool { return false; }
-IsMouseButtonDown :: (button: MouseButton) -> bool { return false; }
-IsMouseButtonReleased :: (button: MouseButton) -> bool { return false; }
-IsMouseButtonUp :: (button: MouseButton) -> bool { return false; }
-
-GetMouseWheelMove :: () -> s32 { return 0; }
-GetKeyPressed :: () -> s32 { return 0; }
-
-CharInfo :: struct {
-    value: s32;
-    offsetX: s32;
-    offsetY: s32;
-    advanceX: s32;
-    image: Image;
-}
-
-
-MouseButton :: enum {
-    MOUSE_LEFT_BUTTON   :: 0;
-    MOUSE_RIGHT_BUTTON  :: 1;
-    MOUSE_MIDDLE_BUTTON :: 2;
-}
-
-
 DrawTextureNPatch :: (texture: *Texture, nPatchInfo: NPatchInfo, destRec: Rectangle, origin: Vector2, rotation: float, tint: Color) {
 }
 
@@ -827,10 +736,6 @@ LoadTextureFromImage :: (image: Bitmap, debug_name: string) -> Texture {
     ok, texture := load_texture_from_data(xx image.width, xx image.height, 4, image.data, debug_name=debug_name);
     assert(ok);
     return texture;
-}
-
-UnloadTexture :: (texture: Texture) {
-    print("TODO: UnloadTexture\n");
 }
 
 make_Rectangle :: (x: $A, y: $B, width: $C, height: $D) -> Rectangle {
@@ -864,23 +769,6 @@ make_Vector2 :: (x: $A, y: $B) -> Vector2 {
     v.x = cast(float)x;
     v.y = cast(float)y;
     return v;
-}
-
-RenderTexture2D :: struct {
-    id: u32;
-    texture: Texture;
-    depth: Texture;
-    depthTexture: bool;
-}
-
-RenderTexture :: RenderTexture2D;
-
-Font :: struct {
-    baseSize: s32;
-    charsCount: s32;
-    texture: Texture;
-    recs: *Rectangle;
-    chars: *CharInfo;
 }
 
 

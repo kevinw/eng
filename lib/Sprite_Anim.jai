@@ -100,7 +100,7 @@ load_from_aseprite :: (sprite_anim: *Sprite_Anim, filename: string) -> bool {
     dest_rect: rl.Rectangle;
     for imgs {
         src_img := rl.LoadImageEx(cast(*rl.Color)it.pixels.data, it.width, it.height);
-        defer rl.UnloadImage(src_img);
+        defer rl.UnloadImage(*src_img);
 
         src_rect := rl.make_Rectangle(0, 0, it.width, it.height);
         dest_rect.width = cast(float)it.width;
