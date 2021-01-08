@@ -864,7 +864,10 @@ show_entities_window :: (open: *bool) {
         using editor;
         if node_clicked.has_value {
             was_selected := selected.count == 1 && selected[0].handle == node_clicked.value;
-            set_or_toggle_selected(node_clicked.value);
+            {
+                editor_undo_push_selected();
+                set_or_toggle_selected(node_clicked.value);
+            }
             if IsMouseDoubleClicked(0) {
                 focus_editor_camera_on_entity(node_clicked.value);
                 clear(*wait_for_entity_name);
@@ -878,8 +881,10 @@ show_entities_window :: (open: *bool) {
                 edit_entity_name(selected[0].handle);
             }
 
-            if IsMouseClicked(0) && IsWindowHovered()
+            if IsMouseClicked(0) && IsWindowHovered() {
+                editor_undo_push_selected();
                 clear_selection();
+            }
         }
     //}
 }
@@ -1065,6 +1070,8 @@ editor_update :: (state: *State) {
 
                 if !tentative_hover_click.has_value {
                     took_action := false;
+
+                    editor_undo_push_selected();
                     if hover.has_value {
                         set_or_toggle_selected_in_hover_stack();
                     } else {
@@ -1138,19 +1145,15 @@ editor_update :: (state: *State) {
 
     if rl.IsKeyPressed(.KEY_DELETE) {
         if selected.count > 0 {
-            Undo.push_array(*undo_state, *selected);
-
+            editor_undo_push_selected();
             for selected {
                 if hover.value == it.handle {
                     Undo.push(*undo_state, *hover);
                     hover.has_value = false;
                 }
-
                 destroy_entity(it, undo=*undo_state);
             }
-
             clear_selection();
-            Undo.commit(*undo_state);
         }
     }
 
@@ -1182,11 +1185,10 @@ editor_update :: (state: *State) {
         new_handles: [..]Entity_Handle;
         new_handles.allocator = __temporary_allocator;
 
-        Undo.push_array(*undo_state, *selected);
+        editor_undo_push_selected();
         for selected
             array_add(*new_handles, duplicate_entity(it.handle, undo=*undo_state));
         set_selected(new_handles);
-        Undo.commit(*undo_state);
     }
 
     if ctrl_down && rl.IsKeyPressed(.KEY_Z) {
@@ -1234,6 +1236,13 @@ set_or_toggle_selected_in_hover_stack :: () {
         editor_undo_push_transform(handle);
         set_selected(handle);
     }
+}
+
+editor_undo_push_selected :: () #expand {
+    using context.state.editor;
+
+    Undo.push_array(*undo_state, *selected);
+    `defer Undo.commit(*undo_state);
 }
 
 editor_undo_push_transform :: (handle: Entity_Handle) {
