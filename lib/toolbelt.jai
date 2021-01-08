@@ -86,7 +86,7 @@ Sprite :: struct {
 
 parse_int2 :: (s: string) -> Int2 {
     i := index_of_string(s, ", ");
-    assert(i != -1, tprint("expected a comma-space in '%'", s));
+    assert(i != -1, "expected a comma-space in '%'", s);
     x_str := slice(s, 0, i);
     y_str := slice(s, i + 2, s.count);
     
@@ -112,7 +112,7 @@ sprites_with_prefix :: (sprites: []Sprite, prefix: string) -> []Sprite {
     if j == -1
         j = sprites.count;
 
-    assert(i != -1, tprint("no sprites with prefix '%' found!", prefix));
+    assert(i != -1, "no sprites with prefix '%' found!", prefix);
     assert(j != -1);
 
     // TODO: this assumes sprites are sorted alphabetically
@@ -160,7 +160,7 @@ parse_spriter_atlas :: (filename: string) -> []Sprite {
             //print("name: %\n", current_entry.name);
         } else {
             index := index_of_string(line, ": ");
-            assert(index != -1, tprint("expected a colon space in '%'", line));
+            assert(index != -1, "expected a colon space in '%'", line);
 
             key := slice(line, 0, index);
             val := slice(line, index + 2, line.count);
@@ -250,7 +250,7 @@ get_parent_struct :: ($P: Type, child_ptr: *$C) -> *P {
 
     get_offset :: ($P: Type, child_ti: *Type_Info) -> s64 {
         ti := type_info(P);
-        assert(ti.type == .STRUCT, tprint("%", <<ti));
+        assert(ti.type == .STRUCT, "%", <<ti);
         ti_struct := cast(*Type_Info_Struct)ti;
 
         offset: s64 = -1;
@@ -297,9 +297,9 @@ round :: (f: float) -> float {
 }
 
 test_round :: () {
-    assert(round(4.2) == 4, tprint("%", round(4.2)));
-    assert(round(4.6) == 5, tprint("%", round(4.6)));
-    assert(round(-1) == -1, tprint("%", round(-1)));
+    assert(round(4.2) == 4, "%", round(4.2));
+    assert(round(4.6) == 5, "%", round(4.6));
+    assert(round(-1) == -1, "%", round(-1));
 }
 
 // TODO: not sure if 'Latch' is the right name for this thing.

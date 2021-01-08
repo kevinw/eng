@@ -238,15 +238,14 @@ get_handle_for_value_ptr :: (arr: *$A/Array_With_Holes, value_ptr: *A.Value_Type
     diff := (cast(*A.Slot)value_ptr - cast(*A.Slot)*arr.items[1].value);
     slot_index := diff + 1;
 
-    assert(slot_index > 0, tprint("slot index must be greater than 0: %", slot_index));
-    assert(slot_index <= arr.count,
-        tprint("derived slot_index was %, but arr.count was %", slot_index, arr.count));
+    assert(slot_index > 0, "slot index must be greater than 0: %", slot_index);
+    assert(slot_index <= arr.count, "derived slot_index was %, but arr.count was %", slot_index, arr.count);
 
     handle: Handle_Type;
     handle.id = cast(u32)slot_index;
     assert(slot_index != 0);
     handle.generation = arr.items[slot_index].generation;
-    assert(handle.generation > 0, tprint("expected entity pointer to have a valid generation, but it was %", handle.generation));
+    assert(handle.generation > 0, "expected entity pointer to have a valid generation, but it was %", handle.generation);
 
     assert(get_item_ptr(arr, handle) == value_ptr);
 
@@ -265,7 +264,7 @@ delete_item :: (arr: *$A/Array_With_Holes, handle: A.Handle, undo: *Undo.Impl = 
     assert(handle.generation > 0);
 
     slot := *arr.items[handle.id];
-    assert(slot.generation > 0, tprint("generation was % in slot % (handle expected gen %)", slot.generation, handle.id, slot.generation));
+    assert(slot.generation > 0, "generation was % in slot % (handle expected gen %)", slot.generation, handle.id, slot.generation);
 
     // If it's already been deleted and we have a stale handle, just return
     // false.

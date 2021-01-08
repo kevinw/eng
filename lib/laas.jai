@@ -102,7 +102,7 @@ get_next_token :: (using lexer: *Lexer, token: *Token, ignore_newline := false, 
         // todo(josh): handle case with two dots in a float
         while true {
             if lexer_text[lex_idx] == #char "." {
-				assert(found_a_dot == false, tprint("expected not to find two dots in a row: '%'", lexer_text));
+				assert(found_a_dot == false, "expected not to find two dots in a row: '%'", lexer_text);
 				found_a_dot = true;
 				if !_inc(lexer)
 					break;
@@ -189,16 +189,16 @@ expect_symbol :: (lexer: *Lexer, r: string) {
 	t: Token;
 	ok := get_next_token(lexer, *t);
 	if !ok {
-		assert(false, tprint("EOF"));
+		assert(false, "EOF");
 	}
 	if t.kind == .Symbol {
 		if t.text == r {
 			return;
 		}
-		assert(false, tprint("Expected % got %", r, t.text));
+		assert(false, "Expected % got %", r, t.text);
 	}
 	else {
-		assert(false, tprint("Expected symbol, got %", t));
+		assert(false, "Expected symbol, got %", t);
 	}
 }
 
@@ -206,13 +206,13 @@ expect_float :: (lexer: *Lexer) -> float {
 	t: Token;
 	ok := get_next_token(lexer, *t);
 	if !ok {
-		assert(false, tprint("EOF"));
+		assert(false, "EOF");
 	}
 	if t.kind == .Number {
 		float_value, ok := string_to_float(t.text); assert(ok);
 		return float_value;
 	}
-	assert(false, tprint("Expected float, got %", t));
+	assert(false, "Expected float, got %", t);
 	return 0;
 }
 
@@ -220,12 +220,12 @@ expect_string :: (lexer: *Lexer) -> string {
 	t: Token;
 	ok := get_next_token(lexer, *t);
 	if !ok {
-		assert(false, tprint("EOF"));
+		assert(false, "EOF");
 	}
 	if t.kind == .String {
 		return t.text;
 	}
-	assert(false, tprint("Expected string, got %", t));
+	assert(false, "Expected string, got %", t);
 	return "";
 }
 

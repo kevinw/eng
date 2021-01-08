@@ -43,7 +43,7 @@ get_frame :: (using sprite_anim: *Sprite_Anim, timer: float64, tag_name := "") -
         }
 
         if !found {
-            assert(false, tprint("no tag named %", tag_name));
+            assert(false, "no tag named %", tag_name);
             //logprint("=Sprite_Anim", "no tag named '%'", tag_name);
         }
     }

@@ -203,7 +203,7 @@ decompress :: (compressed_bytes: string) -> string {
     //print("  compressed_size: %\n", compressed_size);
 
     res := lz4.LZ4_decompress_safe(compressed_bytes.data + size_of(s32), buf, compressed_size, original_uncompressed_size);
-    assert(res > 0, tprint("LZ4_decompress_safe returned %", res));
+    assert(res > 0, "LZ4_decompress_safe returned %", res);
     // TODO: should we realloc here? it's running at compile time right now so I don't really care.
 
     s: string;

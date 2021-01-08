@@ -52,9 +52,6 @@ panic :: (msg: string) {
     debug_break();
 }
 
-is_key_pressed :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .START != 0; }
-is_key_down    :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .DOWN != 0; }
-
 change_window_state :: (window_state_operation: Window_State_Operation) {
     if window_state_operation == {
         case .Toggle_Borderless_Fullscreen;
@@ -363,3 +360,9 @@ main :: () {
 
     logprint("host", "exit OK.");
 }
+
+#scope_file
+
+is_key_pressed :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .START != 0; }
+is_key_down    :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .DOWN != 0; }
+

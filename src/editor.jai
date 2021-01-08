@@ -456,10 +456,10 @@ render_asset_selector :: (window_open: *bool) {
         array_add(*assets, it);
         
     for assets {
-        filename_z:string = "None";
+        filename_z := "None";
         if it != null {
             sans_ext := String.path_strip_extension(it.short_name);
-            filename_z = tprint("%\0", sans_ext);
+            filename_z = temp_c_string_obj(sans_ext);
 
             if it.type != selected_asset_type || !TextFilter.PassFilter(*filter, filename_z)
                 continue;
@@ -507,7 +507,7 @@ render_asset_selector :: (window_open: *bool) {
             }
             live_shader := selected_asset.shader;
             PushPopID(live_shader);
-            if Button(tprint("%\0", label).data) {
+            if Button(temp_c_string(label)) {
                 if it == null {
                     selected_asset.shader = null;
                 } else {
@@ -580,7 +580,7 @@ render_imgui_to_drawlists :: (state: *State) {
             if err_str.count > 0 {
                 PushPopFont(context.state.ui.monospace_font);
                 PushTextWrapPos(ImGui.GetFontSize() * 55.0);
-                Text(tprint("%\0", err_str).data);
+                Text(temp_c_string(err_str));
             }
         }
     }
@@ -681,7 +681,7 @@ show_assets_window :: (open: *bool) {
         //if dnd SetDragDropPayload("_ASSET", it, size_of(Asset));
 
         selected := editor.selected_asset == it;
-        if Selectable(tprint("%\0", String.path_strip_extension(it.short_name)).data, selected)
+        if Selectable(temp_c_string(String.path_strip_extension(it.short_name)), selected)
             editor.selected_asset = it;
 
         do_spawn := selected && IsItemHovered() && IsMouseDoubleClicked(0);
@@ -830,8 +830,8 @@ show_entities_window :: (open: *bool) {
                 defer ImGui.Indent(ImGui.GetTreeNodeToLabelSpacing());
 
                 //name_label := tprint("% - %\0", entity.name, child_count(it));
-                name_label := tprint("%\0", entity.name);
-                if TreeNodeEx(entity, flags, name_label.data) {
+                name_label := temp_c_string(entity.name);
+                if TreeNodeEx(entity, flags, name_label) {
                     defer TreePop();
                 }
             }
@@ -1427,10 +1427,13 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
     ok, entity := get_entity(<<entity_handle);
     
     label: string;
-    if !ok label = "None";
-    else label = tprint("%\0", entity.name);
-
-    if Button(label.data) {
+    button_res: bool;
+    if !ok {
+        button_res = Button("None");
+    } else {
+        button_res = Button(temp_c_string(entity.name));
+    }
+    if button_res {
         OpenPopup("entity_selector");
     }
 
@@ -1559,7 +1562,7 @@ HelpMarker :: (desc: string) {
         PushTextWrapPos(ImGui.GetFontSize() * 35.0);
         defer PopTextWrapPos();
 
-        TextUnformatted(tprint("%\0", desc));
+        TextUnformatted(desc);
     }
 }
 
@@ -1620,4 +1623,21 @@ is_key_down    :: (key: Key_Code) -> bool {
     res := (<<_local_host_state.input_button_states)[cast(int)key] & .DOWN != 0;
     //logprint("=ed", "is_key_down %: % (%)", key, res, _local_host_state.input_button_states); 
     return res;
+}
+
+temp_c_string_obj :: (s: string) -> string {
+    result : *u8 = talloc(s.count + 1);
+    memcpy(result, s.data, s.count);
+    result[s.count] = 0;
+    res: string;
+    res.data = result;
+    res.count = s.count;
+    return res;
+}
+
+temp_c_string :: (s: string) -> *u8 {
+    result : *u8 = talloc(s.count + 1);
+    memcpy(result, s.data, s.count);
+    result[s.count] = 0;
+    return result;
 }

@@ -167,7 +167,7 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
 
     filename ::"resources/shaders/unlit_texture.hlsl";
     ok := load_shader_from_file(*shader, filename);
-    assert(ok, tprint("did not compile shader '%'", filename));
+    assert(ok, "did not compile shader '%'", filename);
     pipeline_blend = make_pipeline(*shader, .Triangles,
         cull_mode = .None,
         blend_mode = .Alpha_Blended,

@@ -499,12 +499,12 @@ load :: (filename: string, raw_frames: *[]Frame) -> Sprite_Info {
                             cel_to_frame(frame, *cel, cel_layer);
                         }
                     } else {
-                        assert(false, tprint("unsupported cel type %", cel_type));
+                        assert(false, "unsupported cel type %", cel_type);
                     }
                     
                     array_add(*frame.cels, cel);
                 case;
-                    assert(false, tprint("TODO: implement chunk type %", chunk_type));
+                    assert(false, "TODO: implement chunk type %", chunk_type);
                     print("ignored chunk type %\n", chunk_type);
                     buf.offset = chunk_start + cast(int)chunk_size;
             }
@@ -557,7 +557,7 @@ miniz :: #import "miniz";
 
 read_or_panic :: inline (buf: *Buffer, $T: Type) -> T {
     val, ok := read(buf, T);
-    assert(ok, tprint("not enough bytes to read % bytes", size_of(T)));
+    assert(ok, "not enough bytes to read % bytes", size_of(T));
     return val;
 }
 

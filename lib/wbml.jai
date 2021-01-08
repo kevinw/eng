@@ -222,7 +222,7 @@ serialize :: (value: *$Type, on_serialize := default_on_serialize, do_automatic_
         wbml_string := serialize_ti(*default_value, ti, on_serialize);
         lexer := laas.make_lexer(wbml_string);
         root := parse_value(*lexer, false);
-        assert(root != null, tprint("error parsing: %", wbml_string));
+        assert(root != null, "error parsing: %", wbml_string);
 
         new_entry := array_add(*_default_nodes);
         new_entry.type = type_info(Type);
@@ -305,8 +305,7 @@ serialize_with_type_info :: (
                         if Math.abs(f64 - default_val) < epsilon
                             skip = true;
                     } else {
-                        assert(false, tprint(
-                            "Type_Info_Float had unexpected runtime size %", ti.runtime_size));
+                        assert(false, "Type_Info_Float had unexpected runtime size %", ti.runtime_size);
                     }
                 case .INTEGER;
                     ti_integer := cast(*Type_Info_Integer)ti;
@@ -491,7 +490,7 @@ deserialize :: (data: string, ptr: *$Type, on_deserialize: On_Deserialize_Func =
     lexer := laas.make_lexer(data);
     root := parse_value(*lexer, false);
     if root == null {
-        assert(root != null, tprint("error parsing: %", data));
+        assert(root != null, "error parsing: %", data);
     }
 
     defer delete_node(root);
@@ -534,8 +533,7 @@ parse_value :: (lexer: *laas.Lexer, is_negative_number := false, loc := #caller_
 						assert(ok, "end of text from within object");
 						assert(lexer.lex_idx < lexer.lexer_text.count);
                         if var_name_token.kind != .Identifier {
-                            assert(var_name_token.kind == .Identifier,
-                                tprint("expected an Identifier but got %\n%", var_name_token, <<lexer));
+                            assert(var_name_token.kind == .Identifier, "expected an Identifier but got %\n%", var_name_token, <<lexer);
                         }
 
 						value := parse_value(lexer);
@@ -689,7 +687,7 @@ _deep_copy_internal :: (dest: *Node, source: *Node) {
 		case .Quat;
             unreachable();
 		case;
-			assert(false, tprint("%", dest.type));
+			assert(false, "%", dest.type);
     }
 }
 
@@ -979,7 +977,7 @@ new_clone :: inline (data: $T, line:int = -1) -> *T {
 
 panic :: (msg: string, args: ..Any, loc := #caller_location) { // TODO
 	print("%\n", loc);
-    assert(false, tprint(msg, ..args));
+    assert(false, msg, ..args, loc=loc);
 }
 
 unreachable :: () {
@@ -1127,74 +1125,74 @@ END;
 
 	a := deserialize(Nightmare, source);
 
-	assert(a.some_int == 123, tprint("%", a.some_int));
-	assert(a.some_string == "henlo lizer", tprint("expected a string, got: '%'", a.some_string));
-	assert(a.some_float == 123.4, tprint("%", a.some_float));
-	assert(a.some_bool == true, tprint("%", a.some_bool));
+	assert(a.some_int == 123, "%", a.some_int);
+	assert(a.some_string == "henlo lizer", "expected a string, got: '%'", a.some_string);
+	assert(a.some_float == 123.4, "%", a.some_float);
+	assert(a.some_bool == true, "%", a.some_bool);
 
-	assert(a.enum1 == .Baz, tprint("%", a.enum1));
-	assert(a.enum2 == .Asd, tprint("%", a.enum2));
+	assert(a.enum1 == .Baz, "%", a.enum1);
+	assert(a.enum2 == .Asd, "%", a.enum2);
 
 /*
 	if str, ok := a.some_union.(string); ok {
-		assert(str == "foo", tprint(str));
+		assert(str == "foo", str);
 	}
 	else {
-		assert(false, tprint("some_union wasn't a string: ", a.some_union));
+		assert(false, "some_union wasn't a string: ", a.some_union);
 	}
 
 	if foo, ok := a.union_foo.(Foo); ok {
-		assert(foo.x == 1, tprint(foo));
-		assert(foo.y == 4, tprint(foo));
-		assert(foo.z == 9, tprint(foo));
+		assert(foo.x == 1, foo);
+		assert(foo.y == 4, foo);
+		assert(foo.z == 9, foo);
 	}
 	else {
-		assert(false, tprint("union_foo wasn't a Foo: ", a.union_foo));
+		assert(false, "union_foo wasn't a Foo: ", a.union_foo);
 	}
 
 	if bar, ok := a.union_bar.(Bar); ok {
-		assert(bar.str == "bar string", tprint(bar));
-		assert(bar.big_bool == true, tprint(bar));
+		assert(bar.str == "bar string", bar);
+		assert(bar.big_bool == true, bar);
 	}
 	else {
-		assert(false, tprint("union_bar wasn't a Bar: ", a.union_bar));
+		assert(false, "union_bar wasn't a Bar: ", a.union_bar);
 	}
     */
 
 	assert(a.some_unserialized_thing == 0);
 
-	assert(a.some_nested_thing.asd == 432.500, tprint("%", a.some_nested_thing.asd));//tprintf("%.8f", a.some_nested_thing.asd));
-	assert(a.some_nested_thing.super_nested.blah == "super nested string", tprint(a.some_nested_thing.super_nested.blah));
+	assert(a.some_nested_thing.asd == 432.500, "%", a.some_nested_thing.asd);
+	assert(a.some_nested_thing.super_nested.blah == "super nested string", a.some_nested_thing.super_nested.blah);
 
-	assert(len(a.some_nested_thing.some_array) == 4, tprint("%", len(a.some_nested_thing.some_array)));
-	assert(a.some_nested_thing.some_array[0] == "123", tprint("%", a.some_nested_thing.some_array[0]));
-	assert(a.some_nested_thing.some_array[1] == "qwe", tprint("%", a.some_nested_thing.some_array[1]));
-	assert(a.some_nested_thing.some_array[2] == "asd", tprint("%", a.some_nested_thing.some_array[2]));
-	assert(a.some_nested_thing.some_array[3] == "zxc", tprint("%", a.some_nested_thing.some_array[3]));
+	assert(len(a.some_nested_thing.some_array) == 4, "%", len(a.some_nested_thing.some_array));
+	assert(a.some_nested_thing.some_array[0] == "123", "%", a.some_nested_thing.some_array[0]);
+	assert(a.some_nested_thing.some_array[1] == "qwe", "%", a.some_nested_thing.some_array[1]);
+	assert(a.some_nested_thing.some_array[2] == "asd", "%", a.some_nested_thing.some_array[2]);
+	assert(a.some_nested_thing.some_array[3] == "zxc", "%", a.some_nested_thing.some_array[3]);
 
-	assert(len(a.some_nested_thing.dyn_array) == 4, tprint("expected count to be 4: %", len(a.some_nested_thing.dyn_array)));
-	assert(a.some_nested_thing.dyn_array[0] == true, tprint("%", a.some_nested_thing.dyn_array[0]));
-	assert(a.some_nested_thing.dyn_array[1] == false, tprint("%", a.some_nested_thing.dyn_array[1]));
-	assert(a.some_nested_thing.dyn_array[2] == false, tprint("%", a.some_nested_thing.dyn_array[2]));
-	assert(a.some_nested_thing.dyn_array[3] == true, tprint("%", a.some_nested_thing.dyn_array[3]));
+	assert(len(a.some_nested_thing.dyn_array) == 4, "expected count to be 4: %", len(a.some_nested_thing.dyn_array));
+	assert(a.some_nested_thing.dyn_array[0] == true, "%", a.some_nested_thing.dyn_array[0]);
+	assert(a.some_nested_thing.dyn_array[1] == false, "%", a.some_nested_thing.dyn_array[1]);
+	assert(a.some_nested_thing.dyn_array[2] == false, "%", a.some_nested_thing.dyn_array[2]);
+	assert(a.some_nested_thing.dyn_array[3] == true, "%", a.some_nested_thing.dyn_array[3]);
 
-	assert(len(a.some_nested_thing.slice) == 2, tprint("expected slice % to have 2 count: %", 
-		a.some_nested_thing.slice.data, len(a.some_nested_thing.slice)));
-	assert(a.some_nested_thing.slice[0].x == 12, tprint("%", a.some_nested_thing.slice[0].x));
-	assert(a.some_nested_thing.slice[0].y == 34, tprint("%", a.some_nested_thing.slice[0].y));
-	assert(a.some_nested_thing.slice[1].x == 43, tprint("%", a.some_nested_thing.slice[1].x));
-	assert(a.some_nested_thing.slice[1].y == 21, tprint("%", a.some_nested_thing.slice[1].y));
+	assert(len(a.some_nested_thing.slice) == 2, "expected slice % to have 2 count: %", 
+		a.some_nested_thing.slice.data, len(a.some_nested_thing.slice));
+	assert(a.some_nested_thing.slice[0].x == 12, "%", a.some_nested_thing.slice[0].x);
+	assert(a.some_nested_thing.slice[0].y == 34, "%", a.some_nested_thing.slice[0].y);
+	assert(a.some_nested_thing.slice[1].x == 43, "%", a.some_nested_thing.slice[1].x);
+	assert(a.some_nested_thing.slice[1].y == 21, "%", a.some_nested_thing.slice[1].y);
 
-	assert(a.empty_dynamic_array.data == null, tprint("%", a.empty_dynamic_array));
-	assert(len(a.empty_dynamic_array) == 0, tprint("%", len(a.empty_dynamic_array)));
-	assert(a.empty_slice.data == null, tprint("%", a.empty_slice));
-	assert(len(a.empty_slice) == 0, tprint("%", len(a.empty_slice)));
+	assert(a.empty_dynamic_array.data == null, "%", a.empty_dynamic_array);
+	assert(len(a.empty_dynamic_array) == 0, "%", len(a.empty_dynamic_array));
+	assert(a.empty_slice.data == null, "%", a.empty_slice);
+	assert(len(a.empty_slice) == 0, "%", len(a.empty_slice));
 
 	a_text := serialize(*a);
 	defer free(a_text);
 	b := deserialize(Nightmare, a_text);
 
-	assert(a.some_int == b.some_int, tprint("expected equal: % %", a.some_int, b.some_int));
+	assert(a.some_int == b.some_int, "expected equal: % %", a.some_int, b.some_int);
 	assert(a.some_string == b.some_string);
 	assert(a.some_float == b.some_float);
 	assert(a.some_bool == b.some_bool);
@@ -1207,7 +1205,7 @@ END;
 		assert(str == a.some_union.(string));
 	}
 	else {
-		assert(false, tprint("some_union wasn't a string: ", b.some_union));
+		assert(false, "some_union wasn't a string: ", b.some_union);
 	}
 
 	if foo, ok := b.union_foo.(Foo); ok {
@@ -1216,7 +1214,7 @@ END;
 		assert(foo.z == a.union_foo.(Foo).z);
 	}
 	else {
-		assert(false, tprint("union_foo wasn't a Foo: ", b.union_foo));
+		assert(false, "union_foo wasn't a Foo: ", b.union_foo);
 	}
 
 	if bar, ok := b.union_bar.(Bar); ok {
@@ -1224,7 +1222,7 @@ END;
 		assert(bar.big_bool == a.union_bar.(Bar).big_bool);
 	}
 	else {
-		assert(false, tprint("union_foo wasn't a Foo: ", b.union_foo));
+		assert(false, "union_foo wasn't a Foo: ", b.union_foo);
 	}
     */
 
@@ -1257,15 +1255,15 @@ END;
 	assert(a.some_nested_thing.slice[1].x == b.some_nested_thing.slice[1].x);
 	assert(a.some_nested_thing.slice[1].y == b.some_nested_thing.slice[1].y);
 
-	assert(a.empty_dynamic_array.data == null, tprint("%", a.empty_dynamic_array));
-	assert(len(a.empty_dynamic_array) == 0, tprint("%", len(a.empty_dynamic_array)));
-	assert(a.empty_slice.data == null, tprint("%", a.empty_slice));
-	assert(len(a.empty_slice) == 0, tprint("%", len(a.empty_slice)));
+	assert(a.empty_dynamic_array.data == null, "%", a.empty_dynamic_array);
+	assert(len(a.empty_dynamic_array) == 0, "%", len(a.empty_dynamic_array));
+	assert(a.empty_slice.data == null, "%", a.empty_slice);
+	assert(len(a.empty_slice) == 0, "%", len(a.empty_slice));
 
-	assert(b.empty_dynamic_array.data == null, tprint("%", b.empty_dynamic_array));
-	assert(len(b.empty_dynamic_array) == 0, tprint("%", len(b.empty_dynamic_array)));
-	assert(b.empty_slice.data == null, tprint("%", b.empty_slice));
-	assert(len(b.empty_slice) == 0, tprint("%", len(b.empty_slice)));
+	assert(b.empty_dynamic_array.data == null, "%", b.empty_dynamic_array);
+	assert(len(b.empty_dynamic_array) == 0, "%", len(b.empty_dynamic_array));
+	assert(b.empty_slice.data == null, "%", b.empty_slice);
+	assert(len(b.empty_slice) == 0, "%", len(b.empty_slice));
 
     // check that @noserialize members are skipped
     {

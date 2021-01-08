@@ -95,7 +95,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 case 2; data_type = ifx ti_int.signed then DataType.S16 else DataType.U16;
                 case 4; data_type = ifx ti_int.signed then DataType.S32 else DataType.U32;
                 case 8; data_type = ifx ti_int.signed then DataType.S64 else DataType.U64;
-                case; assert(false, tprint("don't know how to handle integer with Type_Info.runtime_size of %"));
+                case; assert(false, "don't know how to handle integer with Type_Info.runtime_size of %");
             }
             InputScalar(name, data_type, data);
         case .FLOAT;
@@ -270,7 +270,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                                     case 2; <<cast(*u16)data = xx new_val;
                                     case 4; <<cast(*u32)data = xx new_val;
                                     case 8; <<cast(*u64)data = xx new_val;
-                                    case; assert(false, tprint("unexpected enum runtime_size: %", ti_enum.internal_type.runtime_size));
+                                    case; assert(false, "unexpected enum runtime_size: %", ti_enum.internal_type.runtime_size);
                                 }
                             }
                         }

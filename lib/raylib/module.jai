@@ -135,7 +135,7 @@ DrawTexturePro :: (texture: *Texture, sourceRec_: Rectangle, destRec: Rectangle,
         flip_x = true;
     }
 
-    assert(tex_size.x > 0 && tex_size.y > 0, tprint("texture '%' has size %x%\n", texture.debug_name, texture.width, texture.height));
+    assert(tex_size.x > 0 && tex_size.y > 0, "texture '%' has size %x%\n", texture.debug_name, texture.width, texture.height);
 
     t0 := sourceRec.position;
     t0.x /= tex_size.x;
@@ -186,7 +186,7 @@ get_gamepad_button :: (raylib_button: GamepadButton) -> Gamepad.Gamepad_Code {
         case .GAMEPAD_BUTTON_MIDDLE_LEFT;      return .BACK;
 
         case;
-            assert(false, tprint("gamepad button %", raylib_button));
+            assert(false, "gamepad button %", raylib_button);
     }
 
     return 0;

@@ -13,8 +13,8 @@ strip_dot_slash :: (path: string) -> string @substring {
 plugin_sanity_checks :: (sanity_check_info: Sanity_Check_Info) {
     my_context_size := size_of(Context);
     host_context_size := sanity_check_info.size_of_context;
-    assert(host_context_size == my_context_size, tprint("Error: host/plugin context size mismatch - % vs %", 
-        host_context_size, my_context_size));
+    assert(host_context_size == my_context_size, "Error: host/plugin context size mismatch - % vs %", 
+        host_context_size, my_context_size);
 }
 
 #program_export

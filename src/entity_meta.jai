@@ -75,7 +75,7 @@ get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
         return name_switch_code_str;
     }());
 
-    assert(false, tprint("no component named %", name));
+    assert(false, "no component named %", name);
     return null;
 }
 

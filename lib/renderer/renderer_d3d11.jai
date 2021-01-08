@@ -234,7 +234,7 @@ apply_bindings :: (shader: *Shader,
         } else {
             if it.views.count == 0
                 print("texture '%' has no views!\n", it.debug_name);
-            assert(it.views[0] != null, tprint("texture '%' had a null view", it.debug_name));
+            assert(it.views[0] != null, "texture '%' had a null view", it.debug_name);
             array_add(*shader_resource_views, it.views[0]);
         }
 
@@ -570,7 +570,7 @@ end_pass :: () {
 check_result :: (hresult: HRESULT, loc := #caller_location) {
     if hresult != S_OK {
         flush_errors();
-        assert(hresult == S_OK, tprint("HRESULT was %", formatInt(hresult, base=16)), loc=loc);
+        assert(hresult == S_OK, "HRESULT was %", formatInt(hresult, base=16), loc=loc);
     }
 }
 
@@ -1492,7 +1492,7 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     // get shader description
     shaderDesc: D3D11_SHADER_DESC;
     #assert(size_of(D3D11_SHADER_DESC) == 160);
-    assert(size_of(D3D11_SIGNATURE_PARAMETER_DESC) == 40, tprint("expected 40, got %", size_of(D3D11_SIGNATURE_PARAMETER_DESC)));
+    assert(size_of(D3D11_SIGNATURE_PARAMETER_DESC) == 40, "expected 40, got %", size_of(D3D11_SIGNATURE_PARAMETER_DESC));
     pVertexShaderReflection.GetDesc(pVertexShaderReflection, *shaderDesc);
      
     // Read input layout description from shader info

@@ -1,5 +1,4 @@
 # bloat
-- all the places where we do assert(condition, tprint("message %", foo))
 - we have both lz4 and miniz. let's just use one of them.
 - non-editor build
     - no undo

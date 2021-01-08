@@ -6,7 +6,8 @@ Camera :: struct {
     near_plane: float     = -50;
     far_plane:  float     = 50;
 
-    per_view_translation := Vector3.{0.45, 0.0, 0.0};
+    //per_view_translation := Vector3.{0.45, 0.0, 0.0};
+    per_view_translation := Vector3.{1.05, 0.0, 0.0};
 
     matrices_need_update := true;    @noserialize @noui
     last_calced_renderer: *Renderer; @noserialize @noui // TODO: I believe this goes away once we make the looking glass display have its own camera.

@@ -311,8 +311,8 @@ Entity_Handle :: Handle_Type;
 check_canaries :: (world: *World = null) {
     if world == null
         world = *context.state.world;
-    assert(world.canary1 == 101, tprint("world canary1 was not 101: %", world.canary1));
-    assert(world.canary2 == 999, tprint("world canary1 was not 999: %", world.canary2));
+    assert(world.canary1 == 101, "world canary1 was not 101: %", world.canary1);
+    assert(world.canary2 == 999, "world canary1 was not 999: %", world.canary2);
 }
 
 World :: struct {
@@ -557,9 +557,7 @@ alloc_component_defaults :: (component_ti: *Type_Info_Struct) -> Any {
         return any;
     END);
 
-    assert(false, tprint(
-        "alloc_component_defaults did not find a component for the given Type_Info_Struct %",
-        component_ti));
+    assert(false, "alloc_component_defaults did not find a component for the given Type_Info_Struct %", component_ti);
     return null;
 }
 
@@ -843,7 +841,7 @@ get_component_bit_for_name :: (name: string) -> Component_Bit {
         if it == name
             return cast(Component_Bit)ti.values[it_index];
     
-    assert(false, tprint("No Component bit for name '%'", name));
+    assert(false, "No Component bit for name '%'", name);
     return 0;
 }
 
@@ -1012,7 +1010,7 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}, undo:*U
 
     new_handles := load_world(*context.state.world, entity_file_text, filename,
         create_transform=true, save_in_cache=true, undo=undo);
-    assert(new_handles.count == 1, tprint("expecting exactly one handle from a prefab file, got %: %", new_handles.count, filename));
+    assert(new_handles.count == 1, "expecting exactly one handle from a prefab file, got %: %", new_handles.count, filename);
 
     e_ok, entity := get_entity(new_handles[0]);
     assert(e_ok);

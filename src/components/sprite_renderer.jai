@@ -105,10 +105,15 @@ Drawable_Layer :: struct {
     rectrenderers:   [..]*RectRenderer;
 }
 
+by_layer: [256]Drawable_Layer;
 draw_all_drawables :: (world: *World) {
-    by_layer: [256]Drawable_Layer;
-
+    // TODO: @Perf @Perf @Perf
     highest_layer: Sorting_Layer = 0;
+    for * by_layer {
+        it.spriterenderers.count = 0;
+        it.rectrenderers.count = 0;
+    }
+        
     highest_layer = max(highest_layer, queue_all_drawable(*world._SpriteRenderer, by_layer));
     highest_layer = max(highest_layer, queue_all_drawable(*world._RectRenderer, by_layer));
 

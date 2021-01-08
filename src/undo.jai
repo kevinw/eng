@@ -410,11 +410,6 @@ pop_apply_and_push :: (from_stack: *[..]Item, to_stack: *[..]Item) {
     }
 }
 
-chk :: (condition: bool, fmt: string = "", args: ..Any, loc := #caller_location) {
-    if !condition
-        assert(condition, tprint(fmt, ..args), loc=loc);
-}
-
 
 test_undo :: () {
     impl: Impl;
@@ -436,7 +431,7 @@ test_undo :: () {
         assert(impl.undo[1].action == .Array_Replacement);
         undo(*impl);
         assert(impl.undo.count == 0);
-        assert(arr.count == 4, tprint("undo did not restor array count to 4: %", arr.count));
+        assert(arr.count == 4, "undo did not restor array count to 4: %", arr.count);
         assert(arr[0] == 5);
         assert(arr[1] == 6);
         assert(arr[2] == 7);
@@ -444,7 +439,7 @@ test_undo :: () {
 
         assert(impl.redo.count == 2);
         redo(*impl);
-        chk(arr.count == 0, "expected redoing the action to zero out the array count, but it was %", arr.count);
+        assert(arr.count == 0, "expected redoing the action to zero out the array count, but it was %", arr.count);
         assert(arr.data == null);
     }
 

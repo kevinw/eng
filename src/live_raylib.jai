@@ -71,7 +71,7 @@ LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
         new_entry := array_add(*context.state.live.sprites);
         new_entry.filename = copy_string(filename);
         ok := load_from_aseprite(*new_entry.sprite, filename);
-        assert(ok, tprint("error loading '%'", filename));
+        assert(ok, "error loading '%'", filename);
         obj._entry = new_entry;
     }
 

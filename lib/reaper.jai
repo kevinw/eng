@@ -110,7 +110,7 @@ parse_reaper_project_file :: (filename: string) -> (bool, Song) {
         name, rest = break_by_spaces(rest);
 
         n, n_ok := string_to_int(n_str);
-        assert(n_ok, tprint("could not turn '%' into an int", n_str));
+        assert(n_ok, "could not turn '%' into an int", n_str);
         time, time_ok := string_to_float(time_str);
         assert(time_ok);
 

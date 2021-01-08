@@ -71,7 +71,7 @@ screen_print :: (message: string, ident := "", loc := #caller_location) {
 
 context_func :: (message: string, ident_in: string, mode: Log_Mode, logger_data: *void) {
     ident := ident_in;
-    assert(message.count < MAX_COUNT, tprint("expected a screenlog message with a reasonable count, got %", message.count));
+    assert(message.count < MAX_COUNT, "expected a screenlog message with a reasonable count, got %", message.count);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
     

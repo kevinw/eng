@@ -2,9 +2,7 @@
 
 ## Immediate
  
-- shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
 - materials
-    - how does TheForge do it?
 - fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - Depth of field
@@ -29,6 +27,7 @@
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 
 ## Medium Priority
+- shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
 - Don't make an engine. Make a game. Find a way to center that.
 - 2 hour timer; procreate doodling
