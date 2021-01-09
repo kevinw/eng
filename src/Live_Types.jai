@@ -4,7 +4,7 @@ Live_Asset_Database :: struct {
 }
 
 LiveThing :: struct(T: Type) {
-    using _entry: *T;
+    using _entry: *T; @noui @noserialize
 
     Empty :: LiveThing(T).{};
 }

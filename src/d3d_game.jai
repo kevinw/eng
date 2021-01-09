@@ -74,12 +74,12 @@ _draw_world :: () {
         p01 := xy(p0.x, p1.y);
         p10 := xy(p1.x, p0.y);
 
-        c := it.color;
-
         im_set_primitive(ctx, 3);
         im_ensure_space_for(ctx, index_count=6, vertex_count=4);
 
         im_set_z(ctx, it.position.z);
+        c := it.color;
+        c *= (300-it.position.z)/300;
 
         v0 := im_vertex(ctx, p0, t0, c);
         v1 := im_vertex(ctx, p01, t01, c);
