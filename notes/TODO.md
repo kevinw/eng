@@ -75,15 +75,23 @@
 
 
 ## research ideas:
-    - a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
-    - indexing https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
-    - late latch mouse position: https://github.com/nlguillemot/LateLatching/blob/master/main.cpp
-    - building a debug "bundled" version would mean better stack traces during debugging 
-    - a version of __temporary_allocator that ping pongs between VirtualAlloc guard pages so you know immediately if you're reading junk data
-    - a badguy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
-    - find out if we can provide the layout of buffers to Renderdoc via some API
-    - "on change" component for reactive programming, or for GPU uploads
-        think about GetWriteWatch(), or using exception guards on virtualalloc pages, to know whether we need to write stuff to the gpu or not...
-    - [D3D11 Vendor Hacks](https://docs.google.com/spreadsheets/d/1J_HIRVlYK8iI4u6AJrCeb66L5W36UDkd9ExSCku9s_o/edit#gid=0)
+- a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
+- indexing https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
+- late latch mouse position: https://github.com/nlguillemot/LateLatching/blob/master/main.cpp
+- building a debug "bundled" version would mean better stack traces during debugging 
+- a version of `__temporary_allocator` that ping pongs between VirtualAlloc guard pages so you know immediately if you're reading junk data
+- a bad-guy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
+- find out if we can provide the layout of buffers to Renderdoc via some API
+- "on change" component for reactive programming, or for GPU uploads
+    think about GetWriteWatch(), or using exception guards on virtualalloc pages, to know whether we need to write stuff to the gpu or not...
+- [D3D11 Vendor Hacks](https://docs.google.com/spreadsheets/d/1J_HIRVlYK8iI4u6AJrCeb66L5W36UDkd9ExSCku9s_o/edit#gid=0)
+- Unreal's "posses and drive any object"
+    - smart snapping to the edges of things by holding a key
+    - the scene camera follows you around as you drive it
+- someone else can walk through the scene while I'm playing it.
+    - would it be easy to stream a video texture to another computer? Then the data structure sharing thing doesn't have to come first. just
+    - render another camera to a render texture and find a library to stream it...ideally gamedev focused so it provides input, etc.
+- multiplayer edit and play simultaneously
+    - the fundamental data structure is a shared one
 
 
