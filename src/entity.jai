@@ -133,7 +133,7 @@ Entity :: struct {
     }
 
     flags: Flags;
-    name: string; @free_in_deinit // TODO
+    name: string;            @free_in_deinit // TODO
     prefab_filename: string; @free_in_deinit
 
     Component_Entry :: struct {
@@ -142,6 +142,7 @@ Entity :: struct {
     }
 
     // TODO: Small_Array here could be a big win
+    component_bits: Component_Bit;
     components: [..]Component_Entry;  @noserialize
 }
 
@@ -187,6 +188,9 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     #assert(type_info(component_type).type == .STRUCT);
     component_bit :: #run component_ti_to_bit(cast(*Type_Info_Struct)type_info(component_type));
 
+    if entity.component_bits & component_bit == 0
+        return null;
+
     for * entity.components {
         if it.bit == component_bit {
             sibling_handle := it.component_handle;
@@ -227,6 +231,8 @@ get_component :: (entity: *Entity, component_ti: *Type_Info_Struct) -> *Componen
     assert(entity != null);
 
     component_bit := component_ti_to_bit(component_ti);
+    if entity.component_bits & component_bit == 0
+        return null;
 
     for * entity.components {
         if it.bit == component_bit {
@@ -513,8 +519,11 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct,
     if undo Undo.push_array(undo, *entity.components);
 
     entry := array_add(*entity.components);
-    entry.bit = component_ti_to_bit(component_type_info);
+    component_bit := component_ti_to_bit(component_type_info);
+    entry.bit = component_bit;
     entry.component_handle = component_handle;
+
+    entity.component_bits |= component_bit;
 
     assert(c != null);
     // c.entity = entity_handle; // this is seet in _return_component_array_add
@@ -535,8 +544,11 @@ add_component :: (entity_handle: Entity_Handle, $component_type: Type, undo: *Un
 
     if undo Undo.push_array(undo, *entity.components);
     entry := array_add(*entity.components);
-    entry.bit = component_ti_to_bit(cast(*Type_Info_Struct)type_info(component_type));
+    component_bit := component_ti_to_bit(cast(*Type_Info_Struct)type_info(component_type));
+    entry.bit = component_bit;
     entry.component_handle = component_handle;
+
+    entity.component_bits |= component_bit;
 
     c.entity = entity_handle;
     run_on_enable(c, entity);

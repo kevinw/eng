@@ -166,7 +166,7 @@ DrawTexture :: (texture: *Texture, posX: s32, posY: s32, tint: Color) {
     im_draw_rect(ctx(),
         p0, p1,
         c=ColorToNormalized(tint));
-    print("TODO: DrawTexture\n");
+    //print("TODO: DrawTexture\n");
 }
 
 
