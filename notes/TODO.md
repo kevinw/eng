@@ -2,8 +2,8 @@
 
 ## Immediate
  
-- materials
 - fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later
+- materials
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call

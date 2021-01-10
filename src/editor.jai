@@ -26,9 +26,6 @@ pause the game as is, or reset it back? --
 
      it might also be useful to have a "show idle animations" mode
      during edit mode. or maybe that's the default?
-
-     - we're going to need an "entity" class.
-     - the player needs to be a prefab (does it?)
     
 timers are key:
     player timer can keep going
@@ -36,8 +33,8 @@ timers are key:
 
 editing a prefab
 
-idea: animate the changes from a prefab to the current instance to show the difference
-use the animation to "go back" to the prefab when you zoom in on it
+    idea: animate the changes from a prefab to the current instance to show the difference
+    use the animation to "go back" to the prefab when you zoom in on it
 */
 
 Undo :: #import "undo";
@@ -1054,7 +1051,6 @@ editor_update :: (state: *State) {
 
 
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
-
         {
             // mouse wheel zoom
             if _local_host_state.mouse_delta_z != 0 {
