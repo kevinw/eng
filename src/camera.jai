@@ -10,6 +10,7 @@ Camera :: struct {
 
     matrices_need_update := true;    @noserialize @noui
     last_calced_renderer: *Renderer; @noserialize @noui // TODO: I believe this goes away once we make the looking glass display have its own camera.
+    last_w, last_h: u16;
 
     struct {
         view_matrix:       Matrix4;              @noserialize @noui
@@ -55,9 +56,13 @@ _update_matrices :: (using camera: *Camera) {
 }
 
 calc_matrices :: inline (using camera: *Camera) {
-    if matrices_need_update || get_renderer_ptr() != last_calced_renderer {
-        _update_matrices(camera);
+    if !matrices_need_update && get_renderer_ptr() == last_calced_renderer {
+        w, h := pixel_size(camera);
+        if w == last_w && h == last_h
+            return;
     }
+
+    _update_matrices(camera);
 }
 
 camera_aspect :: (camera: *Camera) -> float {
