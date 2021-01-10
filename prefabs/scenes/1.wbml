@@ -50,47 +50,47 @@ Entity {
 Entity {
 	id 12
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 13
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 14
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 15
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 16
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 17
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 18
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 19
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 20
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 21
@@ -107,7 +107,7 @@ Entity {
 Entity {
 	id 24
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 25
@@ -116,7 +116,7 @@ Entity {
 Entity {
 	id 26
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 27
@@ -125,7 +125,7 @@ Entity {
 Entity {
 	id 28
 	flags Has_Component_Rect
-	name "grass_small.aseprite"
+	name "grass_small"
 }
 Entity {
 	id 29
@@ -195,22 +195,22 @@ Entity {
 Entity {
 	id 44
 	flags Has_Component_Rect
-	name "lilac.aseprite"
+	name "lilac"
 }
 Entity {
 	id 45
 	flags Has_Component_Rect
-	name "lilac.aseprite"
+	name "lilac"
 }
 Entity {
 	id 46
 	flags Has_Component_Rect
-	name "lilac.aseprite"
+	name "lilac"
 }
 Entity {
 	id 47
 	flags Has_Component_Rect
-	name "frogbuddy.aseprite"
+	name "frogbuddy"
 }
 Background {
 	component {
