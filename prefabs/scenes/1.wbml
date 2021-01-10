@@ -212,13 +212,21 @@ Entity {
 	flags Has_Component_Rect
 	name "frogbuddy"
 }
+Entity {
+	id 48
+	name "box"
+}
+Entity {
+	id 49
+	name "box"
+}
 Background {
 	component {
 		entity {
 			id 11
 		}
 	}
-	timer 929.781154
+	timer 959.505288
 	texture "resources/textures/space.png"
 
 }
@@ -373,6 +381,22 @@ BoxCollider {
 	}
 	collision PLATFORM
 }
+BoxCollider {
+	component {
+		entity {
+			id 48
+		}
+	}
+	collision PLATFORM
+}
+BoxCollider {
+	component {
+		entity {
+			id 49
+		}
+	}
+	collision PLATFORM
+}
 Cam {
 	component {
 		entity {
@@ -468,11 +492,11 @@ Enemy {
 			id 2
 		}
 	}
-	sprite_timer 399.530585
-	last_sprite_timer 399.530585
+	sprite_timer 548.151377
+	last_sprite_timer 548.151377
 	last_attack_time 85.416794
 	last_attack_direction_right true
-	attack_cooldown -398.330994
+	attack_cooldown -546.953491
 }
 Enemy {
 	component {
@@ -480,10 +504,10 @@ Enemy {
 			id 30
 		}
 	}
-	sprite_timer 461.320838
-	last_sprite_timer 461.320838
+	sprite_timer 609.941629
+	last_sprite_timer 609.941629
 	last_attack_time 23.626537
-	attack_cooldown -460.120056
+	attack_cooldown -608.74231
 }
 Player {
 	component {
@@ -493,7 +517,7 @@ Player {
 	}
 	grounded true
 	last_direction -1
-	sprite_timer 14.240767
+	sprite_timer 61.089576
 	walk_timer 87.293564
 	last_walk_sprite_idx 3
 	damage {
@@ -759,13 +783,41 @@ RectRenderer {
 	}
 	sorting_layer 30
 }
+RectRenderer {
+	component {
+		entity {
+			id 48
+		}
+	}
+	color {
+		r 239
+		g 196
+		b 16
+		a 255
+	}
+	sorting_layer 50
+}
+RectRenderer {
+	component {
+		entity {
+			id 49
+		}
+	}
+	color {
+		r 239
+		g 196
+		b 16
+		a 255
+	}
+	sorting_layer 50
+}
 SpriteRenderer {
 	component {
 		entity {
 			id 8
 		}
 	}
-	timer 4734.276191
+	timer 4882.897165
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -776,7 +828,7 @@ SpriteRenderer {
 			id 9
 		}
 	}
-	timer 4721.115546
+	timer 4869.736521
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -787,7 +839,7 @@ SpriteRenderer {
 			id 10
 		}
 	}
-	timer 4712.481269
+	timer 4861.102243
 	color {
 		g 121
 		b 121
@@ -802,7 +854,7 @@ SpriteRenderer {
 			id 12
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -813,7 +865,7 @@ SpriteRenderer {
 			id 13
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -824,7 +876,7 @@ SpriteRenderer {
 			id 14
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -835,7 +887,7 @@ SpriteRenderer {
 			id 15
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -846,7 +898,7 @@ SpriteRenderer {
 			id 16
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -857,7 +909,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -868,7 +920,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -879,7 +931,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -890,7 +942,7 @@ SpriteRenderer {
 			id 20
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -901,7 +953,7 @@ SpriteRenderer {
 			id 24
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -912,7 +964,7 @@ SpriteRenderer {
 			id 26
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -924,7 +976,7 @@ SpriteRenderer {
 			id 28
 		}
 	}
-	timer 4577.438788
+	timer 4726.059763
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -935,7 +987,7 @@ SpriteRenderer {
 			id 40
 		}
 	}
-	timer 388.821876
+	timer 537.442667
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -947,7 +999,7 @@ SpriteRenderer {
 			id 41
 		}
 	}
-	timer 388.821876
+	timer 537.442667
 	color {
 		g 52
 		b 52
@@ -963,7 +1015,7 @@ SpriteRenderer {
 			id 42
 		}
 	}
-	timer 388.821845
+	timer 537.442636
 	color {
 		g 52
 		b 52
@@ -979,7 +1031,7 @@ SpriteRenderer {
 			id 43
 		}
 	}
-	timer 388.821876
+	timer 537.442667
 	color {
 		r 54
 		g 0
@@ -994,7 +1046,7 @@ SpriteRenderer {
 			id 44
 		}
 	}
-	timer 59.861899
+	timer 208.482698
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1005,7 +1057,7 @@ SpriteRenderer {
 			id 45
 		}
 	}
-	timer 59.861899
+	timer 208.482698
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1016,7 +1068,7 @@ SpriteRenderer {
 			id 46
 		}
 	}
-	timer 59.861899
+	timer 208.482698
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1027,7 +1079,7 @@ SpriteRenderer {
 			id 47
 		}
 	}
-	timer 8.337462
+	timer 156.95826
 	sprite [
 	]
 	sprite_anim "frogbuddy"
@@ -1184,6 +1236,7 @@ Transform {
 	position {
 		x 538.12262
 		y 171.689178
+		z 13
 	}
 }
 Transform {
@@ -1206,6 +1259,7 @@ Transform {
 	position {
 		x 574.37262
 		y 174.60585
+		z 19
 	}
 }
 Transform {
@@ -1217,6 +1271,7 @@ Transform {
 	position {
 		x 599.37262
 		y 171.272522
+		z -11
 	}
 }
 Transform {
@@ -1228,7 +1283,7 @@ Transform {
 	position {
 		x 625.205933
 		y 172.522522
-		z -9
+		z -13
 	}
 }
 Transform {
@@ -1240,6 +1295,7 @@ Transform {
 	position {
 		x 642.705933
 		y 170.022522
+		z 3
 	}
 }
 Transform {
@@ -1251,6 +1307,7 @@ Transform {
 	position {
 		x 664.789307
 		y 174.189194
+		z 2
 	}
 }
 Transform {
@@ -1262,6 +1319,7 @@ Transform {
 	position {
 		x 458.539337
 		y 177.105865
+		z 2
 	}
 }
 Transform {
@@ -1273,6 +1331,7 @@ Transform {
 	position {
 		x 391.455994
 		y 172.939178
+		z 2
 	}
 }
 Transform {
@@ -1382,6 +1441,7 @@ Transform {
 	position {
 		x 876.039246
 		y 214.814209
+		z 2
 	}
 }
 Transform {
@@ -1559,6 +1619,7 @@ Transform {
 	position {
 		x 1308.395996
 		y -80.278008
+		z 6
 	}
 	scale {
 		x 3
@@ -1619,6 +1680,7 @@ Transform {
 	position {
 		x 859.236694
 		y 209.003067
+		z -2
 	}
 }
 Transform {
@@ -1641,6 +1703,7 @@ Transform {
 	position {
 		x 1415.379028
 		y 16.271065
+		z 15
 	}
 }
 Transform {
@@ -1652,5 +1715,37 @@ Transform {
 	position {
 		x 1186.978027
 		y 73.651459
+	}
+}
+Transform {
+	component {
+		entity {
+			id 48
+		}
+	}
+	position {
+		x 1382.869019
+		y 41.554001
+		z -16
+	}
+	scale {
+		x 314.309998
+		y 95.136002
+	}
+}
+Transform {
+	component {
+		entity {
+			id 49
+		}
+	}
+	position {
+		x 1376.869019
+		y 51.554001
+		z -32
+	}
+	scale {
+		x 307.309998
+		y 77.136002
 	}
 }

@@ -4,7 +4,7 @@ RectRenderer :: struct {
     sorting_layer: Sorting_Layer;
 }
 
-_draw :: (it: *RectRenderer) {
+draw :: (it: *RectRenderer) {
     rect := entity_rect(it.entity);
 
     transform := get_transform(it);
@@ -20,14 +20,6 @@ _draw :: (it: *RectRenderer) {
     //im_draw_rect(*context.state.im_context, rect.position, rect.size + rect.position);
 }
 
-queue_all_drawable :: (sprites: *Array_With_Holes(RectRenderer), by_layer: [256]Drawable_Layer) -> (highest_layer: Sorting_Layer) {
-    highest_layer: Sorting_Layer;
-    for * sprites {
-        array_add(*by_layer[it.sorting_layer].rectrenderers, it);
-        highest_layer = max(highest_layer, it.sorting_layer);
-    }
-    return highest_layer;
-}
 
 #scope_file
 rl :: #import "raylib";

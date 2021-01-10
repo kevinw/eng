@@ -2,7 +2,6 @@
 
 ## Immediate
  
-- fix sprite ordering to just respect Z by default. We can worry about sorting transparent things later
 - materials
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - Depth of field
@@ -15,6 +14,7 @@
 - color palettes
 
 ## High Priority
+- reverse Z depth
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - Join the [Berlin mini-game jam discord](https://discord.gg/evM44ns)
 - Make the editor prompt you to save changes to a scene on exit.

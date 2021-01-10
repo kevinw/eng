@@ -3,10 +3,9 @@ Camera :: struct {
     rotation: Quaternion;
     fov:      float       = 30;
 
-    near_plane: float     = -50;
-    far_plane:  float     = 50;
+    near_plane: float     = 10;
+    far_plane:  float     = 1000;
 
-    //per_view_translation := Vector3.{0.45, 0.0, 0.0};
     per_view_translation := Vector3.{1.05, 0.0, 0.0};
 
     matrices_need_update := true;    @noserialize @noui
@@ -44,8 +43,9 @@ _update_matrices :: (using camera: *Camera) {
         //reference_up_vector = Vector3.{0, 1, 0},
         x_is_forward        = false);
 
-    inverse_succeeded := false;
     vp := multiply(projection_matrix, view_matrix);
+
+    inverse_succeeded := false;
     inverse_view_projection_matrix, inverse_succeeded = inverse(vp);
     if !inverse_succeeded
         logprint("camera", .MINIMAL, "warning: taking the inverse of the VP matrix failed!");

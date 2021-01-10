@@ -9,6 +9,7 @@ TODO generate this constants cbuffer from Jai? ...or vice versa?
         in some sense, the shader code is "less central" and "downstream" from the source of truth in Jai-land
 */
 
+#define ALPHA_DISCARD
 #define MOUSE_PICKING
 //#define IRIDESCENCE
 
@@ -80,9 +81,12 @@ cbuffer mousepick_constants : register(b0) {
 #include "iridescence.hlsl"
 #endif
 
-[earlydepthstencil]
 float4 ps_main(vs_out input): SV_TARGET {
     float4 col = input.color * color_tex.Sample(color_tex_sampler, input.texcoord);
+
+#ifdef ALPHA_DISCARD
+    if (col.a < 0.1) discard;
+#endif
 
 #ifdef IRIDESCENCE
     // TODO: @Perf this could probably be in the vertex shader.

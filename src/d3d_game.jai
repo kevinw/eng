@@ -1,5 +1,7 @@
 #load "game_base.jai";
 
+PARTICLES :: true;
+
 Profiler_Timestamps :: enum {
 	BeginFrame;
 
@@ -33,17 +35,20 @@ is_key_pressed    :: (key: Key_Code) -> bool {
 _draw_world :: () {
     ctx := *context.state.im_context;
 
-    if is_key_pressed(#char "P")
-        reset_particles();
+    push_blend(ctx, blend=false, flush=false);
 
-    update_and_draw_particles(ctx);
+    #if PARTICLES {
+        if is_key_pressed(#char "P")
+            reset_particles();
+
+        update_and_draw_particles(ctx);
+    }
 
     im_set_z(ctx, 0);
     im_flush(ctx);
 
     world := context.state.world;
     world_draw(*world);
-    draw_all_drawables(*world);
     im_flush(ctx);
 }
 
