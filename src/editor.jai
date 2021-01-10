@@ -1052,16 +1052,18 @@ editor_update :: (state: *State) {
         }
     }
 
-    {
-        // mouse wheel zoom
-        if _local_host_state.mouse_delta_z != 0 {
-            scene_camera.fov += cast(float)_local_host_state.mouse_delta_z / 120.0 * 0.05;
-            scene_camera.matrices_need_update = true;
-        }
-    }
-
 
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
+
+        {
+            // mouse wheel zoom
+            if _local_host_state.mouse_delta_z != 0 {
+                scene_camera.fov += cast(float)_local_host_state.mouse_delta_z / 120.0 * 0.05;
+                scene_camera.matrices_need_update = true;
+            }
+        }
+
+
         mouse_x, mouse_y := platform.get_client_mouse_pos(_local_host_state.window_handle);
         screen_mouse_pos := v2(mouse_x, mouse_y);
         if set_if_different(*mouse_pos, screen_mouse_pos) {
