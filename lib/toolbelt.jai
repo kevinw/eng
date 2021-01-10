@@ -2,6 +2,17 @@ screenp :: (msg: string, args: ..Any, ident := "", loc := #caller_location) {
     screenlog.screen_print(tprint(msg, ..args), loc=loc);
 }
 
+screenp :: (var: Code, ident := "", loc := #caller_location) #expand {
+    get_variable_name :: (code : Code) -> string {
+        root := compiler_get_nodes(code);
+        assert(root.kind == .IDENT, "expected #code root not to be of kind IDENT, but got %", root.kind);
+        ident := cast(*Code_Ident) root;
+        return ident.name;
+    }
+
+    screenp("% = %\n", #run get_variable_name(var), #insert var, ident=ident, loc=loc);
+}
+
 sin_min_max :: (val: float, min: float, max: float) -> float {
     sin01 := (sin(val) * 0.5) + 1.0;
     return min + sin01 * (max - min);
