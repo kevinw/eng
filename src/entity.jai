@@ -142,7 +142,7 @@ Entity :: struct {
     }
 
     // TODO: Small_Array here could be a big win
-    component_bits: Component_Bit;
+    component_bits: Component_Bit;    @noserialize
     components: [..]Component_Entry;  @noserialize
 }
 
