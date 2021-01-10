@@ -1046,7 +1046,17 @@ editor_update :: (state: *State) {
             }
         }
 
+
         if update {
+            scene_camera.matrices_need_update = true;
+        }
+    }
+
+    {
+        // mouse wheel zoom
+        if _local_host_state.mouse_delta_z != 0 {
+            scene_camera.fov += cast(float)_local_host_state.mouse_delta_z / 120.0 * 0.05;
+            screenp(#code scene_camera.fov);
             scene_camera.matrices_need_update = true;
         }
     }
