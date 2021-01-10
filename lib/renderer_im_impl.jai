@@ -21,9 +21,9 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
 
     MAX_MOUSEPICK_COUNT :: 50;
     if track_mouse && !did_init {
-        mousepick_objectids         = create_structured_buffer(size_of(ObjectIDInfo), MAX_MOUSEPICK_COUNT);
-        mousepick_objectids_staging = create_structured_buffer(size_of(ObjectIDInfo), MAX_MOUSEPICK_COUNT, .Staging);
-        mousepick_objectids_count   = create_count_buffer();
+        mousepick_objectids         = create_structured_buffer(size_of(ObjectIDInfo), MAX_MOUSEPICK_COUNT, debug_name = "mousepick_objectids");
+        mousepick_objectids_staging = create_structured_buffer(size_of(ObjectIDInfo), MAX_MOUSEPICK_COUNT, .Staging, debug_name = "mousepick_objectids_staging");
+        mousepick_objectids_count   = create_count_buffer(debug_name = "mousepick_objectids_count");
         did_init = true;
     }
 
@@ -159,11 +159,11 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
 
     im_init(ctx, index_elements, vertex_elements, draw_elements, renderer_Im_Draw_Callback);
 
-    index_buffer  = create_dynamic_buffer(cast(u32)(index_elements * size_of(u32)), .Index);
-    vertex_buffer = create_dynamic_buffer(cast(u32)(vertex_elements * size_of(Im_Vertex)), .Vertex);
+    index_buffer  = create_dynamic_buffer(cast(u32)(index_elements * size_of(u32)), .Index,         debug_name="im index buffer");
+    vertex_buffer = create_dynamic_buffer(cast(u32)(vertex_elements * size_of(Im_Vertex)), .Vertex, debug_name="im vertex buffer");
 
-    constant_buffer          = create_constant_buffer(Constants);
-    fragment_constant_buffer = create_constant_buffer(Fragment_Constants);
+    constant_buffer          = create_constant_buffer(Constants, debug_name="im vert constants");
+    fragment_constant_buffer = create_constant_buffer(Fragment_Constants, debug_name="im frag constants");
 
     filename ::"resources/shaders/unlit_texture.hlsl";
     ok := load_shader_from_file(*shader, filename);
@@ -175,15 +175,17 @@ im_init_renderer :: (using ctx: *Im_Context_R, index_elements := 4096, vertex_el
             depth_write = false,
             depth_compare_func = .Always,
         },
+        label = "im alpha pipeline",
     );
 
     pipeline_no_blend = make_pipeline(*shader, .Triangles,
         cull_mode = .None,
         blend_mode = .Default,
         depth_stencil_opts = .{
-            depth_write = false,
-            depth_compare_func = .Always,
+            depth_write = true,
+            depth_compare_func = .Less,
         },
+        label = "im depth write pipeline",
     );
 }
 

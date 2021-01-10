@@ -50,12 +50,12 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
     // modes, and ...
     {
         shader_defines :: "QUILT_TEXTURE\01\0";
-        ok := load_shader_from_file(*lenticular_shader_quilt, "resources/shaders/lenticular.hlsl", defines=shader_defines);
+        ok := load_shader_from_file(*lenticular_shader_quilt, "resources/shaders/lenticular.hlsl", defines=shader_defines, debug_name_postfix="[for quilt]");
         assert(ok);
     }
 
     {
-        ok := load_shader_from_file(*lenticular_shader, "resources/shaders/lenticular.hlsl");
+        ok := load_shader_from_file(*lenticular_shader, "resources/shaders/lenticular.hlsl", debug_name_postfix="");
         assert(ok);
     }
 
@@ -66,6 +66,7 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
             depth_write        = false,
             depth_compare_func = .Always,
         },
+        label = "lenticular array texture blit pipeline",
     );
 
     pipeline_quilt = make_pipeline(*lenticular_shader_quilt, .Triangles,
@@ -75,6 +76,7 @@ create_multiview_pass :: (fb_size: Vector2_u16) {
             depth_write        = false,
             depth_compare_func = .Always,
         },
+        label = "quilt tex blit pipeline",
     );
 
     // offscreen rendertarget

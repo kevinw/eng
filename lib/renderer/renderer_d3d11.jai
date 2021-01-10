@@ -1,5 +1,7 @@
 // D3D11 implementation
 
+DEBUG_NAMES :: #run get_build_options().optimization_level != .RELEASE;
+
 Renderer :: struct {
     using base: Renderer_Base;
     current_index_buffer: *Buffer;
@@ -72,6 +74,7 @@ Pass :: struct { // TODO: rename to render target
 
 Pipeline :: struct {
     shader: *Shader; // TODO: some kind of pool is gonna be necessary here...
+    label: string;
 
     // d3d11
     rasterizer_state: *ID3D11RasterizerState1;
@@ -271,7 +274,7 @@ apply_uav :: (uav_buffer: *Buffer, new_count:u32 = 0xffffffff, bind_point:u32 = 
     }
 }
 
-create_count_buffer :: () -> Buffer {
+create_count_buffer :: (debug_name := "") -> Buffer {
     // 32 bit buffer for receiving a count from an AppendStructuredBuffer
     assert_state();
     using renderer;
@@ -285,10 +288,11 @@ create_count_buffer :: () -> Buffer {
 
     buf: Buffer;
     check_result(device.CreateBuffer(xx device, *constant_buffer_desc, null, *buf.d3d_buffer));
+    #if DEBUG_NAMES set_debug_name(buf.d3d_buffer, debug_name);
     return buf;
 }
 
-create_constant_buffer :: ($T: Type) -> Buffer {
+create_constant_buffer :: ($T: Type, debug_name := "") -> Buffer {
     // TODO: maybe Buffer should be surrounded by a thing which is parameterized by T?
     assert_state();
     using renderer;
@@ -302,10 +306,11 @@ create_constant_buffer :: ($T: Type) -> Buffer {
 
     buf: Buffer;
     check_result(device.CreateBuffer(xx device, *constant_buffer_desc, null, *buf.d3d_buffer));
+    #if DEBUG_NAMES set_debug_name(buf.d3d_buffer, debug_name);
     return buf;
 }
 
-create_dynamic_buffer :: (size_in_bytes: u32, type: Buffer_Type) -> Buffer {
+create_dynamic_buffer :: (size_in_bytes: u32, type: Buffer_Type, debug_name := "") -> Buffer {
     assert_state();
     using renderer;
 
@@ -318,10 +323,11 @@ create_dynamic_buffer :: (size_in_bytes: u32, type: Buffer_Type) -> Buffer {
     buffer: Buffer;
     check_result(device.CreateBuffer(xx device, *desc, null, *buffer.d3d_buffer));
     buffer.element_count = 0;
+    #if DEBUG_NAMES set_debug_name(buffer.d3d_buffer, debug_name);
     return buffer;
 }
 
-create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
+create_immutable_buffer :: (data: []$D, type: Buffer_Type, debug_name := "") -> Buffer {
     assert_state();
     using renderer;
 
@@ -336,10 +342,11 @@ create_immutable_buffer :: (data: []$D, type: Buffer_Type) -> Buffer {
     buffer: Buffer;
     check_result(device.CreateBuffer(xx device, *desc, *subresource_data, *buffer.d3d_buffer));
     buffer.element_count = cast(u32)data.count;
+    #if DEBUG_NAMES set_debug_name(buf.d3d_buffer, debug_name);
     return buffer;
 }
 
-create_structured_buffer :: (struct_size: u32, count: u32, usage: Buffer_Usage_Flags = .Default) -> Buffer {
+create_structured_buffer :: (struct_size: u32, count: u32, usage: Buffer_Usage_Flags = .Default, debug_name := "") -> Buffer {
     // TODO: WARNING: APPEND FLAG BELOW IS FOR An AppendStructuredBuffer specifcally.
     using renderer := assert_state();
 
@@ -369,6 +376,7 @@ create_structured_buffer :: (struct_size: u32, count: u32, usage: Buffer_Usage_F
 
     buf: Buffer;
     check_result(device.CreateBuffer(xx device, *desc, null, *buf.d3d_buffer));
+    #if DEBUG_NAMES set_debug_name(buf.d3d_buffer, debug_name);
     buf.element_count = cast(u32)count;
 
     // create uav view (only needed for compute I think?)
@@ -386,10 +394,10 @@ create_structured_buffer :: (struct_size: u32, count: u32, usage: Buffer_Usage_F
             xx buf.d3d_buffer,
             *uav_desc,
             *buf.uav_view));
+        #if DEBUG_NAMES set_debug_name(buf.uav_view, "UAV for '%'", ifx debug_name.count > 0 then debug_name else "<unnamed>");
     }
 
     return buf;
-
 }
 
 
@@ -441,16 +449,18 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
 
     assert(tex.texture2D == null, "TODO: figure out reinit semantics...");
     tex.size = size;
-    tex.debug_name = copy_string(label);
+    tex.debug_name = copy_string(label); // TODO: instead of storing our own copy, we could just possibly use the driver's private data thing set by set_debug_name
     if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
         flush_errors();
         return false;
     }
+    #if DEBUG_NAMES
+        if label.count > 0 set_debug_name(tex.texture2D, "Texture '%'", label);
 
     //print("CREATE TEXTURE % %x%\n", label, size.width, size.height);
 
     if bind_flags & .D3D11_BIND_SHADER_RESOURCE != 0 {
-        //print("creating shader resource view for texture: %\n", label);
+        //print("creating srv for texture: %\n", label);
 
         {
             view: *ID3D11ShaderResourceView;
@@ -458,6 +468,9 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
                 flush_errors();
                 return false;
             }
+            #if DEBUG_NAMES
+                if label.count > 0
+                    set_debug_name(view, "SRV for '%'", label);
             array_add(*tex.views, view);
         }
 
@@ -485,6 +498,9 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
                     flush_errors();
                     return false;
                 }
+                #if DEBUG_NAMES
+                    if label.count > 0
+                        set_debug_name(view, "SRV Slice % for '%'", slice_index, label);
                 array_add(*tex.views, view);
             }
         }
@@ -538,6 +554,8 @@ begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
             assert(pass.depth != null);
             check_result(renderer.device.CreateDepthStencilView(
                 cast(*ID3D11Device)renderer.device, cast(*ID3D11Resource)pass.depth.texture2D, null, *pass.depth_buffer_view));
+            #if DEBUG_NAMES
+                set_debug_name(pass.frame_buffer_view, "DepthStencilView for pass '%'", pass.label);
         }
         framebuffers.data = *pass.frame_buffer_view;
         framebuffers.count = 1;
@@ -600,12 +618,14 @@ make_pipeline :: (
     primitive_type:     Primitive_Type     = .Triangles,
     cull_mode:          Cull_Mode          = .Back,
     blend_mode:         Blend_Mode         = .Default,
-    depth_stencil_opts: Depth_Stencil_Opts = .{}
+    depth_stencil_opts: Depth_Stencil_Opts = .{},
+    label                                 := ""
 ) -> Pipeline {
-    assert_state();
+    renderer := assert_state();
 
     pipeline: Pipeline;
     pipeline.shader = shader;
+    pipeline.label = copy_string(label);
 
     device := cast(*ID3D11Device)renderer.device;
 
@@ -621,7 +641,6 @@ make_pipeline :: (
         FillMode = .D3D11_FILL_SOLID,
     };
     rasterizer_desc.CullMode = d3d_cull_mode;
-
     check_result(renderer.device.CreateRasterizerState1(
         renderer.device, *rasterizer_desc, *pipeline.rasterizer_state));
 
@@ -797,6 +816,8 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
             flush_errors();
             unload_and_return_error();
         }
+        #if DEBUG_NAMES
+            if debug_name.count > 0 set_debug_name(tex.texture2D, "Texture '%'", debug_name);
     }
     {
         view: *ID3D11ShaderResourceView;
@@ -806,6 +827,8 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
             unload_and_return_error();
         }
         array_add(*tex.views, view);
+        #if DEBUG_NAMES
+            if debug_name.count > 0 set_debug_name(view, "Texture SRV '%'", debug_name);
     }
 
     // Sampler
@@ -943,9 +966,9 @@ clone_array :: (array: []$T) -> []T {
     return clone;
 }
 
-load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_main", $ps_main := "ps_main", $defines := "") -> bool {
+load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_main", $ps_main := "ps_main", $defines := "", debug_name_postfix := "") -> bool {
     #if #run get_build_options().optimization_level != .RELEASE {
-        ok := _load_shader_from_file_at_runtime(shader, filename, vs_main, ps_main, defines=defines);
+        ok := _load_shader_from_file_at_runtime(shader, filename, vs_main, ps_main, defines=defines, debug_name_postfix=debug_name_postfix);
         shader.vs_main  = copy_string(vs_main);
         shader.ps_main  = copy_string(ps_main);
         shader.defines  = copy_string(defines);
@@ -1029,17 +1052,24 @@ _compile_shader_at_runtime :: (filename: string, stage: Shader_Stage, target_pro
     return true, shader_blob;
 }
 
-_load_shader_from_file_at_runtime :: (shader: *Shader, filename: string, vs_main := "vs_main", ps_main := "ps_main", defines: string) -> bool {
+_load_shader_from_file_at_runtime :: (shader: *Shader, filename: string, vs_main := "vs_main", ps_main := "ps_main", defines: string, debug_name_postfix := "") -> bool {
     renderer := assert_state();
     vs_ok, vs_blob := _compile_shader_at_runtime(filename, .Vertex, "vs_5_0", vs_main, defines_in=defines);
     if !vs_ok return false;
     ps_ok, ps_blob := _compile_shader_at_runtime(filename, .Fragment, "ps_5_0", ps_main, defines_in=defines);
     if !ps_ok return false;
     // @Leak ....defer release blobs?
-    return load_shader_from_blobs(shader, vs_blob, ps_blob);
+
+    debug_name: string;
+    if debug_name_postfix.count > 0
+        debug_name = tprint("%%", filename, debug_name_postfix);
+    else
+        debug_name = filename;
+
+    return load_shader_from_blobs(shader, vs_blob, ps_blob, debug_name=debug_name);
 }
 
-load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DBlob) -> bool {
+load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compiled_ps_blob: *ID3DBlob, debug_name := "unnamed") -> bool {
     renderer := assert_state();
 
     using new_shader: Shader;
@@ -1059,11 +1089,12 @@ load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compile
             flush_errors();
             unload_and_return_shader_error("CreateVertexShader failed\n");
         }
+        #if DEBUG_NAMES set_debug_name(vert, "Vertex Shader '%'", debug_name);
     }
 
     // TODO: @Bloat @Speed run this at compile time in release mode; there's no
     // need to reflect shaders in builds.
-    res := CreateInputLayoutDescFromVertexShaderSignature(vs_blob, cast(*ID3D11Device)device, *input_layout, *input_layout_byte_length);
+    res := CreateInputLayoutDescFromVertexShaderSignature(vs_blob, cast(*ID3D11Device)device, *input_layout, *input_layout_byte_length, debug_name=debug_name);
     if res != S_OK || input_layout == null {
         flush_errors();
         unload_and_return_shader_error("CreateInputLayoutDescFromVertexShaderSignature failed");
@@ -1075,6 +1106,7 @@ load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compile
             flush_errors();
             unload_and_return_shader_error("CreatePixelShader failed");
         }
+        #if DEBUG_NAMES set_debug_name(frag, "Fragment Shader '%'", debug_name);
     }
 
     // TODO: this is kind of awkward...these three belong in the Shader_Reload_Entry instead.
@@ -1117,6 +1149,7 @@ _get_swapchain_framebuffer :: (using renderer: *Renderer) {
 
     check_result(device.CreateTexture2D(cast(*ID3D11Device)device, *depth_buffer_desc, null, *depth_buffer));
     assert(depth_buffer != null);
+    #if DEBUG_NAMES set_debug_name(depth_buffer, "Depth Buffer for Renderer %", renderer);
 
     check_result(device.CreateDepthStencilView(cast(*ID3D11Device)device, cast(*ID3D11Resource)depth_buffer, null, *depth_buffer_view));
     assert(depth_buffer_view != null);
@@ -1232,17 +1265,17 @@ flush_errors :: () {
     flush_debug_messages();
 }
 
-flush_debug_messages :: () {
+flush_debug_messages :: () -> int {
     using renderer := assert_state();
 
     if !debug_info_queue
-        return;
+        return 0;
 
     message_count := debug_info_queue.GetNumStoredMessages(debug_info_queue);
     if message_count == 0
-        return;
+        return 0;
 
-    did_have_message := false;
+    shown_message_count := 0;
 
     for i: 0 .. message_count - 1 {
         auto_release_temp();
@@ -1268,13 +1301,16 @@ flush_debug_messages :: () {
             print("%\n", str);
         }
 
-        did_have_message = true;
+        shown_message_count += 1;
     }
 
-    if did_have_message
+    if shown_message_count > 0 {
         print_stack_trace(context.stack_trace);
+    }
 
     debug_info_queue.ClearStoredMessages(debug_info_queue);
+
+    return shown_message_count;
 }
 
 get_buffer_ptr :: (buffer: *Buffer, ptr: **$T) #expand {
@@ -1348,11 +1384,13 @@ init_profiler :: (using profiler: *Profiler($T)) -> bool {
 
 	query_desc := D3D11_QUERY_DESC.{ .D3D11_QUERY_TIMESTAMP_DISJOINT, 0 };
 
-    for frame: 0..NUM_FRAMES - 1
+    for frame: 0..NUM_FRAMES - 1 {
         if S_OK != renderer.device.CreateQuery(xx renderer.device, *query_desc, *disjoint_query[frame]) {
             logprint("renderer_d3d11", .MINIMAL, "error: could not create timestamp disjoint query for frame %", frame);
             return false;
         }
+        //set_debug_name(disjoint_query[frame], "timestamp disjoint query %", frame);
+    }
 
 	query_desc.Query = .D3D11_QUERY_TIMESTAMP;
 
@@ -1364,6 +1402,7 @@ init_profiler :: (using profiler: *Profiler($T)) -> bool {
                 logprint("renderer_d3d11", .MINIMAL, "error: could not create timestamp query for frame %", frame);
                 return false;
             }
+            //set_debug_name(disjoint_query[frame], "timestamp query % - %", frame, name);
         }
     }
 
@@ -1427,8 +1466,7 @@ wait_for_data_and_update :: (using profiler: *Profiler($T)) {
         frame_collect = 0;
 
 	timestamp_disjoint: D3D11_QUERY_DATA_TIMESTAMP_DISJOINT;
-	if S_OK != device_ctx.GetData(device_ctx, xx disjoint_query[iFrame], *timestamp_disjoint, size_of(type_of(timestamp_disjoint)), 0)
-	{
+	if S_OK != device_ctx.GetData(device_ctx, xx disjoint_query[iFrame], *timestamp_disjoint, size_of(type_of(timestamp_disjoint)), 0) {
         logprint("profiler", .MINIMAL, "error: Couldn't retrieve timestamp disjoint query data");
 		return;
 	}
@@ -1440,8 +1478,7 @@ wait_for_data_and_update :: (using profiler: *Profiler($T)) {
 	}
 
 	timestamp_prev: u64;
-	if S_OK != device_ctx.GetData(device_ctx, xx query[Event.BeginFrame][iFrame], *timestamp_prev, size_of(u64), 0)
-	{
+	if S_OK != device_ctx.GetData(device_ctx, xx query[Event.BeginFrame][iFrame], *timestamp_prev, size_of(u64), 0) {
 		print("Couldn't retrieve timestamp query data for %\n", Event.BeginFrame);
 		return;
 	}
@@ -1473,15 +1510,69 @@ wait_for_data_and_update :: (using profiler: *Profiler($T)) {
 
 //// end profiler
 
-
 #scope_file
+
+#if DEBUG_NAMES {
+WKPDID_D3DDebugObjectName :: GUID.{0x429b8c22, 0x9188, 0x4b0c, .[0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00]};
+
+set_debug_name :: (child_obj: *$T, name: string, args: ..Any, check_for_existing_name_first := false) {
+    if child_obj == null return;
+    if name.count == 0 || name.data == null return;
+
+    if check_for_existing_name_first {
+        existing_debug_name := get_debug_name(child_obj);
+        if existing_debug_name.count > 0 {
+            // For some internally pooled D3D11 objects like rasterizer states, we
+            // see if they've already had a debug name before attempting to set
+            // one. D3D11's debug layer will complain if we try to set a name twice
+            // on the same object.
+            return;
+        }
+    }
+
+    child := cast(*ID3D11DeviceChild)child_obj;
+    assert(child.SetPrivateData != null);
+
+    full_message: string;
+    if args.count > 0 full_message = tprint(name, ..args);
+    else full_message = name;
+
+    res := child.SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)full_message.count, full_message.data);
+    if flush_debug_messages() > 0 {
+        print("Existing private data was: \"%\"\n", get_debug_name(child));
+    }
+}
+
+get_debug_name :: (child_obj: *$T) -> string {
+    // may return an empty string if there's no DebugObjectName associated with
+    // this object.
+
+    N :: 512;
+    buf := talloc(N);
+    buf_size: u32 = N;
+
+    child := cast(*ID3D11DeviceChild)child_obj;
+    res := child.GetPrivateData(child, *WKPDID_D3DDebugObjectName, *buf_size, buf);
+
+    name: string;
+    if res == S_OK && buf_size > 0 {
+        name.data = buf;
+        name.count = buf_size;
+    }
+
+    return name;
+}
+}
 
 next_multiple_of :: (N: int, X: int) -> int {
     // X is the number you want to round up to the nearest multiple N
     return ((N - 1) | (X - 1)) + 1;
 }
 
-CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DDevice: *ID3D11Device, pInputLayout: **ID3D11InputLayout, inputLayoutByteLength: *u32) -> HRESULT {
+CreateInputLayoutDescFromVertexShaderSignature :: (
+    pShaderBlob: *ID3DBlob, pD3DDevice: *ID3D11Device, pInputLayout: **ID3D11InputLayout,
+    inputLayoutByteLength: *u32, debug_name := "unnamed") 
+-> HRESULT {
     pVertexShaderReflection: *ID3D11ShaderReflection;
     if S_OK != D3DReflect(pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), *uid(ID3D11ShaderReflection.uuid), cast(**void)*pVertexShaderReflection) {
         flush_errors();
@@ -1550,6 +1641,9 @@ CreateInputLayoutDescFromVertexShaderSignature :: (pShaderBlob: *ID3DBlob, pD3DD
     }
 
     hr := pD3DDevice.CreateInputLayout(pD3DDevice, inputLayoutDesc.data, cast(u32)inputLayoutDesc.count, pShaderBlob.GetBufferPointer(pShaderBlob), pShaderBlob.GetBufferSize(pShaderBlob), pInputLayout);
+    if hr == S_OK {
+        #if DEBUG_NAMES set_debug_name(<<pInputLayout, "Input Layout for '%'", debug_name);
+    }
  
     // record byte length
     if inputLayoutByteLength != null {

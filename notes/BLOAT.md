@@ -1,4 +1,8 @@
 # bloat
+- mouse pick:
+    at least disable it while the editor is away.
+    make sure it's not running in the gpu unless we're moving the mouse
+    make sure it's NEVER running in the 45 view LKG
 - we have both lz4 and miniz. let's just use one of them.
 - non-editor build
     - no undo

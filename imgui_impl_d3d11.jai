@@ -90,6 +90,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
             logprint("imgui_d3d11", "Error creating the vertex buffer");
             return false;
         }
+        set_debug_name(VB, "ImGui vertex buffer");
     }
 
     if !IB || IndexBufferSize < draw_data.TotalIdxCount {
@@ -105,6 +106,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
             logprint("imgui_d3d11", "Error creating the index buffer");
             return false;
         }
+        set_debug_name(IB, "ImGui index buffer");
     }
 
     // Upload vertex/index data into a single contiguous GPU buffer
@@ -303,6 +305,8 @@ ImGui_ImplDX11_CreateFontsTexture :: (using ui_state: *UI_State) {
         subResource.SysMemPitch = desc.Width * 4;
         subResource.SysMemSlicePitch = 0;
         d3dDevice.CreateTexture2D(d3dDevice, *desc, *subResource, *pTexture);
+        if pTexture != null
+            set_debug_name(pTexture, "ImGui default font texture");
 
         // Create texture view
         srvDesc: D3D11_SHADER_RESOURCE_VIEW_DESC ;
@@ -311,6 +315,8 @@ ImGui_ImplDX11_CreateFontsTexture :: (using ui_state: *UI_State) {
         srvDesc.Texture2D.MipLevels = desc.MipLevels;
         srvDesc.Texture2D.MostDetailedMip = 0;
         d3dDevice.CreateShaderResourceView(d3dDevice, xx pTexture, *srvDesc, *FontTextureView);
+        if FontTextureView != null
+            set_debug_name(FontTextureView, "ImGui default font texture view");
         Release(pTexture);
     }
 
@@ -388,6 +394,7 @@ END;
 
         if d3dDevice.CreateVertexShader(d3dDevice, blob_data, blob_size, null, *VertexShader) != S_OK
             return false;
+        set_debug_name(VertexShader, "ImGui vertex shader");
 
         // TODO: detect #define IMGUI_USE_BGRA_PACKED_COLOR or not and use BGRA or RGBA as necessary...
         // the imgui bindings should probably have a constant for this.
@@ -400,6 +407,7 @@ END;
         ];
         if d3dDevice.CreateInputLayout(d3dDevice, local_layout.data, local_layout.count, blob_data, blob_size, *InputLayout) != S_OK
             return false;
+        set_debug_name(InputLayout, "ImGui input layout");
 
         // Create the constant buffer
         {
@@ -410,6 +418,7 @@ END;
                 ByteWidth      = size_of(VERTEX_CONSTANT_BUFFER),
             };
             d3dDevice.CreateBuffer(d3dDevice, *desc, null, *VertexConstantBuffer);
+            set_debug_name(VertexConstantBuffer, "ImGui vertex constant buffer");
         }
     }
 
@@ -448,6 +457,7 @@ END;
 
         if d3dDevice.CreatePixelShader(d3dDevice, blob_data, blob_size, null, *PixelShader) != S_OK
             return false;
+        set_debug_name(PixelShader, "ImGui fragment shader");
     }
 
     // Create the blending setup
@@ -731,6 +741,23 @@ offset_of :: ($T: Type, $member: string) -> s64 {
         dummy: T = ---;
         return cast(*void) (*dummy.%) - cast(*void) *dummy;
     DONE
+}
+
+set_debug_name :: (child_obj: *$T, name: string) {
+    if child_obj == null || name.data == null || name.count == 0
+        return;
+
+    WKPDID_D3DDebugObjectName :: GUID.{ 0x429b8c22,0x9188,0x4b0c, .[ 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 ]};
+    child := cast(*ID3D11DeviceChild)child_obj;
+    assert(child.SetPrivateData != null);
+
+    // don't try to set if it already has a name (pooled objects like RasterizerState)
+    buf_size: u32 = 512;
+    buf := talloc(buf_size);
+    if S_OK == child.GetPrivateData(child, *WKPDID_D3DDebugObjectName, *buf_size, buf) && buf_size > 0
+        return; 
+
+    child.SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)name.count, name.data);
 }
 
 #import "d3d11";
