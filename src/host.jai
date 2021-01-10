@@ -29,7 +29,14 @@ cmdline_args: struct {
     topmost_window := true;
     live_reload    := true;
     game_name      := DEFAULT_SRC_PLUGIN;
+    allocator      := Allocator_Mode.Default;
 };
+
+Allocator_Mode :: enum {
+    Default;
+    Page_Guard;
+}
+
 the_window: Window_Type; // the application main window
 host_state: Host_State;
 transparent_while_not_focused := false;
@@ -106,6 +113,8 @@ parse_commandline_arguments :: () {
 
     did_set_plugin_dll := false;
     for args if it == {
+        case "--page-guard";
+            cmdline_args.allocator = .Page_Guard;
         case "--no-topmost";
             print("skipping topmost window\n");
             cmdline_args.topmost_window = false;
@@ -113,6 +122,10 @@ parse_commandline_arguments :: () {
             print("no live reload\n");
             cmdline_args.live_reload = false;
         case;
+            if it.count >= 1 && it[0] == #char "-" {
+                print("[host] ERROR: invalid argument '%'\n", it);
+                exit(1);
+            }
             if it_index > 0 {
                 if did_set_plugin_dll {
                     print("error: more than one dll argument specified.\n");
@@ -159,13 +172,6 @@ main :: () {
 
     os_dpi_init(); // must be called before any window creation
 
-    #if GUARD_ALLOCATOR {
-        GWP :: #import "gwpasan";
-        print("[host] Using slow guard allocator\n");
-        GWP.init(max_allocation = 100000, sample_rate = 1);
-        context.allocator = GWP.allocator;
-    }
-
     found, exe_path, exe_name := String.split_by_character_from_right(get_path_of_running_executable(), #char "/");
     if !found {
         print("Error: unable to find my own exe\n");
@@ -173,6 +179,17 @@ main :: () {
     }
 
     parse_commandline_arguments();
+
+    if cmdline_args.allocator == .Page_Guard {
+        #if GUARD_ALLOCATOR {
+            GWP :: #import "gwpasan";
+            print("[host] Using slow guard allocator\n");
+            GWP.init(max_allocation = 100000, sample_rate = 1);
+            context.allocator = GWP.allocator;
+        } else {
+            print("[host] WARNING: requested Page_Guard allocator, but host was not built with it included.\n");
+        }
+    }
 
     context.logger_data = New(screenlog.Logger_State);
     context.logger = screenlog.context_func;
