@@ -179,6 +179,8 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
     // TODO: this should just go away and merge with `custom_ctrl` below.
     if ti == type_info(rl.Color)
         return .Color_Byte4;
+    else if ti == type_info(Quaternion)
+        return .Has_Custom_Control;
     else if ti == type_info(Entity_Handle)
         return .Has_Custom_Control;
     else if ti == type_info(LiveTexture)
@@ -191,8 +193,18 @@ categorize_type :: (ti: *Type_Info) -> Struct_Looks_Like {
 }
 
 custom_ctrl :: (name: string, data: *void, ti: *Type_Info) {
+    using ImGui;
+
     if ti == type_info(Entity_Handle)
         entity_selector(name, cast(*Entity_Handle)data);
+    else if ti == type_info(Quaternion) {
+        quat := cast(*Quaternion)data;
+        euler := euler_angles(<<quat);
+        if DragFloat3(temp_c_string(name), cast(*[3]float)*euler) {
+            <<quat = quaternion_from_euler(euler);
+        }
+        push_or_commit_item(data, size_of(Quaternion));
+    }
     else if ti == type_info(LiveTexture) 
         live_image_editor(cast(*LiveTexture)data);
     else if ti == type_info(*Shader)
@@ -206,8 +218,6 @@ custom_ctrl :: (name: string, data: *void, ti: *Type_Info) {
             // and then automatically call them all here...
         } @inspector
         */
-
-        using ImGui;
 
         // roll, pitch, yaw
 
@@ -1025,7 +1035,6 @@ editor_update :: (state: *State) {
                      cast(float)_local_host_state.mouse_delta_x,
                     0);
 
-                TO_RADIANS :: 3.141592 / 180.0;
                 x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
                 y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
                 z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
@@ -1641,3 +1650,4 @@ temp_c_string :: (s: string) -> *u8 {
     result[s.count] = 0;
     return result;
 }
+
