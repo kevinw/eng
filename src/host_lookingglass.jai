@@ -30,7 +30,7 @@ LKG_discover_device :: (app_name: string, verbose := false) -> (bool, []Looking_
         ri     = hpc.GetDevicePropertyRi(i);
         bi     = hpc.GetDevicePropertyBi(i);
 
-        view_cone = hpc.GetDevicePropertyFloat(i, "/calibration/viewCone/value")
+        view_cone = hpc.GetDevicePropertyFloat(i, "/calibration/viewCone/value");
     }
 
     return true, display_infos;

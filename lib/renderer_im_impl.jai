@@ -70,6 +70,8 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     else
         apply_pipeline(*pipeline_no_blend);
 
+    num_views := context.state.multiview.num_views;
+
     {
         // TODO: only update this when necessary
         using constants : *Constants;
@@ -78,13 +80,29 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
         if im_ctx.fullscreen_ortho {
             projection  = orthographic_projection_matrix(0, 1, 1, 0, -100, 100);
             view = matrix4_identity();
-            translation = make_vector3(0, 0, 0);
+            viewConeSweep = 0;
+            numViews = 1;
+            projModifier = 0;
         } else {
             cam := context.state.current_im_camera;
+            holoplay_capture := context.state.current_im_holoplay_capture;
+
             calc_matrices(cam);
-            projection  = cam.projection_matrix;
-            view        = cam.view_matrix;
-            translation = cam.per_view_translation;
+
+            if num_views > 1 {
+                dist           := reset_lkg_camera(cam, holoplay_capture);
+                view_cone      := context.state.multiview.device_params.view_cone;
+
+                viewConeSweep   = -dist * tan(view_cone * holoplay_capture.view_cone_modifier * TO_RADIANS);
+                projModifier    = 1 / (holoplay_capture.size * camera_aspect(cam));
+            } else {
+                viewConeSweep = 0;
+                projModifier  = 1;
+            }
+            
+            projection    = cam.projection_matrix;
+            view          = cam.view_matrix;
+            numViews      = num_views;
         }
     }
 
@@ -144,9 +162,8 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     apply_uav(pick_buffer, new_count = ifx reset_mousepick_counts then cast(u32)0 else 0xffffffff);
     idx_buffer_offset: u32;
     for draw_cmd: draw_array {
-        num_instances := context.state.multiview.num_views;
         draw(num_elements = draw_cmd.index_count,
-            num_instances = num_instances,
+            num_instances = num_views,
             base_element = idx_buffer_offset);
         idx_buffer_offset += draw_cmd.index_count;
     }
@@ -218,7 +235,9 @@ Im_Context_R :: struct {
 Constants :: struct {
     projection: Matrix4;
     view: Matrix4;
-    translation: Vector3;
+    viewConeSweep: float;
+    projModifier: float;
+    numViews: s32;
 }
 
 Fragment_Constants :: struct {
@@ -231,9 +250,11 @@ to_array :: (elems: ..$A) -> []A { return elems; }
 
 Window_Creation :: #import "Window_Creation";
 platform :: #import "platform";
+#import "math_extra";
 #import "renderer_im";
 #import "renderer";
 #import "Basic";
 #import "Math";
 #import "camera";
+#import "toolbelt";
 Sort :: #import "Sort";

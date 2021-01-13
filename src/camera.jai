@@ -6,7 +6,8 @@ Camera :: struct {
     near_plane: float     = 10;
     far_plane:  float     = 1000;
 
-    per_view_translation := Vector3.{1.05, 0.0, 0.0};
+    view_cone_sweep:    float;
+    proj_modifier:      float;
 
     matrices_need_update := true;    @noserialize @noui
     last_calced_renderer: *Renderer; @noserialize @noui // TODO: I believe this goes away once we make the looking glass display have its own camera.
@@ -19,13 +20,30 @@ Camera :: struct {
     }
 }
 
-make_ray :: (origin: Vector3, direction: Vector3, $normalize_direction := false) -> Ray {
-    ray: Ray = ---;
-    ray.origin = origin;
-    ray.direction = direction;
-    #if normalize_direction
-        normalize_or_z_axis(*ray.direction);
-    return ray;
+Holoplay_Capture :: struct {
+    size:               float = 5;
+    near_clip_factor:   float = 1.5;
+    far_clip_factor:    float = 4;
+    view_cone_modifier: float = 1;
+}
+
+/// Returns the camera's distance from the center, a positive number.
+get_cam_distance :: (using camera: *Camera, using holoplay_capture: *Holoplay_Capture) -> (dist: float) {
+    return size / tan(fov * 0.5 * TO_RADIANS);
+}
+
+reset_lkg_camera :: (using camera: *Camera, holoplay_capture: *Holoplay_Capture) -> (dist: float) {
+    dist := get_cam_distance(camera, holoplay_capture);
+
+    //print("TODO: reset_lkg_camera %\n", dist);
+
+    /*
+    // set near and far clip planes based on dist
+    near_plane = max(dist - size * near_clip_factor, 0.1);
+    far_plane  = max(dist + size * far_clip_factor, near_plane);
+    */
+
+    return dist;
 }
 
 _update_matrices :: (using camera: *Camera) {

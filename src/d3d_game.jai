@@ -23,6 +23,9 @@ State :: struct {
     mview_window:  multiview_window.State;
 
     current_im_camera: *Camera;
+    current_im_holoplay_capture: *Holoplay_Capture;
+
+    holoplay_capture: Holoplay_Capture;
 }
 
 
@@ -82,6 +85,7 @@ update_and_draw :: () {
         }
 
         push_value(*current_im_camera, cam);
+        push_value(*current_im_holoplay_capture, *context.state.holoplay_capture);
         {
             // render quilt
             push_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
@@ -242,6 +246,7 @@ on_host_init :: (host_state: Host_State) {
     multiview_framebuffer_size.x = cast(u16)device.width;
     multiview_framebuffer_size.y = cast(u16)device.height;
     multiview.device_params = <<device;
+    print("%\n", device);
     multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
         device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle,
         borderless=borderless_lkg_window);
@@ -266,6 +271,7 @@ fake_lkg_device :: Looking_Glass_Device.{
     fringe  = 0,
     ri      = 0,
     bi      = 2,
+    view_cone = 40,
 };
 
 set_context_funcs :: () {

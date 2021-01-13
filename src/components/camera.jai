@@ -3,6 +3,12 @@ Cam :: struct {
     using camera: Camera;
 }
 
+Multiview_Capture :: struct {
+    using component: Component;
+
+    using holoplay_capture: Holoplay_Capture;
+}
+
 Cam_Follow :: struct {
     using component: Component;
     target_entity: Entity_Handle;

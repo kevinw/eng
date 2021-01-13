@@ -1,6 +1,7 @@
 Texture2D    color_tex         : register(t0);
 SamplerState color_tex_sampler : register(s0);
 
+
 /*
 TODO generate this constants cbuffer from Jai? ...or vice versa?
     - arguments for generating from the shader:
@@ -41,8 +42,13 @@ cbuffer constants : register(b0)
 {
     float4x4 projection;
     float4x4 view;
-    float3 translation;
+
+    // LKG constants
+    float viewConeSweep;
+    float projModifier;
+    int numViews;
 }
+
 struct vs_in
 {
     float3 position:    POS;
@@ -56,11 +62,21 @@ struct vs_in
 
 vs_out vs_main(vs_in input) {
     float4x4 _view = view;
-    _view[3].xyz += translation * input.instance_id;
-    float4x4 vp = mul(_view, projection);
+    float4x4 _proj = projection;
+
+    // for multiview LKG rendering, modify the view and projection matrices
+    // based on which view we are rendering.
+    float currentViewLerp = 0;
+    if (numViews > 1)
+        currentViewLerp = (float)input.instance_id / ((float)numViews - 1) - 0.5;
+
+    // TODO: do we need a local vector here?
+    // TODO: why are these -= instead of += like in the LKG examples?
+    _view[3].x -= currentViewLerp * viewConeSweep;
+    _proj[2].x -= currentViewLerp * projModifier;
 
     vs_out output;
-    output.position = mul(float4(input.position, 1), vp);
+    output.position = mul(float4(input.position, 1), mul(_view, _proj));
     output.texcoord = input.texcoord;
     output.color    = input.color;
     output.rendertarget_array_index = input.instance_id;

@@ -249,6 +249,7 @@ update :: (using player: *Player) {
                 last_jump_time = Time.now;
             }
         }
+
     }
 
     hitObstacle := false;

@@ -98,6 +98,16 @@ quaternion_from_euler :: (euler_angles: Vector3) -> Quaternion {
     return q;
 }
 
+make_ray :: (origin: Vector3, direction: Vector3, $normalize_direction := false) -> Ray {
+    ray: Ray = ---;
+    ray.origin = origin;
+    ray.direction = direction;
+    #if normalize_direction
+        normalize_or_z_axis(*ray.direction);
+    return ray;
+}
+
+
 TO_DEGREES :: 180.0 / PI;
 TO_RADIANS :: PI / 180.0;
 
