@@ -15,6 +15,7 @@ LKG_discover_device :: (app_name: string, verbose := false) -> (bool, []Looking_
     display_infos: [..]Looking_Glass_Device;
     for i: 0..num_displays - 1 {
         using info := array_add(*display_infos);
+
         xpos   = hpc.GetDevicePropertyWinX(i);
         ypos   = hpc.GetDevicePropertyWinY(i);
         width  = hpc.GetDevicePropertyScreenW(i);
@@ -28,6 +29,8 @@ LKG_discover_device :: (app_name: string, verbose := false) -> (bool, []Looking_
 
         ri     = hpc.GetDevicePropertyRi(i);
         bi     = hpc.GetDevicePropertyBi(i);
+
+        view_cone = hpc.GetDevicePropertyFloat(i, "/calibration/viewCone/value")
     }
 
     return true, display_infos;

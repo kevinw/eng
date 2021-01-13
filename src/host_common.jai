@@ -2,6 +2,7 @@ Looking_Glass_Device :: struct {
     xpos, ypos, width, height: s32;
     pitch, tilt, center, invView, subp, fringe: float;
     ri, bi: s32;
+    view_cone: float;
 }
 
 Host_State :: struct {

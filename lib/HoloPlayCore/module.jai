@@ -15,7 +15,8 @@ GetDevicePropertyCenter        :: (dev_index: s32) -> float #foreign HoloPlayCor
 GetDevicePropertyTilt          :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyTilt";
 GetDevicePropertyFringe        :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyFringe";
 GetDevicePropertySubp          :: (dev_index: s32) -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertySubp";
-
+GetDevicePropertyFloat         :: (dev_index: s32, device_property_name: *u8)
+                                                   -> float #foreign HoloPlayCore_lib "hpc_GetDevicePropertyFloat"
 
 // Error code returned from libHoloPlayCore.dll
 // (i.e., we did not get a roundtrip message/response for some reason)
