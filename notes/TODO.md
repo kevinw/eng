@@ -2,18 +2,19 @@
 
 ## Immediate
  
+- the second vim tab has holoplay view matrices open. try to replicate their logic precisely
+    - make the multiview projection translation start left and end up right of the camera
+- checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
 - materials
-- swapchain/renderer rework - we need one renderer, but two swapchains
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
-- make the multiview projection translation start left and end up right of the camera
-- disconnect the scene view and the LKG camera somehow, but keep it easy to preview one in the other...
-    - copy frustum visualization code from LKG Unity plugin
-    - at runtime, have the LKG camera follow the player
 - before things get too elaborate or complicated, try using Matrix4x3 
 - color palettes
+- gpu optimization list https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
 
 ## High Priority
+- mark draw-calls with [more debug APIs](https://seanmiddleditch.com/direct3d-11-debug-api-tricks/)
+- swapchain/renderer rework - we need one renderer, but two swapchains
 - reverse Z depth
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - Join the [Berlin mini-game jam discord](https://discord.gg/evM44ns)
@@ -76,9 +77,11 @@
 
 ## research ideas:
 - a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
+- david oreilly models collection
 - indexing https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
 - late latch mouse position: https://github.com/nlguillemot/LateLatching/blob/master/main.cpp
 - building a debug "bundled" version would mean better stack traces during debugging 
+- [gpu shader derivative functions](http://www.aclockworkberry.com/shader-derivative-functions/)
 - a version of `__temporary_allocator` that ping pongs between VirtualAlloc guard pages so you know immediately if you're reading junk data
 - a bad-guy who's left-right eye perspective is BACKWARDS. it literally makes you sick...
 - find out if we can provide the layout of buffers to Renderdoc via some API
