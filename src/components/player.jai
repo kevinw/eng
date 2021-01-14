@@ -325,6 +325,7 @@ update :: (using player: *Player) {
                 // player hit
                 delta := midpoint(e_rect) - p_midpoint;
                 take_damage(*damage, delta);
+                play_sfx("ow");
                 //screenlog.world(p_midpoint, ifx delta.x > 0 then "DMG right" else "DMG left");
 
                 speed.y = -PLAYER_JUMP_SPD * 0.45;
