@@ -139,10 +139,7 @@ Player :: struct {
     using transient: struct {
         last_jump_time:float64 = -10000;
         attack_cooldown_timer: float;
-        attack_did_hit: bool;
         grounded_timer: float;
-        nearest_marker: *reaper.Marker;
-        beat_timer: float64; // TODO: duplicated and set from game.jai
     }; @noserialize @noui
 
     editor_rect: *Editor_Selectable_Rect; @noserialize @noui
@@ -211,14 +208,10 @@ update :: (using player: *Player) {
 
     state := context.state;
 
-    time_since_marker := ifx nearest_marker then beat_timer - nearest_marker.time else 0;
-    allow_all_beats := true;
-
     if !is_being_knocked_back {
         // ATTACK
         attack_button := rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
         if attack_button && !player_is_attacking(player) {
-            attack_did_hit = allow_all_beats || (nearest_marker && (Math.abs(time_since_marker) < .2 && nearest_marker.beat_type == .Kick));
             sprite_timer = 0;
             attack_cooldown_timer = get_attack_time(player);
             play_sfx("sword_swing");
@@ -226,21 +219,14 @@ update :: (using player: *Player) {
 
         // JUMP
         if !attacking && jump_button_pressed_this_frame {
-            beat_match_type := nearest_marker; // && nearest_marker.beat_type == .Snare;
-            matched_beat := allow_all_beats || (Math.abs(time_since_marker) < .2 && beat_match_type);
-            max_jump_count := ifx allow_all_beats then 1 else 2;
+            max_jump_count :: 1;
             did_jump := false;
-            if matched_beat && jump_count < max_jump_count {
-                if !grounded && !allow_all_beats
-                    screenlog.world(<<position, "double jump!");
-                //logprint("player", "jump % count=%", time_since_marker, jump_count);
+            if jump_count < max_jump_count {
+                // double jump!
                 speed.y = -PLAYER_JUMP_SPD;
                 jump_count += 1;
                 did_jump = true;
             } else if grounded {
-                early_late := ifx time_since_marker > 0 then "late" else "early";
-                if !beat_match_type early_late = "wrong beat";
-                //logprint("player", "MISS % jump %", early_late, time_since_marker);
                 speed.y = -PLAYER_JUMP_SPD * 0.25;
                 jump_count = 0;
                 did_jump = true;
@@ -288,7 +274,6 @@ update :: (using player: *Player) {
 
     if grounded && !any_ground_at_feet {
         grounded = false;
-        //logprint("player", "fell");
         jump_count = 1;
     }
 
@@ -413,7 +398,7 @@ draw :: (using player: *Player) {
                 }
             }
         } else if attacking {
-            spr = ifx attack_did_hit then attack else attack_miss;
+            spr = attack;
             fps = ATTACK_FPS;
         } else if Math.abs(horizontal_movement) > 0 {
             fps = 18;
@@ -518,6 +503,5 @@ rl :: #import "raylib";
 Color :: rl.Color;
 inp :: #import "inp";
 Math :: #import "Math";
-reaper :: #import "reaper";
 screenlog :: #import "screenlog";
 
