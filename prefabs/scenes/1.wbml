@@ -220,13 +220,17 @@ Entity {
 	id 49
 	name "box"
 }
+Entity {
+	id 50
+	name "Unnamed Entity"
+}
 Background {
 	component {
 		entity {
 			id 11
 		}
 	}
-	timer 959.505288
+	timer 962.086867
 	texture "resources/textures/space.png"
 
 }
@@ -492,11 +496,11 @@ Enemy {
 			id 2
 		}
 	}
-	sprite_timer 548.151377
-	last_sprite_timer 548.151377
+	sprite_timer 561.059149
+	last_sprite_timer 561.059149
 	last_attack_time 85.416794
 	last_attack_direction_right true
-	attack_cooldown -546.953491
+	attack_cooldown -559.86145
 }
 Enemy {
 	component {
@@ -504,10 +508,17 @@ Enemy {
 			id 30
 		}
 	}
-	sprite_timer 609.941629
-	last_sprite_timer 609.941629
+	sprite_timer 622.849433
+	last_sprite_timer 622.849433
 	last_attack_time 23.626537
-	attack_cooldown -608.74231
+	attack_cooldown -621.650269
+}
+Particle_System {
+	component {
+		entity {
+			id 50
+		}
+	}
 }
 Player {
 	component {
@@ -517,7 +528,7 @@ Player {
 	}
 	grounded true
 	last_direction -1
-	sprite_timer 61.089576
+	sprite_timer 73.997359
 	walk_timer 87.293564
 	last_walk_sprite_idx 3
 	damage {
@@ -817,7 +828,7 @@ SpriteRenderer {
 			id 8
 		}
 	}
-	timer 4882.897165
+	timer 4895.804755
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -828,7 +839,7 @@ SpriteRenderer {
 			id 9
 		}
 	}
-	timer 4869.736521
+	timer 4882.64411
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -839,7 +850,7 @@ SpriteRenderer {
 			id 10
 		}
 	}
-	timer 4861.102243
+	timer 4874.009833
 	color {
 		g 121
 		b 121
@@ -854,7 +865,7 @@ SpriteRenderer {
 			id 12
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -865,7 +876,7 @@ SpriteRenderer {
 			id 13
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -876,7 +887,7 @@ SpriteRenderer {
 			id 14
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -887,7 +898,7 @@ SpriteRenderer {
 			id 15
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -898,7 +909,7 @@ SpriteRenderer {
 			id 16
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -909,7 +920,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -920,7 +931,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -931,7 +942,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -942,7 +953,7 @@ SpriteRenderer {
 			id 20
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -953,7 +964,7 @@ SpriteRenderer {
 			id 24
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -964,7 +975,7 @@ SpriteRenderer {
 			id 26
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -976,7 +987,7 @@ SpriteRenderer {
 			id 28
 		}
 	}
-	timer 4726.059763
+	timer 4738.967353
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -987,7 +998,7 @@ SpriteRenderer {
 			id 40
 		}
 	}
-	timer 537.442667
+	timer 550.35047
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -999,7 +1010,7 @@ SpriteRenderer {
 			id 41
 		}
 	}
-	timer 537.442667
+	timer 550.35047
 	color {
 		g 52
 		b 52
@@ -1015,7 +1026,7 @@ SpriteRenderer {
 			id 42
 		}
 	}
-	timer 537.442636
+	timer 550.350409
 	color {
 		g 52
 		b 52
@@ -1031,7 +1042,7 @@ SpriteRenderer {
 			id 43
 		}
 	}
-	timer 537.442667
+	timer 550.35047
 	color {
 		r 54
 		g 0
@@ -1046,7 +1057,7 @@ SpriteRenderer {
 			id 44
 		}
 	}
-	timer 208.482698
+	timer 221.390479
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1057,7 +1068,7 @@ SpriteRenderer {
 			id 45
 		}
 	}
-	timer 208.482698
+	timer 221.390479
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1068,7 +1079,7 @@ SpriteRenderer {
 			id 46
 		}
 	}
-	timer 208.482698
+	timer 221.390479
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1079,7 +1090,7 @@ SpriteRenderer {
 			id 47
 		}
 	}
-	timer 156.95826
+	timer 169.866049
 	sprite [
 	]
 	sprite_anim "frogbuddy"
@@ -1747,5 +1758,12 @@ Transform {
 	scale {
 		x 307.309998
 		y 77.136002
+	}
+}
+Transform {
+	component {
+		entity {
+			id 50
+		}
 	}
 }

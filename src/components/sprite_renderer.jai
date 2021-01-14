@@ -49,15 +49,20 @@ on_enable :: (using it: *SpriteRenderer, parent_entity: *Entity) {
     parent_entity.flags |= .Has_Component_Rect;
 }
 
-get_entity_rect :: (using it: *SpriteRenderer) -> (bool, rl.Rectangle) {
-    ok, entity_ptr := get_entity(it.entity);
-    if !ok return false, .{};
-    transform := get_transform(it);
+get_entity_rect :: (using it: *SpriteRenderer, entity_ptr: *Entity = null, transform: *Transform = null) -> (bool, rl.Rectangle) {
+    if entity_ptr == null {
+        ok: bool;
+        ok, entity_ptr = get_entity(it.entity);
+        if !ok
+            return false, .{};
+    }
+
+    if transform == null
+        transform = get_transform(it);
 
     default_transform: Transform;
     if !transform
         transform = *default_transform;
-        
 
     if sprite.count > 0 {
         pos := transform.position.xy;

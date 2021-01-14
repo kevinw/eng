@@ -1,18 +1,17 @@
+Particle_System :: struct {
+    using component: Component;
+
+    particles: [..]Particle; @noui @noserialize
+}
+
 Particle :: struct {
-    position: Vector3;
-    velocity: Vector3;
-    radius: float;
-    color: Vector4;
+    position:  Vector3;
+    velocity:  Vector3;
+    radius:    float;
+    color:     Vector4;
 }
 
-particles: [..]Particle;
-
-
-reset_particles :: () {
-    particles.count = 0;
-}
-
-update_and_draw_particles :: (ctx: *Im_Context) {
+update :: (using particle_system: *Particle_System) {
     if particles.count == 0 {
         N :: 4000;
         array_resize(*particles, N);
@@ -26,7 +25,13 @@ update_and_draw_particles :: (ctx: *Im_Context) {
             it.color = make_vector4(R01() * 0.1, R01() * 0.5, R01() * C, 1);
         }
     }
+
     Sort.quick_sort(particles, (p1, p2) => Sort.compare_floats(p1.position.z, p2.position.z));
+}
+
+draw :: (using particle_system: *Particle_System) {
+    ctx := *context.state.im_context;
+
     t0 := make_vector2(0, 0);
     t1 := make_vector2(1, 1);
 
@@ -62,9 +67,9 @@ update_and_draw_particles :: (ctx: *Im_Context) {
 }
 
 #scope_file
-#import "Math";
-#import "Basic";
 Sort :: #import "Sort";
 #import "renderer_im";
 #import "renderer_im_impl";
+#import "Math";
+#import "Basic";
 #import "Random";

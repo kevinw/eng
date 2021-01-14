@@ -41,6 +41,7 @@ we have now, and this kind of thing...
 #load "components/background.jai";
 #load "components/parallax_background.jai";
 #load "components/physics_2d.jai";
+#load "components/particle_system.jai";
 
 #load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
 
@@ -265,21 +266,19 @@ entity_rect_and_depth :: (entity: *Entity) -> (rl.Rectangle, depth_z: float) {
 }
 
 entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = null) -> rl.Rectangle {
-
     trs := get_transform(entity);
     if out_transform != null {
         <<out_transform = trs;
     }
 
     if entity.flags & .Has_Component_Rect {
-
         // TODO: this is the kind of thing where we might be able to know based on the bitflag in the entity,
         // which method to call, and what to cast to. static dispatch ~!
 
         spr := get_component(entity, SpriteRenderer);
         if spr != null {
             assert(spr.canary == 42);
-            ok, rect := get_entity_rect(spr);
+            ok, rect := get_entity_rect(spr, entity, trs);
             if ok return rect;
         }
 

@@ -28,7 +28,6 @@ State :: struct {
     holoplay_capture: Holoplay_Capture;
 }
 
-
 is_key_down       :: (ch: u8) -> bool { return (<<_local_host_state.input_button_states)[cast(int)ch] & .DOWN != 0; }
 is_key_pressed    :: (ch: u8) -> bool { return is_key_pressed(cast,trunc(Key_Code)ch); }
 is_key_pressed    :: (key: Key_Code) -> bool {
@@ -39,13 +38,6 @@ _draw_world :: () {
     ctx := *context.state.im_context;
 
     push_blend(ctx, blend=false, flush=false);
-
-    #if PARTICLES {
-        if is_key_pressed(#char "P")
-            reset_particles();
-
-        update_and_draw_particles(ctx);
-    }
 
     im_set_z(ctx, 0);
     im_flush(ctx);
@@ -370,7 +362,6 @@ push_value :: (ptr_to_value: *$T, new_value: T) #expand {
 #import "Hash";
 #import "Math";
 #import "Window_Creation";
-#import "particles";
 Input   :: #import "Input";
 Gamepad :: #import "Gamepad";
 Sort :: #import "Sort";
