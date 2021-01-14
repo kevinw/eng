@@ -275,9 +275,9 @@ main :: () {
 
         // pass a copy of all events down into the plugin
         host_state.events_this_frame.count = 0;
-        host_state.mouse_delta_x = mouse_delta_x;
-        host_state.mouse_delta_y = mouse_delta_y;
-        host_state.mouse_delta_z = mouse_delta_z;
+        host_state.mouse_delta.x = mouse_delta_x;
+        host_state.mouse_delta.y = mouse_delta_y;
+        host_state.mouse_delta.z = mouse_delta_z;
         for events_this_frame array_add(*host_state.events_this_frame, it);
 
         for pending_moves if it.window == the_window {

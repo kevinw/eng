@@ -23,9 +23,7 @@ Host_State :: struct {
     events_this_frame:   [..]Event;
     input_button_states: *[NUM_BUTTON_STATES] Key_Current_State; // since the Input module stores state in module globals, we need to pass sa pointer down to the dll
     pending_resizes:     *[..] Window_Resize_Record;
-    mouse_delta_x: int;
-    mouse_delta_y: int;
-    mouse_delta_z: int;
+    mouse_delta: struct { x, y, z: int; }
     time:                float64;
     looking_glass_devices: []Looking_Glass_Device;
     change_window_state: #type (op: Window_State_Operation);

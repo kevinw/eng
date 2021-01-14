@@ -1025,11 +1025,11 @@ editor_update :: (state: *State) {
         {
             // rotation with mouse delta
             mouse_rotate_speed :: 0.17;
-            if _local_host_state.mouse_delta_x != 0 || _local_host_state.mouse_delta_y != 0 {
+            if _local_host_state.mouse_delta.x != 0 || _local_host_state.mouse_delta.y != 0 {
                 rotate_delta := mouse_rotate_speed * make_vector3(
                     // TODO: why are these backwards?
-                    -cast(float)_local_host_state.mouse_delta_y,
-                     cast(float)_local_host_state.mouse_delta_x,
+                    -cast(float)_local_host_state.mouse_delta.y,
+                     cast(float)_local_host_state.mouse_delta.x,
                     0);
 
                 x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
@@ -1053,8 +1053,8 @@ editor_update :: (state: *State) {
     if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
         {
             // mouse wheel zoom
-            if _local_host_state.mouse_delta_z != 0 {
-                scene_camera.fov += cast(float)_local_host_state.mouse_delta_z / 120.0 * 0.05;
+            if _local_host_state.mouse_delta.z != 0 {
+                scene_camera.fov += cast(float)_local_host_state.mouse_delta.z / 120.0 * 0.05;
                 scene_camera.matrices_need_update = true;
             }
         }
