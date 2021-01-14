@@ -57,7 +57,7 @@ Enemy :: struct {
         damage_func_type = .Enemy,
     };
 
-    last_attack_time: float64 = -9999;
+    attack_timer: float = 0;
     last_attack_direction_right: bool;
 
     dying_timer: float;
@@ -75,7 +75,7 @@ on_enable :: (using it: *Enemy, parent_entity: *Entity) {
 
 enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
     if try_take_damage(*damage, delta) {
-        last_attack_time = -99999;
+        attack_timer = 0;
         attack_cooldown = ATTACK_COOLDOWN;
     }
 }
@@ -86,7 +86,7 @@ enemy_rect :: (using it: *Enemy, transform: *Transform=null) -> rl.Rectangle {
     if transform == null
         transform = get_transform(it);
 
-    since_attack := Time.now - last_attack_time;
+    since_attack := get_attack_time(it) - attack_timer;
     position := *transform.position;
 
     if since_attack > 0.38 && since_attack < 0.60 { // when attacking, enemy rect changes
@@ -107,10 +107,12 @@ enemy_trigger_rect :: (using it: *Enemy, transform: *Transform) -> rl.Rectangle 
     return rect_from_points(position.xy + v2(-w*0.5, 0), position.xy + v2(w*0.5, -h));
 }
 
-enemy_is_attacking :: (using it: *Enemy) -> bool {
-    using context.state;
+get_attack_time :: (using it: *Enemy) -> float {
+    return cast(float)evilplant_sprite.attack_left.count/cast(float)ATTACK_FPS;
+}
 
-    return Time.now - last_attack_time < cast(float)evilplant_sprite.attack_left.count/ATTACK_FPS;
+enemy_is_attacking :: (using it: *Enemy) -> bool {
+    return attack_timer > 0;
 }
 
 draw :: (using it: *Enemy, transform: *Transform) {
@@ -187,6 +189,7 @@ enemy_update_all :: () {
             }
         }
         sprite_timer += Time.delta_time;
+        timer_decrement(*attack_timer);
         if enemy_is_attacking(it)
             if last_sprite_timer < ATTACK_CHOMP_TIME && sprite_timer > ATTACK_CHOMP_TIME
                 play_sfx("chomp");
@@ -204,7 +207,7 @@ enemy_update_all :: () {
                 e_midpoint := midpoint(e_rect);
                 delta := e_midpoint - player_midpoint;
 
-                last_attack_time = Time.now;
+                attack_timer = get_attack_time(it);
                 last_attack_direction_right = delta.x < 0;
                 sprite_timer = 0;
             }

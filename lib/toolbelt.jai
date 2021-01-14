@@ -2,6 +2,19 @@ screenp :: (msg: string, args: ..Any, ident := "", loc := #caller_location) {
     screenlog.screen_print(tprint(msg, ..args), loc=loc);
 }
 
+timer_decrement :: (timer: *float, delta_time: float) {
+    if (<<timer) > 0 {
+        (<<timer) -= delta_time;
+        if (<<timer) < 0 {
+            (<<timer) = 0;
+        }
+    }
+}
+
+timer_decrement :: (timer: *float) {
+    timer_decrement(timer, context.state.Time.delta_time);
+}
+
 screenp :: (var: Code, ident := "", loc := #caller_location) #expand {
     get_variable_name :: (code : Code) -> string {
         root := compiler_get_nodes(code);
