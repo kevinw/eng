@@ -10,11 +10,21 @@ strip_dot_slash :: (path: string) -> string @substring {
 }
 
 #program_export
-plugin_sanity_checks :: (sanity_check_info: Sanity_Check_Info) {
+plugin_sanity_checks :: (host_state: Host_State, sanity_check_info: Sanity_Check_Info) {
     my_context_size := size_of(Context);
     host_context_size := sanity_check_info.size_of_context;
     assert(host_context_size == my_context_size, "Error: host/plugin context size mismatch - % vs %", 
         host_context_size, my_context_size);
+
+    // At the time of this writing, building the host with LLVM and the
+    // plugin with the custom X64 backend results in errors. Here we do
+    // a sanity check so we get a nice error message. Hopefully in the future
+    // the two backends could generate compatible code.
+    plugin_codegen_backend :: #run get_compiler_codegen_backend();
+    assert(plugin_codegen_backend == host_state.built_with_backend,
+        "host built with % but plugin built with %",
+        host_state.built_with_backend, plugin_codegen_backend);
+
 }
 
 #program_export

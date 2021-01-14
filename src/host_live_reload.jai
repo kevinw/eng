@@ -11,7 +11,7 @@ Plugin_Init_Func               :: #type (old_value: *void, host_state: Host_Stat
 Plugin_Deinit_Func             :: #type (shutting_down: bool) -> *void;
 Plugin_Tick_Func               :: #type (host_state: Host_State);
 Plugin_On_Resource_Change_Func :: #type (full_name: string, extension: string);
-Plugin_Sanity_Checks_Func      :: #type (sanity_check_info: Sanity_Check_Info);
+Plugin_Sanity_Checks_Func      :: #type (host_state: Host_State, sanity_check_info: Sanity_Check_Info);
 
 plugin_init:        Plugin_Init_Func;
 plugin_deinit:      Plugin_Deinit_Func;

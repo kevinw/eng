@@ -33,6 +33,13 @@ Host_Build_Backend :: enum u32 { // so we don't have to #import Compiler...
     LLVM   :: 1;
 }
 
+get_compiler_codegen_backend :: () -> Host_Build_Backend {
+    if #complete Compiler.get_build_options().backend == {
+        case .X64;  return .X64;
+        case .LLVM; return .LLVM;
+    }
+}
+
 Window_State_Operation :: enum {
     Toggle_Borderless_Fullscreen;
     Toggle_Always_On_Top;
@@ -45,4 +52,5 @@ Sanity_Check_Info :: struct {
 
 
 #scope_file
+Compiler :: #import "Compiler";
 #import "Input";

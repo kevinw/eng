@@ -209,18 +209,12 @@ main :: () {
 
     the_window = Window_Creation.create_window(win_width, win_height, "", window_x=win_x, window_y=win_y);
 
-    host_state.looking_glass_devices        = looking_glass_devices;
-    host_state.window_handle                = the_window;
-    host_state.input_button_states          = *input_button_states;
-    host_state.change_window_state          = change_window_state;
-    host_state.pending_resizes              = *pending_resizes;
-    host_state.built_with_backend           = #run (() -> Host_Build_Backend {
-        if Compiler.get_build_options().backend == {
-            case .X64; return .X64;
-            case .LLVM; return .LLVM;
-        }
-        assert(false);
-    })();
+    host_state.looking_glass_devices = looking_glass_devices;
+    host_state.window_handle         = the_window;
+    host_state.input_button_states   = *input_button_states;
+    host_state.change_window_state   = change_window_state;
+    host_state.pending_resizes       = *pending_resizes;
+    host_state.built_with_backend    = #run get_compiler_codegen_backend();
 
     if cmdline_args.topmost_window
         platform.set_window_always_on_top(the_window);
@@ -250,7 +244,7 @@ main :: () {
     }
     host_state.soloud_context = soloud;
 
-    plugin_sanity_checks(Sanity_Check_Info.{size_of_context = size_of(Context)});
+    plugin_sanity_checks(host_state, Sanity_Check_Info.{size_of_context = size_of(Context)});
     plugin_init(null, host_state);
     assert(context.state != null, "plugin_init did not allocate a state");
     defer plugin_deinit(shutting_down = true);
@@ -338,7 +332,7 @@ main :: () {
 
                 get_func_ptrs_from_dll(*module);
 
-                plugin_sanity_checks(.{size_of_context = size_of(Context)});
+                plugin_sanity_checks(host_state, .{size_of_context = size_of(Context)});
 
                 if needs_complete_reload {
                     // when switching games, we deallocate the old game state
