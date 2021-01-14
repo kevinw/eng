@@ -76,7 +76,7 @@ plugin_deinit :: (shutting_down: bool) -> *void {
 plugin_tick :: (host_state: Host_State) {
     assert(context.state != null);
     _local_host_state = host_state;
-    update_and_draw();
+    update_and_draw(host_state);
 }
 
 #scope_module

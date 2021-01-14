@@ -55,12 +55,10 @@ _draw_world :: () {
     im_flush(ctx);
 }
 
-update_and_draw :: () {
+update_and_draw :: (host_state: Host_State) {
     using context.state;
 
     set_context(*renderer);
-
-    host_state := _local_host_state;
 
     Gamepad.update_gamepad();
     handle_input_module_renderer_resize(host_state.window_handle, host_state.pending_resizes);
@@ -73,7 +71,7 @@ update_and_draw :: () {
     im := *im_context;
 
     // looking glass window
-    {
+    if mview_window.window != null {
         push_renderer_context(*mview_window.mview_renderer, "lkg display");
 
         cam: *Camera;
@@ -97,6 +95,9 @@ update_and_draw :: () {
         draw_lenticular_lightfield_to_backbuffer();
         end_pass();
         present();
+        timestamp(*profiler, .LenticularBlit);
+    } else {
+        timestamp(*profiler, .MultiviewWorldRender);
         timestamp(*profiler, .LenticularBlit);
     }
 
@@ -235,27 +236,34 @@ on_host_init :: (host_state: Host_State) {
     multiview_framebuffer_size := framebuffer_size();
 
     device: *Looking_Glass_Device;
+    device_present := false;
     borderless_lkg_window := true;
     if host_state.looking_glass_devices.count > 0 {
         device = *host_state.looking_glass_devices[0];
+        device_present = true;
     } else {
         device = *fake_lkg_device;
         borderless_lkg_window = false;
     }
 
-    multiview_framebuffer_size.x = cast(u16)device.width;
-    multiview_framebuffer_size.y = cast(u16)device.height;
-    multiview.device_params = <<device;
-    print("%\n", device);
-    multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
-        device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle,
-        borderless=borderless_lkg_window);
+    if host_state.game_window_flags & .Show_Multiview {
+        if device_present || host_state.game_window_flags & .Show_Multiview_Even_If_No_Device {
+            multiview_framebuffer_size.x = cast(u16)device.width;
+            multiview_framebuffer_size.y = cast(u16)device.height;
+            multiview.device_params = <<device;
+            print("%\n", device);
+            multiview_window.create(main_renderer=*renderer, debug=GRAPHICS_LAYER_DEBUG,
+                device.xpos, device.ypos, device.width, device.height, parent=host_state.window_handle,
+                borderless=borderless_lkg_window);
 
-    create_multiview_pass(multiview_framebuffer_size);
+            create_multiview_pass(multiview_framebuffer_size);
 
-    // we tell the host about the extra window we created
-    if mview_window.window != null
-        array_add(*host_state.debug_extra_window_handles, mview_window.window);
+            // we tell the host about the extra window we created
+            if mview_window.window != null
+                array_add(*host_state.debug_extra_window_handles, mview_window.window);
+        }
+    }
+
 }
 
 fake_lkg_device :: Looking_Glass_Device.{

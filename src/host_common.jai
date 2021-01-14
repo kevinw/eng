@@ -5,7 +5,16 @@ Looking_Glass_Device :: struct {
     view_cone: float;
 }
 
+Game_Window_Flags :: enum_flags {
+    Show_Editor                      :: (1 << 0);
+    Show_Multiview                   :: (1 << 1);
+    Show_Multiview_Even_If_No_Device :: (1 << 2);
+
+    DEV_DEFAULT :: Game_Window_Flags.Show_Editor | .Show_Multiview;
+}
+
 Host_State :: struct {
+    game_window_flags: Game_Window_Flags = .DEV_DEFAULT;
     jai_compiler_did_error: bool;
     jai_compiler_error_string: string;
     soloud_context:      *void;
@@ -18,13 +27,8 @@ Host_State :: struct {
     mouse_delta_y: int;
     mouse_delta_z: int;
     time:                float64;
-
     looking_glass_devices: []Looking_Glass_Device;
-
     change_window_state: #type (op: Window_State_Operation);
-
-    toggle_borderless_fullscreen: #type ();
-
     built_with_backend: Host_Build_Backend;
 }
 
