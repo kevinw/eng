@@ -1,26 +1,16 @@
 # TODO
 
 ## Immediate
- 
-- the second vim tab has holoplay view matrices open. try to replicate their logic precisely
-    - make the multiview projection translation start left and end up right of the camera
-- checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
-- materials
+- Materials
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
-- before things get too elaborate or complicated, try using Matrix4x3 
 - color palettes
-- gpu optimization list https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
+- checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
 
 ## High Priority
-- mark draw-calls with [more debug APIs](https://seanmiddleditch.com/direct3d-11-debug-api-tricks/)
-- swapchain/renderer rework - we need one renderer, but two swapchains
-- reverse Z depth
-- [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - Join the [Berlin mini-game jam discord](https://discord.gg/evM44ns)
 - Make the editor prompt you to save changes to a scene on exit.
 - 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
-- Maybe show the current task in the game as an overlay!
 - Figure out how Link should work and make it work!
 - ImGui compiler node visualizer (bonus points for using the node editor)
 - `on_enable` needs to be called after all sibling components get added. Then I
@@ -28,6 +18,11 @@
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 
 ## Medium Priority
+- swapchain/renderer rework - we need one renderer, but two swapchains
+- reverse Z depth
+- [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
+- mark draw-calls with [more debug APIs](https://seanmiddleditch.com/direct3d-11-debug-api-tricks/)
+- try using Matrix4x3 
 - shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
 - Don't make an engine. Make a game. Find a way to center that.
@@ -71,11 +66,13 @@
       re-entry.
     - a `loglocals()` function which would be a quick way to throw local
       VARIABLES ONTO THE SCREEN.
+- Maybe show the current task in the game as an overlay!
 - flappy word - flappy bird mechanics, but you're swapping letters in words vertically
     - a column of characters. one or more words may be created from it. you're flapping the bird as you go, trying to fit into the gap that you create by removing a word.
 
 
-## research ideas:
+## Research
+- GPU optimization list https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
 - a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
 - david oreilly models collection
 - indexing https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
