@@ -3,6 +3,7 @@
 ATTACK_FPS :: 13;
 DAMAGE_FPS :: 6;
 PLAYER_JUMP_SPD :: 350;
+LAND_FX_TIMER :: 0.2;
 DAMAGE_KNOCKBACK :: 250;
 PLAYER_HOR_SPD :: 220;
 DAMAGE_TIME :: 0.9;
@@ -137,9 +138,9 @@ Player :: struct {
 
     using transient: struct {
         last_jump_time:float64 = -10000;
-        last_attack_time:float64 = -10000;
+        attack_cooldown_timer: float;
         attack_did_hit: bool;
-        last_grounded_time:float64 = -10000;
+        grounded_timer: float;
         nearest_marker: *reaper.Marker;
         beat_timer: float64; // TODO: duplicated and set from game.jai
     }; @noserialize @noui
@@ -168,6 +169,8 @@ update :: (using player: *Player) {
 
     is_being_knocked_back := player_has_been_damaged(player);
     sprite_timer += Time.delta_time;
+    timer_decrement(*attack_cooldown_timer, Time.delta_time);
+    timer_decrement(*grounded_timer, Time.delta_time);
 
     attacking := player_is_attacking(player);
 
@@ -213,10 +216,11 @@ update :: (using player: *Player) {
 
     if !is_being_knocked_back {
         // ATTACK
-        if (rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+        attack_button := rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
+        if attack_button && !player_is_attacking(player) {
             attack_did_hit = allow_all_beats || (nearest_marker && (Math.abs(time_since_marker) < .2 && nearest_marker.beat_type == .Kick));
             sprite_timer = 0;
-            last_attack_time = Time.now;
+            attack_cooldown_timer = get_attack_time(player);
             play_sfx("sword_swing");
         }
 
@@ -267,16 +271,13 @@ update :: (using player: *Player) {
             hitObstacle = true;
             speed.y = 0.0;
             p.y = rect.y;
-            if !grounded {
-                if Time.now - last_grounded_time > 0.2 {
-                    // landed
-                    last_grounded_time = Time.now;
-                    spawn_prefab("player_dust", <<position);
-                    play_sfx("landing");
-                }
+            if !grounded && grounded_timer <= 0 {
+                // landed
+                grounded_timer = LAND_FX_TIMER;
+                spawn_prefab("player_dust", <<position);
+                play_sfx("landing");
             }
 
-            //logprint("player", "grounded");
             grounded = true;
             jump_count = 0;
         }
@@ -358,15 +359,16 @@ update :: (using player: *Player) {
         context.state.restart();
 }
 
-player_is_attacking :: (it: *Player) -> bool {
-    using context.state;
-
-    return Time.now - it.last_attack_time < cast(float)gino_sprites.attack.count/ATTACK_FPS;
+get_attack_time :: (it: *Player) -> float {
+    return cast(float)gino_sprites.attack.count/cast(float)ATTACK_FPS;
 }
 
-player_attack_hitbox :: (it: *Player) -> bool {
-    using context.state;
-    time_since_attack := Time.now - it.last_attack_time;
+player_is_attacking :: (using it: *Player) -> bool {
+    return attack_cooldown_timer > 0;
+}
+
+player_attack_hitbox :: (using it: *Player) -> bool {
+    time_since_attack := get_attack_time(it) - attack_cooldown_timer;
     return time_since_attack < 0.43 && time_since_attack > 0.1;
 }
 
@@ -420,16 +422,16 @@ draw :: (using player: *Player) {
 
             walking = true;
         } else {
-
             fps = 10;
-            since_land := Time.now - player.last_grounded_time;
-            landing_animation_time := cast(float)gino_sprites.jump_landing.count/fps;
-            if since_land < landing_animation_time {
-                spr = jump_landing;
-                N:float : 0.82;
-                squish = N + (1.0 - N) * cast(float)(since_land / landing_animation_time);
-            } else {
-                spr = idle;
+            spr = idle;
+            if player.grounded_timer > 0 {
+                since_land := LAND_FX_TIMER - player.grounded_timer;
+                landing_animation_time := cast(float)gino_sprites.jump_landing.count/fps;
+                if since_land < landing_animation_time {
+                    spr = jump_landing;
+                    N:float : 0.82;
+                    squish = N + (1.0 - N) * cast(float)(since_land / landing_animation_time);
+                }
             }
         }
     }
