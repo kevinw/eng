@@ -93,5 +93,6 @@
     - render another camera to a render texture and find a library to stream it...ideally gamedev focused so it provides input, etc.
 - multiplayer edit and play simultaneously
     - the fundamental data structure is a shared one
-
+- visual references - [Zach L](https://www.instagram.com/p/CJo8vk4DFkP/?igshid=6euuke12qmrg)
+- [game design library](https://nightblade9.github.io/game-design-library/)
 

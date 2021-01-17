@@ -46,7 +46,6 @@ play_sfx :: ($name: string) {
 }
 
 sound_init :: (using state: *Sound_State) {
-
     fx.footstep1   = create_and_load_wav("resources/sfx/footsteps/wood1.wav");
     fx.footstep2   = create_and_load_wav("resources/sfx/footsteps/wood2.wav");
     fx.chomp       = create_and_load_wav("resources/sfx/521253__maugusto-sfx__eatingsfx.wav");

@@ -1,3 +1,7 @@
+screenp :: (msg: string, loc := #caller_location) {
+    screenlog.screen_print(msg, loc=loc);
+}
+
 screenp :: (msg: string, args: ..Any, ident := "", loc := #caller_location) {
     screenlog.screen_print(tprint(msg, ..args), loc=loc);
 }
@@ -16,14 +20,27 @@ timer_decrement :: (timer: *float) {
 }
 
 screenp :: (var: Code, ident := "", loc := #caller_location) #expand {
-    get_variable_name :: (code : Code) -> string {
+    simple_stringify_code :: (code : Code) -> string {
         root := compiler_get_nodes(code);
-        assert(root.kind == .IDENT, "expected #code root not to be of kind IDENT, but got %", root.kind);
-        ident := cast(*Code_Ident) root;
-        return ident.name;
+        if root.kind == {
+            case .LITERAL;
+                code_literal := cast(*Code_Literal)root;
+                if code_literal.value_type == {
+                    case .STRING;
+                        return code_literal._string;
+                    case;
+                        assert(false, "unimplemented case for screenp");
+                }
+            case .IDENT;
+                return (cast(*Code_Ident) root).name;
+            case;
+                assert(false, "unimplemented #code case %", root.kind);
+        }
+
+        return "";
     }
 
-    screenp("% = %\n", #run get_variable_name(var), #insert var, ident=ident, loc=loc);
+    screenp("% = %\n", #run simple_stringify_code(var), #insert var, ident=ident, loc=loc);
 }
 
 sin_min_max :: (val: float, min: float, max: float) -> float {
