@@ -94,6 +94,7 @@ Editor :: struct {
         undo_internals := false;
         prefab_cache   := false;
         ecs_internals  := false;
+        context_inspector := false;
         asset_selector: struct {
             filter: ImGui.TextFilter;
             visible := false;
@@ -1064,7 +1065,7 @@ editor_update :: (state: *State) {
         screen_mouse_pos := v2(mouse_x, mouse_y);
         if set_if_different(*mouse_pos, screen_mouse_pos) {
             mouse_ray := screen_point_to_ray(*scene_camera, screen_mouse_pos);
-            mouse_ray.direction *= -1; // TODO: why is this necessary???
+            //mouse_ray.direction *= -1; // TODO: why is this necessary???
 
             // TODO: instead of using XY_PLANE which is at zero, we should use
             // a plane at the Z of the 2D rectangle we're moving.
