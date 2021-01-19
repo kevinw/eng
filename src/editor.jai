@@ -483,7 +483,8 @@ render_asset_selector :: (window_open: *bool) {
         case .Texture;
             live_tex := selected_asset.tex;
             selected_tex_id, selected_tex_size := imtex(live_tex);
-            entry_tex := ifx it == null then *LiveTexture.Empty else *it.live_texture;
+            empty_live_tex: LiveTexture;
+            entry_tex := ifx it == null then *empty_live_tex else *it.live_texture;
             tex_id, size := imtex(entry_tex, ImGui.make_ImVec2(MAX_HEIGHT, MAX_HEIGHT));
             MAX_HEIGHT :: 200;
             if size.y > MAX_HEIGHT {

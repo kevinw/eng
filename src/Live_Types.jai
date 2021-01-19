@@ -5,8 +5,6 @@ Live_Asset_Database :: struct {
 
 LiveThing :: struct(T: Type) {
     using _entry: *T; @noui @noserialize
-
-    Empty :: LiveThing(T).{};
 }
 
 has_value :: (thing: LiveThing) -> bool {

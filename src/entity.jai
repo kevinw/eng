@@ -687,7 +687,7 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
                 if node._string.count > 0 {
                     <<live_texture_ptr = LoadLiveTexture(node._string);
                 } else {
-                    <<live_texture_ptr = LiveTexture.Empty;
+                    <<live_texture_ptr = .{};
                 }
             }
         } else if any.type == type_info(*Shader) {
