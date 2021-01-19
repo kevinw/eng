@@ -324,10 +324,11 @@ World :: struct {
     canary1 := 101;
     entities: Array_With_Holes(Entity);
     #insert #run (() -> string {
-        return buf_string((sb: *String_Builder) {
-            for all_component_types
-            print_to_builder(sb, "_%: Array_With_Holes(%);\n", it, it);
-        });
+        sb: String_Builder;
+        sb.allocator = __temporary_allocator;
+        for all_component_types
+            print_to_builder(*sb, "_%: Array_With_Holes(%);\n", it, it);
+        return builder_to_string(*sb, __temporary_allocator);
     }());
 
     canary2 := 999;
@@ -360,11 +361,11 @@ init_world :: (world: *World) {
 
     init_array_with_holes(*world.entities, "all-entities");
     #insert #run(() -> string {
-        return buf_string((sb: *String_Builder) {
-            for all_component_types {
-                print_to_builder(sb, "init_array_with_holes(*context.state.world._%, \"all-%\");\n", it, it);
-            }
-        });
+        sb: String_Builder;
+        sb.allocator = __temporary_allocator;
+        for all_component_types
+            print_to_builder(*sb, "init_array_with_holes(*context.state.world._%, \"all-%\");\n", it, it);
+        return builder_to_string(*sb, __temporary_allocator);
     }());
 
     // Here we create empty stack variables for each component type, and then

@@ -80,10 +80,11 @@ get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
 }
 
 bucket_chooser :: () -> string {
-    return buf_string((sb: *String_Builder) {
-        for all_component_types
-        print_to_builder(sb, "#if component_type == % bucket = *context.state.world._%;\n", it, it);
-    });
+    sb: String_Builder;
+    sb.allocator = __temporary_allocator;
+    for all_component_types
+        print_to_builder(*sb, "#if component_type == % bucket = *context.state.world._%;\n", it, it);
+    return builder_to_string(*sb, __temporary_allocator);
 }
 
 foreach_component_type :: (inner_code_string: string) -> string {
@@ -146,15 +147,6 @@ _return_component_array_add :: (insert_run_on_enable: bool) -> string {
         print_to_builder(*sb, "    c = ptr;\n", it);
         print_to_builder(*sb, "}\n", it);
     }
-
-    return builder_to_string(*sb);
-}
-
-buf_string :: (f: (sb: *String_Builder)) -> string {
-    sb: String_Builder;
-    defer free_buffers(*sb);
-
-    f(*sb);
 
     return builder_to_string(*sb);
 }
