@@ -192,7 +192,7 @@ set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
         build_opts.backend = .LLVM;
         set_optimization_level(build_opts, opt_level=3, size_level=1);
     } else {
-        build_opts.backend = .X64;
+        build_opts.backend = .LLVM;
         set_optimization_level(build_opts, opt_level=0, size_level=0);
     }
 }
@@ -476,40 +476,62 @@ build :: () {
     //print("args:\n");
     //for args print("%: %\n", it_index, it);
 
-    if args.count > 0 && args[0] == "--release" {
+    game_name := DEFAULT_SRC_PLUGIN;
+
+    consume_arg :: (args: *[]string, s: *string = null) #expand {
+        assert(args.count > 0);
+        if s != null {
+            <<s = (<<args)[0];
+        }
         args.data = args.data + 1;
         args.count -= 1;
+    }
+
+    maybe_consume_arg :: (args: *[]string, name: string) -> bool {
+        if args.count > 0 && (<<args)[0] == name {
+            consume_arg(args);
+            return true;
+        }
+
+        return false;
+    }
+
+    if maybe_consume_arg(*args, "--release")
         flags |= .Release;
-    }
 
-    if args.count > 0 {
-        if args[0] == "reload" {
-            args.data = args.data + 1;
-            args.count -= 1;
-            flags |= .Reload;
+    if maybe_consume_arg(*args, "--game") {
+        if args.count == 0 {
+            print("error: must specify a game name after '--game' option\n");
+            exit(1);
         }
 
-        if args.count > 0 if args[0] == {
-            case "all";
-                build_host(flags);
-                if flags & .Release == 0
-                    build_plugin(flags, DEFAULT_SRC_PLUGIN);
-            case "host";
-                build_host(flags);
-            case "check";
-                flags |= .Check_Only;
-                build_host(flags);
-                build_plugin(flags, DEFAULT_SRC_PLUGIN);
-            case;
-                build_plugin(flags, args[0]);
-        }
-
-        return; // done.
+        consume_arg(*args, *game_name);
     }
 
-    // With no command line arugments, just build the plugin specified by
-    // DEFAULT_SRC_PLUGIN.
-    build_plugin(flags, DEFAULT_SRC_PLUGIN);
+    if maybe_consume_arg(*args, "reload")
+        flags |= .Reload;
+
+    if args.count == 0 {
+        build_plugin(flags, game_name);
+        return;
+    }
+
+    if args[0] == {
+        case "all";
+            build_host(flags);
+            if flags & .Release == 0
+                build_plugin(flags, game_name);
+        case "host";
+            build_host(flags);
+        case "check";
+            flags |= .Check_Only;
+            build_host(flags);
+            build_plugin(flags, game_name);
+        case;
+            // we're specifying the game_name at the command line (like when we're reloading)
+            game_name = args[0];
+            build_plugin(flags, game_name);
+    }
 }
 
 #run build();

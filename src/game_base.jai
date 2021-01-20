@@ -9,6 +9,11 @@ State_Base :: struct {
 
     canary1 := 9999;
 
+    renderer:      Renderer;
+    im_context:    Im_Context_R;
+    multiview:     Multiview_State;
+    mview_window:  multiview_window.State;
+
     physics_2d_state: Physics_2D_State;
 
     gameWidth  :: 640;
@@ -30,20 +35,26 @@ State_Base :: struct {
     debug_draw := false;
     world: World;
 
+    // TODO: this is a hack until we have multiple swapchains, not multiple renderers
+    all_renderers: [..]*Renderer;
+
     profiler_text: string;
     profiler:      Profiler(Profiler_Timestamps);
     first_update:    bool;
 
     canary2 := 4000;
-    restart: ();
     canary3 := -99;
 }
 
 game_base_shutdown :: () {
     using context.state;
 
+    // TODO: the notion of some kind of "hard exit" so that we can do leak
+    // tracking, but keep exiting fast when we don't care about the details.
+    shutdown_profiler(*profiler);
     World.deinit(*world);
     sound_deinit(*sound_state);
+    multiview_window.close();
 }
 
 game_base_update :: (host_state: Host_State) {
@@ -54,6 +65,9 @@ game_base_update :: (host_state: Host_State) {
         logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
     }
 
+    Gamepad.update_gamepad();
+    handle_input_module_renderer_resize(host_state.window_handle, host_state.pending_resizes);
+    ImGui_Impl_ProcessInputEvents(*ui, host_state.events_this_frame);
 
     ImGui_Impl_NewFrame(*ui, host_state.window_handle, rl.GetScreenWidth(), rl.GetScreenHeight());
 
@@ -83,8 +97,6 @@ game_base_update :: (host_state: Host_State) {
         shift := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
         if rl.IsKeyPressed(.KEY_TAB) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
             editor_toggle(context.state);
-        if rl.IsKeyPressed(.KEY_R) && !shift && restart != null
-            restart();
         if rl.IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
         if rl.IsKeyPressed(.KEY_EQUAL) change_global_time_scale(+1);
         if rl.IsKeyPressed(.KEY_D) && shift {
@@ -125,14 +137,28 @@ game_base_draw_compile_error :: () {
 game_base_init :: (host_state: Host_State) {
     using context.state;
 
+    profiler_ok := init_profiler(*profiler);
+    assert(profiler_ok);
+
+    setup_gamepad(host_state);
+
+    _update_raylib_temp(host_state);
+    ui.d3dDevice = xx renderer.device;
+    ui.d3dDeviceContext = xx renderer.device_context1;
+
     init_world(*world);
     imgui_init(*ui, host_state.window_handle);
     sound_init(*sound_state);
     editor_init(*editor);
 }
 
-game_base_did_reload_dll :: () {
+game_base_did_reload_dll :: (host_state: Host_State) {
     using context.state;
+
+    set_global_renderer_ptr(*renderer);
+    context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
+    setup_gamepad(host_state);
+    _update_raylib_temp(host_state);
 
     _SetImGuiAllocators();
     ui.Time = 0; // get_time() will return 0 when the DLL reloads...so this is to prevent a negative delta time
@@ -153,7 +179,63 @@ game_base_did_reload_dll :: () {
     logprint("game", "game dll reloaded at % secs", cast(int)rl.GetTime());
 }
 
+setup_gamepad :: (host_state: Host_State) {
+    Gamepad.init_gamepad();
+
+    // This bit of trickery is to support live reloading with the host/game dll
+    // split.  the gamepad module does a thing where it points one of its own
+    // arrays into the .data of the input_button_states in the Input module.
+    //
+    // but Input.input_button_states is only valid for us in the host's memory,
+    // so we attempt to only accesss it through host_state.input_button_states.
+    assert(host_state.input_button_states != null);
+    Gamepad.gamepad.buttons.data = *(<<host_state.input_button_states)[Key_Code.GAMEPAD_0_BEGIN];
+}
+
+
+game_base_set_function_pointers :: () {
+    set_debug_callback(on_renderer_debug_message);
+}
+
 #scope_file
+
+_update_raylib_temp :: (host_state: Host_State) {
+    using context.state;
+
+    // These go away once we remove the fake raylib module entirely.
+    rl._XXX_SetRenderer(*renderer);
+    rl._XXX_SetHostInputButtonStates(host_state.input_button_states);
+}
+
+
+handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resizes: *[..]Window_Resize_Record) {
+    // The Jai input module queues up records for window resizes.
+    // Here we resize the swapchain for the newest size.
+    did_resize: bool;
+    w, h: int;
+    for * <<pending_resizes if it.window == window_handle {
+        did_resize = true;
+        w = it.width;
+        h = it.height;
+        remove it;
+    }
+
+    if did_resize
+        resize_swapchain(xx w, xx h);
+}
+
+
+on_renderer_debug_message :: (debug_message: Debug_Message) {
+    log_mode: Log_Mode;
+    if debug_message.severity == {
+        case .Info;    log_mode = .EVERYDAY;
+        case .Message; log_mode = .EVERYDAY;
+        case;          log_mode = .MINIMAL;
+    }
+
+    logprint("renderer", log_mode, debug_message.text);
+}
+
 
 Physics_2D_State :: struct {
     space: *cp.Space;
@@ -177,6 +259,8 @@ Sloppy_Math :: #import "Sloppy_Math";
 #if BUILDING_DLLS {
 #import "host_common";
 }
+Gamepad :: #import "Gamepad";
 #load "plugin_exports.jai";
 #load "editor.jai";
 
+multiview_window :: #import "multiview_window";

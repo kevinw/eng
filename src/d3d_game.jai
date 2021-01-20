@@ -17,11 +17,6 @@ Profiler_Timestamps :: enum {
 State :: struct {
     using state_base:  State_Base;
 
-    renderer:      Renderer;
-    im_context:    Im_Context_R;
-    multiview:     Multiview_State;
-    mview_window:  multiview_window.State;
-
     current_im_camera: *Camera;
     current_im_holoplay_capture: *Holoplay_Capture;
 
@@ -52,9 +47,6 @@ update_and_draw :: (host_state: Host_State) {
 
     set_context(*renderer);
 
-    Gamepad.update_gamepad();
-    handle_input_module_renderer_resize(host_state.window_handle, host_state.pending_resizes);
-    ImGui_Impl_ProcessInputEvents(*ui, host_state.events_this_frame);
     game_base_update(host_state);
 
     begin_frame(*profiler);
@@ -162,62 +154,24 @@ END,
     );
 }
 
-_update_raylib_temp :: (host_state: Host_State) {
-    using context.state;
-
-    // These go away once we remove the fake raylib module entirely.
-    rl._XXX_SetRenderer(*renderer);
-    rl._XXX_SetHostInputButtonStates(host_state.input_button_states);
-}
-
 on_host_did_reload_game_dll :: (host_state: Host_State) {
     using context.state;
-    set_global_renderer_ptr(*renderer);
-    set_context_funcs();
 
-    context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
-
-    setup_gamepad(host_state);
-
-    _update_raylib_temp(host_state);
-    game_base_did_reload_dll();
+    game_base_did_reload_dll(host_state);
+    set_function_pointers();
 }
 
 on_host_shutdown :: () {
-    // TODO: the notion of some kind of "hard exit" so that we can do leak
-    // tracking, but keep exiting fast when we don't care about the details.
-    using context.state;
-    shutdown_profiler(*profiler);
     game_base_shutdown();
-    multiview_window.close();
-}
-
-setup_gamepad :: (host_state: Host_State) {
-    Gamepad.init_gamepad();
-
-    // this bit of trickery is to support live reloading with the host/game dll
-    // split.  the gamepad module does a thing where it points one of its own
-    // arrays into the .data of the input_button_states in the Input module.
-    //
-    // but Input.input_button_states is only valid for us in the host's memory,
-    // so we attempt to only accesss it through host_state.input_button_states.
-    assert(host_state.input_button_states != null);
-    Gamepad.gamepad.buttons.data = *(<<host_state.input_button_states)[Key_Code.GAMEPAD_0_BEGIN];
 }
 
 on_host_init :: (host_state: Host_State) {
     using context.state;
 
-    setup_gamepad(host_state);
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
+    array_add(*all_renderers, *renderer);
 
-    profiler_ok := init_profiler(*profiler);
-    assert(profiler_ok);
-
-    set_context_funcs();
-    _update_raylib_temp(host_state);
-    ui.d3dDevice = xx renderer.device;
-    ui.d3dDeviceContext = xx renderer.device_context1;
+    set_function_pointers();
     game_base_init(host_state);
 
     im_context.renderer = *renderer;
@@ -274,27 +228,14 @@ fake_lkg_device :: Looking_Glass_Device.{
     view_cone = 40,
 };
 
-set_context_funcs :: () {
-    context.state.restart = restart;
+
+set_function_pointers :: () {
+    logprint("d3d_game", "setting editor_did_drag");
     context.state.editor.callbacks.did_drag = editor_did_drag;
-
-    set_debug_callback(on_renderer_debug_message);
+    game_base_set_function_pointers();
 }
 
-on_renderer_debug_message :: (debug_message: Debug_Message) {
-    log_mode: Log_Mode;
-    if debug_message.severity == {
-        case .Info;    log_mode = .EVERYDAY;
-        case .Message; log_mode = .EVERYDAY;
-        case;          log_mode = .MINIMAL;
-    }
-
-    logprint("renderer", log_mode, debug_message.text);
-}
-
-restart :: () {
-    using context.state;
-}
+#scope_file
 
 editor_did_drag :: (rect: rl.Rectangle) {
     using context.state;
@@ -309,24 +250,6 @@ editor_did_drag :: (rect: rl.Rectangle) {
     set_selected(block_h);
     Undo.commit(*editor.undo_state);
 }
-
-handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resizes: *[..]Window_Resize_Record) {
-    // The Jai input module queues up records for window resizes.
-    // Here we resize the swapchain for the newest size.
-    did_resize: bool;
-    w, h: int;
-    for * <<pending_resizes if it.window == window_handle {
-        did_resize = true;
-        w = it.width;
-        h = it.height;
-        remove it;
-    }
-
-    if did_resize
-        resize_swapchain(xx w, xx h);
-}
-
-#scope_file
 
 envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: rl.Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
     undo: *Undo.Impl;
@@ -345,6 +268,7 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 
     renderer := add_component(entity_handle, RectRenderer, undo=undo);
     renderer.color = color;
+
 
     return entity, entity_handle;
 }

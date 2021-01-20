@@ -18,6 +18,7 @@ create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, 
         platform.set_window_borderless(window, true, x, y, width, height);
     init_from_main_window(main_renderer=main_renderer,
         new_renderer_ptr=*mview_renderer, window, debug=debug);
+    array_add(*context.state.all_renderers, *mview_renderer);
 }
 
 close :: () {
