@@ -4,6 +4,8 @@ Physics_Object :: struct {
 }
 
 Circle_Collider_2D :: struct {
+    collision := Collision_Type.PHYSICAL;
+
     using component: Component;
     using physics_object: Physics_Object; @noserialize @noui
 }
@@ -65,22 +67,24 @@ remove_physics_object :: (using physics_object: *Physics_Object) {
 
 
 on_enable :: (using col: *Circle_Collider_2D, parent_entity: *Entity) {
-    using context.state.physics_2d_state;
-    ensure_space_created(*space);
+    if collision & .PHYSICAL {
+        using context.state.physics_2d_state;
+        ensure_space_created(*space);
 
-    xrs := get_transform(parent_entity);
+        xrs := get_transform(parent_entity);
 
-    radius := max(xrs.scale.x, xrs.scale.y);
-    mass := 1.0;
+        radius := max(xrs.scale.x, xrs.scale.y);
+        mass := 1.0;
 
-    moment := cp.MomentForCircle(mass, 0, radius, cp.vzero);
-    body = cp.BodyNew(mass, moment);
+        moment := cp.MomentForCircle(mass, 0, radius, cp.vzero);
+        body = cp.BodyNew(mass, moment);
 
-    cp.SpaceAddBody(space, body);
-    cp.BodySetPosition(body, cp.v(xrs.position.x, xrs.position.y));
+        cp.SpaceAddBody(space, body);
+        cp.BodySetPosition(body, cp.v(xrs.position.x, xrs.position.y));
 
-    shape = cp.SpaceAddShape(space, cp.CircleShapeNew(body, radius, cp.vzero));
-    cp.ShapeSetFriction(shape, 0.7);
+        shape = cp.SpaceAddShape(space, cp.CircleShapeNew(body, radius, cp.vzero));
+        cp.ShapeSetFriction(shape, 0.7);
+    }
 }
 
 updated_this_frame := -1;
@@ -148,19 +152,20 @@ get_chipmunk_rect :: (col: *BoxCollider, transform: *Transform) -> (cp.Vect, flo
 }
 
 on_enable :: (using col: *BoxCollider, parent_entity: *Entity) {
-    using context.state.physics_2d_state;
-    ensure_space_created(*space);
+    if collision & .PHYSICAL {
+        using context.state.physics_2d_state;
+        transform := get_transform(col);
+        ensure_space_created(*space);
 
-    transform := get_transform(col);
+        pos, width, height := get_chipmunk_rect(col, transform);
 
-    pos, width, height := get_chipmunk_rect(col, transform);
-
-    body = cp.BodyNewStatic();
-    cp.SpaceAddBody(space, body);
-    cp.BodySetPosition(body, pos);
-    
-    shape = cp.SpaceAddShape(space, cp.BoxShapeNew(body, width, height, 0.0));
-    cp.ShapeSetFriction(shape, 0.8);
+        body = cp.BodyNewStatic();
+        cp.SpaceAddBody(space, body);
+        cp.BodySetPosition(body, pos);
+        
+        shape = cp.SpaceAddShape(space, cp.BoxShapeNew(body, width, height, 0.0));
+        cp.ShapeSetFriction(shape, 0.8);
+    }
 }
 
 on_disable :: (using rb: *BoxCollider, parent_entity: *Entity) {
