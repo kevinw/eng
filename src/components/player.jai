@@ -341,8 +341,11 @@ update :: (using player: *Player) {
     }
 
     // catch player falling off the universe
-    if position.y > 1000
-        context.state.restart();
+    if position.y > 1500 { 
+        position.x = 644;
+        position.y = 190;
+        speed = .{0, 0};
+    }
 }
 
 get_attack_time :: (it: *Player) -> float {
