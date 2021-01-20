@@ -42,6 +42,7 @@ we have now, and this kind of thing...
 #load "components/parallax_background.jai";
 #load "components/physics_2d.jai";
 #load "components/particle_system.jai";
+#load "components/ship.jai";
 
 #load "entity_meta.jai"; // contains compile-time Entity infrastructure code.
 

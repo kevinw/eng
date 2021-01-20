@@ -230,7 +230,7 @@ Background {
 			id 11
 		}
 	}
-	timer 962.086867
+	timer 963.256894
 	texture "resources/textures/space.png"
 
 }
@@ -496,11 +496,10 @@ Enemy {
 			id 2
 		}
 	}
-	sprite_timer 561.059149
-	last_sprite_timer 561.059149
-	last_attack_time 85.416794
+	sprite_timer 566.909286
+	last_sprite_timer 566.909286
 	last_attack_direction_right true
-	attack_cooldown -559.86145
+	attack_cooldown -565.711365
 }
 Enemy {
 	component {
@@ -508,10 +507,9 @@ Enemy {
 			id 30
 		}
 	}
-	sprite_timer 622.849433
-	last_sprite_timer 622.849433
-	last_attack_time 23.626537
-	attack_cooldown -621.650269
+	sprite_timer 628.699569
+	last_sprite_timer 628.699569
+	attack_cooldown -627.500183
 }
 Particle_System {
 	component {
@@ -526,9 +524,12 @@ Player {
 			id 1
 		}
 	}
+	speed {
+		y 19.122776
+	}
 	grounded true
 	last_direction -1
-	sprite_timer 73.997359
+	sprite_timer 79.847488
 	walk_timer 87.293564
 	last_walk_sprite_idx 3
 	damage {
@@ -828,7 +829,7 @@ SpriteRenderer {
 			id 8
 		}
 	}
-	timer 4895.804755
+	timer 4901.655013
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -839,7 +840,7 @@ SpriteRenderer {
 			id 9
 		}
 	}
-	timer 4882.64411
+	timer 4888.494369
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -850,7 +851,7 @@ SpriteRenderer {
 			id 10
 		}
 	}
-	timer 4874.009833
+	timer 4879.860091
 	color {
 		g 121
 		b 121
@@ -865,7 +866,7 @@ SpriteRenderer {
 			id 12
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -876,7 +877,7 @@ SpriteRenderer {
 			id 13
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -887,7 +888,7 @@ SpriteRenderer {
 			id 14
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -898,7 +899,7 @@ SpriteRenderer {
 			id 15
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -909,7 +910,7 @@ SpriteRenderer {
 			id 16
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -920,7 +921,7 @@ SpriteRenderer {
 			id 17
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -931,7 +932,7 @@ SpriteRenderer {
 			id 18
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -942,7 +943,7 @@ SpriteRenderer {
 			id 19
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -953,7 +954,7 @@ SpriteRenderer {
 			id 20
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -964,7 +965,7 @@ SpriteRenderer {
 			id 24
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -975,7 +976,7 @@ SpriteRenderer {
 			id 26
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -987,7 +988,7 @@ SpriteRenderer {
 			id 28
 		}
 	}
-	timer 4738.967353
+	timer 4744.817611
 	sprite [
 	]
 	sprite_anim "grass_small"
@@ -998,7 +999,7 @@ SpriteRenderer {
 			id 40
 		}
 	}
-	timer 550.35047
+	timer 556.200607
 	sprite [
 	]
 	sprite_anim "humble_tree"
@@ -1010,7 +1011,7 @@ SpriteRenderer {
 			id 41
 		}
 	}
-	timer 550.35047
+	timer 556.200607
 	color {
 		g 52
 		b 52
@@ -1026,7 +1027,7 @@ SpriteRenderer {
 			id 42
 		}
 	}
-	timer 550.350409
+	timer 556.200546
 	color {
 		g 52
 		b 52
@@ -1042,7 +1043,7 @@ SpriteRenderer {
 			id 43
 		}
 	}
-	timer 550.35047
+	timer 556.200607
 	color {
 		r 54
 		g 0
@@ -1057,7 +1058,7 @@ SpriteRenderer {
 			id 44
 		}
 	}
-	timer 221.390479
+	timer 227.2406
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1068,7 +1069,7 @@ SpriteRenderer {
 			id 45
 		}
 	}
-	timer 221.390479
+	timer 227.2406
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1079,7 +1080,7 @@ SpriteRenderer {
 			id 46
 		}
 	}
-	timer 221.390479
+	timer 227.2406
 	sprite [
 	]
 	sprite_anim "lilac"
@@ -1090,7 +1091,7 @@ SpriteRenderer {
 			id 47
 		}
 	}
-	timer 169.866049
+	timer 175.716171
 	sprite [
 	]
 	sprite_anim "frogbuddy"
