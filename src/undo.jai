@@ -19,6 +19,8 @@ Impl :: struct {
     undo: [..]Item; // Stores changes that can be undone
     redo: [..]Item; // Stores undone changes which can be redone
     temp: [..]Item; // Stores copies of all blocks of data passed to undo.push since the last commit
+
+    needs_save: bool;
 }
 
 Item :: struct {
@@ -230,6 +232,8 @@ commit :: (using impl: *Impl) {
         }
                 
         if first_change {
+            needs_save = true;
+
             first_change = false;
             null_item := array_add(*undo); // null item marks this commit
 
@@ -239,6 +243,10 @@ commit :: (using impl: *Impl) {
 
         array_add(*undo, temp_item);
     }
+}
+
+mark_needs_save :: (impl: *Impl, needs_save: bool) {
+    impl.needs_save = needs_save;
 }
 
 free_item :: (item: Item) {

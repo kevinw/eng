@@ -109,9 +109,17 @@ toggle_always_on_top :: (native_handle: *void) -> bool {
     return new_val;
 }
 
+path_exists :: (path: string) -> bool {
+    // returns true if path is an existing file or directory.
+    assert(path.count > 0);
+    attrib:DWORD = GetFileAttributesW(utf8_to_wide(path));
+    return attrib != INVALID_FILE_ATTRIBUTES;
+}
+
 #scope_file
 #if OS == .WINDOWS {
     #import "Windows";
+    #import "Windows_Utf8";
     user32 :: #foreign_system_library "user32";
 }
 #import "Basic";

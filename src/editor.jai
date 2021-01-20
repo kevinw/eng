@@ -85,6 +85,14 @@ Editor :: struct {
 
     entities_window_size: ImGui.ImVec2;
 
+    pending_scene_load: struct {
+        filename: string; @owned
+        state: enum {
+            None;
+            Waiting;
+        }
+    };
+
     windows: struct {
         inspector      := true;
         demo           := true;
@@ -647,6 +655,8 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.profiler show_profiler_window(*windows.profiler);
     //inspect("", *context.state.multiview);
     //inspect("", *context.state.editor);
+
+    save_changes_modal();
 }
 
 show_profiler_window :: (open: *bool) {
@@ -748,7 +758,7 @@ show_assets_window :: (open: *bool) {
 
         if do_edit_as_scene {
             context.state.global_time_scale = 0;
-            load_scene(it.filename);
+            load_scene_confirming(it.filename);
         }
     }
 }
@@ -978,7 +988,7 @@ editor_update :: (state: *State) {
 
     ctrl_down := is_key_down(.CTRL);
     shift_down := is_key_down(.SHIFT);
-
+    
     if !io.WantTextInput {
         if rl.IsKeyPressed(.KEY_P) {
             if context.state.global_time_scale > 0
@@ -1186,7 +1196,7 @@ editor_update :: (state: *State) {
                 if shift_down {
                     save_scene(filename=filename);
                 } else {
-                    load_scene(filename=filename);
+                    load_scene_confirming(scene_filename=filename);
                 }
             }
         }
@@ -1199,7 +1209,7 @@ editor_update :: (state: *State) {
 
     if ctrl_down && rl.IsKeyPressed(.KEY_N) {
         // new scene
-        reset_world(*state.world);
+        new_scene_confirming();
     }
 
     if ctrl_down && rl.IsKeyPressed(.KEY_D) {
@@ -1224,7 +1234,11 @@ editor_update :: (state: *State) {
 
 scene_filename_for_slot :: (slot_index: int) -> string {
     assert(slot_index >= 1 && slot_index <= 9);
-    filename := tprint("prefabs/scenes/%.wbml", slot_index);
+    return scene_filename_for_short_name(tprint("%", slot_index));
+}
+
+scene_filename_for_short_name :: (short_name: string) -> string {
+    filename := tprint("prefabs/scenes/%.wbml", short_name);
     return filename;
 }
 
@@ -1338,6 +1352,123 @@ editor_toggle :: (using s: *State) {
 
 load_scene :: (slot_index: int) {
     load_scene(scene_filename_for_slot(slot_index));
+}
+
+find_unused_scene_filename :: () -> string {
+    // find an unused "Untitled" scene filename name
+
+    counter := 0;
+    scene_filename: string;
+
+    while true {
+        short_name := "Untitled";
+        if counter > 0
+            short_name = tprint("%-%", "Untitled", counter);
+
+        scene_filename = scene_filename_for_short_name(short_name);
+
+        print("checking if exists: %\n", scene_filename);
+
+        if !platform.path_exists(scene_filename)
+            break;
+
+        counter += 1;
+    }
+
+    assert(scene_filename.count > 0);
+    return scene_filename;
+}
+
+new_scene :: () {
+    clear_selection();
+    reset_world(*context.state.world);
+    free_and_clear_string(*context.state.editor.last_loaded_scene_filename);
+}
+
+new_scene_confirming :: () {
+    using context.state.editor;
+
+    if !undo_state.needs_save {
+        new_scene();
+        return;
+    }
+
+    assert(pending_scene_load.state == .None);
+    pending_scene_load.state = .Waiting;
+    assert(pending_scene_load.filename.count == 0);
+    ImGui.OpenPopup(SAVE_CHANGES_MODAL_ID);
+}
+
+load_scene_confirming :: (scene_filename: string) {
+    using context.state.editor;
+    
+    if !undo_state.needs_save {
+        logprint("editor", "we didn't need to save; loading scene '%'", scene_filename);
+        load_scene(scene_filename);
+        return;
+    }
+
+    assert(pending_scene_load.state == .None);
+    pending_scene_load.state = .Waiting;
+    copy_into_owned_string(*pending_scene_load.filename, scene_filename);
+    ImGui.OpenPopup(SAVE_CHANGES_MODAL_ID);
+}
+
+
+SAVE_CHANGES_MODAL_ID :: "Save Changes?";
+
+save_changes_modal :: () {
+    //
+    // ask if the user would like to save scene changes, discard them, or cancel.
+    //
+
+    using context.state.editor;
+    if pending_scene_load.state != .Waiting
+        return;
+        
+    using ImGui;
+
+    // Always center this window when appearing
+    viewport := GetMainViewport();
+    center := viewport.GetCenter(viewport);
+    SetNextWindowPos(center, .Appearing, make_ImVec2(0.5, 0.5));
+
+    if BeginPopupModal(SAVE_CHANGES_MODAL_ID, null, .AlwaysAutoResize) {
+        defer EndPopup();
+
+        TextUnformatted(tprint("Do you want to save changes to the current scene?\n\n  %\n", last_loaded_scene_filename));
+        Separator();
+
+        if Button("Save", make_ImVec2(120, 0)) {
+            save_scene();
+            if pending_scene_load.filename.count > 0
+                load_scene(pending_scene_load.filename);
+            else
+                new_scene();
+            free_and_clear_string(*pending_scene_load.filename);
+            pending_scene_load.state = .None;
+            CloseCurrentPopup();
+        }
+
+        SameLine();
+        if Button("Don't Save", make_ImVec2(120, 0)) {
+            if pending_scene_load.filename.count > 0
+                load_scene(pending_scene_load.filename);
+            else
+                new_scene();
+            free_and_clear_string(*pending_scene_load.filename);
+            pending_scene_load.state = .None;
+            CloseCurrentPopup();
+        }
+
+        SetItemDefaultFocus();
+        SameLine();
+        if Button("Cancel", make_ImVec2(120, 0)) {
+            free_and_clear_string(*pending_scene_load.filename);
+            pending_scene_load.state = .None;
+            CloseCurrentPopup();
+        }
+    }
 }
 
 #scope_file 
@@ -1492,7 +1623,6 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
 }
 
 focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
-
     camera := get_main_camera();
     if camera == null {
         logprint("=editor_focus", "no camera to move");
@@ -1517,8 +1647,9 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
     }
 
     if pos.has_value {
-        context.state.editor.scene_camera.position.xy = pos.value;
-        context.state.editor.scene_camera.matrices_need_update = true;
+        using context.state.editor;
+        scene_camera.position.xy = pos.value;
+        scene_camera.matrices_need_update = true;
     }
 }
 
@@ -1530,12 +1661,20 @@ load_scene :: (filename: string) {
     }
 
     clear_selection();
-    reset_world(*context.state.world);
-    load_world(*context.state.world, wbml_str, filename);
+    world := *context.state.world;
+    reset_world(world);
+    load_world(world, wbml_str, filename);
     logprint("editor", "loaded scene '%'", filename);
 
     using context.state.editor;
     copy_into_owned_string(*last_loaded_scene_filename, filename);
+    Undo.mark_needs_save(*undo_state, needs_save=false);
+}
+
+free_and_clear_string :: (str: *string) {
+    assert(str != null);
+    free(str.data);
+    <<str = "";
 }
 
 copy_into_owned_string :: (str: *string, new_value: string) {
@@ -1545,20 +1684,24 @@ copy_into_owned_string :: (str: *string, new_value: string) {
 }
 
 save_scene :: (filename: string) {
+    using context.state.editor;
     save_prefab(filename);
     logprint("editor", "saved scene '%'", filename);
+    Undo.mark_needs_save(*undo_state, false);
 }
 
 save_scene :: () {
     using context.state.editor;
-
     if last_loaded_scene_filename.count == 0 {
-        logprint("editor", "error: no last loaded scene filename");
-        return;
+        // TODO: show a modal, or a file dialog
+        new_filename := find_unused_scene_filename();
+        save_prefab(new_filename);
+        logprint("editor", "saved '%'", new_filename);
+    } else {
+        save_prefab(last_loaded_scene_filename);
+        logprint("editor", "saved '%'", last_loaded_scene_filename);
+        free_and_clear_string(*last_loaded_scene_filename);
     }
-
-    save_prefab(last_loaded_scene_filename);
-    logprint("editor", "saved '%'", last_loaded_scene_filename);
 }
 
 HelpMarker :: (desc: string) {
