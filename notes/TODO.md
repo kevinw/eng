@@ -2,7 +2,6 @@
 
 ## Immediate
 - chipmunk klass vtable is out of date after a reload
-- boxcollider making chipmunk objects even if flags doesn't have .PHYSICAL
 - Don't make an engine. Make a game. Find a way to center that.
 - Materials
 - Depth of field
