@@ -3,20 +3,20 @@
 ## Immediate
 - chipmunk klass vtable is out of date after a reload
 - Don't make an engine. Make a game. Find a way to center that.
-- Materials
-- Depth of field
-    - Second: visualize intermediate textures easily with a single log call
-- Color palettes
 - checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
 
 ## High Priority
 - live reload DLL can crash if I save a jai change while another is building. we need a "is building" flag or something
+- Materials
+- Depth of field
+    - Second: visualize intermediate textures easily with a single log call
 - Make the editor prompt you to save changes to a scene on exit.
 - 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 - Figure out how Link should work and make it work!
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 
 ## Medium Priority
+- Color palettes
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - reverse Z depth
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
