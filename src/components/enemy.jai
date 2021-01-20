@@ -80,12 +80,22 @@ enemy_was_hit_by_player :: (using it: *Enemy, player: *Player, delta: Vector2) {
     }
 }
 
+_default_transform: Transform;
+get_transform_or_default :: (component: *Component, transform: **Transform) {
+    if <<transform == null {
+        <<transform = get_transform(component);
+    }
+    if <<transform == null {
+        <<transform = *_default_transform;
+    }
+
+    assert(<<transform != null);
+}
+
 enemy_rect :: (using it: *Enemy, transform: *Transform=null) -> rl.Rectangle {
     using context.state;
 
-    if transform == null
-        transform = get_transform(it);
-
+    get_transform_or_default(it, *transform);
     since_attack := get_attack_time(it) - attack_timer;
     position := *transform.position;
 
