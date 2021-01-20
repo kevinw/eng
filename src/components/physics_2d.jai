@@ -46,6 +46,8 @@ physics_2d_draw_debug :: () {
 }
 
 remove_physics_object :: (using physics_object: *Physics_Object) {
+    assert(physics_object != null);
+
     space := context.state.physics_2d_state.space;
 
     if shape != null {

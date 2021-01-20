@@ -272,12 +272,9 @@ entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = 
     }
 
     if entity.flags & .Has_Component_Rect {
-        // TODO: this is the kind of thing where we might be able to know based on the bitflag in the entity,
-        // which method to call, and what to cast to. static dispatch ~!
-
         spr := get_component(entity, SpriteRenderer);
         if spr != null {
-            assert(spr.canary == 42);
+            check_canaries(spr);
             ok, rect := get_entity_rect(spr, entity, trs);
             if ok return rect;
         }
@@ -287,11 +284,8 @@ entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = 
             return enemy_rect(enemy);
 
         editor_selectable_rect := get_component(entity, Editor_Selectable_Rect);
-        if editor_selectable_rect != null {
-            r := editor_selectable_rect.rect + get_transform(entity).position.xy;
-            //logprint("editor", "entity rect % for %\n", r, entity);
-            return r;
-        }
+        if editor_selectable_rect != null
+            return editor_selectable_rect.rect + get_transform(entity).position.xy;
     }
 
 
@@ -381,7 +375,6 @@ init_world :: (world: *World) {
             array_add(*world.defaults_nodes.components, defaults_node);
         }
     END);
-
 
     {
         empty_entity: Entity;
@@ -837,6 +830,8 @@ load_world :: (world: *World, wbml_string: string, filename: string = "",
         }
     }
 
+    // We run the on_enable callbacks late, so that each component can find its
+    // sibling components by now.
     for on_enable_later {
         run_on_enable(it.ptr, it.bit);
     }

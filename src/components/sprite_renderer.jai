@@ -45,6 +45,10 @@ SpriteRenderer :: struct {
     };
 } @component
 
+check_canaries :: (it: *SpriteRenderer) {
+    assert(it.canary == 42);
+}
+
 on_enable :: (using it: *SpriteRenderer, parent_entity: *Entity) {
     parent_entity.flags |= .Has_Component_Rect;
 }

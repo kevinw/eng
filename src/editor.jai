@@ -1536,16 +1536,6 @@ load_scene :: (filename: string) {
 
     using context.state.editor;
     copy_into_owned_string(*last_loaded_scene_filename, filename);
-
-    /*
-    cam := find_component(Cam);
-    if !cam {
-        entity, entity_handle := create_entity(*context.state.world, "Editor Camera", undo=*context.state.editor.undo_state);
-        entity.flags |= Entity.Flags.Hide_In_Inspector | .Dont_Save;
-
-        cam = add_component(entity_handle, Cam);
-    }
-    */
 }
 
 copy_into_owned_string :: (str: *string, new_value: string) {
