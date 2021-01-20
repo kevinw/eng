@@ -40,6 +40,7 @@ Allocator_Mode :: enum {
 the_window: Window_Type; // the application main window
 host_state: Host_State;
 transparent_while_not_focused := false;
+plugin_requested_reload := false;
 host_settings: struct { // gets serialized to disk to remember the window position
     window_pos_x: s32;
     window_pos_y: s32;
@@ -70,6 +71,8 @@ change_window_state :: (window_state_operation: Window_State_Operation) {
         case .Toggle_Transparent_When_Out_Of_Focus;
             transparent_while_not_focused = !transparent_while_not_focused;
             logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
+        case .Force_Plugin_DLL_Reload;
+            plugin_requested_reload = true;
     }
 }
 
@@ -312,7 +315,7 @@ main :: () {
                 do_recompile();
 
             if _recompile_thread == null && (frame_count % 2 == 0) && (
-                Plugin.should_reload(*module) || reload_new_dll_filename.count > 0
+                Plugin.should_reload(*module) || reload_new_dll_filename.count > 0 || plugin_requested_reload
             ) {
                 //if Plugin.should_reload(*module) logprint("host", "Plugin.should_reload(*module) was true");
                 //if reload_new_dll_filename.count > 0 logprint("host", "reload_new_dll_filename was %", reload_new_dll_filename);
@@ -320,6 +323,10 @@ main :: () {
                 old_state := plugin_deinit(shutting_down = false);
 
                 force_reload := false;
+                if plugin_requested_reload {
+                    force_reload = true;
+                    plugin_requested_reload = false;
+                }
                 if reload_new_dll_filename.count > 0 {
                     force_reload = true;
                     module.filename = reload_new_dll_filename; // @Leak

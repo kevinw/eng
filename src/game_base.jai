@@ -108,11 +108,14 @@ game_base_update :: (host_state: Host_State) {
             debug_draw = !debug_draw;
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
         }
-        if _local_host_state.change_window_state != null {
+
+        change_window_state := _local_host_state.change_window_state;
+        if change_window_state != null {
             if rl.IsKeyPressed(.KEY_F) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_LEFT)
-                _local_host_state.change_window_state(.Toggle_Borderless_Fullscreen);
-            if rl.IsKeyPressed(.KEY_ZERO) _local_host_state.change_window_state(.Toggle_Always_On_Top);
-            if rl.IsKeyPressed(.KEY_NINE) _local_host_state.change_window_state(.Toggle_Transparent_When_Out_Of_Focus);
+                                          change_window_state(.Toggle_Borderless_Fullscreen);
+            if rl.IsKeyPressed(.KEY_ZERO) change_window_state(.Toggle_Always_On_Top);
+            if rl.IsKeyPressed(.KEY_NINE) change_window_state(.Toggle_Transparent_When_Out_Of_Focus);
+            if rl.IsKeyPressed(.KEY_R)    change_window_state(.Force_Plugin_DLL_Reload);
         }
     }
 

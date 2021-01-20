@@ -46,6 +46,7 @@ Window_State_Operation :: enum {
     Toggle_Borderless_Fullscreen;
     Toggle_Always_On_Top;
     Toggle_Transparent_When_Out_Of_Focus;
+    Force_Plugin_DLL_Reload;
 }
 
 Sanity_Check_Info :: struct {
