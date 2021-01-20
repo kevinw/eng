@@ -1,20 +1,17 @@
 # TODO
 
 ## Immediate
+- Don't make an engine. Make a game. Find a way to center that.
 - Materials
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
-- color palettes
+- Color palettes
 - checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
 
 ## High Priority
-- Join the [Berlin mini-game jam discord](https://discord.gg/evM44ns)
 - Make the editor prompt you to save changes to a scene on exit.
 - 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 - Figure out how Link should work and make it work!
-- ImGui compiler node visualizer (bonus points for using the node editor)
-- `on_enable` needs to be called after all sibling components get added. Then I
-  can fix `Cam_Follow` to set it's target position on startup.
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
 
 ## Medium Priority
@@ -23,9 +20,8 @@
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - mark draw-calls with [more debug APIs](https://seanmiddleditch.com/direct3d-11-debug-api-tricks/)
 - try using Matrix4x3 
-- shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
+- Shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
-- Don't make an engine. Make a game. Find a way to center that.
 - 2 hour timer; procreate doodling
 - Try catching windows touch events and make rotation of entities with two fingers work via iPad remote desktop
 - research general "mistakes we made making this engine"
@@ -34,7 +30,7 @@
   indicate that the prefab is overridden. As a first attempt at implementing
   this.
 - C library job systems
-- Temporal anti-aliasing implementation 
+- [Temporal anti-aliasing implementation](https://docs.google.com/document/d/15z2Vp-24S69jiZnxqSHb9dX-A-o4n3tYiPQOCRkCt5Q/edit)
 - Motion blur implementation
 - A function to take the type info from an old chunk of memory and "upgrade"
   it. Copy the type table of the outgoing DLL, and then patch based on that!?
