@@ -8,6 +8,16 @@ on_host_init :: (host_state: Host_State) {
     game_base_init(host_state);
     set_function_pointers();
     load_scene(7);
+
+    mesh: Mesh;
+    before := get_time();
+    filename := "resources/models/the-wiz-boots/wizboots_left_withfill2007_3_8_4ab_11stops-3d-textured-0524288-150k-unwrapped.obj";
+    mesh_ok: bool;
+    {
+        print_time("mesh", "loaded %", filename);
+        mesh_ok = load_mesh(*mesh, filename);
+    }
+    logprint("mesh", "mesh load: % - %", mesh_ok, filename);
 }
 
 update_and_draw :: (host_state: Host_State) {
@@ -32,3 +42,4 @@ set_function_pointers :: () {
 }
 
 #import "renderer";
+#import "mesh";

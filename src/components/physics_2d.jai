@@ -4,23 +4,21 @@ Physics_Object :: struct {
 }
 
 Circle_Collider_2D :: struct {
-    collision := Collision_Type.PHYSICAL;
-
     using component: Component;
     using physics_object: Physics_Object; @noserialize @noui
+
+    collision := Collision_Type.PHYSICAL;
 }
 
 BoxCollider :: struct {
     using component: Component;
+    using physics_object: Physics_Object; @noui @noserialize
+
     collision: Collision_Type;
 
     size:   Vector2 = .{1, 1};
     offset: Vector2 = .{0, 0};
-
-
-    using physics_object: Physics_Object; @noui @noserialize
 }
-
 
 physics_2d_draw_debug :: () {
     if 0 {

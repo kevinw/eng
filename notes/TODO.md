@@ -1,9 +1,14 @@
 # TODO
 
 ## Immediate
+- ozz animation seems like a better "asset library" format. The-Forge seems to agree. in that case, assimp would just be another "loader"
+    - just starting by using ozz to load a mesh would be more fun!
+    - [this project](https://github.com/ColinGilbert/ozz-assimp-loader) converts assimp to ozz (the forge also does this I think)
+
 - chipmunk klass vtable is out of date after a reload
 - Don't make an engine. Make a game. Find a way to center that.
 - checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
+- shmup save points you can use anywhere, but they are a limited resource. going further without using them allows you to level up faster.  a roguelike shmup!
 
 ## High Priority
 - live reload DLL can crash if I save a jai change while another is building. we need a "is building" flag or something
