@@ -2,6 +2,8 @@
 
 DEBUG_NAMES :: #run get_build_options().optimization_level != .RELEASE;
 
+Hardcoded_Index_Type :: u32;
+
 Renderer :: struct {
     using base: Renderer_Base;
     current_index_buffer: *Buffer;
@@ -327,7 +329,7 @@ create_dynamic_buffer :: (size_in_bytes: u32, type: Buffer_Type, debug_name := "
     return buffer;
 }
 
-create_immutable_buffer :: (data: []$D, type: Buffer_Type, debug_name := "") -> Buffer {
+create_immutable_buffer :: (data: []$D, type: Buffer_Type, debug_name := "", debug_name_args: ..Any) -> Buffer {
     assert_state();
     using renderer;
 
@@ -342,14 +344,13 @@ create_immutable_buffer :: (data: []$D, type: Buffer_Type, debug_name := "") -> 
     buffer: Buffer;
     check_result(device.CreateBuffer(xx device, *desc, *subresource_data, *buffer.d3d_buffer));
     buffer.element_count = cast(u32)data.count;
-    #if DEBUG_NAMES set_debug_name(buf.d3d_buffer, debug_name);
+    #if DEBUG_NAMES set_debug_name(buffer.d3d_buffer, tprint(debug_name, ..debug_name_args));
     return buffer;
 }
 
 create_structured_buffer :: (struct_size: u32, count: u32, usage: Buffer_Usage_Flags = .Default, debug_name := "") -> Buffer {
     // TODO: WARNING: APPEND FLAG BELOW IS FOR An AppendStructuredBuffer specifcally.
     using renderer := assert_state();
-
 
     d3d_usage: D3D11_USAGE;
     d3d_cpu_access_flags: D3D11_CPU_ACCESS_FLAG  = 0;

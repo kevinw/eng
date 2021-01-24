@@ -1,5 +1,7 @@
 # jai wishlist
 
+## for loop over range where you're using an unsigned int-1
+
 ## parser
 
 ```
