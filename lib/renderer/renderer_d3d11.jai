@@ -968,6 +968,8 @@ clone_array :: (array: []$T) -> []T {
 }
 
 load_shader_from_file :: (shader: *Shader, $filename: string, $vs_main := "vs_main", $ps_main := "ps_main", $defines := "", debug_name_postfix := "") -> bool {
+    assert(shader != null);
+
     #if #run get_build_options().optimization_level != .RELEASE {
         ok := _load_shader_from_file_at_runtime(shader, filename, vs_main, ps_main, defines=defines, debug_name_postfix=debug_name_postfix);
         shader.vs_main  = copy_string(vs_main);

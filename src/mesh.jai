@@ -1,4 +1,7 @@
 /*
+
+the goal is to be able to only use assimp in the asset pipeline tool. it doesn't ship with games
+
 1. simple mesh load and render (using assimp opengl tutorial)
 2. spawning many Component copies means we use a single instanced draw
 3. question: can many different meshes go into one buffer and then instance
@@ -22,13 +25,18 @@ bus bandwidth that it's still worthwhile?
 
 Mesh :: struct {
     sub_meshes: [..]Sub_Mesh;
+    debug_name: string; @owned
 }
 
 Sub_Mesh :: struct {
     material: *Material;
+    vertices: Buffer;
+    indices:  Buffer;
 }
 
 Material :: struct {
+    shader: *Shader;
+    pipeline: *Pipeline;
 }
 
 unload_mesh :: (mesh: *Mesh) {
@@ -40,8 +48,13 @@ Loader :: struct {
 }
 
 Vertex :: struct {
-    pos: Vector3;
+    pos:      Vector3;
     texcoord: Vector2;
+    color:    Vector4 = .{1, 1, 1, 1};
+
+    instance_id: u32;
+    entity_id: u32;
+    entity_generation: s32;
 }
 
 load_mesh :: (mesh: *Mesh, filename: string) -> bool {
@@ -63,8 +76,10 @@ load_mesh :: (mesh: *Mesh, filename: string) -> bool {
 
     loader: Loader;
     loader.current_filename = filename;
+
     process_node(*loader, mesh, scene.mRootNode, scene);
     mesh.debug_name = sprint("Mesh from %", filename);
+
     return true;
 
 }
@@ -102,6 +117,7 @@ process_sub_mesh :: (using loader: *Loader, submesh: *Sub_Mesh, aiMesh: *ai.Mesh
 
     // indices/faces
     indices: [..]Hardcoded_Index_Type;
+    defer array_free(indices);
 
     for 0..cast(int)aiMesh.mNumFaces - 1 {
         face := aiMesh.mFaces[it];
@@ -110,6 +126,9 @@ process_sub_mesh :: (using loader: *Loader, submesh: *Sub_Mesh, aiMesh: *ai.Mesh
     }
 
     submesh.indices = create_immutable_buffer(indices, .Index, "indices for submesh in %", loader.current_filename);
+    
+    submesh.material = context.state.materials.pbr;
+    assert(submesh.material != null);
 }
 
 process_node :: (using loader: *Loader, mesh: *Mesh, node: *ai.Node, scene: *ai.Scene) {
@@ -123,7 +142,6 @@ process_node :: (using loader: *Loader, mesh: *Mesh, node: *ai.Node, scene: *ai.
 		process_node(loader, mesh, node.mChildren[it], scene);
 }
 
-Texture :: struct {} // TODO
 ai :: #import "assimp";
 #import "renderer";
 #import "Basic";

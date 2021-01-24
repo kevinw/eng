@@ -2,6 +2,29 @@ Entity {
 	id 1
 	name "ship"
 }
+Entity {
+	id 2
+	name "camera"
+}
+Cam {
+	component {
+		entity {
+			id 2
+		}
+	}
+	camera {
+		position {
+			z -69
+		}
+	}
+}
+Mesh_Renderer {
+	component {
+		entity {
+			id 1
+		}
+	}
+}
 Ship {
 	component {
 		entity {
@@ -13,6 +36,13 @@ Transform {
 	component {
 		entity {
 			id 1
+		}
+	}
+}
+Transform {
+	component {
+		entity {
+			id 2
 		}
 	}
 }
