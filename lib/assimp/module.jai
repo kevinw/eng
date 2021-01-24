@@ -1,6 +1,11 @@
+#scope_file
+#import "Basic";
+#import "Math";
+// TODO: these manual types shouldn't be necessary
 uint32_t :: u32;
 int32_t  :: s32;
 size_t   :: s64;
+#scope_module
 assimp_vc142_mt :: #foreign_library "assimp-vc142-mt";
 Component :: enum s32 {
     NORMALS :: 2;
@@ -17,94 +22,94 @@ Component :: enum s32 {
     _aiComponent_Force32Bit :: -1610612737;
 }
 
-ai_real :: float32;
+real :: float32;
 
-ai_int :: s32;
+int :: s32;
 
-ai_uint :: u32;
+uint :: u32;
 
-ai_epsilon: ai_real;
+ai_epsilon: real;
 
 Vector2D :: struct {
-    x: ai_real;
-    y: ai_real;
+    x: real;
+    y: real;
 }
 
 Vector3D :: struct {
-    x: ai_real;
-    y: ai_real;
-    z: ai_real;
+    x: real;
+    y: real;
+    z: real;
 }
 
 Color4D :: struct {
-    r: ai_real;
-    g: ai_real;
-    b: ai_real;
-    a: ai_real;
+    r: real;
+    g: real;
+    b: real;
+    a: real;
 }
 
 Matrix3x3 :: struct {
-    a1: ai_real;
-    a2: ai_real;
-    a3: ai_real;
-    b1: ai_real;
-    b2: ai_real;
-    b3: ai_real;
-    c1: ai_real;
-    c2: ai_real;
-    c3: ai_real;
+    a1: real;
+    a2: real;
+    a3: real;
+    b1: real;
+    b2: real;
+    b3: real;
+    c1: real;
+    c2: real;
+    c3: real;
 }
 
 Matrix4x4 :: struct {
-    a1: ai_real;
-    a2: ai_real;
-    a3: ai_real;
-    a4: ai_real;
-    b1: ai_real;
-    b2: ai_real;
-    b3: ai_real;
-    b4: ai_real;
-    c1: ai_real;
-    c2: ai_real;
-    c3: ai_real;
-    c4: ai_real;
-    d1: ai_real;
-    d2: ai_real;
-    d3: ai_real;
-    d4: ai_real;
+    a1: real;
+    a2: real;
+    a3: real;
+    a4: real;
+    b1: real;
+    b2: real;
+    b3: real;
+    b4: real;
+    c1: real;
+    c2: real;
+    c3: real;
+    c4: real;
+    d1: real;
+    d2: real;
+    d3: real;
+    d4: real;
 }
 
 Quaternion :: struct {
-    w: ai_real;
-    x: ai_real;
-    y: ai_real;
-    z: ai_real;
+    w: real;
+    x: real;
+    y: real;
+    z: real;
 }
 
-ai_int32 :: int32_t;
+int32 :: int32_t;
 
-ai_uint32 :: uint32_t;
+uint32 :: uint32_t;
 
 Plane :: struct {
-    a: ai_real;
-    b: ai_real;
-    c: ai_real;
-    d: ai_real;
+    a: real;
+    b: real;
+    c: real;
+    d: real;
 }
 
 Ray :: struct {
-    pos: Vector3D;
-    dir: Vector3D;
+    pos: Vector3;
+    dir: Vector3;
 }
 
 Color3D :: struct {
-    r: ai_real;
-    g: ai_real;
-    b: ai_real;
+    r: real;
+    g: real;
+    b: real;
 }
 
 String :: struct {
-    length: ai_uint32;
+    length: uint32;
     data: [1024] s8;
 }
 
@@ -166,10 +171,10 @@ GetImporterDesc :: (extension: *s8) -> *ImporterDesc #foreign assimp_vc142_mt "a
 FileIO :: struct {
 }
 
-aiLogStreamCallback :: #type (a0: *s8, a1: *s8) -> void #c_call;
+LogStreamCallback :: #type (a0: *s8, a1: *s8) -> void #c_call;
 
 LogStream :: struct {
-    callback: aiLogStreamCallback;
+    callback: LogStreamCallback;
     user: *s8;
 }
 
@@ -177,7 +182,7 @@ PropertyStore :: struct {
     sentinel: s8;
 }
 
-aiBool :: s32;
+Bool :: s32;
 
 ImportFile :: (pFile: *s8, pFlags: u32) -> *Scene #foreign assimp_vc142_mt "aiImportFile";
 
@@ -195,7 +200,7 @@ GetPredefinedLogStream :: (pStreams: DefaultLogStream, file: *s8) -> LogStream #
 
 AttachLogStream :: (stream: *LogStream) -> void #foreign assimp_vc142_mt "aiAttachLogStream";
 
-EnableVerboseLogging :: (d: aiBool) -> void #foreign assimp_vc142_mt "aiEnableVerboseLogging";
+EnableVerboseLogging :: (d: Bool) -> void #foreign assimp_vc142_mt "aiEnableVerboseLogging";
 
 DetachLogStream :: (stream: *LogStream) -> Return #foreign assimp_vc142_mt "aiDetachLogStream";
 
@@ -205,7 +210,7 @@ ReleaseImport :: (pScene: *Scene) -> void #foreign assimp_vc142_mt "aiReleaseImp
 
 GetErrorString :: () -> *s8 #foreign assimp_vc142_mt "aiGetErrorString";
 
-IsExtensionSupported :: (szExtension: *s8) -> aiBool #foreign assimp_vc142_mt "aiIsExtensionSupported";
+IsExtensionSupported :: (szExtension: *s8) -> Bool #foreign assimp_vc142_mt "aiIsExtensionSupported";
 
 GetExtensionList :: (szOut: *String) -> void #foreign assimp_vc142_mt "aiGetExtensionList";
 
@@ -217,159 +222,159 @@ ReleasePropertyStore :: (p: *PropertyStore) -> void #foreign assimp_vc142_mt "ai
 
 SetImportPropertyInteger :: (store: *PropertyStore, szName: *s8, value: s32) -> void #foreign assimp_vc142_mt "aiSetImportPropertyInteger";
 
-SetImportPropertyFloat :: (store: *PropertyStore, szName: *s8, value: ai_real) -> void #foreign assimp_vc142_mt "aiSetImportPropertyFloat";
+SetImportPropertyFloat :: (store: *PropertyStore, szName: *s8, value: real) -> void #foreign assimp_vc142_mt "aiSetImportPropertyFloat";
 
 SetImportPropertyString :: (store: *PropertyStore, szName: *s8, st: *String) -> void #foreign assimp_vc142_mt "aiSetImportPropertyString";
 
-SetImportPropertyMatrix :: (store: *PropertyStore, szName: *s8, mat: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiSetImportPropertyMatrix";
+SetImportPropertyMatrix :: (store: *PropertyStore, szName: *s8, mat: *Matrix4) -> void #foreign assimp_vc142_mt "aiSetImportPropertyMatrix";
 
-CreateQuaternionFromMatrix :: (quat: *Quaternion, mat: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiCreateQuaternionFromMatrix";
+CreateQuaternionFromMatrix :: (quat: *Quaternion, mat: *Matrix3) -> void #foreign assimp_vc142_mt "aiCreateQuaternionFromMatrix";
 
-DecomposeMatrix :: (mat: *Matrix4x4, scaling: *Vector3D, rotation: *Quaternion, position: *Vector3D) -> void #foreign assimp_vc142_mt "aiDecomposeMatrix";
+DecomposeMatrix :: (mat: *Matrix4, scaling: *Vector3, rotation: *Quaternion, position: *Vector3) -> void #foreign assimp_vc142_mt "aiDecomposeMatrix";
 
-TransposeMatrix4 :: (mat: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiTransposeMatrix4";
+TransposeMatrix4 :: (mat: *Matrix4) -> void #foreign assimp_vc142_mt "aiTransposeMatrix4";
 
-TransposeMatrix3 :: (mat: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiTransposeMatrix3";
+TransposeMatrix3 :: (mat: *Matrix3) -> void #foreign assimp_vc142_mt "aiTransposeMatrix3";
 
-TransformVecByMatrix3 :: (vec: *Vector3D, mat: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiTransformVecByMatrix3";
+TransformVecByMatrix3 :: (vec: *Vector3, mat: *Matrix3) -> void #foreign assimp_vc142_mt "aiTransformVecByMatrix3";
 
-TransformVecByMatrix4 :: (vec: *Vector3D, mat: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiTransformVecByMatrix4";
+TransformVecByMatrix4 :: (vec: *Vector3, mat: *Matrix4) -> void #foreign assimp_vc142_mt "aiTransformVecByMatrix4";
 
-MultiplyMatrix4 :: (dst: *Matrix4x4, src: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiMultiplyMatrix4";
+MultiplyMatrix4 :: (dst: *Matrix4, src: *Matrix4) -> void #foreign assimp_vc142_mt "aiMultiplyMatrix4";
 
-MultiplyMatrix3 :: (dst: *Matrix3x3, src: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiMultiplyMatrix3";
+MultiplyMatrix3 :: (dst: *Matrix3, src: *Matrix3) -> void #foreign assimp_vc142_mt "aiMultiplyMatrix3";
 
-IdentityMatrix3 :: (mat: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiIdentityMatrix3";
+IdentityMatrix3 :: (mat: *Matrix3) -> void #foreign assimp_vc142_mt "aiIdentityMatrix3";
 
-IdentityMatrix4 :: (mat: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiIdentityMatrix4";
+IdentityMatrix4 :: (mat: *Matrix4) -> void #foreign assimp_vc142_mt "aiIdentityMatrix4";
 
 GetImportFormatCount :: () -> size_t #foreign assimp_vc142_mt "aiGetImportFormatCount";
 
 GetImportFormatDescription :: (pIndex: size_t) -> *ImporterDesc #foreign assimp_vc142_mt "aiGetImportFormatDescription";
 
-Vector2AreEqual :: (a: *Vector2D, b: *Vector2D) -> s32 #foreign assimp_vc142_mt "aiVector2AreEqual";
+Vector2AreEqual :: (a: *Vector2, b: *Vector2) -> s32 #foreign assimp_vc142_mt "aiVector2AreEqual";
 
-Vector2AreEqualEpsilon :: (a: *Vector2D, b: *Vector2D, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiVector2AreEqualEpsilon";
+Vector2AreEqualEpsilon :: (a: *Vector2, b: *Vector2, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiVector2AreEqualEpsilon";
 
-Vector2Add :: (dst: *Vector2D, src: *Vector2D) -> void #foreign assimp_vc142_mt "aiVector2Add";
+Vector2Add :: (dst: *Vector2, src: *Vector2) -> void #foreign assimp_vc142_mt "aiVector2Add";
 
-Vector2Subtract :: (dst: *Vector2D, src: *Vector2D) -> void #foreign assimp_vc142_mt "aiVector2Subtract";
+Vector2Subtract :: (dst: *Vector2, src: *Vector2) -> void #foreign assimp_vc142_mt "aiVector2Subtract";
 
-Vector2Scale :: (dst: *Vector2D, s: float32) -> void #foreign assimp_vc142_mt "aiVector2Scale";
+Vector2Scale :: (dst: *Vector2, s: float32) -> void #foreign assimp_vc142_mt "aiVector2Scale";
 
-Vector2SymMul :: (dst: *Vector2D, other: *Vector2D) -> void #foreign assimp_vc142_mt "aiVector2SymMul";
+Vector2SymMul :: (dst: *Vector2, other: *Vector2) -> void #foreign assimp_vc142_mt "aiVector2SymMul";
 
-Vector2DivideByScalar :: (dst: *Vector2D, s: float32) -> void #foreign assimp_vc142_mt "aiVector2DivideByScalar";
+Vector2DivideByScalar :: (dst: *Vector2, s: float32) -> void #foreign assimp_vc142_mt "aiVector2DivideByScalar";
 
-Vector2DivideByVector :: (dst: *Vector2D, v: *Vector2D) -> void #foreign assimp_vc142_mt "aiVector2DivideByVector";
+Vector2DivideByVector :: (dst: *Vector2, v: *Vector2) -> void #foreign assimp_vc142_mt "aiVector2DivideByVector";
 
-Vector2Length :: (v: *Vector2D) -> float32 #foreign assimp_vc142_mt "aiVector2Length";
+Vector2Length :: (v: *Vector2) -> float32 #foreign assimp_vc142_mt "aiVector2Length";
 
-Vector2SquareLength :: (v: *Vector2D) -> float32 #foreign assimp_vc142_mt "aiVector2SquareLength";
+Vector2SquareLength :: (v: *Vector2) -> float32 #foreign assimp_vc142_mt "aiVector2SquareLength";
 
-Vector2Negate :: (dst: *Vector2D) -> void #foreign assimp_vc142_mt "aiVector2Negate";
+Vector2Negate :: (dst: *Vector2) -> void #foreign assimp_vc142_mt "aiVector2Negate";
 
-Vector2DotProduct :: (a: *Vector2D, b: *Vector2D) -> float32 #foreign assimp_vc142_mt "aiVector2DotProduct";
+Vector2DotProduct :: (a: *Vector2, b: *Vector2) -> float32 #foreign assimp_vc142_mt "aiVector2DotProduct";
 
-Vector2Normalize :: (v: *Vector2D) -> void #foreign assimp_vc142_mt "aiVector2Normalize";
+Vector2Normalize :: (v: *Vector2) -> void #foreign assimp_vc142_mt "aiVector2Normalize";
 
-Vector3AreEqual :: (a: *Vector3D, b: *Vector3D) -> s32 #foreign assimp_vc142_mt "aiVector3AreEqual";
+Vector3AreEqual :: (a: *Vector3, b: *Vector3) -> s32 #foreign assimp_vc142_mt "aiVector3AreEqual";
 
-Vector3AreEqualEpsilon :: (a: *Vector3D, b: *Vector3D, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiVector3AreEqualEpsilon";
+Vector3AreEqualEpsilon :: (a: *Vector3, b: *Vector3, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiVector3AreEqualEpsilon";
 
-Vector3LessThan :: (a: *Vector3D, b: *Vector3D) -> s32 #foreign assimp_vc142_mt "aiVector3LessThan";
+Vector3LessThan :: (a: *Vector3, b: *Vector3) -> s32 #foreign assimp_vc142_mt "aiVector3LessThan";
 
-Vector3Add :: (dst: *Vector3D, src: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3Add";
+Vector3Add :: (dst: *Vector3, src: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3Add";
 
-Vector3Subtract :: (dst: *Vector3D, src: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3Subtract";
+Vector3Subtract :: (dst: *Vector3, src: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3Subtract";
 
-Vector3Scale :: (dst: *Vector3D, s: float32) -> void #foreign assimp_vc142_mt "aiVector3Scale";
+Vector3Scale :: (dst: *Vector3, s: float32) -> void #foreign assimp_vc142_mt "aiVector3Scale";
 
-Vector3SymMul :: (dst: *Vector3D, other: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3SymMul";
+Vector3SymMul :: (dst: *Vector3, other: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3SymMul";
 
-Vector3DivideByScalar :: (dst: *Vector3D, s: float32) -> void #foreign assimp_vc142_mt "aiVector3DivideByScalar";
+Vector3DivideByScalar :: (dst: *Vector3, s: float32) -> void #foreign assimp_vc142_mt "aiVector3DivideByScalar";
 
-Vector3DivideByVector :: (dst: *Vector3D, v: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3DivideByVector";
+Vector3DivideByVector :: (dst: *Vector3, v: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3DivideByVector";
 
-Vector3Length :: (v: *Vector3D) -> float32 #foreign assimp_vc142_mt "aiVector3Length";
+Vector3Length :: (v: *Vector3) -> float32 #foreign assimp_vc142_mt "aiVector3Length";
 
-Vector3SquareLength :: (v: *Vector3D) -> float32 #foreign assimp_vc142_mt "aiVector3SquareLength";
+Vector3SquareLength :: (v: *Vector3) -> float32 #foreign assimp_vc142_mt "aiVector3SquareLength";
 
-Vector3Negate :: (dst: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3Negate";
+Vector3Negate :: (dst: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3Negate";
 
-Vector3DotProduct :: (a: *Vector3D, b: *Vector3D) -> float32 #foreign assimp_vc142_mt "aiVector3DotProduct";
+Vector3DotProduct :: (a: *Vector3, b: *Vector3) -> float32 #foreign assimp_vc142_mt "aiVector3DotProduct";
 
-Vector3CrossProduct :: (dst: *Vector3D, a: *Vector3D, b: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3CrossProduct";
+Vector3CrossProduct :: (dst: *Vector3, a: *Vector3, b: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3CrossProduct";
 
-Vector3Normalize :: (v: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3Normalize";
+Vector3Normalize :: (v: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3Normalize";
 
-Vector3NormalizeSafe :: (v: *Vector3D) -> void #foreign assimp_vc142_mt "aiVector3NormalizeSafe";
+Vector3NormalizeSafe :: (v: *Vector3) -> void #foreign assimp_vc142_mt "aiVector3NormalizeSafe";
 
-Vector3RotateByQuaternion :: (v: *Vector3D, q: *Quaternion) -> void #foreign assimp_vc142_mt "aiVector3RotateByQuaternion";
+Vector3RotateByQuaternion :: (v: *Vector3, q: *Quaternion) -> void #foreign assimp_vc142_mt "aiVector3RotateByQuaternion";
 
-Matrix3FromMatrix4 :: (dst: *Matrix3x3, mat: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiMatrix3FromMatrix4";
+Matrix3FromMatrix4 :: (dst: *Matrix3, mat: *Matrix4) -> void #foreign assimp_vc142_mt "aiMatrix3FromMatrix4";
 
-Matrix3FromQuaternion :: (mat: *Matrix3x3, q: *Quaternion) -> void #foreign assimp_vc142_mt "aiMatrix3FromQuaternion";
+Matrix3FromQuaternion :: (mat: *Matrix3, q: *Quaternion) -> void #foreign assimp_vc142_mt "aiMatrix3FromQuaternion";
 
-Matrix3AreEqual :: (a: *Matrix3x3, b: *Matrix3x3) -> s32 #foreign assimp_vc142_mt "aiMatrix3AreEqual";
+Matrix3AreEqual :: (a: *Matrix3, b: *Matrix3) -> s32 #foreign assimp_vc142_mt "aiMatrix3AreEqual";
 
-Matrix3AreEqualEpsilon :: (a: *Matrix3x3, b: *Matrix3x3, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiMatrix3AreEqualEpsilon";
+Matrix3AreEqualEpsilon :: (a: *Matrix3, b: *Matrix3, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiMatrix3AreEqualEpsilon";
 
-Matrix3Inverse :: (mat: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiMatrix3Inverse";
+Matrix3Inverse :: (mat: *Matrix3) -> void #foreign assimp_vc142_mt "aiMatrix3Inverse";
 
-Matrix3Determinant :: (mat: *Matrix3x3) -> float32 #foreign assimp_vc142_mt "aiMatrix3Determinant";
+Matrix3Determinant :: (mat: *Matrix3) -> float32 #foreign assimp_vc142_mt "aiMatrix3Determinant";
 
-Matrix3RotationZ :: (mat: *Matrix3x3, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix3RotationZ";
+Matrix3RotationZ :: (mat: *Matrix3, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix3RotationZ";
 
-Matrix3FromRotationAroundAxis :: (mat: *Matrix3x3, axis: *Vector3D, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix3FromRotationAroundAxis";
+Matrix3FromRotationAroundAxis :: (mat: *Matrix3, axis: *Vector3, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix3FromRotationAroundAxis";
 
-Matrix3Translation :: (mat: *Matrix3x3, translation: *Vector2D) -> void #foreign assimp_vc142_mt "aiMatrix3Translation";
+Matrix3Translation :: (mat: *Matrix3, translation: *Vector2) -> void #foreign assimp_vc142_mt "aiMatrix3Translation";
 
-Matrix3FromTo :: (mat: *Matrix3x3, from: *Vector3D, to: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix3FromTo";
+Matrix3FromTo :: (mat: *Matrix3, from: *Vector3, to: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix3FromTo";
 
-Matrix4FromMatrix3 :: (dst: *Matrix4x4, mat: *Matrix3x3) -> void #foreign assimp_vc142_mt "aiMatrix4FromMatrix3";
+Matrix4FromMatrix3 :: (dst: *Matrix4, mat: *Matrix3) -> void #foreign assimp_vc142_mt "aiMatrix4FromMatrix3";
 
-Matrix4FromScalingQuaternionPosition :: (mat: *Matrix4x4, scaling: *Vector3D, rotation: *Quaternion, position: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4FromScalingQuaternionPosition";
+Matrix4FromScalingQuaternionPosition :: (mat: *Matrix4, scaling: *Vector3, rotation: *Quaternion, position: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4FromScalingQuaternionPosition";
 
-Matrix4Add :: (dst: *Matrix4x4, src: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiMatrix4Add";
+Matrix4Add :: (dst: *Matrix4, src: *Matrix4) -> void #foreign assimp_vc142_mt "aiMatrix4Add";
 
-Matrix4AreEqual :: (a: *Matrix4x4, b: *Matrix4x4) -> s32 #foreign assimp_vc142_mt "aiMatrix4AreEqual";
+Matrix4AreEqual :: (a: *Matrix4, b: *Matrix4) -> s32 #foreign assimp_vc142_mt "aiMatrix4AreEqual";
 
-Matrix4AreEqualEpsilon :: (a: *Matrix4x4, b: *Matrix4x4, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiMatrix4AreEqualEpsilon";
+Matrix4AreEqualEpsilon :: (a: *Matrix4, b: *Matrix4, epsilon: float32) -> s32 #foreign assimp_vc142_mt "aiMatrix4AreEqualEpsilon";
 
-Matrix4Inverse :: (mat: *Matrix4x4) -> void #foreign assimp_vc142_mt "aiMatrix4Inverse";
+Matrix4Inverse :: (mat: *Matrix4) -> void #foreign assimp_vc142_mt "aiMatrix4Inverse";
 
-Matrix4Determinant :: (mat: *Matrix4x4) -> float32 #foreign assimp_vc142_mt "aiMatrix4Determinant";
+Matrix4Determinant :: (mat: *Matrix4) -> float32 #foreign assimp_vc142_mt "aiMatrix4Determinant";
 
-Matrix4IsIdentity :: (mat: *Matrix4x4) -> s32 #foreign assimp_vc142_mt "aiMatrix4IsIdentity";
+Matrix4IsIdentity :: (mat: *Matrix4) -> s32 #foreign assimp_vc142_mt "aiMatrix4IsIdentity";
 
-Matrix4DecomposeIntoScalingEulerAnglesPosition :: (mat: *Matrix4x4, scaling: *Vector3D, rotation: *Vector3D, position: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4DecomposeIntoScalingEulerAnglesPosition";
+Matrix4DecomposeIntoScalingEulerAnglesPosition :: (mat: *Matrix4, scaling: *Vector3, rotation: *Vector3, position: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4DecomposeIntoScalingEulerAnglesPosition";
 
-Matrix4DecomposeIntoScalingAxisAnglePosition :: (mat: *Matrix4x4, scaling: *Vector3D, axis: *Vector3D, angle: *ai_real, position: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4DecomposeIntoScalingAxisAnglePosition";
+Matrix4DecomposeIntoScalingAxisAnglePosition :: (mat: *Matrix4, scaling: *Vector3, axis: *Vector3, angle: *real, position: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4DecomposeIntoScalingAxisAnglePosition";
 
-Matrix4DecomposeNoScaling :: (mat: *Matrix4x4, rotation: *Quaternion, position: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4DecomposeNoScaling";
+Matrix4DecomposeNoScaling :: (mat: *Matrix4, rotation: *Quaternion, position: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4DecomposeNoScaling";
 
-Matrix4FromEulerAngles :: (mat: *Matrix4x4, x: float32, y: float32, z: float32) -> void #foreign assimp_vc142_mt "aiMatrix4FromEulerAngles";
+Matrix4FromEulerAngles :: (mat: *Matrix4, x: float32, y: float32, z: float32) -> void #foreign assimp_vc142_mt "aiMatrix4FromEulerAngles";
 
-Matrix4RotationX :: (mat: *Matrix4x4, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4RotationX";
+Matrix4RotationX :: (mat: *Matrix4, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4RotationX";
 
-Matrix4RotationY :: (mat: *Matrix4x4, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4RotationY";
+Matrix4RotationY :: (mat: *Matrix4, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4RotationY";
 
-Matrix4RotationZ :: (mat: *Matrix4x4, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4RotationZ";
+Matrix4RotationZ :: (mat: *Matrix4, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4RotationZ";
 
-Matrix4FromRotationAroundAxis :: (mat: *Matrix4x4, axis: *Vector3D, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4FromRotationAroundAxis";
+Matrix4FromRotationAroundAxis :: (mat: *Matrix4, axis: *Vector3, angle: float32) -> void #foreign assimp_vc142_mt "aiMatrix4FromRotationAroundAxis";
 
-Matrix4Translation :: (mat: *Matrix4x4, translation: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4Translation";
+Matrix4Translation :: (mat: *Matrix4, translation: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4Translation";
 
-Matrix4Scaling :: (mat: *Matrix4x4, scaling: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4Scaling";
+Matrix4Scaling :: (mat: *Matrix4, scaling: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4Scaling";
 
-Matrix4FromTo :: (mat: *Matrix4x4, from: *Vector3D, to: *Vector3D) -> void #foreign assimp_vc142_mt "aiMatrix4FromTo";
+Matrix4FromTo :: (mat: *Matrix4, from: *Vector3, to: *Vector3) -> void #foreign assimp_vc142_mt "aiMatrix4FromTo";
 
 QuaternionFromEulerAngles :: (q: *Quaternion, x: float32, y: float32, z: float32) -> void #foreign assimp_vc142_mt "aiQuaternionFromEulerAngles";
 
-QuaternionFromAxisAngle :: (q: *Quaternion, axis: *Vector3D, angle: float32) -> void #foreign assimp_vc142_mt "aiQuaternionFromAxisAngle";
+QuaternionFromAxisAngle :: (q: *Quaternion, axis: *Vector3, angle: float32) -> void #foreign assimp_vc142_mt "aiQuaternionFromAxisAngle";
 
-QuaternionFromNormalizedQuaternion :: (q: *Quaternion, normalized: *Vector3D) -> void #foreign assimp_vc142_mt "aiQuaternionFromNormalizedQuaternion";
+QuaternionFromNormalizedQuaternion :: (q: *Quaternion, normalized: *Vector3) -> void #foreign assimp_vc142_mt "aiQuaternionFromNormalizedQuaternion";
 
 QuaternionAreEqual :: (a: *Quaternion, b: *Quaternion) -> s32 #foreign assimp_vc142_mt "aiQuaternionAreEqual";
 
@@ -434,8 +439,8 @@ Texture :: struct {
 }
 
 AABB :: struct {
-    mMin: Vector3D;
-    mMax: Vector3D;
+    mMin: Vector3;
+    mMax: Vector3;
 }
 
 Face :: struct {
@@ -445,7 +450,7 @@ Face :: struct {
 
 VertexWeight :: struct {
     mVertexId: u32;
-    mWeight: ai_real;
+    mWeight: real;
 }
 
 Bone :: struct {
@@ -454,7 +459,7 @@ Bone :: struct {
     mArmature: *Node;
     mNode: *Node;
     mWeights: *VertexWeight;
-    mOffsetMatrix: Matrix4x4;
+    mOffsetMatrix: Matrix4;
 }
 
 PrimitiveType :: enum s32 {
@@ -467,12 +472,12 @@ PrimitiveType :: enum s32 {
 
 AnimMesh :: struct {
     mName: String;
-    mVertices: *Vector3D;
-    mNormals: *Vector3D;
-    mTangents: *Vector3D;
-    mBitangents: *Vector3D;
+    mVertices: *Vector3;
+    mNormals: *Vector3;
+    mTangents: *Vector3;
+    mBitangents: *Vector3;
     mColors: [8] *Color4D;
-    mTextureCoords: [8] *Vector3D;
+    mTextureCoords: [8] *Vector3;
     mNumVertices: u32;
     mWeight: float32;
 }
@@ -488,12 +493,12 @@ Mesh :: struct {
     mPrimitiveTypes: u32;
     mNumVertices: u32;
     mNumFaces: u32;
-    mVertices: *Vector3D;
-    mNormals: *Vector3D;
-    mTangents: *Vector3D;
-    mBitangents: *Vector3D;
+    mVertices: *Vector3;
+    mNormals: *Vector3;
+    mTangents: *Vector3;
+    mBitangents: *Vector3;
     mColors: [8] *Color4D;
-    mTextureCoords: [8] *Vector3D;
+    mTextureCoords: [8] *Vector3;
     mNumUVComponents: [8] u32;
     mFaces: *Face;
     mNumBones: u32;
@@ -519,9 +524,9 @@ LightSourceType :: enum s32 {
 Light :: struct {
     mName: String;
     mType: LightSourceType;
-    mPosition: Vector3D;
-    mDirection: Vector3D;
-    mUp: Vector3D;
+    mPosition: Vector3;
+    mDirection: Vector3;
+    mUp: Vector3;
     mAttenuationConstant: float32;
     mAttenuationLinear: float32;
     mAttenuationQuadratic: float32;
@@ -530,14 +535,14 @@ Light :: struct {
     mColorAmbient: Color3D;
     mAngleInnerCone: float32;
     mAngleOuterCone: float32;
-    mSize: Vector2D;
+    mSize: Vector2;
 }
 
 Camera :: struct {
     mName: String;
-    mPosition: Vector3D;
-    mUp: Vector3D;
-    mLookAt: Vector3D;
+    mPosition: Vector3;
+    mUp: Vector3;
+    mLookAt: Vector3;
     mHorizontalFOV: float32;
     mClipPlaneNear: float32;
     mClipPlaneFar: float32;
@@ -596,7 +601,7 @@ TextureType :: enum s32 {
     _aiTextureType_Force32Bit :: 2147483647;
 }
 
-xtureTypeToString :: (in: TextureType) -> *s8 #foreign assimp_vc142_mt "TextureTypeToString";
+TextureTypeToString :: (in: TextureType) -> *s8 #foreign assimp_vc142_mt;
 
 ShadingMode :: enum s32 {
     Flat :: 1;
@@ -626,9 +631,9 @@ BlendMode :: enum s32 {
 }
 
 UVTransform :: struct {
-    mTranslation: Vector2D;
-    mScaling: Vector2D;
-    mRotation: ai_real;
+    mTranslation: Vector2;
+    mScaling: Vector2;
+    mRotation: real;
 }
 
 PropertyTypeInfo :: enum s32 {
@@ -657,7 +662,7 @@ Material :: struct {
 
 GetMaterialProperty :: (pMat: *Material, pKey: *s8, type: u32, index: u32, pPropOut: **MaterialProperty) -> Return #foreign assimp_vc142_mt "aiGetMaterialProperty";
 
-GetMaterialFloatArray :: (pMat: *Material, pKey: *s8, type: u32, index: u32, pOut: *ai_real, pMax: *u32) -> Return #foreign assimp_vc142_mt "aiGetMaterialFloatArray";
+GetMaterialFloatArray :: (pMat: *Material, pKey: *s8, type: u32, index: u32, pOut: *real, pMax: *u32) -> Return #foreign assimp_vc142_mt "aiGetMaterialFloatArray";
 
 GetMaterialIntegerArray :: (pMat: *Material, pKey: *s8, type: u32, index: u32, pOut: *s32, pMax: *u32) -> Return #foreign assimp_vc142_mt "aiGetMaterialIntegerArray";
 
@@ -669,11 +674,11 @@ GetMaterialString :: (pMat: *Material, pKey: *s8, type: u32, index: u32, pOut: *
 
 GetMaterialTextureCount :: (pMat: *Material, type: TextureType) -> u32 #foreign assimp_vc142_mt "aiGetMaterialTextureCount";
 
-GetMaterialTexture :: (mat: *Material, type: TextureType, index: u32, path: *String, mapping: *TextureMapping, uvindex: *u32, blend: *ai_real, op: *TextureOp, mapmode: *TextureMapMode, flags: *u32) -> Return #foreign assimp_vc142_mt "aiGetMaterialTexture";
+GetMaterialTexture :: (mat: *Material, type: TextureType, index: u32, path: *String, mapping: *TextureMapping, uvindex: *u32, blend: *real, op: *TextureOp, mapmode: *TextureMapMode, flags: *u32) -> Return #foreign assimp_vc142_mt "aiGetMaterialTexture";
 
 VectorKey :: struct {
     mTime: float64;
-    mValue: Vector3D;
+    mValue: Vector3;
 }
 
 QuatKey :: struct {
@@ -753,7 +758,7 @@ MetadataType :: enum s32 {
 
 
 MetadataEntry :: struct {
-    mType: aiMetadataType;
+    mType: MetadataType;
     mData: *void;
 }
 
@@ -765,7 +770,7 @@ Metadata :: struct {
 
 Node :: struct {
     mName: String;
-    mTransformation: Matrix4x4;
+    mTransformation: Matrix4;
     mParent: *Node;
     mNumChildren: u32;
     mChildren: **Node;

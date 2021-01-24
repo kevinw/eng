@@ -18,6 +18,11 @@ cd "%ASSIMP_SRC%\include" || exit /b 1
 -I. -I..\%BUILD_DIR_IN_ASSIMP%\include ^
 -L..\%BUILD_DIR_IN_ASSIMP%\bin\%CFG% -l%ASSIMP_DLL_NAME% ^
 -o "%THIS_DIR%module.jai" ^
+--type-replacement aiVector2D=Vector2 ^
+--type-replacement aiVector3D=Vector3 ^
+--type-replacement aiMatrix3x3=Matrix3 ^
+--type-replacement aiMatrix4x4=Matrix4 ^
+--extra-file-scope-import Math ^
 --strip-prefix ai ^
 --strip-enum-values-with-suffix _ENFORCE_ENUM_SIZE ^
 --strip-enum-value-prefix aiPostProcessSteps=aiProcess_ || exit /b 1
