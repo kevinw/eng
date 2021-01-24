@@ -1,0 +1,37 @@
+Microsoft (R) COFF/PE Dumper Version 14.28.29334.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file ..\lib\win\release\sample_framework_r.dll
+
+File Type: DLL
+
+  Section contains the following exports for sample_framework_r.dll
+
+    00000000 characteristics
+    FFFFFFFF time date stamp
+        0.00 version
+           1 ordinal base
+           6 number of functions
+           6 number of names
+
+    ordinal hint RVA      name
+
+          1    0 00001596 ?ComputePostureBounds@sample@ozz@@YAXU?$span@$$CBUFloat4x4@math@ozz@@@2@PEAUBox@math@2@@Z = @ILT+1425(?ComputePostureBounds@sample@ozz@@YAXU?$span@$$CBUFloat4x4@math@ozz@@@2@PEAUBox@math@2@@Z)
+          2    1 00001483 ?ComputeSkeletonBounds@sample@ozz@@YAXAEBVSkeleton@animation@2@PEAUBox@math@2@@Z = @ILT+1150(?ComputeSkeletonBounds@sample@ozz@@YAXAEBVSkeleton@animation@2@PEAUBox@math@2@@Z)
+          3    2 0000112C ?LoadAnimation@sample@ozz@@YA_NPEBDPEAVAnimation@animation@2@@Z = @ILT+295(?LoadAnimation@sample@ozz@@YA_NPEBDPEAVAnimation@animation@2@@Z)
+          4    3 000011DB ?LoadSkeleton@sample@ozz@@YA_NPEBDPEAVSkeleton@animation@2@@Z = @ILT+470(?LoadSkeleton@sample@ozz@@YA_NPEBDPEAVSkeleton@animation@2@@Z)
+          5    4 00001677 ?PrintSizes@sample@ozz@@YAXXZ = @ILT+1650(?PrintSizes@sample@ozz@@YAXXZ)
+          6    5 000013C0 _SamplingJob_Context_Resize = @ILT+955(_SamplingJob_Context_Resize)
+
+  Summary
+
+        1000 .00cfg
+        2000 .data
+        4000 .idata
+        2000 .pdata
+        D000 .rdata
+        1000 .reloc
+        1000 .rsrc
+       36000 .text
+        1000 .tls
