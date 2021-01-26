@@ -104,6 +104,8 @@ Editor :: struct {
         }
     };
 
+    show_main_menu: bool = false;
+
     windows: struct {
         inspector      := true;
         demo           := true;
@@ -630,11 +632,12 @@ render_imgui_to_drawlists :: (state: *State) {
         PushStyleVar(.WindowRounding, 0);
         PushStyleVar(.WindowBorderSize, 0);
         {
-            PushStyleVar(.WindowPadding, ImGui.make_ImVec2(0, 0));
-            defer End();
             open := true;
+            PushStyleVar(.WindowPadding, ImGui.make_ImVec2(0, 0));
             Begin("DockSpace Demo", *open, window_flags);
             PopStyleVar();
+            show_menubar();
+            defer End();
             PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
             DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
@@ -668,6 +671,38 @@ render_imgui_to_drawlists :: (state: *State) {
     //inspect("", *context.state.editor);
 
     save_changes_modal();
+}
+
+show_menubar :: () {
+    using ImGui;
+    using context.state.editor;
+
+    if !show_main_menu || !BeginMainMenuBar() return;
+    defer EndMainMenuBar();
+
+    if BeginMenu("Examples") {
+        defer EndMenu(); 
+
+        if MenuItem("Align Object to View", null, null, selected.count > 0) {
+            align_all_selected_objects_with_scene_view();
+        }
+    }
+}
+
+align_all_selected_objects_with_scene_view :: () {
+    using context.state.editor;
+
+    cam := scene_camera;
+
+    for selected {
+        transform := get_transform(it.handle);
+        if transform == null continue;
+
+        Undo.push_scope(*undo_state, *transform.position, *transform.scale);
+        transform.position = cam.position;
+        transform.rotation = cam.rotation;
+        // no scale change
+    }
 }
 
 show_profiler_window :: (open: *bool) {
@@ -1010,6 +1045,9 @@ editor_update :: (state: *State) {
         if rl.IsKeyPressed(.KEY_M) {
             logprint("editor", "TODO: implement multiview toggling again");
             // context.state.multiview.enabled = !context.state.multiview.enabled;
+        }
+        if is_key_pressed(.ALT) && !show_main_menu {
+            show_main_menu = true;
         }
     }
 
@@ -1783,12 +1821,12 @@ clear :: (using maybe: *Maybe) {
 eq :: (using maybe: *Maybe, value_to_compare: $T) -> bool {
     return has_value && value == value_to_compare;
 }
-is_key_down    :: (ch: u8) -> bool { return is_key_down(cast,trunc(Key_Code)ch); }
-is_key_down    :: (key: Key_Code) -> bool {
-    res := (<<_local_host_state.input_button_states)[cast(int)key] & .DOWN != 0;
-    //logprint("=ed", "is_key_down %: % (%)", key, res, _local_host_state.input_button_states); 
-    return res;
-}
+
+is_key_pressed :: (key: Key_Code) -> bool { return (<<_local_host_state.input_button_states)[cast(int)key] & .START != 0; }
+is_key_pressed :: (ch: u8) -> bool        { return is_key_pressed(cast,trunc(Key_Code)ch); }
+
+is_key_down    :: (ch: u8) -> bool        { return is_key_down(cast,trunc(Key_Code)ch); }
+is_key_down    :: (key: Key_Code) -> bool { return (<<_local_host_state.input_button_states)[cast(int)key] & .DOWN != 0; }
 
 temp_c_string_obj :: (s: string) -> string {
     result : *u8 = talloc(s.count + 1);

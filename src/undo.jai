@@ -269,11 +269,11 @@ free_item :: (item: Item) {
     }
 }
 
-push_scope :: (impl: *Impl, obj: *$T) #expand {
+push_scope :: (impl: *Impl, objs: ..*$T) #expand {
     // A macro for calling push() now and commit() at the end of the current
     // scope.
 
-    push(impl, obj);
+    for objs push(impl, it);
     `defer commit(impl);
 }
 
