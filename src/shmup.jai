@@ -37,7 +37,9 @@ on_host_init :: (host_state: Host_State) {
 
     before := get_time();
     //filename := "resources/models/the-wiz-boots/wizboots_left_withfill2007_3_8_4ab_11stops-3d-textured-0524288-150k-unwrapped.obj";
-    filename := "resources/models/death-row-spaceship/source/DeathRow_lowpoly.obj";
+    //filename := "resources/models/death-row-spaceship/source/DeathRow_lowpoly.obj";
+    //filename := "resources/models/flight-helmet/FlightHelmet.gltf";
+    filename := "resources/models/reference/cube/cube.obj";
     mesh_ok: bool;
     {
         print_time("mesh", "loaded %", filename);
