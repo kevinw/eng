@@ -76,6 +76,7 @@
 
 
 ## Research
+- game design books like Jesse Schnell's "Book of Lenses"
 - GPU optimization list https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
 - a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
 - david oreilly models collection
