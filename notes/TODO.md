@@ -9,6 +9,7 @@
 - Don't make an engine. Make a game. Find a way to center that.
 - checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
 - shmup save points you can use anywhere, but they are a limited resource. going further without using them allows you to level up faster.  a roguelike shmup!
+- [forward+ renderer](https://github.com/bcrusco/Forward-Plus-Renderer/tree/master/Forward-Plus/Forward-Plus/source/shaders)
 
 ## High Priority
 - live reload DLL can crash if I save a jai change while another is building. we need a "is building" flag or something
