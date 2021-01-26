@@ -1,3 +1,12 @@
+tmap :: (arr: []$A, func: (a: A) -> $B) -> [..]B {
+    temp_results: [..]B;
+    temp_results.allocator = __temporary_allocator;
+    array_reserve(*temp_results, arr.count);
+    for arr
+        array_add(*temp_results, func(it));
+    return temp_results;
+}
+
 screenp :: (msg: string, loc := #caller_location) {
     screenlog.screen_print(msg, loc=loc);
 }
