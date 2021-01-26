@@ -680,7 +680,7 @@ show_menubar :: () {
     if !show_main_menu || !BeginMainMenuBar() return;
     defer EndMainMenuBar();
 
-    if BeginMenu("Examples") {
+    if BeginMenu("Edit") {
         defer EndMenu(); 
 
         if MenuItem("Align Object to View", null, null, selected.count > 0) {
@@ -1261,13 +1261,11 @@ editor_update :: (state: *State) {
         new_scene_confirming();
     }
 
-    if ctrl_down && rl.IsKeyPressed(.KEY_D) {
-        new_handles: [..]Entity_Handle;
-        new_handles.allocator = __temporary_allocator;
+    U :: () -> *Undo.Impl  { return *context.state.editor.undo_state; }
 
+    if ctrl_down && rl.IsKeyPressed(.KEY_D) {
         editor_undo_push_selected();
-        for selected
-            array_add(*new_handles, duplicate_entity(it.handle, undo=*undo_state));
+        new_handles := tmap(selected, s => duplicate_entity(s.handle, undo=U()));
         set_selected(new_handles);
     }
 
@@ -1373,11 +1371,9 @@ set_selected :: (entity_handle: Entity_Handle, commit_undo := false) {
 toggle_selection :: (entity_handle: Entity_Handle) -> bool {
     using context.state.editor;
 
-    for selected {
-        if it.handle == entity_handle {
-            remove it;
-            return false;
-        }
+    for selected if it.handle == entity_handle {
+        remove it;
+        return false;
     }
 
     selected_obj := array_add(*selected);
