@@ -29,14 +29,9 @@ Mesh :: struct {
 }
 
 Sub_Mesh :: struct {
-    material: *Material;
+    material: LiveMaterial;
     vertices: Buffer;
     indices:  Buffer;
-}
-
-Material :: struct {
-    shader: *Shader;
-    pipeline: *Pipeline;
 }
 
 unload_mesh :: (mesh: *Mesh) {
@@ -182,8 +177,7 @@ process_sub_mesh :: (using loader: *Loader, submesh: *Sub_Mesh, aiMesh: *ai.Mesh
 
     submesh.indices = create_immutable_buffer(indices, .Index, "indices for submesh in %", loader.current_filename);
     
-    submesh.material = context.state.materials.pbr;
-    assert(submesh.material != null);
+    submesh.material = get_material("pbr");
 }
 
 process_node :: (using loader: *Loader, mesh: *Mesh, node: *ai.Node, scene: *ai.Scene) {
@@ -198,7 +192,9 @@ process_node :: (using loader: *Loader, mesh: *Mesh, node: *ai.Node, scene: *ai.
 }
 
 ai :: #import "assimp";
+#import "live_raylib";
 #import "renderer";
 #import "Basic";
+#import "Live_Types";
 #import "Math";
 

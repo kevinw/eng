@@ -1,6 +1,7 @@
 Live_Asset_Database :: struct {
-    textures: [..]LiveTextureEntry;
-    sprites:  [..]LiveSpriteEntry;
+    textures:  [..]LiveTextureEntry;
+    sprites:   [..]LiveSpriteEntry;
+    materials: [..]LiveMaterialEntry;
 }
 
 LiveThing :: struct(T: Type) {
@@ -11,8 +12,9 @@ has_value :: (thing: LiveThing) -> bool {
     return thing._entry != null;
 }
 
-LiveTexture :: LiveThing(LiveTextureEntry);
-LiveSprite  :: LiveThing(LiveSpriteEntry);
+LiveTexture   :: LiveThing(LiveTextureEntry);
+LiveSprite    :: LiveThing(LiveSpriteEntry);
+LiveMaterial  :: LiveThing(LiveMaterialEntry);
 
 LiveEntry :: struct {
     count: u16;
@@ -31,7 +33,15 @@ LiveTextureEntry :: struct {
     using resource: rl.Texture;
 }
 
+LiveMaterialEntry :: struct {
+    using _live_entry: LiveEntry;
+    name: string;
+    pipeline: Pipeline;
+    shader: Shader;
+}
+
 #scope_file
 rl :: #import "raylib";
+#import "renderer";
 #import "Sprite_Anim";
 #import "Basic";

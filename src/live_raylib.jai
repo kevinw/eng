@@ -5,6 +5,7 @@ get_asset_name :: (filename: string) -> string {
     return String.path_strip_extension(String.path_filename(filename));
 }
 
+
 try_reload_live_resource :: (full_name_stripped: string, extension: string) {
     did_reload := false;
     if extension == {
@@ -50,6 +51,37 @@ LoadLiveTexture :: (filename: string, texture: Texture) -> LiveTexture {
     obj: LiveTexture;
     obj._entry = new_entry;
     return obj;
+}
+
+add_material :: (name: string, $shader_filename: string) {
+    new_entry := array_add(*context.state.live.materials);
+
+    new_entry.name = copy_string(name);
+    ok := load_shader_from_file(*new_entry.shader, shader_filename);
+    assert(ok);
+
+    new_entry.pipeline = make_pipeline(*new_entry.shader, .Triangles,
+        cull_mode = .None,
+        blend_mode = .Default,
+        depth_stencil_opts = .{
+            depth_write = true,
+            depth_compare_func = .Less,
+        },
+        label = "mesh draw pipeline");
+
+}
+
+get_material :: (name: string) -> LiveMaterial {
+    for * context.state.live.materials {
+        if it.name == name {
+            mat: LiveMaterial;
+            mat._entry = it;
+            return mat;
+        }
+    }
+
+    assert(false, "could not find material %", name);
+    return .{};
 }
 
 LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
@@ -152,6 +184,7 @@ TryReloadLiveSprite :: (filename: string) -> bool {
     }
     return found;
 }
+
 
 #scope_file
 #import "toolbelt";

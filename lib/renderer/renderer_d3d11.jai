@@ -681,13 +681,12 @@ make_pipeline :: (
 
 apply_pipeline :: (pipeline: *Pipeline) {
     renderer := assert_state();
-    assert(pipeline != null);
-    assert(pipeline.shader != null);
+    assert(pipeline != null,        "pipeline was null in apply_pipeline");
+    assert(pipeline.shader != null, "pipeline.shader was null in apply_pipeline");
 
     device_context := cast(*ID3D11DeviceContext)renderer.device_context1;
 
     using pipeline;
-
 
     device_context.IASetPrimitiveTopology(device_context, primitive_type);
     device_context.IASetInputLayout(device_context, shader.input_layout);
