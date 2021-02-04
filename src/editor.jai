@@ -171,7 +171,7 @@ InputTextStr :: (str: *string) -> bool {
 
     res:bool = ImGui.InputText("", buf, MAX_SIZE);
     if res {
-        new_len := str_length(buf);
+        new_len := c_style_strlen(buf);
         
         // @Leak
         // @Leak

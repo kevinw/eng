@@ -164,7 +164,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                             Undo.commit(undo);
                     case;
                         tree_node_str:string;
-                        if name != null && str_length(name) > 0
+                        if name != null && c_style_strlen(name) > 0
                             tree_node_str = tprint("%: %\0", to_string(name), ti_struct.name);
                         else
                             tree_node_str = ti_struct.name;
