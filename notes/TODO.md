@@ -1,6 +1,14 @@
 # TODO
 
 ## Immediate
+- [gorgeous top down visuals](https://twitter.com/HiWarp/status/1356809034213564416)
+- a worldspace text render function with depth shadows
+- a custom font for characters who don't speak your language
+- light component with a gizmo
+- many mesh renderers equals an instanced draw
+- make rotation matrix work
+- the [entity docs](https://www.ourmachinery.com/apidoc/plugins/entity/entity.h.html) for our machinery point towards using a "simulation context" for things like the preview window for a MeshRenderer
+    - in general reading through their documentation seems like it would be 100% useful.
 - ozz animation seems like a better "asset library" format. The-Forge seems to agree. in that case, assimp would just be another "loader"
     - just starting by using ozz to load a mesh would be more fun!
     - [this project](https://github.com/ColinGilbert/ozz-assimp-loader) converts assimp to ozz (the forge also does this I think)
@@ -20,6 +28,7 @@
 - 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 - Figure out how Link should work and make it work!
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
+    - remember now that `#align 16` exists in Jai...might be an easy fix there.
 
 ## Medium Priority
 - Color palettes
@@ -76,6 +85,7 @@
 
 
 ## Research
+- 2d parallax mapping textures with view dependent lighting
 - game design books like Jesse Schnell's "Book of Lenses"
 - GPU optimization list https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
 - a keyboard shortcut for searching the Type_Info of context to narrow down on an inspect() thing
