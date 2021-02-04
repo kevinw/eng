@@ -1090,7 +1090,7 @@ ImAlphaBlendColors                               :: (col_a: u32, col_b: u32) -> 
 ImFileLoadToMemory                               :: (filename: *u8, mode: *u8, out_file_size: *u64 = null, padding_bytes: s32 = 0) -> *void #foreign imgui_lib "?ImFileLoadToMemory@@YAPEAXPEBD0PEA_KH@Z";
 ImFontAtlasBuildFinish                           :: (atlas: *ImFontAtlas) #foreign imgui_lib "?ImFontAtlasBuildFinish@@YAXPEAUImFontAtlas@@@Z";
 ImFontAtlasBuildInit                             :: (atlas: *ImFontAtlas) #foreign imgui_lib "?ImFontAtlasBuildInit@@YAXPEAUImFontAtlas@@@Z";
-ImFontAtlasBuildMultiplyCalcLookupTable          :: (out_table: [256]u8, in_multiply_factor: float) #foreign imgui_lib "?ImFontAtlasBuildMultiplyCalcLookupTable@@YAXQEAEM@Z";
+ImFontAtlasBuildMultiplyCalcLookupTable          :: (out_table: *[256]u8, in_multiply_factor: float) #foreign imgui_lib "?ImFontAtlasBuildMultiplyCalcLookupTable@@YAXQEAEM@Z";
 ImFontAtlasBuildPackCustomRects                  :: (atlas: *ImFontAtlas, stbrp_context_opaque: *void) #foreign imgui_lib "?ImFontAtlasBuildPackCustomRects@@YAXPEAUImFontAtlas@@PEAX@Z";
 ImFontAtlasBuildRender1bppRectFromString         :: (atlas: *ImFontAtlas, atlas_x: s32, atlas_y: s32, w: s32, h: s32, in_str: *u8, in_marker_char: s8, in_marker_pixel_value: u8) #foreign imgui_lib "?ImFontAtlasBuildRender1bppRectFromString@@YAXPEAUImFontAtlas@@HHHHPEBDDE@Z";
 ImFontAtlasBuildSetupFont                        :: (atlas: *ImFontAtlas, font: *ImFont, font_config: *ImFontConfig, ascent: float, descent: float) #foreign imgui_lib "?ImFontAtlasBuildSetupFont@@YAXPEAUImFontAtlas@@PEAUImFont@@PEAUImFontConfig@@MM@Z";
@@ -1166,13 +1166,13 @@ Indent                                           :: (indent_w: float = 0.0) #for
 Initialize                                       :: (ctx: *Context) #foreign imgui_lib "?Initialize@ImGui@@YAXPEAUImGuiContext@@@Z";
 InputDouble                                      :: (label: *u8, v: *float64, step: float64 = 0, step_fast: float64 = 0, format: *u8 = "%.6f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputDouble@ImGui@@YA_NPEBDPEANNN0H@Z";
 InputFloat                                       :: (label: *u8, v: *float, step: float = 0.0, step_fast: float = 0.0, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat@ImGui@@YA_NPEBDPEAMMM0H@Z";
-InputFloat2                                      :: (label: *u8, v: [2]float, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat2@ImGui@@YA_NPEBDQEAM0H@Z";
-InputFloat3                                      :: (label: *u8, v: [3]float, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat3@ImGui@@YA_NPEBDQEAM0H@Z";
-InputFloat4                                      :: (label: *u8, v: [4]float, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat4@ImGui@@YA_NPEBDQEAM0H@Z";
+InputFloat2                                      :: (label: *u8, v: *[2]float, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat2@ImGui@@YA_NPEBDQEAM0H@Z";
+InputFloat3                                      :: (label: *u8, v: *[3]float, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat3@ImGui@@YA_NPEBDQEAM0H@Z";
+InputFloat4                                      :: (label: *u8, v: *[4]float, format: *u8 = "%.3f", flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputFloat4@ImGui@@YA_NPEBDQEAM0H@Z";
 InputInt                                         :: (label: *u8, v: *s32, step: s32 = 1, step_fast: s32 = 100, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt@ImGui@@YA_NPEBDPEAHHHH@Z";
-InputInt2                                        :: (label: *u8, v: [2]s32, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt2@ImGui@@YA_NPEBDQEAHH@Z";
-InputInt3                                        :: (label: *u8, v: [3]s32, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt3@ImGui@@YA_NPEBDQEAHH@Z";
-InputInt4                                        :: (label: *u8, v: [4]s32, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt4@ImGui@@YA_NPEBDQEAHH@Z";
+InputInt2                                        :: (label: *u8, v: *[2]s32, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt2@ImGui@@YA_NPEBDQEAHH@Z";
+InputInt3                                        :: (label: *u8, v: *[3]s32, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt3@ImGui@@YA_NPEBDQEAHH@Z";
+InputInt4                                        :: (label: *u8, v: *[4]s32, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputInt4@ImGui@@YA_NPEBDQEAHH@Z";
 InputScalar                                      :: (label: *u8, data_type: DataType, p_data: *void, p_step: *void = null, p_step_fast: *void = null, format: *u8 = null, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputScalar@ImGui@@YA_NPEBDHPEAXPEBX20H@Z";
 InputScalarN                                     :: (label: *u8, data_type: DataType, p_data: *void, components: s32, p_step: *void = null, p_step_fast: *void = null, format: *u8 = null, flags: InputTextFlags = .None) -> bool #foreign imgui_lib "?InputScalarN@ImGui@@YA_NPEBDHPEAXHPEBX20H@Z";
 InputText                                        :: (label: *u8, buf: *u8, buf_size: u64, flags: InputTextFlags = .None, callback: InputTextCallback = null, user_data: *void = null) -> bool #foreign imgui_lib "?InputText@ImGui@@YA_NPEBDPEAD_KHP6AHPEAUImGuiInputTextCallbackData@@@ZPEAX@Z";
@@ -1544,13 +1544,13 @@ SliderBehavior                                   :: (bb: ImRect, id: ID, data_ty
     return _internal_SliderBehavior(*bb, id, data_type, p_v, p_min, p_max, format, flags, out_grab_bb);
 }
 SliderFloat                                      :: (label: *u8, v: *float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat@ImGui@@YA_NPEBDPEAMMM0H@Z";
-SliderFloat2                                     :: (label: *u8, v: [2]float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat2@ImGui@@YA_NPEBDQEAMMM0H@Z";
-SliderFloat3                                     :: (label: *u8, v: [3]float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat3@ImGui@@YA_NPEBDQEAMMM0H@Z";
-SliderFloat4                                     :: (label: *u8, v: [4]float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat4@ImGui@@YA_NPEBDQEAMMM0H@Z";
+SliderFloat2                                     :: (label: *u8, v: *[2]float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat2@ImGui@@YA_NPEBDQEAMMM0H@Z";
+SliderFloat3                                     :: (label: *u8, v: *[3]float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat3@ImGui@@YA_NPEBDQEAMMM0H@Z";
+SliderFloat4                                     :: (label: *u8, v: *[4]float, v_min: float, v_max: float, format: *u8 = "%.3f", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderFloat4@ImGui@@YA_NPEBDQEAMMM0H@Z";
 SliderInt                                        :: (label: *u8, v: *s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt@ImGui@@YA_NPEBDPEAHHH0H@Z";
-SliderInt2                                       :: (label: *u8, v: [2]s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt2@ImGui@@YA_NPEBDQEAHHH0H@Z";
-SliderInt3                                       :: (label: *u8, v: [3]s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt3@ImGui@@YA_NPEBDQEAHHH0H@Z";
-SliderInt4                                       :: (label: *u8, v: [4]s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt4@ImGui@@YA_NPEBDQEAHHH0H@Z";
+SliderInt2                                       :: (label: *u8, v: *[2]s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt2@ImGui@@YA_NPEBDQEAHHH0H@Z";
+SliderInt3                                       :: (label: *u8, v: *[3]s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt3@ImGui@@YA_NPEBDQEAHHH0H@Z";
+SliderInt4                                       :: (label: *u8, v: *[4]s32, v_min: s32, v_max: s32, format: *u8 = "%d", flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderInt4@ImGui@@YA_NPEBDQEAHHH0H@Z";
 SliderScalar                                     :: (label: *u8, data_type: DataType, p_data: *void, p_min: *void, p_max: *void, format: *u8 = null, flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderScalar@ImGui@@YA_NPEBDHPEAXPEBX20H@Z";
 SliderScalarN                                    :: (label: *u8, data_type: DataType, p_data: *void, components: s32, p_min: *void, p_max: *void, format: *u8 = null, flags: SliderFlags = .None) -> bool #foreign imgui_lib "?SliderScalarN@ImGui@@YA_NPEBDHPEAXHPEBX20H@Z";
 SmallButton                                      :: (label: *u8) -> bool #foreign imgui_lib "?SmallButton@ImGui@@YA_NPEBD@Z";
@@ -2010,7 +2010,7 @@ ImFontAtlas :: struct {
     GetGlyphRangesKorean                      :: (self: *ImFontAtlas) -> *ImWchar #foreign imgui_lib "?GetGlyphRangesKorean@ImFontAtlas@@QEAAPEBGXZ";
     GetGlyphRangesThai                        :: (self: *ImFontAtlas) -> *ImWchar #foreign imgui_lib "?GetGlyphRangesThai@ImFontAtlas@@QEAAPEBGXZ";
     GetGlyphRangesVietnamese                  :: (self: *ImFontAtlas) -> *ImWchar #foreign imgui_lib "?GetGlyphRangesVietnamese@ImFontAtlas@@QEAAPEBGXZ";
-    GetMouseCursorTexData                     :: (self: *ImFontAtlas, cursor: MouseCursor, out_offset: *ImVec2, out_size: *ImVec2, out_uv_border: [2]ImVec2, out_uv_fill: [2]ImVec2) -> bool #foreign imgui_lib "?GetMouseCursorTexData@ImFontAtlas@@QEAA_NHPEAUImVec2@@0QEAU2@1@Z";
+    GetMouseCursorTexData                     :: (self: *ImFontAtlas, cursor: MouseCursor, out_offset: *ImVec2, out_size: *ImVec2, out_uv_border: *[2]ImVec2, out_uv_fill: *[2]ImVec2) -> bool #foreign imgui_lib "?GetMouseCursorTexData@ImFontAtlas@@QEAA_NHPEAUImVec2@@0QEAU2@1@Z";
     GetTexDataAsAlpha8                        :: (self: *ImFontAtlas, out_pixels: **u8, out_width: *s32, out_height: *s32, out_bytes_per_pixel: *s32 = null) #foreign imgui_lib "?GetTexDataAsAlpha8@ImFontAtlas@@QEAAXPEAPEAEPEAH11@Z";
     GetTexDataAsRGBA32                        :: (self: *ImFontAtlas, out_pixels: **u8, out_width: *s32, out_height: *s32, out_bytes_per_pixel: *s32 = null) #foreign imgui_lib "?GetTexDataAsRGBA32@ImFontAtlas@@QEAAXPEAPEAEPEAH11@Z";
 }
@@ -2050,7 +2050,7 @@ ImFontConfig :: struct {
 
 ImFontGlyph :: struct {
     Codepoint: u32;
-    #place Codepoint; Visible: u32;
+    #place Codepoint; /* bitfield 31 */ Visible_bitfield_31: u32;
     AdvanceX: float;
     X0: float;
     Y0: float;
@@ -2341,19 +2341,19 @@ DockNode :: struct {
     SelectedTabId: ID;
     WantCloseTabId: ID;
     AuthorityForPos: DataAuthority;
-    AuthorityForSize: DataAuthority;
-    AuthorityForViewport: DataAuthority;
+    #place AuthorityForPos; /* bitfield 3 */ AuthorityForSize_bitfield_3: DataAuthority;
+    #place AuthorityForPos; /* bitfield 6 */ AuthorityForViewport_bitfield_6: DataAuthority;
     IsVisible: bool;
-    IsFocused: bool;
-    HasCloseButton: bool;
-    HasWindowMenuButton: bool;
-    EnableCloseButton: bool;
-    WantCloseAll: bool;
-    WantLockSizeOnce: bool;
-    WantMouseMove: bool;
-    WantHiddenTabBarUpdate: bool;
-    WantHiddenTabBarToggle: bool;
-    MarkedForPosSizeWrite: bool;
+    #place IsVisible; /* bitfield 1 */ IsFocused_bitfield_1: bool;
+    #place IsVisible; /* bitfield 2 */ HasCloseButton_bitfield_2: bool;
+    #place IsVisible; /* bitfield 3 */ HasWindowMenuButton_bitfield_3: bool;
+    #place IsVisible; /* bitfield 4 */ EnableCloseButton_bitfield_4: bool;
+    #place IsVisible; /* bitfield 5 */ WantCloseAll_bitfield_5: bool;
+    #place IsVisible; /* bitfield 6 */ WantLockSizeOnce_bitfield_6: bool;
+    #place IsVisible; /* bitfield 7 */ WantMouseMove_bitfield_7: bool;
+    #place IsVisible; /* bitfield 8 */ WantHiddenTabBarUpdate_bitfield_8: bool;
+    #place IsVisible; /* bitfield 9 */ WantHiddenTabBarToggle_bitfield_9: bool;
+    #place IsVisible; /* bitfield 10 */ MarkedForPosSizeWrite_bitfield_10: bool;
 }
 
 GroupData :: struct {
@@ -2800,10 +2800,6 @@ Style :: struct {
     ScaleAllSizes     :: (self: *Style, scale_factor: float) #foreign imgui_lib "?ScaleAllSizes@ImGuiStyle@@QEAAXM@Z";
 }
 
-StyleMod :: struct {
-    VarIdx: StyleVar;
-}
-
 TabBar :: struct {
     Tabs: ImVector(TabItem);
     Flags: TabBarFlags;
@@ -2878,7 +2874,7 @@ Table :: struct {
     RowTextBaseline: float;
     RowIndentOffsetX: float;
     RowFlags: TableRowFlags;
-    LastRowFlags: TableRowFlags;
+    #place RowFlags; /* bitfield 16 */ LastRowFlags_bitfield_16: TableRowFlags;
     RowBgColorCounter: s32;
     RowBgColor: [2]u32;
     BorderColorStrong: u32;
@@ -3002,8 +2998,8 @@ TableColumn :: struct {
     AutoFitQueue: u8;
     CannotSkipItemsQueue: u8;
     SortDirection: u8;
-    SortDirectionsAvailCount: u8;
-    SortDirectionsAvailMask: u8;
+    #place SortDirection; /* bitfield 2 */ SortDirectionsAvailCount_bitfield_2: u8;
+    #place SortDirection; /* bitfield 4 */ SortDirectionsAvailMask_bitfield_4: u8;
     SortDirectionsAvailList: u8;
 }
 
@@ -3014,8 +3010,8 @@ TableColumnSettings :: struct {
     DisplayOrder: TableColumnIdx;
     SortOrder: TableColumnIdx;
     SortDirection: u8;
-    IsEnabled: u8;
-    IsStretch: u8;
+    #place SortDirection; /* bitfield 2 */ IsEnabled_bitfield_2: u8;
+    #place SortDirection; /* bitfield 3 */ IsStretch_bitfield_3: u8;
 }
 
 TableColumnSortSpecs :: struct {
@@ -3167,9 +3163,9 @@ Window :: struct {
     HiddenFramesCannotSkipItems: s8;
     HiddenFramesForRenderOnly: s8;
     SetWindowPosAllowFlags: Cond;
-    SetWindowSizeAllowFlags: Cond;
-    SetWindowCollapsedAllowFlags: Cond;
-    SetWindowDockAllowFlags: Cond;
+    #place SetWindowPosAllowFlags; /* bitfield 8 */ SetWindowSizeAllowFlags_bitfield_8: Cond;
+    #place SetWindowPosAllowFlags; /* bitfield 16 */ SetWindowCollapsedAllowFlags_bitfield_16: Cond;
+    #place SetWindowPosAllowFlags; /* bitfield 24 */ SetWindowDockAllowFlags_bitfield_24: Cond;
     SetWindowPosVal: ImVec2;
     SetWindowPosPivot: ImVec2;
     IDStack: ImVector(ID);
@@ -3212,8 +3208,8 @@ Window :: struct {
     DockTabItemRect: ImRect;
     DockOrder: s16;
     DockIsActive: bool;
-    DockTabIsVisible: bool;
-    DockTabWantClose: bool;
+    #place DockIsActive; /* bitfield 1 */ DockTabIsVisible_bitfield_1: bool;
+    #place DockIsActive; /* bitfield 2 */ DockTabWantClose_bitfield_2: bool;
 
     CalcFontSize           :: (self: *Window) -> float #foreign imgui_lib "?CalcFontSize@ImGuiWindow@@QEBAMXZ";
     GetID                  :: (self: *Window, str: string) -> ID {
@@ -3417,6 +3413,15 @@ StbUndoState :: struct {
 
 
 
+StyleMod :: struct {
+    VarIdx: StyleVar;
+    union {
+        BackupInt: [2]s32;
+        BackupFloat: [2]float;
+    }
+}
+
+
 ImSpan :: struct(T: Type) {
     Data:    *T;
     DataEnd: *T;
@@ -3495,13 +3500,14 @@ make_col32 :: (c: ImVec4) -> u32 {
 
 FLT_MAX :: 0h7F7FFFFF;
 
-#if OS == .WINDOWS
+#if OS == .WINDOWS {
+    user32 :: #foreign_system_library "user32"; // For GetClipboardData and related functions.
     #if LINK_STATIC {
         imgui_lib :: #foreign_library,no_dll "win/static/imgui";
     } else {
         imgui_lib :: #foreign_library "win/dll/imgui";
     }
-else
+} else
     #assert false, "TODO: implement this platform!";
 
 
