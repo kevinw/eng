@@ -51,7 +51,7 @@ set_window_borderless :: (native_handle: *void, borderless: bool, x: s32, y: s32
     rect.top = y;
     rect.right = x + w;
     rect.bottom = y + h;
-    return set_window_borderless(native_handle, borderless, x, y, w, h);
+    return set_window_borderless(native_handle, borderless, *rect);
 }
 
 set_window_borderless_fullscreen :: (native_handle: *void) -> Windowed_State {
@@ -66,19 +66,19 @@ set_window_borderless_fullscreen :: (native_handle: *void) -> Windowed_State {
 
 set_window_borderless :: (native_handle: *void, borderless: bool, old_window_info: *RECT = null) -> Windowed_State {
     #if OS == .WINDOWS {
-        BORDERLESS_STYLE     :s32 : WS_VISIBLE | WS_POPUP;
-        NOT_BORDERLESS_STYLE :s32 : WS_VISIBLE | WS_OVERLAPPEDWINDOW;
+        BORDERLESS_STYLE     :u32 : WS_VISIBLE | WS_POPUP;
+        NOT_BORDERLESS_STYLE :u32 : WS_VISIBLE | WS_OVERLAPPEDWINDOW;
         EX_STYLE                 :: WS_EX_APPWINDOW;
 
         was_rect: RECT;
         GetClientRect(native_handle, *was_rect);
         MapWindowPoints(native_handle, null, cast(*POINT)*was_rect, 2);
 
-        style: s32 = ifx borderless then BORDERLESS_STYLE else NOT_BORDERLESS_STYLE;
-        SetWindowLongW(native_handle, GWL_STYLE, style);
+        style: u32 = ifx borderless then BORDERLESS_STYLE else NOT_BORDERLESS_STYLE;
+        SetWindowLongW(native_handle, GWL_STYLE, cast,trunc(s32)style);
         if old_window_info != null {
             rect := <<old_window_info;
-            if !AdjustWindowRectEx(*rect, dwStyle=xx style, bMenu=BOOL.FALSE, dwExStyle=WS_EX_APPWINDOW)
+            if !AdjustWindowRectEx(*rect, dwStyle=style, bMenu=BOOL.FALSE, dwExStyle=WS_EX_APPWINDOW)
                 logprint("platform", "warning: AdjustWindowRectEx failed");
             SetWindowPos(native_handle, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_FRAMECHANGED);
         }
