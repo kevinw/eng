@@ -47,7 +47,7 @@ host_settings: struct { // gets serialized to disk to remember the window positi
     window_width: s32;
     window_height: s32;
 };
-window_rect: [4]s32;
+windowed_state: platform.Windowed_State;
 window_was_borderless: bool; // we store this because by the time the window
                              // is closed, we can not query to see if it is (was) borderless or not
 #if BUILDING_DLLS {
@@ -80,32 +80,15 @@ toggle_borderless_fullscreen :: (handle: Window_Type) -> bool {
     using platform;
     
     if is_window_borderless(handle) {
-        set_window_borderless(handle, false);
         window_was_borderless = false;
         set_window_always_on_top(handle, true);
-        if window_rect[0] <= 0 window_rect[0] = 50;
-        if window_rect[1] <= 0 window_rect[1] = 50;
-        if window_rect[2] == 0 window_rect[2] = 1200;
-        if window_rect[3] == 0 window_rect[3] = 675;
-        set_window_rect(handle, window_rect[0], window_rect[1], window_rect[2], window_rect[3]);
+        reset_if_empty(*windowed_state, 50, 50, 1200, 675);
+        set_window_borderless(handle, false, *windowed_state);
         return false;
     } else {
-        x, y := get_window_position(handle);
-        w, h := get_window_size(handle);
-
-        set_window_borderless(handle, true);
+        windowed_state = set_window_borderless_fullscreen(handle);
         window_was_borderless = true;
-        window_rect[0] = x;
-        window_rect[1] = y;
-        window_rect[2] = w;
-        window_rect[3] = h;
         set_window_always_on_top(handle, false);
-        {
-            #import "Windows";
-            w := GetSystemMetrics(SM_CXSCREEN);
-            h := GetSystemMetrics(SM_CYSCREEN);
-            SetWindowPos(handle, HWND_TOP, 0, 0, w, h, SWP_FRAMECHANGED);
-        }
         return true;
     }
 }
