@@ -1,4 +1,5 @@
 HOTLOADING_ENABLED :: true;
+UI_CFG_PATH :: "gui.cfg";
 
 State_Base :: struct {
     check_canaries :: (state: *State_Base) {
@@ -54,6 +55,13 @@ State_Base :: struct {
 game_base_shutdown :: () {
     using context.state;
 
+    { // save config
+        sb: String_Builder;
+        sb.allocator = __temporary_allocator;
+        config.to_builder(*sb, *ui.config);
+        File.write_entire_file(UI_CFG_PATH, builder_to_string(*sb, __temporary_allocator));
+    }
+
     // TODO: the notion of some kind of "hard exit" so that we can do leak
     // tracking, but keep exiting fast when we don't care about the details.
     shutdown_profiler(*profiler);
@@ -100,10 +108,17 @@ game_base_update :: (host_state: Host_State) {
 
     if !editor.wants_keyboard {
         shift := rl.IsKeyDown(.KEY_LEFT_SHIFT) || rl.IsKeyDown(.KEY_RIGHT_SHIFT);
+        ctrl := is_key_down(.CTRL);
         if rl.IsKeyPressed(.KEY_TAB) || rl.IsGamepadButtonPressed(0, .GAMEPAD_BUTTON_MIDDLE_RIGHT)
             editor_toggle(context.state);
-        if rl.IsKeyPressed(.KEY_MINUS) change_global_time_scale(-1);
-        if rl.IsKeyPressed(.KEY_EQUAL) change_global_time_scale(+1);
+        if is_key_pressed(#char "-") {
+            if ctrl ui_change_scale(*ui, -1);
+            else change_global_time_scale(-1);
+        }
+        if is_key_pressed(#char "+") {
+            if ctrl ui_change_scale(*ui, +1);
+            else change_global_time_scale(+1);
+        }
         if rl.IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
             logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
@@ -232,6 +247,7 @@ game_base_init :: (host_state: Host_State) {
     assert(profiler_ok);
 
     setup_gamepad(host_state);
+    config.parse(*ui.config, UI_CFG_PATH);
 
     _update_raylib_temp(host_state);
     ui.d3dDevice = xx renderer.device;
@@ -442,7 +458,8 @@ on_renderer_debug_message :: (debug_message: Debug_Message) {
 Physics_2D_State :: struct {
     space: *cp.Space;
 }
-is_key_down       :: (ch: u8) -> bool { return (<<_local_host_state.input_button_states)[cast(int)ch] & .DOWN != 0; }
+is_key_down       :: (ch: u8)        -> bool { return is_key_down(cast,trunc(Key_Code)ch); }
+is_key_down       :: (key: Key_Code) -> bool { return (<<_local_host_state.input_button_states)[cast(int)key] & .DOWN != 0; }
 is_key_pressed    :: (ch: u8) -> bool { return is_key_pressed(cast,trunc(Key_Code)ch); }
 is_key_pressed    :: (key: Key_Code) -> bool {
     return (<<_local_host_state.input_button_states)[cast(int)key] & .START != 0;
@@ -478,5 +495,7 @@ Sloppy_Math :: #import "Sloppy_Math";
 Gamepad :: #import "Gamepad";
 #load "plugin_exports.jai";
 #load "editor.jai";
+File :: #import "File";
+config :: #import "config";
 
 multiview_window :: #import "multiview_window";

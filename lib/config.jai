@@ -16,6 +16,19 @@ for_expansion :: (handler: *Text_File_Handler, body: Code, flags: For_Flags) #ex
     }
 }
 
+save_config_file_to_builder :: (sb: *String_Builder, target: *$T, version := 1) {
+    print_to_builder(sb, "[%]\n\n", version);
+    for type_info(T).members {
+        any: Any;
+        any.value_pointer = target + it.offset_in_bytes;
+        any.type = it.type;
+
+        print_to_builder(sb, "% %\n", it.name, any);
+    }
+}
+
+parse      :: parse_config_file;
+to_builder :: save_config_file_to_builder;
 
 //
 // parse a config file and write values from it into the `target` struct

@@ -7,6 +7,13 @@ UI_State_Base :: struct {
     Time: float64;
     MousePressed: [3]bool;
     MouseWheel: float;
+
+    original_style: *ImGui.Style; // infrequently accessed, so pointer
+    reload_fonts_later := false;
+
+    config: struct {
+        current_style_scale:float = 1.1;
+    };
 }
 
 imgui_alloc_context: Context;
@@ -39,6 +46,11 @@ ImGui_Impl_CreateContext :: (using ui_state: *UI_State) {
 ImGui_Impl_ProcessInputEvents :: (using ui_state: *UI_State, events: []Input.Event) {
     using Input;
     io := ImGui.GetIO();
+
+    if ui_state.reload_fonts_later {
+        ui_state.reload_fonts_later = false;
+        reload_fonts(ui_state);
+    }
 
     MouseWheel = 0;
     for events {

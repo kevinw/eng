@@ -128,22 +128,51 @@ imgui_render :: (ui: *UI_State) {
     assert(ok);
 }
 
+ui_change_scale :: (using ui: *UI_State, delta: int) {
+    assert(original_style != null);
+
+    config.current_style_scale += 0.2 * delta;
+
+    style := ImGui.GetStyle();
+    <<style = <<original_style;
+    ImGui.Style.ScaleAllSizes(style, config.current_style_scale);
+    reload_fonts_later = true;
+}
+
 imgui_init :: (ui: *UI_State, window_handle: *void) {
     ImGui_Impl_CreateContext(ui);
     ImGui.StyleColorsDark();
     {
         using style := ImGui.GetStyle();
-        ScaleAllSizes(style, 1.1);
+
         FrameRounding = 1.5;
         GrabRounding = 3.0;
         TabRounding = 5.0;
+
+        // we keep the "original" style around for when we scale it later
+        ui.original_style = New(type_of(<<style));
+        <<ui.original_style = <<style;
+
+        ImGui.Style.ScaleAllSizes(style, ui.config.current_style_scale);
     }
 
     //dark_theme_2();
 
-    font_file      :: "resources/fonts/Roboto-Regular.ttf"; regular_size :: 15; small_size :: 14;
-    font_file_mono :: "resources/fonts/consola.ttf";        mono_size :: 11;
+    reload_fonts(ui);
+
+    ImGui_Impl_Init(ui, window_handle);
+    ImGui_Impl_SetupInputModuleKeymap(ui);
+}
+
+reload_fonts :: (ui: *UI_State) {
+    regular_size := 15 * ui.config.current_style_scale;
+    small_size := 14 * ui.config.current_style_scale;
+    mono_size := 11 * ui.config.current_style_scale;
+
+    font_file      :: "resources/fonts/Roboto-Regular.ttf"; 
+    font_file_mono :: "resources/fonts/consola.ttf";        
     fonts := ImGui.GetIO().Fonts;
+    fonts.Clear(fonts);
     #if #run Compiler.get_build_options().optimization_level != .RELEASE {
         // In debug builds, load the TTF files from disk.
         fonts.AddFontFromFileTTF(fonts, font_file, regular_size);
@@ -162,9 +191,8 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
         ui.monospace_font = fonts.AddFontFromMemoryTTF(fonts, font_file_mono_bytes.data, cast(s32)font_file_bytes.count, mono_size);
     }
 
-    ImGui_Impl_Init(ui, window_handle);
+    ui.FontSampler = null;
 
-    ImGui_Impl_SetupInputModuleKeymap(ui);
 }
 
 #scope_file
