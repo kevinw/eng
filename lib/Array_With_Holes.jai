@@ -1,4 +1,4 @@
-ROBUSTNESS_CHECKS :: false;
+ROBUSTNESS_CHECKS :: false; // can this go away now?
 
 /*
 The point of this data structure is to have a bucket of things with pointers that never move,
@@ -55,6 +55,14 @@ Array_With_Holes :: struct(Value: Type) {
         GetSystemInfo(*sys_info);
         return sys_info.dwPageSize;
     }
+
+    get_originally_virtualalloced_pointer :: (arr: *$A/Array_With_Holes) -> *void {
+        return cast(*void)arr.items.data - page_size + size_of(A.Slot);
+    }
+} else {
+    get_originally_virtualalloced_pointer :: (arr: *$A/Array_With_Holes) -> *void {
+        return cast(*void)arr.items.data;
+    }
 }
 
 count_items :: (arr: *$A/Array_With_Holes) -> int {
@@ -64,6 +72,14 @@ count_items :: (arr: *$A/Array_With_Holes) -> int {
     return count;
 }
 
+deinit_array_with_holes :: (arr: *$A/Array_With_Holes, $DEBUG_PROTECT_FREED_MEMORY:bool = false) {
+    assert(arr != null);
+
+    valloc_ptr := get_originally_virtualalloced_pointer(arr);
+    VirtualFree(valloc_ptr, 0, MEM_RELEASE);
+
+    if DEBUG_PROTECT_FREED_MEMORY print("TODO: DEBUG_PROTECT_FREED_MEMORY\n");
+}
 
 init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
     assert(arr.items.data == null, "Array_With_Holes was already initialized");
@@ -87,7 +103,8 @@ init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
         //old_ptr := arr.items.data;
 
         // the intent here is to make the freelist slot a protected page,
-        // except when we explictly unlock it.
+        // except when we explictly unlock it. so we place the first slot on
+        // the protected page. see also get_originally_virtualalloced_pointer
         arr.items.data = cast(*A.Slot)((cast(*void)valloc_ptr) + page_size - size_of(A.Slot));
 
         //old_ptr.generation = 42; // should crash

@@ -65,9 +65,27 @@ for_expansion :: (entity_handle: Entity_Handle, body: Code, pointer: bool, rever
 }
 */
 
+get_world :: inline () -> *World { return context.state.world; }
+
 get_parent :: (entity_handle: Entity_Handle) -> Entity_Handle {
     link := get_component(entity_handle, Link);
     return ifx link then link.parent else .{};
+
+    /*
+    //i love this. requires a list of sorted Links, where parents come before children
+
+    matrix world[MAX_ENTITIES] = { ... };
+    for(int entity = 0; entity < MAX_ENTITIES; entity++)
+    { 
+        if(parents[entity] == -1)
+            world[entity] = locals[entity];
+        else
+        {
+            int parent = parents[entity];
+            world[entity] = locals[parent] * local[entity];
+        }
+    }
+    */
 }
 
 set_parent :: (entity_handle: Entity_Handle, parent_handle: Entity_Handle) {
@@ -305,12 +323,14 @@ Entity_Handle :: Handle_Type;
 
 check_canaries :: (world: *World = null) {
     if world == null
-        world = *context.state.world;
+        world = context.state.world;
     assert(world.canary1 == 101, "world canary1 was not 101: %", world.canary1);
     assert(world.canary2 == 999, "world canary1 was not 999: %", world.canary2);
 }
 
 World :: struct {
+    current :: inline () -> *World { return context.state.world; }
+
     canary1 := 101;
     entities: Array_With_Holes(Entity);
     #insert #run (() -> string {
@@ -333,9 +353,6 @@ World :: struct {
 
         components: [..]*wbml.Node; // in component order
     };
-
-    deinit :: (world: *World) {
-    }
 };
 
 Prefab_Cache_Entry :: struct {
@@ -346,16 +363,42 @@ Prefab_Cache_Entry :: struct {
     };
 }
 
-init_world :: (world: *World) {
-    array_reserve(*context.state.live.textures, 50);
+scoped_test_world :: () #expand {
+    old_world := context.state.world;
+    new_world := New(World);
+    context.state.world = new_world;
+    world_init(context.state.world);
+    `defer {
+        context.state.world = old_world;
+        world_deinit(new_world);
+    }
+}
+
+world_deinit :: (world: *World) {
+
+    // @Leak @Leak @Leak we should be freeing defaults_nodes too here.
+    // @Leak @Leak @Leak we should be freeing defaults_nodes too here.
+    // @Leak @Leak @Leak we should be freeing defaults_nodes too here.
+
+    #insert #run(() -> string {
+        sb: TString_Builder;
+        for get_all_component_types()
+            print_to_builder(*sb, "deinit_array_with_holes(*world._%);\n", it);
+        return tstring(*sb);
+    }());
+
+    deinit_array_with_holes(*world.entities);
+}
+
+world_init :: (world: *World) {
+    array_reserve(*context.state.live.textures, 50); // TODO: no
 
     init_array_with_holes(*world.entities, "all-entities");
     #insert #run(() -> string {
-        sb: String_Builder;
-        sb.allocator = __temporary_allocator;
+        sb: TString_Builder;
         for get_all_component_types()
-            print_to_builder(*sb, "init_array_with_holes(*context.state.world._%, \"all-%\");\n", it, it);
-        return builder_to_string(*sb, __temporary_allocator);
+            print_to_builder(*sb, "init_array_with_holes(*world._%, \"all-%\");\n", it, it);
+        return tstring(*sb);
     }());
 
     // Here we create empty stack variables for each component type, and then
@@ -394,7 +437,9 @@ world_update :: (world: *World, delta_time: float) {
 world_predraw :: (world: *World) { run_all(world, .pre_draw); }
 
 world_draw :: (world: *World = null) {
-    if world == null world = *context.state.world;
+    if world == null
+        world = get_world();
+
     check_canaries(world);
     run_all(world, .draw);
 }
@@ -407,7 +452,7 @@ create_entity :: (world: *World = null, name: string = "",
     undo: *Undo.Impl = null, create_transform_component := true, world_pos: Vector3 = .{}
 ) -> *Entity, Entity_Handle {
     if world == null
-        world = *context.state.world;
+        world = get_world();
     assert(world != null);
 
     handle, e := allocate_slot(*world.entities, undo=undo);
@@ -875,7 +920,7 @@ duplicate_entity :: (entity_handle: Entity_Handle, undo: *Undo.Impl = null) -> E
     sb: String_Builder;
     defer free_buffers(*sb);
     save_prefab(*sb, *entity_handle);
-    new_entities := load_world(*context.state.world, builder_to_string(*sb, allocator=__temporary_allocator), undo=undo);
+    new_entities := load_world(World.current(), builder_to_string(*sb, allocator=__temporary_allocator), undo=undo);
 
     assert(new_entities.count == 1, "expected one new entity to be made by load_world in duplicate_entity");
 
@@ -895,8 +940,8 @@ save_prefab :: (filename: string, entity_selection: *Entity_Handle = null) {
 }
 
 save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
-    world := *context.state.world;
-    for handles(*world.entities) {
+    world := context.state.world;
+    for handles(*get_world().entities) {
         ok, entity := get_entity(it);
         assert(ok);
 
@@ -1011,7 +1056,7 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}, undo:*U
     defer free(entity_file_text);
     print("read % bytes from '%'\n", entity_file_text.count, filename);
 
-    new_handles := load_world(*context.state.world, entity_file_text, filename,
+    new_handles := load_world(context.state.world, entity_file_text, filename,
         create_transform=true, save_in_cache=true, undo=undo);
     assert(new_handles.count == 1, "expecting exactly one handle from a prefab file, got %: %", new_handles.count, filename);
 
@@ -1027,6 +1072,7 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}, undo:*U
 }
 
 #scope_file
+
 
 #import "Basic";
 File :: #import "File";

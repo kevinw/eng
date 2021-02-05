@@ -26,6 +26,16 @@ on_host_init :: (host_state: Host_State) {
     using context.state;
     game_base_init(host_state);
     set_function_pointers();
+
+    // tests
+    {
+        scoped_test_world();
+        assert(find_component(Player) == null);
+        entity1, entity1_handle := create_entity(name="Test1");
+        player := add_component(entity1_handle, Player);
+        assert(find_component(Player) == player);
+    }
+
     load_scene(1);
 }
 
@@ -42,7 +52,7 @@ editor_did_drag :: (rect: rl.Rectangle) {
 
     color := rl.RED;
     color.b = cast(u8)random_get_within_range(100, 255);
-    block, block_h := envitem(*world,
+    block, block_h := envitem(world,
         rect.x, rect.y, rect.width, rect.height,
         .PLATFORM, color, is_editor=true);
 

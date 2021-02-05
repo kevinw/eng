@@ -782,13 +782,13 @@ show_assets_window :: (open: *bool) {
                     offset = entity_rect(entity).size * 0.5;
 
                 case .Texture;
-                    entity, entity_handle = create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
+                    entity, entity_handle = create_entity(context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
                     img := add_component(entity_handle, Simple_Image_Renderer);
                     img.texture = LoadLiveTexture(it.filename);
                     offset = 0.5 * v2(img.texture.width, img.texture.height);
 
                 case .Sprite;
-                    entity, entity_handle := create_entity(*context.state.world, it.short_name, undo=*editor.undo_state, world_pos=pos);
+                    entity, entity_handle := create_entity(get_world(), it.short_name, undo=*editor.undo_state, world_pos=pos);
                     spr := add_component(entity_handle, SpriteRenderer);
                     spr.sprite_anim = LoadLiveSprite(it.filename);
                     offset = 0.5 * entity_rect(entity_handle).size;
@@ -1433,7 +1433,7 @@ find_unused_scene_filename :: () -> string {
 
 new_scene :: () {
     clear_selection();
-    reset_world(*context.state.world);
+    reset_world(context.state.world);
     free_and_clear_string(*context.state.editor.last_loaded_scene_filename);
 }
 
@@ -1713,7 +1713,7 @@ load_scene :: (filename: string) {
     }
 
     clear_selection();
-    world := *context.state.world;
+    world := context.state.world;
     reset_world(world);
     load_world(world, wbml_str, filename);
     logprint("editor", "loaded scene '%'", filename);

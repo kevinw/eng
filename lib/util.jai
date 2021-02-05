@@ -11,6 +11,16 @@ copy_string_z :: (s: string) -> string {
     return r;
 }
 
+TString_Builder :: struct {
+    using _sb: String_Builder;
+    _sb.allocator = __temporary_allocator;
+}
+
+tstring :: (sb: *String_Builder) -> string {
+    return builder_to_string(sb, __temporary_allocator);
+}
+
+
 #scope_file
 
 #import "Basic";

@@ -109,6 +109,9 @@ is_argument_a_pointer_to_a_component :: (arg_decl: *Code_Declaration, metaprogra
 }
 
 generate_systems :: (metaprogram: *Metaprogram) {
+    // this one's a doozy. it's an effort to make creating new Components in the ECS system easy.
+    // functions with special names like 'update' get collected and called in a
+    // sort of static event dispatch.
     system_count := 0;
 
     by_stage: [..]struct {

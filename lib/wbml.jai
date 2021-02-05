@@ -953,10 +953,11 @@ unescape_string :: (str: string, allocator := context.allocator) -> (string, int
 }
 
 
+laas :: #import "laas";
+
 #import "Any";
 #import "Compiler";
 Reflection :: #import "Reflection";
-laas :: #import "laas";
 String :: #import "String";
 #import "Basic";
 #import "Hash_Table";

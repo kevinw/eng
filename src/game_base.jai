@@ -34,7 +34,8 @@ State_Base :: struct {
     sound_state: Sound_State;
     live: Live_Asset_Database;
     debug_draw := false;
-    world: World;
+    main_world: World;
+    world: *World;
 
     // TODO: this is a hack until we have multiple swapchains, not multiple renderers
     all_renderers: [..]*Renderer;
@@ -65,7 +66,7 @@ game_base_shutdown :: () {
     // TODO: the notion of some kind of "hard exit" so that we can do leak
     // tracking, but keep exiting fast when we don't care about the details.
     shutdown_profiler(*profiler);
-    World.deinit(*world);
+    world_deinit(world);
     sound_deinit(*sound_state);
     multiview_window.close();
 }
@@ -135,7 +136,7 @@ game_base_update :: (host_state: Host_State) {
     }
 
     check_canaries(context.state);
-    world_update(*world, Time.delta_time);
+    world_update(world, Time.delta_time);
 }
 
 change_global_time_scale :: (delta: float) {
@@ -240,6 +241,8 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
 game_base_init :: (host_state: Host_State) {
     using context.state;
 
+    world = *main_world;
+
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
     array_add(*all_renderers, *renderer);
 
@@ -253,7 +256,7 @@ game_base_init :: (host_state: Host_State) {
     ui.d3dDevice = xx renderer.device;
     ui.d3dDeviceContext = xx renderer.device_context1;
 
-    init_world(*world);
+    world_init(world);
     imgui_init(*ui, host_state.window_handle);
     sound_init(*sound_state);
     editor_init(*editor);
@@ -438,7 +441,7 @@ _draw_world :: () {
     im_flush(ctx);
 
     world := context.state.world;
-    world_draw(*world);
+    world_draw(world);
     im_flush(ctx);
 }
 
