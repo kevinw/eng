@@ -316,7 +316,7 @@ World :: struct {
     #insert #run (() -> string {
         sb: String_Builder;
         sb.allocator = __temporary_allocator;
-        for all_component_types
+        for get_all_component_types()
             print_to_builder(*sb, "_%: Array_With_Holes(%);\n", it, it);
         return builder_to_string(*sb, __temporary_allocator);
     }());
@@ -353,7 +353,7 @@ init_world :: (world: *World) {
     #insert #run(() -> string {
         sb: String_Builder;
         sb.allocator = __temporary_allocator;
-        for all_component_types
+        for get_all_component_types()
             print_to_builder(*sb, "init_array_with_holes(*context.state.world._%, \"all-%\");\n", it, it);
         return builder_to_string(*sb, __temporary_allocator);
     }());

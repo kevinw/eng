@@ -8,14 +8,12 @@
 
 #placeholder all_component_types;
 #placeholder Component_Bit;
-#placeholder component_bit_to_ti;
-#placeholder component_ti_to_bit;
 
-// declare a list of all component type infos
-#insert #run (() -> string {
-    Compiler :: #import "Compiler";
-    #import "Sort";
+get_all_component_types :: () -> []Type {
+    return all_component_types;
+}
 
+get_sorted_component_type_infos :: () -> []*Type_Info_Struct {
     all_components: [..]*Type_Info_Struct;
     for Compiler.get_type_table() {
         if Compiler.is_subclass_of(it, "Component") { // TODO: don't do this lookup by name
@@ -24,13 +22,19 @@
         }
     }
 
-    compare_type_info_names :: (a: *Type_Info_Struct, b: *Type_Info_Struct) -> s64 {
-        return compare_strings(a.name, b.name);
-    }
+    Sort :: #import "Sort";
 
     // We need to sort the component names, since the compiler does not find them
     // in a determinate order.
-    quick_sort(all_components, compare_type_info_names);
+    Sort.quick_sort(all_components, (a, b) => Sort.compare_strings(a.name, b.name));
+
+    return all_components;
+}
+
+// declare a list of all component type infos
+#insert #run (() -> string {
+    Compiler :: #import "Compiler";
+    all_components := get_sorted_component_type_infos();
 
     sb: String_Builder;
     defer free_buffers(*sb);
@@ -46,27 +50,40 @@
         p(*sb, "    % :: (1 << %);\n", it.name, it_index);
     p(*sb, "}\n");
 
-    p(*sb, "component_bit_to_ti :: (bit: Component_Bit) -> *Type_Info_Struct {\n");
-    p(*sb, "    if bit == {\n");
-    for all_components
-        p(*sb, "        case .%; return type_info(%);\n", it.name, it.name);
-    p(*sb, "    }\n");
-    p(*sb, "}\n");
-
-    p(*sb, "component_ti_to_bit :: (component_ti: *Type_Info_Struct) -> Component_Bit {\n");
-    p(*sb, "    if component_ti.name == {\n");
-    for all_components
-        p(*sb, "        case \"%\"; return Component_Bit.%;\n", it.name, it.name);
-    p(*sb, "    }\n");
-    p(*sb, "}\n");
-
 
     return builder_to_string(*sb, __temporary_allocator);
 }());
 
+component_ti_to_bit :: (component_ti: *Type_Info_Struct) -> Component_Bit {
+    #insert #run (() -> string {
+        all_components := get_sorted_component_type_infos();
+
+        sb: String_Builder;
+        print_to_builder(*sb, "    if component_ti.name == {\n");
+        for all_components
+            print_to_builder(*sb, "        case \"%\"; return Component_Bit.%;\n", it.name, it.name);
+        print_to_builder(*sb, "    }\n");
+        return builder_to_string(*sb);
+    }());
+}
+
+component_bit_to_ti :: (bit: Component_Bit) -> *Type_Info_Struct {
+    #insert #run (() -> string {
+        all_components := get_sorted_component_type_infos();
+
+        sb: String_Builder;
+        print_to_builder(*sb, "    if bit == {\n");
+        for all_components
+            print_to_builder(*sb, "        case .%; return type_info(%);\n", it.name, it.name);
+        print_to_builder(*sb, "    }\n");
+        return builder_to_string(*sb);
+    }());
+
+    assert(false, "unknown component bit % given to component_bit_to_ti (had %)", bit);
+    return null;
+}
 
 get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
-
     #insert #run (() -> string {
         cases := foreach_component_type(#string END
             case "<type>"; return type_info(<type>);
@@ -82,7 +99,7 @@ get_component_ti_from_name :: (name: string) -> *Type_Info_Struct {
 bucket_chooser :: () -> string {
     sb: String_Builder;
     sb.allocator = __temporary_allocator;
-    for all_component_types
+    for get_all_component_types()
         print_to_builder(*sb, "#if component_type == % bucket = *context.state.world._%;\n", it, it);
     return builder_to_string(*sb, __temporary_allocator);
 }
@@ -90,7 +107,7 @@ bucket_chooser :: () -> string {
 foreach_component_type :: (inner_code_string: string) -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
-    for all_component_types {
+    for get_all_component_types() {
         replaced := String.replace(inner_code_string, "<type>", tprint("%", it)); // @Leak compile-time
         defer free(replaced);
 
@@ -104,7 +121,7 @@ runtime_bit_bucket_chooser :: (inner_code_string: string) -> string {
     defer free_buffers(*sb);
 
     print_to_builder(*sb, "if component_bit == {\n");
-    for all_component_types {
+    for get_all_component_types() {
         print_to_builder(*sb, "    case .%;\n", it);
         print_to_builder(*sb, "        bucket := *context.state.world._%;\n", it);
         print_to_builder(*sb, "        Bucket_Value_Type :: %;\n", it);
@@ -121,7 +138,7 @@ runtime_bucket_chooser :: (inner_code_string: string) -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
 
-    for all_component_types {
+    for get_all_component_types() {
         print_to_builder(*sb, "if component_ti == type_info(%) {\n", it);
         print_to_builder(*sb, "    bucket := *context.state.world._%;\n", it);
         print_to_builder(*sb, "    %\n", inner_code_string);
@@ -135,7 +152,7 @@ _return_component_array_add :: (insert_run_on_enable: bool) -> string {
     sb: String_Builder;
     defer free_buffers(*sb);
 
-    for all_component_types {
+    for get_all_component_types() {
         maybe_else := ifx it_index > 0 then "else " else "";
         print_to_builder(*sb, "%if component_ti.name == \"%\" {\n", maybe_else, it);
         print_to_builder(*sb, "    ptr: *%;\n", it);
@@ -153,3 +170,4 @@ _return_component_array_add :: (insert_run_on_enable: bool) -> string {
 
 #scope_file
 String :: #import "String";
+Compiler :: #import "Compiler";
