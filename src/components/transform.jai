@@ -7,12 +7,16 @@ Transform :: struct {
 }
 
 Link :: struct {
+    // Note that this requires that transformations are sorted so that
+    // parents are always before their children
+
     using component: Component;
 
-    parent: Entity_Handle;
+    parent:        Entity_Handle;
+    sibling_index: u32;
 }
 
-TRS :: Transform; // an alias until Raylib is entirely gone
+TRS :: Transform; // TODO: an alias until Raylib is entirely gone
 
 #scope_file
 

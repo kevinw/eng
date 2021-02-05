@@ -1,8 +1,7 @@
 # TODO
 
 ## Immediate
-- [gorgeous top down visuals](https://twitter.com/HiWarp/status/1356809034213564416)
-- a worldspace text render function with depth shadows
+- a world-space text render function with depth shadows
 - a custom font for characters who don't speak your language
 - light component with a gizmo
 - many mesh renderers equals an instanced draw
@@ -13,10 +12,9 @@
     - just starting by using ozz to load a mesh would be more fun!
     - [this project](https://github.com/ColinGilbert/ozz-assimp-loader) converts assimp to ozz (the forge also does this I think)
 
-- chipmunk klass vtable is out of date after a reload
+- chipmunk klass vtable is out of date after a reload?
 - Don't make an engine. Make a game. Find a way to center that.
 - checkout noelfb's blah project for SpriteBatch inspiration, and for collision ideas
-- shmup save points you can use anywhere, but they are a limited resource. going further without using them allows you to level up faster.  a roguelike shmup!
 - [forward+ renderer](https://github.com/bcrusco/Forward-Plus-Renderer/tree/master/Forward-Plus/Forward-Plus/source/shaders)
 
 ## High Priority
@@ -25,7 +23,6 @@
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
 - Make the editor prompt you to save changes to a scene on exit.
-- 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 - Figure out how Link should work and make it work!
 - automate structs for HLSL packing rules (maybe with a macro usable by other folks)
     - remember now that `#align 16` exists in Jai...might be an easy fix there.
@@ -41,8 +38,6 @@
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
 - 2 hour timer; procreate doodling
 - Try catching windows touch events and make rotation of entities with two fingers work via iPad remote desktop
-- research general "mistakes we made making this engine"
-- research network shared data stores. What would the minimum thing be.
 - In the UI, the color field should have a different background color to
   indicate that the prefab is overridden. As a first attempt at implementing
   this.
@@ -66,7 +61,6 @@
 - The meta-program should check the type of `on_enable` and give you a helpful
   error message if you forget the `*Entity` argument.
 - add debug allocators to chipmunk
-- Research binary pack formats; C libraries that do virtual file systems
 - Idle thought: what if each component was a DLL and a compiler error in one
   wouldn't necessarily halt the others
 - Actually put the speaker in. Have your distance show as a circle on screen
@@ -85,6 +79,8 @@
 
 
 ## Research
+- [gorgeous top down visuals](https://twitter.com/HiWarp/status/1356809034213564416)
+- Research binary pack formats; C libraries that do virtual file systems
 - 2d parallax mapping textures with view dependent lighting
 - game design books like Jesse Schnell's "Book of Lenses"
 - GPU optimization list https://gist.github.com/silvesthu/505cf0cbf284bb4b971f6834b8fec93d
@@ -110,4 +106,9 @@
     - the fundamental data structure is a shared one
 - visual references - [Zach L](https://www.instagram.com/p/CJo8vk4DFkP/?igshid=6euuke12qmrg)
 - [game design library](https://nightblade9.github.io/game-design-library/)
+- research general "mistakes we made making this engine"
+- research network shared data stores. What would the minimum thing be.
+- 1 hour chipping away at the [game design curriculum](https://www.riotgames.com/en/urf-academy/curriculum-guide)
 
+## random game design thoughts/ideas
+- shmup save points you can use anywhere, but they are a limited resource. going further without using them allows you to level up faster.  a roguelike shmup!

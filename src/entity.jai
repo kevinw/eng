@@ -67,19 +67,14 @@ for_expansion :: (entity_handle: Entity_Handle, body: Code, pointer: bool, rever
 
 get_parent :: (entity_handle: Entity_Handle) -> Entity_Handle {
     link := get_component(entity_handle, Link);
-    if link
-        return link.parent;
-
-    return .{};
+    return ifx link then link.parent else .{};
 }
 
 set_parent :: (entity_handle: Entity_Handle, parent_handle: Entity_Handle) {
     link := get_component(entity_handle, Link);
     if link == null
         link = add_component(entity_handle, Link);
-
     link.parent = parent_handle;
-
 }
 
 get_previous_sibling :: (entity_handle: Entity_Handle) -> (found: bool, handle: Entity_Handle) {
@@ -113,7 +108,6 @@ get_entity :: (component: *Component) -> (bool, *Entity) {
     ok, entity := get_entity(component.entity);
     return ok, entity;
 }
-
 
 get_entity :: (entity_handle: Entity_Handle, $check_count := false) -> (bool, *Entity) {
     if entity_handle.id == 0 return false, null; // TODO: not sure if this should be down in get_item_ptr
