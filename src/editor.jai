@@ -108,7 +108,7 @@ Editor :: struct {
 
     windows: struct {
         inspector      := true;
-        demo           := true;
+        demo           := false;
         entities       := true;
         assets         := true;
         screenlog      := true;
@@ -686,6 +686,13 @@ show_menubar :: () {
         if MenuItem("Align Object to View", null, null, selected.count > 0) {
             align_all_selected_objects_with_scene_view();
         }
+    }
+    if BeginMenu("View") {
+        defer EndMenu();
+
+        MenuItem("Show Main Menu", null, *show_main_menu);
+        Separator();
+        MenuItem("ImGui Demo Window", null, *windows.demo);
     }
 }
 
