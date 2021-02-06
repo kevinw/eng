@@ -1,5 +1,3 @@
-#if HOTLOADING_ENABLED {
-
 #import "Hotloader";
 
 strip_dot_slash :: (path: string) -> string @substring {
@@ -38,23 +36,23 @@ plugin_on_resource_change :: (full_name: string, extension: string) {
     try_reload_live_resource(full_name_stripped, extension);
 }
 
-}
 
 #program_export
 plugin_init :: (old_value: *void, host_state: Host_State) {
     if old_value != null {
         context.state = cast(*State)old_value;
-        context.state.check_canaries(context.state);
         on_host_did_reload_game_dll(host_state);
     } else {
         context.state = New(State);
         assert(context.state != null);
 
-        // without creating soloud's context in the host, I get crashes on reload.
-        // my theory right now is that it must have thread local storage, which,
-        // inside the DLL, gets unloaded. but I don't want to investigate this right now.
-        // so here we just receive the soloud context from the host.
-        context.state.sound_state.soloud = host_state.soloud_context;
+        #if #run has_field(type_info(type_of(<<context.state)), "sound_state") {
+            // without creating soloud's context in the host, I get crashes on reload.
+            // my theory right now is that it must have thread local storage, which,
+            // inside the DLL, gets unloaded. but I don't want to investigate this right now.
+            // so here we just receive the soloud context from the host.
+            context.state.sound_state.soloud = host_state.soloud_context;
+        }
 
         on_host_init(host_state);
     }
@@ -93,6 +91,13 @@ get_plugin_compile_error :: () -> (bool, string) {
 }
 
 #scope_file
+
+has_field :: (ti_struct: *Type_Info_Struct, field_name: string) -> bool {
+    for ti_struct.members
+        if it.name == field_name
+            return true;
+    return false;
+}
 
 #import "Basic";
 

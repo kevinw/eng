@@ -44,7 +44,7 @@ stop_normal_build :: () -> Compiler.Build_Options {
 
 compiler_scoped_intercept :: (w: int) #expand {
     compiler_begin_intercept(w);
-    defer compiler_end_intercept(w);
+    `defer compiler_end_intercept(w);
 }
 
 run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
@@ -124,7 +124,7 @@ generate_systems :: (metaprogram: *Metaprogram) {
 
     for metaprogram.system_funcs {
         if it.body_or_null == null {
-            print("WARNING: system function has null body_or_null: %\n", <<it);
+            //print("WARNING: system function has null body_or_null: %\n", <<it);
             continue;
         }
         if it.arguments.count == 0 {
@@ -378,7 +378,7 @@ define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
     building_dlls :=            !release;
     graphics_layer_debug :=     !release;
     link_externals_as_static := release;
-    context_state_type :=       "*void";
+    context_state_type :=       ifx is_host && !release then "*void" else "*State";
 
     add_build_string_constants := tprint(#string END
 #add_context state   :  %;

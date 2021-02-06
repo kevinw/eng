@@ -1,4 +1,3 @@
-HOTLOADING_ENABLED :: true;
 UI_CFG_PATH :: "gui.cfg";
 
 State_Base :: struct {
@@ -300,6 +299,7 @@ game_base_init :: (host_state: Host_State) {
 game_base_did_reload_dll :: (host_state: Host_State) {
     using context.state;
 
+    context.state.check_canaries(context.state);
     set_global_renderer_ptr(*renderer);
     context.state.im_context.draw_callback = renderer_Im_Draw_Callback;
     setup_gamepad(host_state);

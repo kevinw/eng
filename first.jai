@@ -49,7 +49,7 @@ build_host :: (build_flags: Build_Flags) {
 
     opts := stop_normal_build();
 
-    w := compiler_create_workspace("build");
+    w := compiler_create_workspace("build_host");
     {
         compiler_scoped_intercept(w);
 
