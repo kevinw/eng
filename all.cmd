@@ -1,1 +1,1 @@
-@jai -x64 first.jai -- all && game_dev.exe %*
+@jai first.jai -- all && game_dev.exe %*
