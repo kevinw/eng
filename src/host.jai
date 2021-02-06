@@ -57,6 +57,7 @@ window_was_borderless: bool; // we store this because by the time the window
 
 panic :: (msg: string) {
     write_string(msg);
+    write_string("\n");
     debug_break();
 }
 
