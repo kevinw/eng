@@ -35,10 +35,10 @@ is_event_func :: (stage: System_Stage) -> bool {
     }
 }
 
-stop_normal_build :: () -> Build_Options {
-    opts := get_build_options();
+stop_normal_build :: () -> Compiler.Build_Options {
+    opts := Compiler.get_build_options();
     opts.output_type = .NO_OUTPUT;
-    set_build_options(opts);
+    Compiler.set_build_options(opts);
     return opts;
 }
 
@@ -61,12 +61,12 @@ run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
 
         #if do_ecs_metaprogram {
             if message.kind == {
-                case .CODE_TYPECHECKED;
-                    collect_component_functions(cast(*Compiler_Message_Code_Typechecked)message, *metaprogram);
+                case .TYPECHECKED;
+                    collect_component_functions(cast(*Compiler.Message_Typechecked)message, *metaprogram);
 
                 case .COMPILATION_PHASE;
-                    msg := cast(*Compiler_Message_Compilation_Phase)message;
-                    if !did_generate_systems && msg.phase == .ALL_SOURCE_CODE_THAT_CAN_CURRENTLY_BE_INFERRED_IS_INFERRED {
+                    msg := cast(*Compiler.Message_Phase)message;
+                    if !did_generate_systems && msg.phase == .TYPECHECKED_ALL_WE_CAN {
                         did_generate_systems = true;
                         generate_systems(*metaprogram);
                     }
@@ -81,7 +81,7 @@ run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
 
 Metaprogram :: struct {
     workspace: s64;
-    system_funcs: [..]*Code_Procedure_Header;
+    system_funcs: [..]*Compiler.Code_Procedure_Header;
     component_type_names: [..]string; // TODO: should these be *Type_Infos?
 }
 
@@ -92,7 +92,7 @@ Temp_Resizable_Array :: inline ($T: Type) -> [..]T {
 }
 
 
-is_argument_a_pointer_to_a_component :: (arg_decl: *Code_Declaration, metaprogram: *Metaprogram) -> (is_component: bool, component_name: string) {
+is_argument_a_pointer_to_a_component :: (arg_decl: *Compiler.Code_Declaration, metaprogram: *Metaprogram) -> (is_component: bool, component_name: string) {
     if arg_decl.type_inst == null return false, "";
     if arg_decl.type_inst.pointer_to == null return false, "";
 
@@ -101,7 +101,7 @@ is_argument_a_pointer_to_a_component :: (arg_decl: *Code_Declaration, metaprogra
     if arg_type_ident.kind != .IDENT return false, "";
 
     // TODO: should we compare pointers instead of type names here? yes. the answer is yes.
-    name := (cast(*Code_Ident)arg_type_ident).name;
+    name := (cast(*Compiler.Code_Ident)arg_type_ident).name;
     found, index := array_find(metaprogram.component_type_names, name);
     if found return true, metaprogram.component_type_names[index];
     
@@ -180,7 +180,7 @@ generate_systems :: (metaprogram: *Metaprogram) {
                 p("        inline %(%);", it.name, String.join(..arg_names, separator=", "));
                 p("    }");
                 p("}");
-                add_build_string(builder_to_string(*sb, __temporary_allocator), metaprogram.workspace);
+                Compiler.add_build_string(builder_to_string(*sb, __temporary_allocator), metaprogram.workspace);
             }
 
             entry := array_add(*by_stage);
@@ -318,13 +318,13 @@ generate_systems :: (metaprogram: *Metaprogram) {
     }
     p(*sb, "}\n");
 
-    add_build_string(builder_to_string(*sb, __temporary_allocator), metaprogram.workspace);
+    Compiler.add_build_string(builder_to_string(*sb, __temporary_allocator), metaprogram.workspace);
 
     //print("created ECS code for workspace %\n", metaprogram.workspace);
 }
 
 
-collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprogram: *Metaprogram) {
+collect_component_functions :: (tc: *Compiler.Message_Typechecked, metaprogram: *Metaprogram) {
     for decl: tc.declarations {
         if !decl.root_expression continue;
 
@@ -332,11 +332,11 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
           case .LITERAL;
             // here we catch the definition of the "all_component_types" array
             if decl.name == "all_component_types" || decl.name == "all_test_types" {
-                literal := cast(*Code_Literal)decl.root_expression;
+                literal := cast(*Compiler.Code_Literal)decl.root_expression;
                 if literal.value_type == .ARRAY {
                     for literal.array_literal_info.array_members {
                         if it.kind == .IDENT {
-                            ident := cast(*Code_Ident)it;
+                            ident := cast(*Compiler.Code_Ident)it;
                             array_add(*metaprogram.component_type_names, copy_string(ident.name));
                         }
                     }
@@ -349,7 +349,7 @@ collect_component_functions :: (tc: *Compiler_Message_Code_Typechecked, metaprog
             // entity.jai which walks the type table?
 
           case .PROCEDURE_HEADER;
-            header := cast(*Code_Procedure_Header) decl.root_expression;
+            header := cast(*Compiler.Code_Procedure_Header) decl.root_expression;
 
             if header.procedure_flags & .POLYMORPHIC
                 continue;  // Do nothing with polymorphic procedures.
@@ -378,7 +378,7 @@ define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
     building_dlls :=            !release;
     graphics_layer_debug :=     !release;
     link_externals_as_static := release;
-    context_state_type :=       ifx is_host && !release then "*void" else "*State";
+    context_state_type :=       "*void";
 
     add_build_string_constants := tprint(#string END
 #add_context state   :  %;
@@ -400,7 +400,7 @@ END,
     print("------\n%", constants);
     print("%------\n", add_build_string_constants);
 
-    add_build_string(add_build_string_constants, workspace);
+    Compiler.add_build_string(add_build_string_constants, workspace);
 
     // here we import some modules very early in the build process, being sure
     // to provide the module parameters we wish to use. this will result in
@@ -417,21 +417,22 @@ __module_param_import_lz4      :: #import "lz4-1.9.3"(LINK_STATIC = %);
 
 END, link_externals_as_static, link_externals_as_static, link_externals_as_static);
 
-    add_build_string(imports_with_module_params, workspace);
+    Compiler.add_build_string(imports_with_module_params, workspace);
 
     fn :: "generated/Build_Constants.jai";
     File.write_entire_file(fn, constants);
-    add_build_file(fn, workspace);
+    Compiler.add_build_file(fn, workspace);
 }
 
 
 #scope_file
-#import "Compiler";
+Compiler :: #import "Compiler";
 String :: #import "String";
 Reflection :: #import "Reflection";
 File :: #import "File";
 
 code_node_as_string :: (node: *Code_Node) -> string {
+    using Compiler;
     if node == null return "<null>";
 
     if node.kind == {
