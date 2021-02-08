@@ -560,7 +560,7 @@ add_component :: (entity_handle: Entity_Handle, component_ti: *Type_Info_Struct,
     entity.component_bits |= component_bit;
 
     assert(c != null);
-    // c.entity = entity_handle; // this is seet in _return_component_array_add
+    // c.entity = entity_handle; // this is set in _return_component_array_add
     return c;
 }
 

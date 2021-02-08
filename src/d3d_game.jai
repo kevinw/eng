@@ -24,6 +24,13 @@ on_host_shutdown :: () {
 
 on_host_init :: (host_state: Host_State) {
     using context.state;
+
+    // without creating soloud's context in the host, I get crashes on reload.
+    // my theory right now is that it must have thread local storage, which,
+    // inside the DLL, gets unloaded. but I don't want to investigate this right now.
+    // so here we just receive the soloud context from the host.
+    sound_state.soloud = host_state.soloud_context;
+
     game_base_init(host_state);
     set_function_pointers();
 
@@ -34,6 +41,8 @@ on_host_init :: (host_state: Host_State) {
         entity1, entity1_handle := create_entity(name="Test1");
         player := add_component(entity1_handle, Player);
         assert(find_component(Player) == player);
+
+        assert(player.editor_rect != null, "Player.on_enable should have set the player's editor_rect pointer--was on_enable called?");
     }
 
     load_scene(1);
@@ -87,7 +96,6 @@ envitem :: (world: *World, x: float, y: float, width: float, height: float, coll
 #import "renderer_im";
 #import "renderer_im_impl";
 #import "multiview";
-#import "Hash";
 #import "Math";
 #import "Window_Creation";
 Input   :: #import "Input";

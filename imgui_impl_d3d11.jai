@@ -545,16 +545,12 @@ UnhookWindowsHookEx :: (hhk: HHOOK) -> BOOL #foreign user32;
 
 HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
     HTCLIENT :: 1;
-    TRUE :: 1;
+    TRUE     :: 1;
 
-    if code >= 0 {
-
-        if wparam == 0 {
-            cwp_ret := cast(*CWPRETSTRUCT)lparam;
-            if cast,trunc(u16)(cwp_ret.lParam) == HTCLIENT {
-                ImGui_ImplWin32_UpdateMouseCursor();
-                return TRUE;
-            }
+    if code >= 0 && wparam == 0 {
+        cwp_ret := cast(*CWPRETSTRUCT)lparam;
+        if cast,trunc(u16)(cwp_ret.lParam) == HTCLIENT {
+            ImGui_ImplWin32_UpdateMouseCursor();
         }
     }
 
@@ -562,6 +558,9 @@ HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
 }
 
 setup_set_cursor_hook :: (using ui_state: *UI_State) {
+    if Compiler_Bugs.windows_hook_causing_crash
+        return;
+
     WH_CALLWNDPROCRET :: 12;
 
     // unhook a previous one
@@ -764,6 +763,8 @@ set_debug_name :: (child_obj: *$T, name: string) {
 #import "dxgi";
 #import "D3dcompiler";
 #import "Windows";
+#import "compiler_bugs";
+Debug :: #import "Debug";
 
 #import "d3d11_shader";
 S_OK :: 0;

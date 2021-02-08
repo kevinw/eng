@@ -1,16 +1,8 @@
 #import "Hotloader";
 
-strip_dot_slash :: (path: string) -> string @substring {
-    s := path;
-    if s.count >= 2 && s[0] == #char "." && s[1] == #char "/"
-        advance(*s, 2);
-    return s;
-}
-
 #program_export
-plugin_sanity_checks :: (host_state: Host_State, sanity_check_info: Sanity_Check_Info) {
+plugin_sanity_checks :: (host_state: Host_State, host_context_size: int) {
     my_context_size := size_of(Context);
-    host_context_size := sanity_check_info.size_of_context;
     assert(host_context_size == my_context_size, "Error: host/plugin context size mismatch - % vs %", 
         host_context_size, my_context_size);
 
@@ -22,7 +14,6 @@ plugin_sanity_checks :: (host_state: Host_State, sanity_check_info: Sanity_Check
     assert(plugin_codegen_backend == host_state.built_with_backend,
         "host built with % but plugin built with %",
         host_state.built_with_backend, plugin_codegen_backend);
-
 }
 
 #program_export
@@ -36,31 +27,26 @@ plugin_on_resource_change :: (full_name: string, extension: string) {
     try_reload_live_resource(full_name_stripped, extension);
 }
 
-
 #program_export
 plugin_init :: (old_value: *void, host_state: Host_State) {
-    if old_value != null {
+    // called when our DLL first gets loaded.
+    if old_value == null {
+        // here, plugin_init is getting called for the first time. let's allocate
+        // room for a State struct and continue with initialization.
+        context.state = New(State);
+        on_host_init(host_state);
+    } else {
+        // in this case, there is a game running, and old_value has
+        // the State pointer of the old DLL's memory.
         context.state = cast(*State)old_value;
         on_host_did_reload_game_dll(host_state);
-    } else {
-        context.state = New(State);
-        assert(context.state != null);
-
-        #if #run has_field(type_info(type_of(<<context.state)), "sound_state") {
-            // without creating soloud's context in the host, I get crashes on reload.
-            // my theory right now is that it must have thread local storage, which,
-            // inside the DLL, gets unloaded. but I don't want to investigate this right now.
-            // so here we just receive the soloud context from the host.
-            context.state.sound_state.soloud = host_state.soloud_context;
-        }
-
-        on_host_init(host_state);
     }
 }
 
 #program_export
 plugin_deinit :: (shutting_down: bool) -> *void {
     assert(context.state != null);
+
     if shutting_down {
         on_host_shutdown();
         return null;
@@ -91,6 +77,13 @@ get_plugin_compile_error :: () -> (bool, string) {
 }
 
 #scope_file
+
+strip_dot_slash :: (path: string) -> string @substring {
+    s := path;
+    if s.count >= 2 && s[0] == #char "." && s[1] == #char "/"
+        advance(*s, 2);
+    return s;
+}
 
 has_field :: (ti_struct: *Type_Info_Struct, field_name: string) -> bool {
     for ti_struct.members

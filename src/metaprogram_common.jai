@@ -123,10 +123,12 @@ generate_systems :: (metaprogram: *Metaprogram) {
     by_stage.allocator = __temporary_allocator;
 
     for metaprogram.system_funcs {
+        /*
         if it.body_or_null == null {
-            //print("WARNING: system function has null body_or_null: %\n", <<it);
+            print("WARNING: system function has null body_or_null: %\n", <<it);
             continue;
         }
+        */
         if it.arguments.count == 0 {
             print("WARNING: system function has zero args: %\n", <<it);
             continue;

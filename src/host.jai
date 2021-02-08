@@ -26,10 +26,11 @@ WINDOW_WIDTH  :: 1280;
 WINDOW_HEIGHT :: 720;
 
 cmdline_args: struct {
+    window_state   := true;
     topmost_window := true;
     live_reload    := true;
     game_name      := DEFAULT_SRC_PLUGIN;
-    allocator      := Allocator_Mode.Default;
+    allocator      := Allocator_Mode.Page_Guard;
 };
 
 Allocator_Mode :: enum {
@@ -100,11 +101,14 @@ parse_commandline_arguments :: () {
 
     did_set_plugin_dll := false;
     for args if it == {
-        case "--page-guard";
-            cmdline_args.allocator = .Page_Guard;
+        case "--no-page-guard";
+            cmdline_args.allocator = .Default;
         case "--no-topmost";
             print("skipping topmost window\n");
             cmdline_args.topmost_window = false;
+        case "--no-window-state";
+            print("not remembering window state\n");
+            cmdline_args.window_state = false;
         case "--no-live-reload";
             print("no live reload\n");
             cmdline_args.live_reload = false;
@@ -125,6 +129,8 @@ parse_commandline_arguments :: () {
     }
 }
 
+UNHOOK_ALWAYS_ON_TOP_DURING_CRASH :: true;
+
 #if OS == .WINDOWS {
     set_window_NOT_always_on_top :: (window: *void) #c_call {
         SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
@@ -135,9 +141,13 @@ parse_commandline_arguments :: () {
     _host_handle_exception :: (pExceptionInfo: *EXCEPTION_POINTERS) -> s32 #c_call {
         // make our windows not always on top if we crash, so the debugger
         // doesn't get obscured
-        set_window_NOT_always_on_top(the_window);
-        for host_state.debug_extra_window_handles
-            set_window_NOT_always_on_top(it);
+        #if UNHOOK_ALWAYS_ON_TOP_DURING_CRASH {
+            if cmdline_args.topmost_window {
+                set_window_NOT_always_on_top(the_window);
+                for host_state.debug_extra_window_handles
+                    set_window_NOT_always_on_top(it);
+            }
+        }
 
         if old_exception_filter == null return 0;
         return old_exception_filter(pExceptionInfo);
@@ -183,7 +193,9 @@ main :: () {
     defer free(context.logger_data);
 
     host_config_name :: "setup.cfg";
-    parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
+    if cmdline_args.window_state
+        parse_config_file(*host_settings, tprint("%/%", exe_path, host_config_name));
+
     win_x:= host_settings.window_pos_x;
     win_y:= host_settings.window_pos_y;
     win_width  := host_settings.window_width;
@@ -194,7 +206,8 @@ main :: () {
 
     looking_glass_found, looking_glass_devices := LKG_discover_device(app_name="eng");
 
-    the_window = Window_Creation.create_window(win_width, win_height, "", window_x=win_x, window_y=win_y);
+    the_window = Window_Creation.create_window(win_width, win_height, "",
+        window_x=win_x, window_y=win_y);
 
     host_state.looking_glass_devices = looking_glass_devices;
     host_state.window_handle         = the_window;
@@ -231,10 +244,9 @@ main :: () {
     }
     host_state.soloud_context = soloud;
 
-    plugin_sanity_checks(host_state, Sanity_Check_Info.{size_of_context = size_of(Context)});
+    plugin_sanity_checks(host_state, size_of(Context));
     plugin_init(null, host_state);
     assert(context.state != null, "plugin_init did not allocate a state");
-    defer plugin_deinit(shutting_down = true);
 
     window_was_active := platform.is_window_active(the_window);
 
@@ -323,7 +335,7 @@ main :: () {
 
                 get_func_ptrs_from_dll(*module);
 
-                plugin_sanity_checks(host_state, .{size_of_context = size_of(Context)});
+                plugin_sanity_checks(host_state, size_of(Context));
 
                 if needs_complete_reload {
                     // when switching games, we deallocate the old game state
@@ -343,7 +355,7 @@ main :: () {
         plugin_tick(host_state);
     }
 
-    if (window_did_move || window_did_resize) && !window_was_borderless {
+    if cmdline_args.window_state && (window_did_move || window_did_resize) && !window_was_borderless {
         if window_move_record.x == 0
             window_move_record.x, window_move_record.y = platform.get_window_position(the_window);
         if window_resize_record.width == 0
@@ -360,6 +372,7 @@ main :: () {
         File.write_entire_file(host_config_name, s);
     }
 
+    plugin_deinit(shutting_down = true);
     logprint("host", "exit OK.");
 }
 

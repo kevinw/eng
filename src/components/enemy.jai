@@ -188,6 +188,7 @@ enemy_update_all :: () {
     for * context.state.world._Enemy {
     //for * state.enemies {
         transform := get_transform(it);
+        assert(it.editor_rect != null, "enemy did not have an editor_rect");
         it.editor_rect.rect = enemy_rect(it, get_transform(it));
 
         using it;

@@ -49,10 +49,6 @@ Window_State_Operation :: enum {
     Force_Plugin_DLL_Reload;
 }
 
-Sanity_Check_Info :: struct {
-    size_of_context: int;
-}
-
 
 #scope_file
 Compiler :: #import "Compiler";
