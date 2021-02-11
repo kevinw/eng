@@ -1094,19 +1094,27 @@ editor_update :: (state: *State) {
             // rotation with mouse delta
             mouse_rotate_speed :: 0.17;
             if _local_host_state.mouse_delta.x != 0 || _local_host_state.mouse_delta.y != 0 {
-                rotate_delta := mouse_rotate_speed * make_vector3(
-                    // TODO: why are these backwards?
-                    -cast(float)_local_host_state.mouse_delta.y,
-                     cast(float)_local_host_state.mouse_delta.x,
-                    0);
+                #if 0 {
+                    rotate_delta := mouse_rotate_speed * make_vector3(
+                        // TODO: why are these backwards?
+                        -cast(float)_local_host_state.mouse_delta.y,
+                         cast(float)_local_host_state.mouse_delta.x,
+                        0);
 
-                x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
-                y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
-                z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
+                    x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
+                    y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
+                    z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
 
-                temp := x * y * z * scene_camera.rotation;
-                normalize_or_identity(*temp);
-                scene_camera.rotation = temp;
+                    temp := x * y * z * scene_camera.rotation;
+                    normalize_or_identity(*temp);
+                    scene_camera.rotation = temp;
+                } else {
+                    euler := euler_angles(scene_camera.rotation);
+                    euler.y += _local_host_state.mouse_delta.x;
+                    euler.x -= _local_host_state.mouse_delta.y;
+                    logprint("=editor_mouse", "mouse_delta %", _local_host_state.mouse_delta);
+                    scene_camera.rotation = quaternion_from_euler(euler);
+                }
                 update = true;
             }
         }
