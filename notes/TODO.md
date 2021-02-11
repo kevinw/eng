@@ -1,6 +1,9 @@
 # TODO
 
 ## Immediate
+- http://alextardif.com/Antialiasing.html
+- https://www.youtube.com/watch?v=yG4ChOPyC-4
+- https://rosenzweig.io/blog/asahi-gpu-part-2.html
 - a world-space text render function with depth shadows
 - a custom font for characters who don't speak your language
 - light component with a gizmo
