@@ -11,6 +11,8 @@ on_host_shutdown            :: () {
     print("on_host_shutdown\n");
 }
 on_host_init                :: (host_state: Host_State) {
+    init_synchronization :: () -> *void #runtime_support;
+    init_synchronization();
     print("on_host_init\n");
 }
 update_and_draw             :: (host_state: Host_State) {
