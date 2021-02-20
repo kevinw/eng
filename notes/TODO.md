@@ -1,6 +1,7 @@
 # TODO
 
 ## Immediate
+- compute shaders https://youtu.be/0DLOJPSxJEg
 - http://alextardif.com/Antialiasing.html
 - https://www.youtube.com/watch?v=yG4ChOPyC-4
 - https://rosenzweig.io/blog/asahi-gpu-part-2.html
