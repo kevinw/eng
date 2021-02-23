@@ -254,6 +254,10 @@ TAB_STRING :: "    ";
     strip_prefix: string;
     strip_enum_prefixes := true;
     strip_enum_values_with_suffix: string;
+    strip_enum_value_prefixes: [..]Pair(string);
+    strip_hungarian_member_prefix := true;
+    extra_file_scope_imports: [..]string;
+    type_replacements: [..]Pair(string);
 
     // for printing functions
     tab_depth := 0;
@@ -508,7 +512,10 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
 
     if ty.type_of_struct {
         if ty.type_of_struct.name && !(ty.type_of_struct.flags & ty.type_of_struct.flags.IS_ANON) {
-            append(builder, stripped_name(ty.type_of_struct.name));
+            name := replace_typename(ty.type_of_struct.name);
+            name = stripped_name(name);
+
+            append(builder, name);
         } else {
             str := ty.type_of_struct;
 
@@ -518,7 +525,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             print_to_builder(builder, "% {\n", type_name);
             context.tab_depth += 1;
             for str.declarations {
-                print_declaration_to_builder(builder, it);
+                print_declaration_to_builder(builder, it, in_struct=true);
             }
             context.tab_depth -= 1;
 
@@ -567,7 +574,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
     }
 
     if ty.type_of_typedef {
-        append(builder, ty.type_of_typedef.name);
+        append(builder, stripped_name(ty.type_of_typedef.name));
         return;
     }
 
@@ -831,14 +838,14 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
             context.anon_counter += 1;
         }
     }
-
+    
     if clang_getCursorKind(cur) == CXCursor_UnionDecl {
         str.flags |= str.flags.IS_UNION;
     }
 
     if resolving_type_only return str;
 
-    // print("name:  %\n", str.name);
+    //print("name:  %\n", str.name);
 
     children := get_children(cur);
     defer array_reset(*children);
@@ -1241,7 +1248,7 @@ print_literal_to_builder :: (builder: *String_Builder, lit: *Literal) {
     }
 }
 
-print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, no_semicolon := false, no_indent := false) {
+print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, no_semicolon := false, no_indent := false, in_struct := false) {
     if !no_indent print_indentation(builder);
 
     if decl.kind == .FUNCTION {
@@ -1283,6 +1290,7 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, n
         else if decl.name == KEYWORD_CAST      decl.name = "_cast";
 
         if decl.qualifer_using append(builder, "using ");
+
         print_to_builder(builder, "%: %", decl.name, type_str);
 
         if decl.expression {
@@ -1446,9 +1454,14 @@ print_enum :: (builder: *String_Builder, en: *Enum) {
     context.tab_depth += 1;
     for en.enumerates {
         name := it.name;
+
         if context.strip_enum_values_with_suffix.count > 0
             if ends_with(name, context.strip_enum_values_with_suffix)
                 continue;
+
+        for context.strip_enum_value_prefixes if it.first == en.name
+            if begins_with(name, it.second)
+                advance(*name, it.second.count);
 
         if context.strip_enum_prefixes && begins_with(name, en.name) {
             advance(*name, en.name.count);
@@ -1465,12 +1478,25 @@ print_enum :: (builder: *String_Builder, en: *Enum) {
     append(builder, "}");
 }
 
+replace_typename :: (name: string) -> string {
+    for context.type_replacements if it.first == name
+        return it.second;
+
+    return name;
+}
+
 stripped_name :: (name: string) -> string {
     if context.strip_prefix.count == 0 || name.count == 0 || name.count <= context.strip_prefix.count
         return name;
 
     stripped := name;
-    advance(*stripped, context.strip_prefix.count);
+    if begins_with(name, context.strip_prefix) {
+        advance(*stripped, context.strip_prefix.count);
+        
+        if stripped.count > 0 && stripped[0] == #char "_"
+            advance(*stripped, 1);
+    }
+
     return stripped;
 }
 
@@ -1497,7 +1523,7 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
         print_to_builder(builder, "using vtable : * struct {\n", struct_type);
         context.tab_depth += 1;
         for str.vtable {
-            print_declaration_to_builder(builder, it);
+            print_declaration_to_builder(builder, it, in_struct=true);
             append(builder, "\n");
         }
         context.tab_depth -= 1;
@@ -1505,7 +1531,7 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
         print_to_builder(builder, "};\n");
     }
     for str.declarations {
-        print_declaration_to_builder(builder, it);
+        print_declaration_to_builder(builder, it, in_struct=true);
         append(builder, "\n");
     }
     context.tab_depth -= 1;
@@ -1513,7 +1539,7 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
     append(builder, "}");
 
     if str.name && context.generate_static_struct_size_checks {
-        print_to_builder(builder, "#run {assert(size_of(%) == %);};", str.name, str.type.size);
+        print_to_builder(builder, "\n#assert size_of(%) == %;", stripped_name(str.name), str.type.size);
     }
 }
 
@@ -1540,7 +1566,7 @@ print_typedef :: (builder: *String_Builder, def: *Typedef) {
     // typedef struct My_Struct {...} My_Struct;
     if stripped_name(def.name) == type_str return;
 
-    print_to_builder(builder, "% :: %;", def.name, type_str);
+    print_to_builder(builder, "% :: %;", stripped_name(def.name), type_str);
 }
 
 error :: (msg: string, args: ..Any) {
@@ -1577,16 +1603,14 @@ os_load_library_helper :: (paths: [] string, name: string) -> type_of(Library_In
 
     for paths {
         tpath := concatenate(it, PATH_SEPARATOR_STRING, name, "\0");
+        wide_path_data, success, w_len := utf8_to_wide(tpath);
+        assert(success);
 
         #if OS == .WINDOWS {
-            buffer: [MAX_PATH] u8;
-            length := GetFullPathNameA(tpath.data, buffer.count, buffer.data, null);
-
+            buffer: [MAX_PATH] u16;
+            length := GetFullPathNameW(wide_path_data, buffer.count, xx buffer.data, null);
             free(tpath);
-            tpath.data = buffer.data;
-            tpath.count = xx length;
-            //print("tpath: %\n", tpath);
-            handle = LoadLibraryExW(utf8_to_wide(tpath), null, 0);
+            handle = LoadLibraryExW(buffer.data, null, 0);
         } else #if OS == .LINUX || OS == .MACOS {
             rpath := realpath(tpath.data, null);
             defer free(rpath);
@@ -1653,6 +1677,19 @@ main :: () {
     output_filename := "out.jai";
     has_error := false;
 
+    string_pair_from_equals_expr :: (opt: string) -> bool, Pair(string) {
+        idx, found := index_of_any_char(opt, "=");
+        if !found return false, .{};
+
+        parts := split(opt, "=");
+        if parts.count != 2 return false, .{};
+
+        string_pair: Pair(string);
+        string_pair.first  = parts[0];
+        string_pair.second = parts[1];
+        return true, string_pair;
+    }
+
     argv: [..] *u8;
     args := get_command_line_arguments();
     for 1..args.count-1 {
@@ -1702,6 +1739,29 @@ main :: () {
                 context.strip_enum_values_with_suffix = args[it + 1];
                 it += 1;
             } else error("option '--strip-enum-values-with-suffix' must be followed by a suffix!\n");
+        } else if ar == "--type-replacement" {
+            MSG :: "option '--strip-enum-value-prefix' must be followed by a prefix like \"enumName=valuePrefix\"!\n";
+            if it < args.count - 1 {
+                ok, string_pair := string_pair_from_equals_expr(args[it + 1]);
+                if !ok error(MSG);
+                array_add(*context.type_replacements, string_pair);
+                it += 1;
+            } else error(MSG);
+        } else if ar == "--extra-file-scope-import" {
+            if it < args.count - 1 {
+                opt := args[it + 1];
+                array_add(*context.extra_file_scope_imports, opt);
+                it += 1;
+            } else error("option '--extra-file-scope-import' must be followed by an import name!\n");
+        } else if ar == "--strip-enum-value-prefix" {
+            MSG :: "option '--strip-enum-value-prefix' must be followed by a prefix like \"enumName=valuePrefix\"!\n";
+            if it < args.count - 1 {
+                opt := args[it + 1];
+                ok, string_pair := string_pair_from_equals_expr(opt);
+                if !ok error(MSG);
+                array_add(*context.strip_enum_value_prefixes, string_pair);
+                it += 1;
+            } else error(MSG);
         } else {
             if !begins_with(ar, "-") {
                 // assuming source file doesnt start with a dash for
@@ -1763,12 +1823,22 @@ main :: () {
 
         builder: String_Builder;
 
-        // TODO: shouldn't be necessary
+        imps: [..]string;
+        imps.allocator = __temporary_allocator;
+        for context.extra_file_scope_imports
+            array_add(*imps, tprint("#import \"%\";", it));
+
+        extra_file_scope_imports_string := join(..imps, "\n");
         print_to_builder(*builder, #string END
+#scope_file
+#import "Basic";
+%
+// TODO: these manual types shouldn't be necessary
 uint32_t :: u32;
 int32_t  :: s32;
 size_t   :: s64;
-END);
+#scope_module
+END, extra_file_scope_imports_string);
 
         for context.libraries {
             if it.is_system print_to_builder(*builder, "% :: #foreign_system_library \"%\";\n", it.name, it.path);
@@ -1829,4 +1899,10 @@ END);
     print("\nOK! generated %\n", output_filename);
     print("    % functions\n", context.counts.functions);
     print("    % structs\n", context.counts.structs);
+}
+
+#scope_file
+Pair :: struct(T: Type) { // TODO: should probably just go away and be [2]string
+    first: T;
+    second: T;
 }
