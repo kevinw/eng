@@ -2,7 +2,7 @@
 // an imgui "implementation" based on builtin modules
 //
 
-ImGui :: #import "imgui";
+ImGui :: #import "imgui_docking";
 ImDrawIdx :: ImGui.ImDrawIdx;
 make_ImVec2 :: ImGui.make_ImVec2;
 

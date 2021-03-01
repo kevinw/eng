@@ -64,7 +64,7 @@ _update_matrices :: (using camera: *Camera) {
     inverse_succeeded := false;
     inverse_view_projection_matrix, inverse_succeeded = inverse(vp);
     if !inverse_succeeded
-        logprint("camera", .MINIMAL, "warning: taking the inverse of the VP matrix failed!");
+        log_error("taking the inverse of the camera VP matrix failed");
 
     matrices_need_update = false;
     last_calced_renderer = get_renderer_ptr();

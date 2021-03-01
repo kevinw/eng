@@ -12,7 +12,7 @@ Logger_State :: struct {
 
         use_world_pos := false;
         world_pos: Vector2;
-        mode: Log_Mode;
+        log_flags: Log_Flags;
 
         loc: Source_Code_Location;
     }
@@ -63,26 +63,27 @@ screen_print :: (message: string, ident := "", loc := #caller_location) {
 
     entry := array_add(*entries);
     entry.loc     = copy_loc(loc);
-    entry.mode    = .EVERYDAY;
+    entry.log_flags = .NONE;
     entry.time    = TIME_ON_SCREEN;
     entry.ident   = ifx ident.count > 0 then copy_string(ident) else "";
     entry.message = copy_string(message);
 }
 
-context_func :: (message: string, ident_in: string, mode: Log_Mode, logger_data: *void) {
-    ident := ident_in;
+context_func :: (message: string, logger_data: *void, log_info: Log_Info) {
+    ident := "";
     assert(message.count < MAX_COUNT, "expected a screenlog message with a reasonable count, got %", message.count);
     assert(context.logger_data != null);
     using cast(*Logger_State)context.logger_data;
+    assert(canary == EXPECTED_CANARY_VALUE);
     
     time_on_screen := TIME_ON_SCREEN;
-    if mode == .MINIMAL {
+    if log_info.common_flags & .ERROR {
         time_on_screen = 100;
     }
 
     if ident.count > 0 {
         print_color("[%] ", ident, color=FOREGROUND_BLUE | FOREGROUND_GREEN);
-        if mode == .MINIMAL {
+        if log_info.common_flags & .ERROR {
             print_color("%\n", message, color=FOREGROUND_RED | FOREGROUND_INTENSITY);
         } else {
             print("%\n", message);
@@ -106,7 +107,7 @@ context_func :: (message: string, ident_in: string, mode: Log_Mode, logger_data:
     if entry == null
         entry = array_add(*entries);
 
-    entry.mode = mode;
+    entry.log_flags = log_info.common_flags;
     entry.time = time_on_screen;
     entry.ident = new_ident;
     entry.message = new_message;

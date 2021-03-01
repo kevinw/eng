@@ -38,21 +38,20 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     }
 
     // load dll
-    logprint("plugin", "loading % (copied from %)", temp_path, filename);
+    log("plugin loading % (copied from %)", temp_path, filename);
     new_dll := LoadLibraryA(to_c_string(temp_path));
     if !new_dll {
-        logprint("plugin", "ERROR: could not load '%'", temp_path);
+        log_error("could not load '%'", temp_path);
         return false;
     }
 
     // Here we store the address of the loaded DLL for later.
-    if 0 == cast(int)GetModuleInformation(GetCurrentProcess(), new_dll, *plugin.module_info, size_of(type_of(plugin.module_info))) {
-        logprint("plugin", "ERROR: Could not get module information.");
-    }
+    if 0 == cast(int)GetModuleInformation(GetCurrentProcess(), new_dll, *plugin.module_info, size_of(type_of(plugin.module_info)))
+        log_error("GetModuleInformation failed");
 
     file_time, ok := file_modtime(filename);
     if !ok {
-        logprint("plugin", "could not read DLL write time: %", filename);
+        log_error("could not read DLL write time: %", filename);
         return false;
     }
     plugin.last_write_time = file_time;
@@ -63,11 +62,16 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     return true;
 }
 
+file_modtime :: (file_path: string) -> (modtime: u64, success: bool) {
+    modtime, size, success := file_modtime_and_size(file_path);
+    return modtime, success;
+}
+
 unload :: (plugin: *Module) -> bool {
     if plugin.native_module == null return false;
 
     if !FreeLibrary(plugin.native_module) {
-        logprint("plugin", "error calling FreeLibrary on '%'", plugin.native_module);
+        log_error("error calling FreeLibrary on '%'", plugin.native_module);
         return false;
     }
 
@@ -106,8 +110,7 @@ wait_for_readable_file :: (filename: string) -> bool {
         if last_err == ERROR_SHARING_VIOLATION {
             Sleep (100);
         } else {
-            logprint("plugin", "an unexpected error while waiting for a file to become readable: % (for file '%')", 
-                last_err, filename);
+            log_error("an unexpected error while waiting for a file to become readable: % (for file '%')", last_err, filename);
             return false;
         }
     }
@@ -143,7 +146,7 @@ should_reload :: (plugin: *Module) -> bool {
     file_time, ok := file_modtime_with_busy_loop(plugin.filename);
 
     if !ok {
-        logprint("plugin", "should_reload: could not get modtime: '%'", plugin.filename);
+        log_error("plugin should_reload: could not get modtime: '%'", plugin.filename);
         return false;
     }
 
@@ -155,19 +158,19 @@ should_reload :: (plugin: *Module) -> bool {
 
 reload :: (plugin: *Module, force_reload := false) -> bool {
     if !plugin.native_module {
-        logprint("plugin", "error: there is not native module handle!");
+        log_error("plugin: there is not native module handle!");
         return false;
     }
 
     file_time, ok := file_modtime_with_busy_loop(plugin.filename);
 
     if !ok {
-        logprint("plugin", "could not get modtime: '%'", plugin.filename);
+        log_error("plugin could not get modtime: '%'", plugin.filename);
         return false;
     }
 
     if !force_reload && file_time == plugin.last_write_time {
-        logprint("plugin", "reload: the modification time hasn't changed");
+        log_error("plugin reload: the modification time hasn't changed");
         return false;
     }
     
@@ -176,17 +179,17 @@ reload :: (plugin: *Module, force_reload := false) -> bool {
     // The jai compiler returns before the linker is done, so here we wait for
     // the file to be readable again.
     if !wait_for_readable_file(plugin.filename) {
-        logprint("plugin", "error waiting for file to become readable");
+        log_error("error waiting for file to become readable");
         return false;
     }
 
     if !unload(plugin) { // Actually unload the old DLL
-        logprint("plugin", "error tring to unload the old plugin!");
+        log_error("error tring to unload the old plugin!");
         return false;
     }
 
     if !load(plugin, plugin.filename) { // Load the new DLL
-        logprint("plugin", "error trying to load the new plugin!");
+        log_error("error trying to load the new plugin!");
         return false;
     }
 
@@ -209,7 +212,7 @@ _copy_file :: (src: string, dest: string) -> bool {
     res := CopyFileW(utf8_to_wide(src), utf8_to_wide(dest), fail_if_exists);
     if res == 0 {
         err := GetLastError();
-        if err logprint("plugin", "GetLastError() returned %", err);
+        if err log_error("GetLastError() returned %", err);
     }
 
     return 0 != res;

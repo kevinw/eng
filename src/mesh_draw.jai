@@ -5,7 +5,7 @@ dumb_draw_mesh :: (using mesh: *Mesh) {
 
 dumb_draw_sub_mesh :: (using submesh: *Sub_Mesh) {
     if !has_value(material) {
-        logprint("mesh_draw", "submesh has a null material");
+        log_error("submesh has a null material");
         return;
     }
 

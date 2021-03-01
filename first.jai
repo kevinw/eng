@@ -2,7 +2,7 @@
 
 CHECK_PATH :: "check/";
 
-module_search_paths := string.["../jai-soloud", "lib", "src"];
+module_search_paths := string.["c:/jai/Modules", "../jai-soloud", "lib", "src"];
 
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);
@@ -20,7 +20,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
         compiler_begin_intercept(w);
         defer compiler_end_intercept(w);
 
-        array_add(*opts.modules_search_path_array, ..module_search_paths);
+        add_import_paths(*opts, module_search_paths);
         opts.output_type = .DYNAMIC_LIBRARY;
 
         if build_flags & .Check_Only
@@ -44,6 +44,16 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
     }
 };
 
+add_import_paths :: (opts: *Build_Options, paths: []string) {
+    new_paths: [..]string;
+    array_add(*new_paths, ..opts.import_path);
+    array_add(*new_paths, ..paths);
+    print("import_path: ");
+    for paths print("% ", it);
+    print("\n");
+    opts.import_path = paths;
+}
+
 build_host :: (build_flags: Build_Flags) {
     set_working_directory(#filepath);
 
@@ -53,7 +63,7 @@ build_host :: (build_flags: Build_Flags) {
     {
         compiler_scoped_intercept(w);
 
-        array_add(*opts.modules_search_path_array, ..module_search_paths);
+        add_import_paths(*opts, module_search_paths);
         opts.output_type = .EXECUTABLE;
         opts.output_executable_name = tprint("game%.exe", ifx build_flags & .Release then "" else "_dev");
         if build_flags & .Check_Only {
@@ -80,7 +90,7 @@ build_tests :: (build_flags: Build_Flags) {
     w := compiler_create_workspace("test-build");
     {
         compiler_scoped_intercept(w);
-        array_add(*opts.modules_search_path_array, ..module_search_paths);
+        add_import_paths(*opts, module_search_paths);
         opts.output_type = .EXECUTABLE;
         set_build_options(opts, w);
         define_constants(w, build_flags, is_host = false);

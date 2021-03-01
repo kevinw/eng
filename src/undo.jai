@@ -80,7 +80,7 @@ push_string :: (using impl: *Impl, str: *string, loc := #caller_location) {
 }
 
 push_array :: (using impl: *Impl, array: *[..]$T, loc := #caller_location) {
-    #if VERBOSE logprint("undo", "push_array % - %", T, array);
+    #if VERBOSE log("undo.push_array % - %", T, array);
 
     // don't push more than once for the same array.
     for temp if it.pointer == array {
@@ -136,7 +136,7 @@ array_reset :: (using impl: *Impl, array: *[..]$T) {
 }
 
 push :: (impl: *Impl, obj: *$T, loc := #caller_location) {
-    #if VERBOSE logprint("undo", "push: %", <<obj);
+    #if VERBOSE log("undo.push: %", <<obj);
 
     // This undo.push() overload accepts a pointer to any type, and will get
     // the Type_Info's runtime size for you.
@@ -172,7 +172,7 @@ push :: (using impl: *Impl, obj_data: *void, size_in_bytes: int, loc := #caller_
 
 commit :: (using impl: *Impl) {
     #if VERBOSE {
-        logprint("undo", "commit");
+        log("undo.commit");
         print_stack_trace(context.stack_trace);
     }
 

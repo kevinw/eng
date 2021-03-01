@@ -109,7 +109,7 @@ get_swapchain_native_window_handle :: () -> *void {
     using renderer := assert_state();
     hwnd: HWND;
     if S_OK != swap_chain.GetHwnd(swap_chain, *hwnd) {
-        logprint("renderer_d3d11", .MINIMAL, "error: could not GetHwnd from swapchain");
+        log_error("could not GetHwnd from swapchain");
     }
     return hwnd;
 
@@ -231,7 +231,7 @@ apply_bindings :: (shader: *Shader,
     for textures {
         local_texture := it;
         if it == null {
-            logprint("renderer", "warning: passed a null texture to apply_bindings");
+            log_error("warning: passed a null texture to apply_bindings");
             continue;
         }
         if !force_array_texture && it.views.count > 1 {
@@ -956,7 +956,7 @@ run_fxc :: (filename: string, stage: Shader_Stage, target_profile: string, entry
 reload_shader :: (shader: *Shader) -> bool {
     assert(shader.filename.count > 0);
     assert(shader.vs_main.count > 0);
-    logprint("renderer", "reloading shader: %", shader.filename);
+    log("reloading shader: %", shader.filename);
     return _load_shader_from_file_at_runtime(shader, shader.filename, shader.vs_main, shader.ps_main, shader.defines);
 }
 
@@ -994,7 +994,7 @@ _compile_shader_at_runtime :: (filename: string, stage: Shader_Stage, target_pro
     filename_w := utf8_to_wide(filename);
 
     shader_blob, error_blob: *ID3DBlob;
-    logprint("renderer", "compiling shader % in % (%)", entrypoint_name, filename, target_profile);
+    log("compiling shader % in % (%)", entrypoint_name, filename, target_profile);
 
     flags := D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS;
     #if #run get_build_options().optimization_level != .RELEASE {
@@ -1045,7 +1045,7 @@ _compile_shader_at_runtime :: (filename: string, stage: Shader_Stage, target_pro
 
     if S_OK != D3DCompileFromFile(filename_w, d3d_defines.data, xx D3D_COMPILE_STANDARD_FILE_INCLUDE, tprint("%\0", entrypoint_name).data, tprint("%\0", target_profile).data, 0, 0, *shader_blob, *error_blob) {
         flush_errors();
-        logprint("shader", "D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
+        log("D3DCompileFromFile(%, %) failed...\n%", entrypoint_name, filename, blob_to_string(error_blob));
         Release(error_blob);
         return false, null;
     }
@@ -1080,7 +1080,7 @@ load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compile
     device := renderer.device;
 
     unload_and_return_shader_error :: (message := "", args: ..Any) #expand {
-        if message.count > 0 logprint("shader", tprint("%\n", message), ..args);
+        if message.count > 0 log(tprint("%\n", message), ..args);
         unload_shader(*new_shader);
         return false;
     }
@@ -1388,7 +1388,7 @@ init_profiler :: (using profiler: *Profiler($T)) -> bool {
 
     for frame: 0..NUM_FRAMES - 1 {
         if S_OK != renderer.device.CreateQuery(xx renderer.device, *query_desc, *disjoint_query[frame]) {
-            logprint("renderer_d3d11", .MINIMAL, "error: could not create timestamp disjoint query for frame %", frame);
+            log_error("could not create timestamp disjoint query for frame %", frame);
             return false;
         }
         //set_debug_name(disjoint_query[frame], "timestamp disjoint query %", frame);
@@ -1401,7 +1401,7 @@ init_profiler :: (using profiler: *Profiler($T)) -> bool {
         name := ti.names[it_index];
         for frame: 0..NUM_FRAMES - 1 {
             if S_OK != renderer.device.CreateQuery(xx renderer.device, *query_desc, *query[value][frame]) {
-                logprint("renderer_d3d11", .MINIMAL, "error: could not create timestamp query for frame %", frame);
+                log_error("could not create timestamp query for frame %", frame);
                 return false;
             }
             //set_debug_name(disjoint_query[frame], "timestamp query % - %", frame, name);
@@ -1469,7 +1469,7 @@ wait_for_data_and_update :: (using profiler: *Profiler($T)) {
 
 	timestamp_disjoint: D3D11_QUERY_DATA_TIMESTAMP_DISJOINT;
 	if S_OK != device_ctx.GetData(device_ctx, xx disjoint_query[iFrame], *timestamp_disjoint, size_of(type_of(timestamp_disjoint)), 0) {
-        logprint("profiler", .MINIMAL, "error: Couldn't retrieve timestamp disjoint query data");
+        log_error("Couldn't retrieve timestamp disjoint query data");
 		return;
 	}
 

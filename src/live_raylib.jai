@@ -25,7 +25,7 @@ try_reload_live_resource :: (full_name_stripped: string, extension: string) {
     }
 
     if did_reload
-        logprint("live", "reloaded asset %", full_name_stripped);
+        log("reloaded asset %", full_name_stripped);
 }
 
 
@@ -174,7 +174,7 @@ TryReloadLiveSprite :: (filename: string) -> bool {
         new_sprite: Sprite_Anim;
         ok := load_from_aseprite(*new_sprite, it.filename);
         if !ok {
-            logprint("live", "error reloading sprite '%'", filename);
+            log_error("sprite reload failed: '%'", filename);
             continue;
         }
 

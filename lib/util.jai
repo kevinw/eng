@@ -20,7 +20,6 @@ tstring :: (sb: *String_Builder) -> string {
     return builder_to_string(sb, __temporary_allocator);
 }
 
-
 #scope_file
 
 #import "Basic";

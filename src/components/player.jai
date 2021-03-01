@@ -293,7 +293,7 @@ update :: (using player: *Player) {
         position.y += speed.y * Time.delta_time;
         MAX_Y :: 5000;
         if position.y > MAX_Y {
-            logprint("player", "reseting player position");
+            log("reseting player position");
             position.y = 0;
             position.x = 50;
             speed.y = 0;
@@ -332,7 +332,7 @@ update :: (using player: *Player) {
                 speed.x = DAMAGE_KNOCKBACK * cast(float)-sign(delta.x);
                 grounded = false;
             } else if attack_hitbox && rl.CheckCollisionRecs(e_rect, attack_hitbox_rect) {
-                //logprint("player", "hit enemy %", it);
+                //log("player hit enemy %", it);
 
                 delta := midpoint(e_rect) - p_midpoint;
                 enemy_was_hit_by_player(it, player, delta);

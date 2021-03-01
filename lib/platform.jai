@@ -79,13 +79,13 @@ set_window_borderless :: (native_handle: *void, borderless: bool, old_window_inf
         if old_window_info != null {
             rect := <<old_window_info;
             if !AdjustWindowRectEx(*rect, dwStyle=style, bMenu=BOOL.FALSE, dwExStyle=WS_EX_APPWINDOW)
-                logprint("platform", "warning: AdjustWindowRectEx failed");
+                log_error("platform warning: AdjustWindowRectEx failed");
             SetWindowPos(native_handle, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_FRAMECHANGED);
         }
 
         return was_rect;
     } else {
-        logprint("platform", "TODO: implement set_window_borderless for this platform");
+        log_error("TODO: implement set_window_borderless for this platform");
     }
 }
 
@@ -164,5 +164,7 @@ path_exists :: (path: string) -> bool {
     user32 :: #foreign_system_library "user32";
     MapWindowPoints :: (hwnd1: *void, hwnd2: *void, points: *POINT, point_count: u32) -> s32 #foreign user32;
 }
+
+#import "util";
 #import "Basic";
 #import "Math";

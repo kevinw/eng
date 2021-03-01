@@ -178,9 +178,9 @@ reload_fonts :: (ui: *UI_State) {
     #if #run Compiler.get_build_options().optimization_level != .RELEASE {
         // In debug builds, load the TTF files from disk.
         fonts.AddFontFromFileTTF(fonts, font_file, regular_size);
-        logprint("ui", "loading font %", font_file);
+        log("ui - loading font %", font_file);
         ui.small_font     = fonts.AddFontFromFileTTF(fonts, font_file, small_size);
-        logprint("ui", "loading font %", font_file_mono);
+        log("ui - loading font %", font_file_mono);
         ui.monospace_font = fonts.AddFontFromFileTTF(fonts, font_file_mono, mono_size);
     } else {
         // In release builds, just include the font files in the data segment.

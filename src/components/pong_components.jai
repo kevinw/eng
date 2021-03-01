@@ -47,7 +47,7 @@ update :: (using it: *Bounce, transform: *Transform) {
         other_radius := max(other_t.scale.x, other_t.scale.y);
 
         if rl.CheckCollisionCircles(p.xy, radius, other_t.position.xy, other_radius) {
-            logprint("boom", "BOOM");
+            log("BOOM");
             other.velocity += it.velocity;
             destroy_entity(it.entity);
         }

@@ -400,10 +400,10 @@ ImageDraw :: (dst: *Image, src: Image, srcRecIn: Rectangle, dstRecIn: Rectangle,
     if dst.data == null || (dst.width == 0) || (dst.height == 0) ||
         (src.data == null) || (src.width == 0) || (src.height == 0) return;
 
-    //if dst.mipmaps > 1 logprint("raylib_fake", "Image drawing only applied to base mipmap level");
+    //if dst.mipmaps > 1 log("Image drawing only applied to base mipmap level");
     assert(dst.format == .RGBA8);
     //if dst.format >= COMPRESSED_DXT1_RGB {
-        //logprint("raylib_fake", "Image drawing not supported for compressed formats");
+        //log("Image drawing not supported for compressed formats");
         //return;
     //}
     srcMod: Image;       // Source copy (in case it was required)

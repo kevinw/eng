@@ -98,7 +98,7 @@ print_time :: (ident: string, msg: string, args: ..Any) #expand {
     // get there.
 
     s := ifx args.count > 0 tprint(msg, ..args) else msg;
-    logprint(ident, "%...", s);
+    log("[%] %...", ident, s);
     `__print_time_now := GetTime();
     `defer print("took %\n", GetTime() - __print_time_now);
 }
@@ -179,10 +179,9 @@ parse_spriter_atlas :: (filename: string) -> []Sprite {
     handler.strip_comments_from_ends_of_lines;
     defer deinit(*handler);
 
-    start_file(*handler, "atlas", filename, "atlas parsing", optional=false);
+    start_file(*handler, "atlas", filename, optional=false);
     if handler.failed {
-        Log.error();
-        Log.print("could not open '%' for parsing\n", filename);
+        log_error("could not open '%' for parsing\n", filename);
         return .[];
     }
 

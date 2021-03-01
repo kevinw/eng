@@ -468,7 +468,7 @@ serialize_with_type_info :: (
                 print_to_builder(sb, "}");
             }
         case .POINTER;
-            logprint("wbml", "skipping wbml serialize POINTER for '%'", dbgname);
+            log("skipping wbml serialize POINTER for '%'", dbgname);
         case;
             panic(tprint("%: % (%)", name, ti.type, dbgname));
     }
@@ -871,14 +871,14 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                 // we account for that here...perhaps we should only do it for zero? not sure.
                 if !Reflection.set_value_from_string(any, node._number.value_str) {
                     if verbose
-                        logprint("wbml", "failed setting number '%' as enum %", node._number.value_str, any);
+                        log_error("wbml - failed setting number '%' as enum %", node._number.value_str, any);
                 }
             } else if check_type(node, .Enum_Value, verbose, debug_name) {
                 did_set := Reflection.set_value_from_string(any, node._enum);
-                if !did_set logprint("wbml", "WARNING: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
+                if !did_set log_error("wbml - warning: set_value_from_string failed for % % (node enum was %)\n", debug_name, (<<any.type), node._enum);
             }
         case;
-            logprint("wbml", "unhandled: '%' %", debug_name, ti.type);
+            log("wbml unhandled: '%' %", debug_name, ti.type);
     }
 }
 
@@ -1006,7 +1006,7 @@ check_type :: (node: *Node, type: Node.Type, verbose: bool, debug_name := "") ->
         return true;
     
     if verbose
-        logprint("wbml", "warning: node was %, expected .% for %", node.type, type, debug_name);
+        log_error("wbml warning: node was %, expected .% for %", node.type, type, debug_name);
     return false;
 }
 

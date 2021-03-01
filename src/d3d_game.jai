@@ -49,7 +49,7 @@ on_host_init :: (host_state: Host_State) {
 }
 
 set_function_pointers :: () {
-    logprint("d3d_game", "setting editor_did_drag");
+    log("d3d_game setting editor_did_drag");
     context.state.editor.callbacks.did_drag = editor_did_drag;
     game_base_set_function_pointers();
 }

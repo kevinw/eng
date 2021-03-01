@@ -44,7 +44,7 @@ get_frame :: (using sprite_anim: *Sprite_Anim, timer: float64, tag_name := "") -
 
         if !found {
             assert(false, "no tag named %", tag_name);
-            //logprint("=Sprite_Anim", "no tag named '%'", tag_name);
+            //log("no tag named '%'", tag_name);
         }
     }
 
@@ -69,7 +69,7 @@ draw :: (using sprite_anim: *Sprite_Anim, time: float64, pos: Vector2, tag_name 
     if ok {
         draw_frame(frame, pos);
     } else
-        logprint("warning", "couldn't get frame");
+        log_error("couldn't get frame");
 }
 
 draw_frame :: (frame: Sprite_Anim.Frame, pos: Vector2) {

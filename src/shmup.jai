@@ -23,7 +23,7 @@ on_host_init :: (host_state: Host_State) {
         print_time("mesh", "loaded %", filename);
         mesh_ok = load_mesh(*context.state.mesh, filename);
     }
-    logprint("mesh", "mesh load: % - %", mesh_ok, filename);
+    log("mesh load: % - %", mesh_ok, filename);
 
 
     mesh_renderer := find_component(Mesh_Renderer);

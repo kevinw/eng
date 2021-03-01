@@ -227,11 +227,11 @@ remove_component :: (component_ptr: *Component) {
 
     ok, entity := get_entity(component_ptr.entity);
     if !ok {
-        logprint("entity", "error: trying to remove_component but the entity is already dead");
+        log_error("error: trying to remove_component but the entity is already dead");
         return;
     }
 
-    logprint("entity", "TODO: actually implement remove component");
+    log_error("TODO: actually implement remove component");
 
 }
 
@@ -304,7 +304,7 @@ entity_rect :: (entity: *Entity, verbose := false, out_transform: **Transform = 
 
 
     if trs == null {
-        logprint("=entity_rect", "no Transform in % %\n", entity.name, entity);
+        log("warning: no Transform in % %\n", entity.name, entity);
         return .{};
     }
 
@@ -725,7 +725,7 @@ on_component_deserialize :: (any: *Any, node: *wbml.Node, userdata: *void) -> (h
                 }
             }
         } else if any.type == type_info(*Shader) {
-            logprint("entity", "TODO: deserialize LiveShader from wbml");
+            log("TODO: deserialize LiveShader from wbml");
             /*
             fs_filename := wbml.get_string(node, "fs_filename");
             vs_filename := wbml.get_string(node, "vs_filename");
@@ -913,7 +913,7 @@ reset_world :: (world: *World) {
 duplicate_entity :: (entity_handle: Entity_Handle, undo: *Undo.Impl = null) -> Entity_Handle {
     ok, entity := get_entity(entity_handle);
     if !ok {
-        logprint("entity", "trying to duplicate an invalid entity handle");
+        log_error("trying to duplicate an invalid entity handle");
         return .{};
     }
 
@@ -1010,7 +1010,7 @@ save_prefab :: (sb: *String_Builder, entity_selection: *Entity_Handle = null) {
                     }
 
                     if defaults_node == null
-                        logprint("ent", "error: no cache entry for %", my_ent.prefab_filename);
+                        log_error("no cache entry for %", my_ent.prefab_filename);
                 }
 
                 if defaults_node == null
@@ -1050,7 +1050,7 @@ spawn_prefab :: (prefab_name: string, world_pos: Vector3 = Vector3.{0, 0, 0}) ->
 spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}, undo:*Undo.Impl = null) -> (*Entity, Entity_Handle) {
     entity_file_text, ok := File.read_entire_file(filename);
     if !ok {
-        logprint("error", "no prefab at %", filename);
+        log_error("no prefab at %", filename);
         return null, .{};
     }
     defer free(entity_file_text);

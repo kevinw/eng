@@ -63,7 +63,7 @@ on_asset_change :: (using asset_change: *Asset_Change) {
         !String.begins_with(full_name, ".build/")
     {
         // Source changes mean we recompile the game DLL.
-        logprint("host", "recompiling for %", full_name);
+        log("host is recompiling for %", full_name);
         do_recompile();
     } else if extension == "dll" && String.begins_with(short_name, tprint("%_reloaded_", cmdline_args.game_name)) {
         // If we notice that the compiler has built a new game dll for us, we

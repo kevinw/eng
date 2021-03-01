@@ -1,7 +1,6 @@
 #import "Basic";
 #import "Text_File_Handler";
 #import "Reflection";
-Log :: #import "Log";
 
 
 for_expansion :: (handler: *Text_File_Handler, body: Code, flags: For_Flags) #expand {
@@ -37,10 +36,9 @@ parse_config_file :: (target: $T, config_filename: string) {
     handler: Text_File_Handler;
     defer deinit(*handler);
 
-    start_file(*handler, "config", config_filename, "config parsing", false);
+    start_file(*handler, "config", config_filename, optional=false);
     if handler.failed {
-        Log.error();
-        Log.print("Could not find '%'\n", config_filename);
+        log("Could not find '%'", config_filename, flags=.ERROR);
         return;
     }
 
@@ -56,8 +54,7 @@ parse_config_file :: (target: $T, config_filename: string) {
         //member := get_struct_field_info(target_tinfo, key_name);
         member := get_field(target_tinfo, key_name);
         if member == null {
-            Log.error();
-            Log.print("invalid config field '%'\n", key_name);
+            log("invalid config field '%'", key_name, flags=.ERROR);
             continue;
         }
 

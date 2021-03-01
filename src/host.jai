@@ -6,6 +6,7 @@
 #import "System";
 #import "util";
 #import "Math";
+#import "Window_Type";
 #import "Input";
 #import "DPI";
 
@@ -66,13 +67,13 @@ change_window_state :: (window_state_operation: Window_State_Operation) {
     if window_state_operation == {
         case .Toggle_Borderless_Fullscreen;
             fullscreen := toggle_borderless_fullscreen(the_window);
-            logprint("host", ifx fullscreen then  "window borderless fullscreen" else "windowed mode");
+            log(ifx fullscreen then "window borderless fullscreen" else "windowed mode");
         case .Toggle_Always_On_Top;
             top := platform.toggle_always_on_top(the_window);
-            logprint("host", ifx top then "window always on top" else "window not topmost");
+            log(ifx top then "window always on top" else "window not topmost");
         case .Toggle_Transparent_When_Out_Of_Focus;
             transparent_while_not_focused = !transparent_while_not_focused;
-            logprint("host", ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
+            log(ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         case .Force_Plugin_DLL_Reload;
             plugin_requested_reload = true;
     }
@@ -313,8 +314,8 @@ main :: () {
             if _recompile_thread == null && (frame_count % 2 == 0) && (
                 Plugin.should_reload(*module) || reload_new_dll_filename.count > 0 || plugin_requested_reload
             ) {
-                //if Plugin.should_reload(*module) logprint("host", "Plugin.should_reload(*module) was true");
-                //if reload_new_dll_filename.count > 0 logprint("host", "reload_new_dll_filename was %", reload_new_dll_filename);
+                //if Plugin.should_reload(*module) log("Plugin.should_reload(*module) was true");
+                //if reload_new_dll_filename.count > 0 log("reload_new_dll_filename was %", reload_new_dll_filename);
 
                 old_state := plugin_deinit(shutting_down = false);
 
@@ -373,7 +374,7 @@ main :: () {
     }
 
     plugin_deinit(shutting_down = true);
-    logprint("host", "exit OK.");
+    log("host - exit OK.");
 }
 
 #scope_file

@@ -134,7 +134,7 @@ draw :: (using it: *SpriteRenderer, transform: *Transform) {
         if #complete slice_mode == {
             case .None;
                 if _current_frame.texture {
-                    //logprint("sprite_renderer", "%", _current_frame.rect);
+                    //log("sprite_renderer %", _current_frame.rect);
                     rl.DrawTexturePro(
                         texture = _current_frame.texture,
                         sourceRec_ = _current_frame.rect,

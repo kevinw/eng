@@ -295,7 +295,7 @@ custom_ctrl :: (name: string, data: *void, ti: *Type_Info) {
         euler := quaternion_to_euler(<<quat);
         if DragFloat3("rotation", cast(*[3]float)*euler.x) {
             <<quat = euler_to_quaternion(euler.x, euler.y, euler.z);
-            logprint("=quat", "changed euler % to quat %", euler, <<quat);
+            log("changed euler % to quat %", euler, <<quat);
         }
 
         DragFloat4("quat", cast(*[4]float)quat);
@@ -541,7 +541,7 @@ render_asset_selector :: (window_open: *bool) {
                 if it == null {
                     selected_asset.shader = null;
                 } else {
-                    logprint("editor", "TODO: change shader");
+                    log_error("TODO: change shader");
                     //<<selected_asset.shader = LoadLiveShader("", it.filename);
                 }
             }
@@ -794,7 +794,7 @@ show_assets_window :: (open: *bool) {
                     offset = 0.5 * entity_rect(entity_handle).size;
 
                 case;
-                    logprint("editor", "WARNING: unhandled asset type %", it.type);
+                    log_error("unhandled asset type %", it.type);
             }
 
             // Select the new object if we made one.
@@ -923,7 +923,7 @@ show_entities_window :: (open: *bool) {
                     found, prev_sibling := get_previous_sibling(it);
                     if found {
                         set_parent(it, prev_sibling);
-                        logprint("editor", "make child: %\n", it);
+                        log("editor - make child: %\n", it);
                     }
                 }
             }
@@ -990,7 +990,7 @@ show_screen_log :: (open: *bool) {
 
         alpha := cast(float)(it.time / 0.5);
         color: u32;
-        if it.mode == .MINIMAL
+        if it.log_flags & .ERROR
             color = GetColorU32(make_ImVec4(1, 0, 0, alpha));
         else
             color = GetColorU32(.Text, alpha);
@@ -1050,7 +1050,7 @@ editor_update :: (state: *State) {
                 context.state.global_time_scale = 1;
         }
         if rl.IsKeyPressed(.KEY_M) {
-            logprint("editor", "TODO: implement multiview toggling again");
+            log_error("todo: implement multiview toggling again");
             // context.state.multiview.enabled = !context.state.multiview.enabled;
         }
         if is_key_pressed(.ALT) && !show_main_menu {
@@ -1112,7 +1112,7 @@ editor_update :: (state: *State) {
                     euler := euler_angles(scene_camera.rotation);
                     euler.y += _local_host_state.mouse_delta.x;
                     euler.x -= _local_host_state.mouse_delta.y;
-                    logprint("=editor_mouse", "mouse_delta %", _local_host_state.mouse_delta);
+                    //log("mouse_delta %", _local_host_state.mouse_delta);
                     scene_camera.rotation = quaternion_from_euler(euler);
                 }
                 update = true;
@@ -1286,11 +1286,11 @@ editor_update :: (state: *State) {
 
     if ctrl_down && rl.IsKeyPressed(.KEY_Z) {
         if !Undo.try_undo(*undo_state)
-            logprint("=editor_undo", "nothing to undo");
+            log("nothing to undo");
     }
     if ctrl_down && rl.IsKeyPressed(.KEY_Y) {
         if !Undo.try_redo(*undo_state)
-            logprint("=editor_redo", "nothing to redo");
+            log("nothing to redo");
     }
 }
 
@@ -1349,7 +1349,7 @@ editor_undo_push_transform :: (handle: Entity_Handle) {
     if trs != null {
         Undo.push(*context.state.editor.undo_state, trs);
     } else {
-        logprint("editor", "editor_undo_push_transform: no transform for handle: %", handle);
+        log_error("editor_undo_push_transform: no transform for handle: %", handle);
     }
 }
 
@@ -1406,7 +1406,7 @@ editor_toggle :: (using s: *State) {
     } else if play_mode == .Edit {
         fading_to_play = true;
     } else {
-        logprint("editor", "error: unknown play_mode '%'", play_mode);
+        log_error("unknown play_mode '%'", play_mode);
     }
 }
 
@@ -1463,7 +1463,7 @@ load_scene_confirming :: (scene_filename: string) {
     using context.state.editor;
     
     if !undo_state.needs_save {
-        logprint("editor", "we didn't need to save; loading scene '%'", scene_filename);
+        log("we didn't need to save; loading scene '%'", scene_filename);
         load_scene(scene_filename);
         return;
     }
@@ -1685,7 +1685,7 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
 focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
     camera := get_main_camera();
     if camera == null {
-        logprint("=editor_focus", "no camera to move");
+        log_error("no camera to move");
         return;
     }
 
@@ -1716,7 +1716,7 @@ focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
 load_scene :: (filename: string) {
     wbml_str, ok := File.read_entire_file(filename);
     if !ok {
-        logprint("error", .MINIMAL, "could not read '%' - load failed", filename);
+        log_error("could not read '%' - load failed", filename);
         return;
     }
 
@@ -1724,7 +1724,7 @@ load_scene :: (filename: string) {
     world := context.state.world;
     reset_world(world);
     load_world(world, wbml_str, filename);
-    logprint("editor", "loaded scene '%'", filename);
+    log("loaded scene '%'", filename);
 
     using context.state.editor;
     copy_into_owned_string(*last_loaded_scene_filename, filename);
@@ -1746,7 +1746,7 @@ copy_into_owned_string :: (str: *string, new_value: string) {
 save_scene :: (filename: string) {
     using context.state.editor;
     save_prefab(filename);
-    logprint("editor", "saved scene '%'", filename);
+    log("saved scene '%'", filename);
     Undo.mark_needs_save(*undo_state, false);
 }
 
@@ -1756,10 +1756,10 @@ save_scene :: () {
         // TODO: show a modal, or a file dialog
         new_filename := find_unused_scene_filename();
         save_prefab(new_filename);
-        logprint("editor", "saved '%'", new_filename);
+        log("saved '%'", new_filename);
     } else {
         save_prefab(last_loaded_scene_filename);
-        logprint("editor", "saved '%'", last_loaded_scene_filename);
+        log("saved '%'", last_loaded_scene_filename);
         free_and_clear_string(*last_loaded_scene_filename);
     }
 }
@@ -1780,7 +1780,7 @@ HelpMarker :: (desc: string) {
 }
 
 #scope_export
-ImGui :: #import "imgui";
+ImGui :: #import "imgui_docking";
 #scope_file
 
 ButtonEx :: (label: *u8, size:ImGui.ImVec2 = .{}, enabled := true) -> bool {

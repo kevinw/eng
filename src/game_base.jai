@@ -75,7 +75,7 @@ game_base_update :: (host_state: Host_State) {
 
     if !first_update {
         first_update = true;
-        logprint("game", "first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
+        log("first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
     }
 
     Gamepad.update_gamepad();
@@ -121,7 +121,7 @@ game_base_update :: (host_state: Host_State) {
         }
         if rl.IsKeyPressed(.KEY_D) && shift {
             debug_draw = !debug_draw;
-            logprint("=debug_draw", "debug_draw is now %\n", debug_draw);
+            log("debug_draw is now %\n", debug_draw);
         }
 
         change_window_state := _local_host_state.change_window_state;
@@ -147,7 +147,7 @@ change_global_time_scale :: (delta: float) {
     if Sloppy_Math.values_are_close(global_time_scale, 1.0)
         global_time_scale = 1;
 
-    logprint("=time_scale", "time scale %", global_time_scale);
+    log("time scale %", global_time_scale);
 }
 
 game_base_draw_compile_error :: () {
@@ -324,7 +324,7 @@ game_base_did_reload_dll :: (host_state: Host_State) {
         io.LogFilename = "imgui_log.txt";
     }
 
-    logprint("game", "game dll reloaded at % secs", cast(int)rl.GetTime());
+    log("game dll reloaded at % secs", cast(int)rl.GetTime());
 }
 
 setup_gamepad :: (host_state: Host_State) {
@@ -450,14 +450,14 @@ _draw_world :: () {
 
 
 on_renderer_debug_message :: (debug_message: Debug_Message) {
-    log_mode: Log_Mode;
+    log_flags: Log_Flags;
     if debug_message.severity == {
-        case .Info;    log_mode = .EVERYDAY;
-        case .Message; log_mode = .EVERYDAY;
-        case;          log_mode = .MINIMAL;
+        case .Info;    log_flags = .NONE;
+        case .Message; log_flags = .NONE;
+        case;          log_flags = .ERROR;
     }
 
-    logprint("renderer", log_mode, debug_message.text);
+    log("renderer %", debug_message.text, flags=log_flags);
 }
 
 
