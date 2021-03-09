@@ -1,6 +1,7 @@
 # TODO
 
 ## Immediate
+- prototype 2dish uv displacement mapping like Yoku's Island Express?
 - compute shaders https://youtu.be/0DLOJPSxJEg
 - http://alextardif.com/Antialiasing.html
 - https://www.youtube.com/watch?v=yG4ChOPyC-4
@@ -83,6 +84,7 @@
 
 
 ## Research
+- [guide to implementing 2d platformers](http://higherorderfun.com/blog/2012/05/20/the-guide-to-implementing-2d-platformers/)
 - [gorgeous top down visuals](https://twitter.com/HiWarp/status/1356809034213564416)
 - Research binary pack formats; C libraries that do virtual file systems
 - 2d parallax mapping textures with view dependent lighting
