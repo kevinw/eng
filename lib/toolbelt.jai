@@ -100,7 +100,7 @@ print_time :: (ident: string, msg: string, args: ..Any) #expand {
     s := ifx args.count > 0 tprint(msg, ..args) else msg;
     log("[%] %...", ident, s);
     `__print_time_now := GetTime();
-    `defer print("took %\n", GetTime() - __print_time_now);
+    `defer print("% took %\n", ident, GetTime() - __print_time_now);
 }
 
 draw_texture :: (tex: *Texture, source_rect: Rectangle, dest_rect: Rectangle, origin: Vector2 = .{0, 0}, rotation: float = 0, tint:Color = WHITE) {
