@@ -307,7 +307,10 @@ main :: () {
 
         #if BUILDING_DLLS {
         if cmdline_args.live_reload {
-            if frame_count % 4 == 0 hotloader_process_change();
+            if frame_count % 4 == 0 {
+                while hotloader_process_change() {
+                }
+            }
 
             recompile_requested := is_key_pressed(cast(Key_Code)#char "r") && is_key_down(.SHIFT);
             if recompile_requested
