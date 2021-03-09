@@ -240,9 +240,6 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
 game_base_init :: (host_state: Host_State) {
     using context.state;
 
-    init_synchronization :: () -> *void #runtime_support;
-    init_synchronization();
-
     world = *main_world;
 
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
