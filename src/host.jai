@@ -130,7 +130,8 @@ parse_commandline_arguments :: () {
     }
 }
 
-UNHOOK_ALWAYS_ON_TOP_DURING_CRASH :: true;
+UNHOOK_ALWAYS_ON_TOP_DURING_CRASH :: false;
+_unhooking_always_on_top := false;
 
 #if OS == .WINDOWS {
     set_window_NOT_always_on_top :: (window: *void) #c_call {
@@ -143,7 +144,8 @@ UNHOOK_ALWAYS_ON_TOP_DURING_CRASH :: true;
         // make our windows not always on top if we crash, so the debugger
         // doesn't get obscured
         #if UNHOOK_ALWAYS_ON_TOP_DURING_CRASH {
-            if cmdline_args.topmost_window {
+            if cmdline_args.topmost_window && !_unhooking_always_on_top {
+                _unhooking_always_on_top = true;
                 set_window_NOT_always_on_top(the_window);
                 for host_state.debug_extra_window_handles
                     set_window_NOT_always_on_top(it);
