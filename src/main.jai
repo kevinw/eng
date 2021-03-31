@@ -128,6 +128,7 @@ Declaration :: struct {
     expression: *Expression;
 
     qualifer_using := false;
+    bitfield_width := -1;
 }
 
 Function :: struct {
@@ -587,15 +588,25 @@ type_to_string :: (ty: *CType) -> string {
     return builder_to_string(*builder);
 }
 
+as_str :: (cur: CXCursor) -> string { return copy_and_dispose(clang_getCursorSpelling(cur)); }
+as_str :: (ty: CXType)    -> string { return copy_and_dispose(clang_getTypeSpelling(ty)); }
+
 // variable or parameters
 create_variable_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration {
     kind := clang_getCursorKind(cur);
     assert(kind == CXCursor_ParmDecl || kind == CXCursor_VarDecl || kind == CXCursor_FieldDecl || kind == CXCursor_ObjCIvarDecl);
 
-    if clang_Cursor_isBitField(cur) print("Warning: bitfields aren't supported in jai!\n");
+    bitfield_width := -1;
+    if clang_Cursor_isBitField(cur) {
+        bitfield_width = clang_getFieldDeclBitWidth(cur);
+        //print("Warning: bitfields aren't supported in jai: (bitfield width: %)\n", bitfield_width);
+    }
 
-    decl := _create_declaration(copy_and_dispose(clang_getCursorSpelling(cur)),
-                                create_type(clang_getCursorType(cur)));
+    print("create_variable_declaration % %\n", as_str(cur), cur);
+
+    decl_type := create_type(clang_getCursorType(cur), cur);
+    decl := _create_declaration(copy_and_dispose(clang_getCursorSpelling(cur)), decl_type);
+    decl.bitfield_width = bitfield_width;
 
     children := get_children(cur);
 
@@ -1279,23 +1290,58 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, n
         defer free(type_str);
 
         // @Hack we may need a higher level contruct to handle translating names that conflict with non-overridable keywords
-        KEYWORD_CONTEXT :: "context";
-        KEYWORD_NULL :: "null";
-        KEYWORD_TYPE_INFO :: "type_info";
-        KEYWORD_CAST :: "cast";
-
-        if      decl.name == KEYWORD_CONTEXT   decl.name = "_context";
-        else if decl.name == KEYWORD_NULL      decl.name = "_null";
-        else if decl.name == KEYWORD_TYPE_INFO decl.name = "_type_info";
-        else if decl.name == KEYWORD_CAST      decl.name = "_cast";
+        if      decl.name == "context"         decl.name = "_context";
+        else if decl.name == "null"            decl.name = "_null";
+        else if decl.name == "type_info"       decl.name = "_type_info";
+        else if decl.name == "cast"            decl.name = "_cast";
 
         if decl.qualifer_using append(builder, "using ");
 
-        print_to_builder(builder, "%: %", decl.name, type_str);
+        decl_name := decl.name;
+
+        // Fields cannot have the same name as their type, so here we
+        // append a _ character to the field name if we find that case.
+        //
+        // TODO: there should probably be some kind of place for the user
+        // to resolve this conflict here instead?
+        for context.global_scope.members {
+            if stripped_name(it.name) == decl_name {
+                decl_name = tprint("%_", decl_name);
+                break;
+            }
+        }
+
+        // Handle bitfields by emitting "#place" before declarations. This will at least preserve
+        // the correct size of structs.
+        place := "";
+        if bitfield_context != null {
+            using bitfield_context;
+            if decl.bitfield_width != -1 {
+                assert(decl.bitfield_width != 0, "TODO: implement zero-width bitfields");
+
+                if watermark != -1 && first_decl && first_decl.type == decl.type && decl.bitfield_width + watermark <= first_decl.type.size * 8 {
+                    place = tprint("#place %; /* bitfield % */\n", bitfield_context.first_decl.name, bitfield_context.watermark);
+                    watermark += decl.bitfield_width;
+                } else {
+                    watermark = decl.bitfield_width;
+                    first_decl = decl;
+                }
+            } else {
+                bitfield_context.watermark = -1;
+                bitfield_context.first_decl = null;
+            }
+        }
+
+        if place.count > 0 {
+            append(builder, place);
+            print_indentation(builder);
+        }
+
+        print_to_builder(builder, "%: %", decl_name, type_str);
 
         if decl.expression {
             append(builder, " = ");
-            print_literal_to_builder(builder, cast(*Literal) decl.expression);
+            print_literal_to_builder(builder, cast(*Literal) decl.expression, decl.type);
         }
         if !no_semicolon append(builder, ";");
     } else {
@@ -1530,17 +1576,27 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
         print_indentation(builder);
         print_to_builder(builder, "};\n");
     }
+
+    bitfield_info: Bitfield_Info;
     for str.declarations {
-        print_declaration_to_builder(builder, it, in_struct=true);
+        if (context.strip_flags & .Constructors) && it.kind == .FUNCTION && (cast(*Function)it).is_constructor {
+            continue;
+        }
+        print_declaration_to_builder(builder, it, in_struct=true, *bitfield_info);
         append(builder, "\n");
     }
     context.tab_depth -= 1;
     print_indentation(builder);
     append(builder, "}");
 
-    if str.name && context.generate_static_struct_size_checks {
+    if str.name && context.generate_static_struct_size_checks && str.template_type_params.count == 0 {
         print_to_builder(builder, "\n#assert size_of(%) == %;", stripped_name(str.name), str.type.size);
     }
+}
+
+Bitfield_Info :: struct {
+    first_decl: *Declaration;
+    watermark: int = -1;
 }
 
 print_namespace :: (builder: *String_Builder, ns: *Namespace) {
@@ -1838,6 +1894,8 @@ uint32_t :: u32;
 int32_t  :: s32;
 size_t   :: s64;
 #scope_module
+
+
 END, extra_file_scope_imports_string);
 
         for context.libraries {
