@@ -2161,6 +2161,24 @@ END, extra_file_scope_imports_string);
     print("    % structs\n", context.counts.structs);
 }
 
+raw_tokens_string_from_cursor :: (cur: CXCursor) -> string {
+    //
+    // Return the raw tokens as a string from a cursor's range.
+    //
+    range := clang_getCursorExtent(cur);
+    tokens: *CXToken;
+    num_tokens: u32;
+    clang_tokenize(context.translation_unit, range, *tokens, *num_tokens);
+    token_sb: String_Builder;
+    for tt: 0..num_tokens - 1 {
+        spelling := clang_getTokenSpelling(context.translation_unit, tokens[tt]);
+        append(*token_sb, to_string(clang_getCString(spelling)));
+        clang_disposeString(spelling);
+    }
+
+    return builder_to_string(*token_sb);
+}
+
 #scope_file
 Pair :: struct(T: Type) { // TODO: should probably just go away and be [2]string
     first: T;
