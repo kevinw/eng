@@ -996,6 +996,22 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
             entry.name = copy_and_dispose(clang_getCursorSpelling(it));
             entry.type = create_type(clang_getCursorType(it), it);
             continue;
+        if clang_getCursorKind(it) == {
+            case .CXCursor_CXXBaseSpecifier;
+                // handle C++ inheritance like
+                // struct B : public A {}
+                //
+                // this becomes
+                // B :: struct { using a: A; }
+                // in Jai.
+                ty := create_type(clang_getCursorType(it), it);
+                name := copy_string(ty.type_of_struct.name);
+                to_lower(name);
+
+                decl := _create_declaration(name, ty);
+                decl.qualifer_using = true;
+                array_add(*str.declarations, decl);
+                continue;
         }
 
         decl := create_declaration(it, cur);
