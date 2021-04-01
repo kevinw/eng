@@ -1483,17 +1483,31 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, n
                 break;
             }
         }
+        decl.outputted_jai_name = decl_name;
 
         // Handle bitfields by emitting "#place" before declarations. This will at least preserve
         // the correct size of structs.
+        //
+        // TODO: we should rename the fields so that Jai consumers of the
+        // library don't use the full-width variable instead. Perhaps we could
+        // also automatically generate getters and setters? Or one getter and
+        // setter with an enum_flag?
         place := "";
         if bitfield_context != null {
             using bitfield_context;
             if decl.bitfield_width != -1 {
+                //print("bitfield_width is % in %\n", decl.bitfield_width, decl_name);
                 assert(decl.bitfield_width != 0, "TODO: implement zero-width bitfields");
 
-                if watermark != -1 && first_decl && first_decl.type == decl.type && decl.bitfield_width + watermark <= first_decl.type.size * 8 {
-                    place = tprint("#place %; /* bitfield % */\n", bitfield_context.first_decl.name, bitfield_context.watermark);
+                types_match :: (a: *CType, b: *CType) -> bool {
+                    if a == b return true;
+                    if a.type_of_typedef && b.type_of_typedef return a.type_of_typedef == b.type_of_typedef;
+                    if a.hardcoded_jai_string && b.hardcoded_jai_string return a.hardcoded_jai_string == b.hardcoded_jai_string;
+                    return false;
+                }
+
+                if watermark != -1 && first_decl && types_match(first_decl.type, decl.type) && decl.bitfield_width + watermark <= first_decl.type.size * 8 {
+                    place = tprint("#place %; /*bitfield %*/ ", bitfield_context.first_decl.outputted_jai_name, bitfield_context.watermark);
                     watermark += decl.bitfield_width;
                 } else {
                     watermark = decl.bitfield_width;
