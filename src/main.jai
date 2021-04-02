@@ -131,6 +131,8 @@ Declaration :: struct {
 
     qualifer_using := false;
     bitfield_width := -1;
+
+    storage_class: CX_StorageClass = .CX_SC_None;
 }
 
 Function :: struct {
@@ -1024,6 +1026,7 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
                 array_add(*str.vtable, decl);
             }
             else {
+                decl.storage_class = clang_Cursor_getStorageClass(it);
                 array_add(*str.declarations, decl);
             }
         }
@@ -1264,6 +1267,7 @@ create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struc
                 array_add(*str.vtable, decl);
             }
             else {
+                decl.storage_class = clang_Cursor_getStorageClass(it);
                 array_add(*str.declarations, decl);
             }
         }
@@ -1792,6 +1796,10 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
     bitfield_info: Bitfield_Info;
     for str.declarations {
         if (context.strip_flags & .Constructors) && it.kind == .FUNCTION && (cast(*Function)it).is_constructor {
+            continue;
+        }
+        if it.storage_class == .CX_SC_Static {
+            print("skipping static field %\n", it.name);
             continue;
         }
         print_declaration_to_builder(builder, it, in_struct=true, *bitfield_info);
