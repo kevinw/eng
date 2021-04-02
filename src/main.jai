@@ -127,6 +127,7 @@ Declaration :: struct {
     name: string;
     type: *CType;
     expression: *Expression;
+    parent_namespace: *Namespace;
 
     qualifer_using := false;
     bitfield_width := -1;
@@ -664,6 +665,11 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
     }
 
     if ty.type_of_typedef {
+        if ty.type_of_typedef.parent_namespace {
+            assert(ty.type_of_typedef.parent_namespace.name.count > 0);
+            append(builder, ty.type_of_typedef.parent_namespace.name);
+            append(builder, ".");
+        }
         append(builder, stripped_name(ty.type_of_typedef.name));
         return;
     }
@@ -1059,7 +1065,10 @@ create_namespace :: (cur: CXCursor) -> *Namespace {
 
     for children {
         decl := create_declaration(it, cur);
-        if decl array_add(*ns.declarations, decl);
+        if !decl continue;
+
+        decl.parent_namespace = ns;
+        array_add(*ns.declarations, decl);
     }
 
     return ns;

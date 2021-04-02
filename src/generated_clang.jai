@@ -649,13 +649,11 @@ using CXCursorKind :: enum u32 {
         CXCursor_OverloadCandidate :: 700;
 }
 
-anon_struct_7 :: struct {
+CXCursor :: struct {
     kind: CXCursorKind;
     xdata: s32;
     data: [3] *void;
 }
-
-CXCursor :: anon_struct_7;
 
 clang_getNullCursor :: () -> CXCursor #foreign libclang;
 
@@ -918,12 +916,10 @@ using CXCallingConv :: enum u32 {
         CXCallingConv_Unexposed :: 200;
 }
 
-anon_struct_8 :: struct {
+CXType :: struct {
     kind: CXTypeKind;
     data: [2] *void;
 }
-
-CXType :: anon_struct_8;
 
 clang_getCursorType :: (C: CXCursor) -> CXType #foreign libclang;
 
