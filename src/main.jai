@@ -594,6 +594,11 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
 
             num_template_args := ty.type_of_struct.template_instantiation_params.count;
 
+            if ty.type_of_struct.parent_namespace {
+                assert(ty.type_of_struct.parent_namespace.name.count > 0);
+                append(builder, ty.type_of_struct.parent_namespace.name);
+                append(builder, ".");
+            }
 
             append(builder, name);
 
