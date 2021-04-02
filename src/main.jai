@@ -697,17 +697,9 @@ create_variable_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration
     kind := clang_getCursorKind(cur);
     assert(kind == CXCursor_ParmDecl || kind == CXCursor_VarDecl || kind == CXCursor_FieldDecl || kind == CXCursor_ObjCIvarDecl);
 
-    bitfield_width := -1;
-    if clang_Cursor_isBitField(cur) {
-        bitfield_width = clang_getFieldDeclBitWidth(cur);
-        //print("Warning: bitfields aren't supported in jai: (bitfield width: %)\n", bitfield_width);
-    }
-
-    print("create_variable_declaration % %\n", as_str(cur), cur);
-
     decl_type := create_type(clang_getCursorType(cur), cur);
     decl := _create_declaration(copy_and_dispose(clang_getCursorSpelling(cur)), decl_type);
-    decl.bitfield_width = bitfield_width;
+    decl.bitfield_width = clang_getFieldDeclBitWidth(cur);
 
     children := get_children(cur);
 
