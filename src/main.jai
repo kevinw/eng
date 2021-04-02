@@ -262,6 +262,7 @@ TAB_STRING :: "    ";
     rename_functions_that_conflict_with_struct_names := true;
     generate_static_struct_size_checks := true;
 
+    omit_global_declarations := false;
     strip_prefix: string;
     strip_enum_prefixes := true;
     strip_enum_values_with_suffix: string;
@@ -1425,7 +1426,7 @@ function_has_a_valist_arg :: (func: *Function) -> bool {
     return false;
 }
 
-print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, no_semicolon := false, no_indent := false, in_struct := false, bitfield_context: *Bitfield_Info = null) {
+print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, no_semicolon := false, no_indent := false, in_struct := false, bitfield_context: *Bitfield_Info = null, is_global:bool = false) {
     if !no_indent print_indentation(builder);
 
     if decl.kind == .FUNCTION {
@@ -1468,6 +1469,11 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, n
     }
     else if decl.kind == .NAMESPACE print_namespace(builder, cast(*Namespace) decl);
     else if decl.kind == .DECLARATION {
+        if is_global && context.omit_global_declarations {
+            // Skip global declarations if we were asked to.
+            return;
+        }
+
         type_str := type_to_string(decl.type);
         defer free(type_str);
 
@@ -2001,6 +2007,8 @@ main :: () {
                 context.strip_prefix = args[it + 1];
                 it += 1;
             } else error("option '--strip-prefix' must be followed by a prefix!\n");
+        } else if ar == "--omit-global-declarations" {
+            context.omit_global_declarations = true;
         } else if ar == "--strip-enum-values-with-suffix" {
             if it < args.count - 1 {
                 context.strip_enum_values_with_suffix = args[it + 1];
@@ -2114,7 +2122,7 @@ END, extra_file_scope_imports_string);
             else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
         }
         for context.global_scope.members {
-            print_declaration_to_builder(*builder, it);
+            print_declaration_to_builder(*builder, it, is_global=true);
             append(*builder, "\n\n");
         }
 
