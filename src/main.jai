@@ -1,15 +1,5 @@
-#placeholder USE_GENERATED_CLANG_BINDINGS;
-
 STOP_ON_ERRORS :: true;
 
-#if USE_GENERATED_CLANG_BINDINGS {
-    #load "generated_clang.jai";
-} else {
-    // @Warning the original hand-written bindings no longer have enough of the libclang API in order to compile!
-    #assert false "Can't compile with the hand-written binding because it doesn't declare enough of the libclang API!";
-    #load "clang.jai";
-}
-Debug :: #import "Debug";
 #load "generated_clang.jai";
 #import "Basic";
 #import "Hash_Table";
@@ -1120,6 +1110,7 @@ convert_objc_selector_name_to_function_identifier :: (s: *string) {
 }
 
 create_function :: (cur: CXCursor, parent: CXCursor) -> *Function {
+
     kind := clang_getCursorKind(cur);
     assert(kind == CXCursor_FunctionDecl || kind == CXCursor_CXXMethod
             || kind == CXCursor_Constructor || kind == CXCursor_Destructor
@@ -1937,6 +1928,7 @@ print_block :: (builder: *String_Builder, block: *Block) {
 print_function :: (builder: *String_Builder, func: *Function) {
     name := stripped_name(func.name);
     replace_chars(name, " ", #char "_");
+
 
     omit_function_defaults := false;
     if func.decl_flags & .Needs_Argument_Wrapper {
