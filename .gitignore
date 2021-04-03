@@ -5,5 +5,7 @@
 x64/
 .build/
 .vs/
+bin/jaicc.exe
+bin/jaicc.pdb
 
 
