@@ -10,6 +10,7 @@ STOP_ON_ERRORS :: true;
     #load "clang.jai";
 }
 Debug :: #import "Debug";
+#load "generated_clang.jai";
 #import "Basic";
 #import "Hash_Table";
 #import "File";
@@ -24,7 +25,7 @@ Hash :: #import "Hash_Table";
 
 #if OS == .WINDOWS {
     time_t :: s64;
-    size_t :: s64;
+    size_t :: u64;
     #import "Windows";
     #import "Windows_Utf8";
 }
@@ -73,12 +74,14 @@ Number_Flags :: enum_flags {
 }
 
 CType :: struct {
+    hardcoded_jai_string: string;
     pointer_to: *CType;
     type_of_enum: *Enum;
     type_of_typedef: *Typedef;
     type_of_struct: *Struct;
     array_element_type: *CType;
     array_element_count := -1;
+    array_element_count_ref: string;
 
     function_argument_types: [..] *CType;
     function_return_type: *CType = null;
@@ -112,12 +115,14 @@ Literal :: struct {
         INTEGER :: 1;
         FLOAT   :: 2;
         STRING  :: 3;
+        RAW_CPP_TOKENS :: 4;
     };
 
     union {
         int_value:    s64;
         float_value:  float64;
         string_value: string;
+        raw_cpp_tokens_value:   string;
     }
 }
 
@@ -125,6 +130,7 @@ Declaration :: struct {
     using _expression: Expression;
     kind = .DECLARATION;
     name: string;
+    outputted_jai_name: string;
     type: *CType;
     expression: *Expression;
     parent_namespace: *Namespace;
@@ -133,6 +139,12 @@ Declaration :: struct {
     bitfield_width := -1;
 
     storage_class: CX_StorageClass = .CX_SC_None;
+    decl_flags: Declaration_Flags;
+}
+
+Declaration_Flags :: enum_flags {
+    Needs_Argument_Wrapper;
+    Pointer_To_Value;
 }
 
 Function :: struct {
@@ -264,8 +276,11 @@ TAB_STRING :: "    ";
     rename_functions_that_conflict_with_struct_names := true;
     generate_static_struct_size_checks := true;
 
+
+    translation_unit: CXTranslationUnit;
     omit_global_declarations := false;
     strip_prefix: string;
+    flatten_namespaces: [..]string;
     strip_enum_prefixes := true;
     strip_enum_values_with_suffix: string;
     strip_enum_value_prefixes: [..]Pair(string);
@@ -283,6 +298,52 @@ TAB_STRING :: "    ";
     };
 };
 
+
+recursive_print_anything_under_cursor :: (_in_cursor: CXCursor) {
+
+    Ctx :: struct {
+        jai_ctx: Context;
+        indent := 0;
+    }
+    ctx: Ctx;
+    ctx.jai_ctx = context;
+	clang_visitChildren(_in_cursor, visitor, *ctx);
+    indent :: () { for 1..context.tab_depth print(TAB_STRING); }
+
+    visitor :: (cur: CXCursor, parent: CXCursor, data: CXClientData) -> CXChildVisitResult #c_call {
+        push_context ((cast(*Ctx)data).jai_ctx) {
+        ref_cursor := clang_getCursorDefinition(cur);
+        _cur_type := clang_getCursorType(cur);
+        is_const := clang_isConstQualifiedType(_cur_type);
+        is_refer := _cur_type.kind == CXType_LValueReference;
+        is_volatile := clang_isVolatileQualifiedType(_cur_type);
+        is_pointer := clang_getPointeeType(_cur_type);
+        is_const_ref := false;
+		if is_pointer.kind
+            is_const_ref = !!clang_isConstQualifiedType(is_pointer);
+
+		print("parent '%' meet child '%' with kind % ref name % is_const % is_reference % is_volatile % is_pointer % is_const_ref %\n",
+            as_str(parent), as_str(cur), clang_getCursorKind(cur), as_str(ref_cursor), is_const, is_refer, is_volatile, is_pointer, is_const_ref);
+        tee_template_arg_num := clang_Type_getNumTemplateArguments(is_pointer);
+		if tee_template_arg_num != -1 {
+			print("pointee {} is template\n", is_pointer);
+			for i: 0..tee_template_arg_num-1 {
+				print("pointee template arg %  has type %\n", i, as_str(clang_Type_getTemplateArgumentAsType(is_pointer, cast(u32)i)));
+			}
+		}
+
+        template_arg_num := clang_Type_getNumTemplateArguments(_cur_type);
+		if template_arg_num != -1 {
+			print("% is template\n", as_str(_cur_type));
+			for i: 0..template_arg_num-1 {
+				print("template arg {}  has type {}\n", i, as_str(clang_Type_getTemplateArgumentAsType(_cur_type, cast(u32)i)));
+			}
+		}
+		return .CXChildVisit_Recurse;
+        }
+	};
+}
+
 Strip_Flags :: enum_flags {
     Constructors;
     Destructors;
@@ -292,13 +353,80 @@ Strip_Flags :: enum_flags {
 }
 
 create_pointer_to :: (pointee: *CType) -> *CType {
+    assert(pointee != null, "create_pointer_to passed a null *CType");
     out := New(CType);
     out.size = context.pointer_size;
     out.pointer_to = pointee;
     return out;
 }
 
-create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location) -> *CType {
+create_dummy_string_type :: (cur: CXType, array_count: int) -> *CType {
+    out := New(CType);
+    s := as_str(cur);
+    orig := copy_string(s);
+
+    while array_count > 0 {
+        right_idx := last_index_of_char(s, #char "]");
+        left_idx := last_index_of_char(s, #char "[");
+        if left_idx != -1 && right_idx != -1 && left_idx < right_idx {
+            s = slice(s, 0, left_idx - 1);
+            array_count -= 1;
+        }
+    }
+
+    handle :: (in_: string) -> string {
+        in := in_;
+        in = replace(in, "ImWchar", "u16"); // TODO: check IMGUI_USE_WCHAR32
+        in = replace(in, "ImWchar16", "u16");
+        in = replace(in, "ImWchar32", "u32");
+        in = replace(in, "const char",   "u8");
+        in = replace(in, "unsigned char", "u8");
+        in = replace(in, "char",          "s8");
+
+        while true {
+            namespace_idx := index_of_string(in, "::");
+            if namespace_idx == -1 break;
+
+            in = tprint("%.%", 
+                handle(slice(in, 0, namespace_idx)), 
+                handle(slice(in, namespace_idx + 2, 10000)));
+        }
+        
+        //in =  replace(in, "::", ".");
+        _, found := find_last(in, " *");
+        if found {
+            //print("found ' *' at end, replacing '%'", in);
+            in = tprint("*%", stripped_name(slice(in, 0, in.count - 2)));
+            //print(" with '%'\n", in);
+        } else {
+            in = stripped_name(in);
+        }
+        return in;
+    }
+
+    left_idx  := index_of_char(s, #char "<");
+    right_idx := last_index_of_char(s, #char ">");
+    while left_idx != -1 && right_idx != -1 {
+        left_part   := slice(s, 0, left_idx);
+        middle_part := slice(s, left_idx + 1, right_idx - left_idx - 1);
+        right_part: string;
+        if s.count - right_idx > 0 {
+            right_part = slice(s, right_idx + 1, s.count - right_idx);
+        }
+
+        new_s := handle(middle_part);
+        s = handle(tprint("%1(%2)%3", left_part, new_s, right_part));
+        left_idx  = index_of_char(new_s, #char "<");
+        right_idx = last_index_of_char(new_s, #char ">");
+    }
+
+    out.hardcoded_jai_string = s;
+    //print("FINISHED: '%' from '%'\n", s, orig);
+
+    return out;
+}
+
+create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count := 0) -> *CType {
     //print("create_type(ty=%, cur=%)\n", ty, cur);
 
     kind := ty.kind;
@@ -405,7 +533,7 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location) -> *CType {
             if out.size == -2 out.size = 0;
             return out;
         case CXType_ConstantArray;
-            ele := create_type(clang_getArrayElementType(ty), cur, loc=loc);
+            ele := create_type(clang_getArrayElementType(ty), cur, loc=loc, array_count=array_count + 1);
             if !ele return null;
 
             num_ele := clang_getNumElements(ty);
@@ -416,7 +544,7 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location) -> *CType {
             out.size = clang_Type_getSizeOf(ty);
             return out;
         case CXType_IncompleteArray;
-            ele := create_type(clang_getArrayElementType(ty), cur, loc=loc);
+            ele := create_type(clang_getArrayElementType(ty), cur, loc=loc, array_count=array_count + 1);
             if !ele return null;
             // num_ele := clang_getNumElements(ty);
 
@@ -424,6 +552,42 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location) -> *CType {
             out.array_element_type = ele;
             out.size = clang_Type_getSizeOf(ty);
             return out;
+        case CXType_DependentSizedArray;
+            ele := create_type(clang_getArrayElementType(ty), cur, loc=loc, array_count=array_count + 1);
+            if !ele return null;
+
+            // TODO: make this a utility function
+            Find_Context :: struct {
+                ctx: Context;
+                cur: CXCursor;
+            }
+            find_context: Find_Context;
+            find_context.ctx = context;
+            visitor :: (cur: CXCursor, parent: CXCursor, data: CXClientData) -> CXChildVisitResult #c_call {
+                find_context := cast(*Find_Context)data;
+                find_context.cur = cur;
+                return .CXChildVisit_Break;
+            }
+            clang_visitChildren(cur, visitor, *find_context);
+
+            out := New(CType);
+            out.array_element_type = ele;
+            if find_context.cur.kind == .CXCursor_DeclRefExpr
+                out.array_element_count_ref = as_str(find_context.cur);
+            else {
+                // in this case, we're going to just assume there's like a
+                // binary operator full of constants, so for now let's just
+                // dump the C++ tokens into the Jai file.
+                //
+                // More robust would be to properly generate complex literals
+                // with operators and constants.
+                out.array_element_count_ref = raw_tokens_string_from_cursor(find_context.cur);
+            }
+            //print("type of inner cursor (% %): %\n", find_context.cur.kind, out.array_element_count_ref, as_str(clang_getCursorType(find_context.cur)));
+            out.size = clang_Type_getSizeOf(ty);
+            return out;
+
+            
         case CXType_FunctionProto;
             arg_count := clang_getNumArgTypes(ty);
 
@@ -459,17 +623,18 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location) -> *CType {
         case CXType_Unexposed;
             // here we need to handle structs with template parameters, i.e. "template<typename T> struct Foo"
             // and also fields with template instantiation parameters, i.e., "Foo<int> myFoo;"
-
-
             Name_Context :: struct { name: string; jai_ctx: *Context; }
             template_type_spelling_context: Name_Context;
             my_visitor :: (cur: CXCursor, parent: CXCursor, client_data: CXClientData) -> CXChildVisitResult #c_call {
                 name_context := cast(*Name_Context)client_data;
                 push_context (<<name_context.jai_ctx) {
-                    name_context.name = as_str(cur);
+                    if name_context.name.count == 0
+                        name_context.name = as_str(cur);
                 }
                 return .CXChildVisit_Recurse;
             }
+
+            // recursive_print_anything_under_cursor(cur);
 
             name_context: Name_Context;
             ctx := context;
@@ -479,30 +644,55 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location) -> *CType {
             if name_context.name.count == 0
                 return null;
 
-            //print("got template type name: %\n", name_context.name);
+            type_decl := clang_getCursorType(cur);
 
-            out := New(CType);
-            out.type_of_struct = New(Struct);
-            out.type_of_struct.name = name_context.name; // TODO: dedupe?
+            //print("got template type name: '%' for cursor '%'\n", name_context.name, as_str(cur));
+            //print("  type decl is %\n", as_str(type_decl));
+
+            out: *CType;
+            if starts_with(as_str(clang_getCanonicalType(type_decl)), "type-parameter") { // TODO: yeah there's probably a less error-prone way to detect this. I think the cursor kind
+                out = New(CType);
+                out.type_of_struct = New(Struct);
+                out.type_of_struct.name = name_context.name; // TODO: dedupe?
+            } else {
+                out = create_dummy_string_type(type_decl, array_count=array_count);
+                out.type_of_struct = New(Struct); // TODO: skip the block below if we do this...then we don't need to New type_of_struct
+            }
 
             // get template instantiation parameters
             {
-                type_decl := clang_getCursorType(cur);
-                type_decl_cur := clang_getTypeDeclaration(type_decl);
                 num_template_args := clang_Type_getNumTemplateArguments(type_decl);
+                alt_num_template_args := clang_Cursor_getNumTemplateArguments(cur);
+                //error(cur, "gathering template instantiation parameters: % vs %\n", num_template_args, alt_num_template_args);
                 //print("       num template args for '%': %\n", name_context.name, num_template_args);
+                assert(out.type_of_struct != null);
                 for i: 0..num_template_args - 1 {
                     template_arg_type := clang_Type_getTemplateArgumentAsType(type_decl, cast(u32)i);
                     entry := array_add(*out.type_of_struct.template_instantiation_params);
                     entry.name = as_str(template_arg_type);
-                    entry.type = create_type(template_arg_type, cur);
+
+                    temp_t := as_str(template_arg_type);
+                    if temp_t == "T" { // TODO: need a better way to short-circuit the recursion that happens without this block...
+                                        // I think the problem is that we're calling create_type below with the same cursor as we got called with?
+                                        // basically we need a way to see that T is unexposed on its own...
+                        print("type T\n");
+                        t := New(CType);
+                        t.type_of_struct = New(Struct);
+                        t.type_of_struct.name = temp_t;
+                        t.size = clang_Type_getSizeOf(template_arg_type);
+                        entry.type = t;
+                    } else {
+                        entry.type = create_type(template_arg_type, cur);
+                    }
                 }
             }
 
             return out;
 
         case CXType_Invalid;
-            assert(false);
+            error(cur, tprint("create_type: encountered CXType_Invalid (cursor is '%')\n", as_str(cur)));
+            //assert(false);
+            return null;
     }
 
     error("Unhandled CXTypeKind from %: %\n", loc, kind);
@@ -521,6 +711,11 @@ type_tstring :: (ty: *CType) -> string {
 }
 
 print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
+
+    if ty.hardcoded_jai_string.count > 0 {
+        append(builder, ty.hardcoded_jai_string);
+        return;
+    }
 
     if ty.number_flags {
         using Number_Flags;
@@ -593,7 +788,6 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             name := replace_typename(ty.type_of_struct.name);
             name = stripped_name(name);
 
-
             num_template_args := ty.type_of_struct.template_instantiation_params.count;
 
             if ty.type_of_struct.parent_namespace {
@@ -607,7 +801,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             // print any template instantiation parameters in parens
             if num_template_args > 0 {
                 append(builder, "(");
-                defer append(builder, ")");
+                defer print_to_builder(builder, ") /* template params (orig type_of_struct.name '%') */", ty.type_of_struct.name);
 
                 for templ_arg: ty.type_of_struct.template_instantiation_params {
                     append(builder, type_to_string(templ_arg.type));
@@ -624,7 +818,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             print_to_builder(builder, "% {\n", type_name);
             context.tab_depth += 1;
             for str.declarations {
-                print_declaration_to_builder(builder, it, in_struct=true);
+                print_declaration_to_builder(builder, it, flags=.In_Struct);
             }
             context.tab_depth -= 1;
 
@@ -637,7 +831,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
     }
 
     if ty.array_element_type {
-        if ty.array_element_count == - 1 {
+        if !ty.array_element_count_ref && ty.array_element_count == - 1 {
             // incomplete array (in a function paramter <type>[]) so we transform this into *<type>
             append(builder, "*");
             print_type_to_builder(builder, ty.array_element_type);
@@ -645,6 +839,8 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             append(builder, "[");
             if ty.array_element_count != -1 {
                 print_to_builder(builder, "%", ty.array_element_count);
+            } else if ty.array_element_count_ref {
+                append(builder, ty.array_element_count_ref);
             } else {
                 assert(false, "Handle -1 array_element_count");
             }
@@ -691,11 +887,36 @@ type_to_string :: (ty: *CType) -> string {
     return builder_to_string(*builder);
 }
 
-as_str :: (cur: CXCursor) -> string { return copy_and_dispose(clang_getCursorSpelling(cur)); }
+as_str :: (cur: CXCursor, all_info := false) -> string {
+    spelling := copy_and_dispose(clang_getCursorSpelling(cur));
+    if all_info
+        return tprint("<Cursor kind='%' type='%' spelling='%'>", clang_getCursorKind(cur), clang_getCursorType(cur), spelling);
+    else
+        return spelling;
+}
 as_str :: (ty: CXType)    -> string { return copy_and_dispose(clang_getTypeSpelling(ty)); }
 
+assign_from_integer_lit :: (decl: *Declaration, cur: CXCursor, parent_cur: CXCursor, verbose := false) {
+    decl.expression = create_literal(cur);
+    if verbose {
+        print("decl.type: %\n", <<decl.type);
+    }
+    if !decl.expression && decl.type.pointer_to {
+        // this is a hack. the llvm capi cannot tell us when we have a null pointer in an
+        // argument default: https://bugs.llvm.org/show_bug.cgi?id=36576
+        // by reading the tokens we can "see" the null
+        raw_tokens := raw_tokens_string_from_cursor(parent_cur);
+        if verbose {
+            print("raw_tokens: '%'\n", raw_tokens);
+        }
+        if ends_with(raw_tokens, "=NULL")
+            decl.expression = create_literal("null");
+    }
+}
+
+
 // variable or parameters
-create_variable_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration {
+create_variable_declaration :: (cur: CXCursor, parent: CXCursor, parent_func: *Function = null) -> *Declaration {
     kind := clang_getCursorKind(cur);
     assert(kind == CXCursor_ParmDecl || kind == CXCursor_VarDecl || kind == CXCursor_FieldDecl || kind == CXCursor_ObjCIvarDecl);
 
@@ -708,9 +929,61 @@ create_variable_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration
     // It seems sometimes children can contain many elements. I dont yet know what the case is that causes this
     // assert(children.count <= 1);
 
+    verbose := false; // parent_func && parent_func.name == "GetTexDataAsRGBA32";
+    if verbose {
+        recursive_print_anything_under_cursor(cur);
+    }
+
     if children.count == 1 {
         value := create_literal(children[0]);
         if value decl.expression = value;
+    } 
+
+    if !decl.expression && parent_func {
+        // What follows are some very suspiciously hacky gymnastics to attemp
+        // to read common types of defaults. If we see things like binary
+        // expressions, we just dump the token text in the hope that it's also
+        // valid Jai. The real path forward here is to build up data types for
+        // those types of clang cursors as well.
+        while children.count > 0 {
+            if children[0].kind == .CXCursor_TypeRef {
+                children.data += 1;
+                children.count -= 1;
+                continue;
+            }
+
+            if children.count == 1 && children[0].kind == .CXCursor_FirstExpr {
+                children = get_children(children[0]);
+                continue;
+            }
+
+            break;
+        }
+
+        if children.count == 1 {
+            first_child := children[0];
+            if first_child.kind == {
+                case .CXCursor_IntegerLiteral;
+                    assign_from_integer_lit(decl, first_child, cur, verbose=verbose);
+                case .CXCursor_CXXNullPtrLiteralExpr;
+                    decl.expression = create_literal("null");
+                case .CXCursor_TemplateRef;
+                    // nothing
+                case;
+                    decl.expression = create_literal(first_child);
+                    if decl.expression == null {
+                        if verbose {
+                            print("-----\n%\n", as_str(cur));
+                            print("calling get_decl_arg_from_tokens for kind %\n", first_child.kind);
+                        }
+                        decl.expression = get_decl_arg_from_tokens(first_child, decl, decl_type, parent_func);
+                        if decl.expression && verbose
+                            print("   ...got %\n", (cast(*Literal)decl.expression).raw_cpp_tokens_value);
+                    }
+            }
+        } else if children.count > 1 {
+            //print("ignoring, more than one child: % % %\n", as_str(cur), cur, cur.kind);
+        }
     }
 
     if !decl.type {
@@ -728,6 +1001,48 @@ create_variable_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration
     return decl;
 }
 
+get_decl_arg_from_tokens :: (cur: CXCursor, decl: *Declaration, decl_type: *CType, parent_func: *Function) -> *Expression {
+    //recursive_print_anything_under_cursor(cur);
+    raw_tokens_str := raw_tokens_string_from_cursor(cur);
+    if raw_tokens_str.count == 0
+        return null;
+
+    if raw_tokens_str[0] == #char "=" && raw_tokens_str.count > 1 {
+        raw_tokens_str.count -= 1;
+        raw_tokens_str.data += 1;
+    }
+
+    // turn '0 ' into '0 '
+    for 0..raw_tokens_str.count-2
+        if is_digit(raw_tokens_str[it]) && raw_tokens_str[it + 1] == #char "f"
+            raw_tokens_str[it + 1] = #char " ";
+
+    // turn ImVec2(0, 0) into ImVec2.{0, 0}
+    for 0..raw_tokens_str.count-2 {
+        if is_alnum(raw_tokens_str[it]) && raw_tokens_str[it + 1] == #char "(" {
+            replace_chars(raw_tokens_str, "(", #char "{");
+            replace_chars(raw_tokens_str, ")", #char "}");
+            elems := split(raw_tokens_str, "{");
+            if elems.count != 2 {
+                print("elems.count != 2: %\n", raw_tokens_str);
+                return null;
+            }
+
+            raw_tokens_str = tprint("%.{%", elems[0], elems[1]);
+            // jai cannot refer to the address of constant values in function signatures,
+            // so in this case we need to create a wrapper function
+            if parent_func && decl_type.pointer_to {
+                parent_func.decl_flags |= .Needs_Argument_Wrapper;
+                decl.decl_flags |= .Pointer_To_Value;
+            }
+            break;
+        }
+    }
+
+    
+    return create_literal(raw_tokens_str);
+}
+
 _create_declaration :: (name: string, type: *CType) -> *Declaration {
     decl := New(Declaration);
     decl.name = name;
@@ -735,7 +1050,14 @@ _create_declaration :: (name: string, type: *CType) -> *Declaration {
     return decl;
 }
 
-create_literal :: (cur: CXCursor) -> *Literal {
+create_literal :: (raw_tokens_str: string) -> *Literal {
+    lit := New(Literal);
+    lit.literal_kind = .RAW_CPP_TOKENS;
+    lit.raw_cpp_tokens_value = raw_tokens_str;
+    return lit;
+}
+
+create_literal :: (cur: CXCursor, verbose := false) -> *Literal {
     lit := New(Literal);
 
     cursor_kind := clang_getCursorKind(cur);
@@ -767,8 +1089,17 @@ create_literal :: (cur: CXCursor) -> *Literal {
             // where float a = 1.0; is reported as CXCursor_UnexposedExpr but float a = 1.0f; is reported as CXCursor_FloatLiteral; perhaps
             // there's an implicit cast that isnt exposed via libclang. -josh 5 February 2019
 
-            free(lit);
-            return null;
+            if verbose {
+                if eval
+                    print("unhandled % %\n", eval_kind, eval);
+                else
+                    print("unhandled % <null>\n", eval_kind);
+            }
+
+            if lit.literal_kind != .RAW_CPP_TOKENS {
+                free(lit);
+                return null;
+            }
     }
 
     return lit;
@@ -821,7 +1152,11 @@ create_function :: (cur: CXCursor, parent: CXCursor) -> *Function {
         if kind == CXCursor_ObjCClassMethodDecl func.is_objc_class_method = true;
     } else {
         func.foreign_function_name = copy_and_dispose(clang_Cursor_getMangling(cur));
-        assert(func.foreign_function_name != "");
+        if func.foreign_function_name.count == 0 {
+            error(cur, tprint("could not get mangled function name for cursor '%'\n", as_str(cur)));
+            //assert(func.foreign_function_name != "", "could not get mangled function name for cursor %", as_str(cur));
+            return null;
+        }
     }
 
     #if OS == .MACOS {
@@ -839,7 +1174,6 @@ create_function :: (cur: CXCursor, parent: CXCursor) -> *Function {
 
     if kind == CXCursor_CXXMethod || kind == CXCursor_Constructor || kind == CXCursor_Destructor {
         // add 'this' parameter
-        var := New(Declaration);
 
         // @TODO if parent is the translation unit then this doesn't work and we need to find the struct
         // that this CXXMethod belongs to and replace the function's member declaration with this definition
@@ -852,16 +1186,20 @@ create_function :: (cur: CXCursor, parent: CXCursor) -> *Function {
     
             }
         */
-
-        var.type = create_pointer_to(create_type(clang_getCursorType(parent), cur));
-        var.name = copy_string("this");
-        array_add(*func.arguments, var);
+        parent_type := create_type(clang_getCursorType(parent), cur);
+        // TODO: find a better way to skip constructors with bodies
+        if parent_type != null {
+            var := New(Declaration);
+            var.type = create_pointer_to(parent_type);
+            var.name = copy_string("this");
+            array_add(*func.arguments, var);
+        }
     }
 
     unk_count := 0;
     for children {
         if clang_getCursorKind(it) == CXCursor_ParmDecl {
-            var := create_variable_declaration(it, cur);
+            var := create_variable_declaration(it, cur, func);
             if !var {
                 error(it, "Could not create function parameter declaration. Discarding.\n");
                 return null; // @Leak func
@@ -873,6 +1211,7 @@ create_function :: (cur: CXCursor, parent: CXCursor) -> *Function {
             array_add(*func.arguments, var);
         } else if clang_isStatement(clang_getCursorKind(it)) {
             func.body = New(Block);
+            //error(it, "TODO: do statement stuff\n");
             // do statement stuff
         }
     }
@@ -979,12 +1318,11 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
     defer array_reset(*children);
 
     {
-        cursor_type := clang_getCursorType(cur);
         if is_template_class {
             out := New(CType);
             out.type_of_struct = str;
             out.size = 0;
-
+            // TODO
             str.type = out;
         } else {
             str.type = create_type(clang_getCursorType(cur), cur);
@@ -997,11 +1335,16 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
     if clang_isCursorDefinition(cur) == 0 && clang_Cursor_isNull(clang_getCursorDefinition(cur)) == 0 return null;
 
     for it, it_index: children {
-        if is_template_class && clang_getCursorKind(it) == CXCursor_TemplateTypeParameter {
-            entry := array_add(*str.template_type_params);
-            entry.name = copy_and_dispose(clang_getCursorSpelling(it));
-            entry.type = create_type(clang_getCursorType(it), it);
-            continue;
+        if is_template_class {
+            if clang_getCursorKind(it) == {
+            case CXCursor_TemplateTypeParameter; #through;
+            case CXCursor_NonTypeTemplateParameter;
+                entry := array_add(*str.template_type_params);
+                entry.name = copy_and_dispose(clang_getCursorSpelling(it));
+                entry.type = create_type(clang_getCursorType(it), it);
+                continue;
+            }
+        }
         if clang_getCursorKind(it) == {
             case .CXCursor_CXXBaseSpecifier;
                 // handle C++ inheritance like
@@ -1267,7 +1610,6 @@ create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struc
                 array_add(*str.vtable, decl);
             }
             else {
-                decl.storage_class = clang_Cursor_getStorageClass(it);
                 array_add(*str.declarations, decl);
             }
         }
@@ -1323,10 +1665,11 @@ create_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration {
         return null;
     } else if kind == CXCursor_UnexposedDecl {
         name := copy_and_dispose(clang_getCursorSpelling(cur));
-        print("name: %\n", name);
+        //print("name: %\n", name);
     }
 
     error(cur, "Unhandled cursor kind: %\n", kind);
+    print_stack_trace(context.stack_trace);
     return null;
 }
 
@@ -1415,6 +1758,7 @@ print_literal_to_builder :: (builder: *String_Builder, lit: *Literal, for_argume
             }
         case .FLOAT;   print_to_builder(builder, "%", formatFloat(lit.float_value, zero_removal=.ONE_ZERO_AFTER_DECIMAL));
         case .STRING;  print_to_builder(builder, "\"%\"", lit.string_value);
+        case .RAW_CPP_TOKENS; append(builder, lit.raw_cpp_tokens_value);
     }
 }
 
@@ -1427,8 +1771,16 @@ function_has_a_valist_arg :: (func: *Function) -> bool {
     return false;
 }
 
-print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, no_semicolon := false, no_indent := false, in_struct := false, bitfield_context: *Bitfield_Info = null, is_global:bool = false) {
-    if !no_indent print_indentation(builder);
+Print_Decl_Flags :: enum_flags {
+    No_Semicolon;
+    No_Indent;
+    In_Struct;
+    Is_Global;
+    No_Argument_Defaults;
+}
+
+print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, flags: Print_Decl_Flags = 0, bitfield_context: *Bitfield_Info = null) {
+    if !(flags & .No_Indent) print_indentation(builder);
 
     if decl.kind == .FUNCTION {
         func := cast(*Function)decl;
@@ -1470,13 +1822,18 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, n
     }
     else if decl.kind == .NAMESPACE print_namespace(builder, cast(*Namespace) decl);
     else if decl.kind == .DECLARATION {
-        if is_global && context.omit_global_declarations {
+        if flags & .Is_Global && context.omit_global_declarations {
             // Skip global declarations if we were asked to.
             return;
         }
 
-        type_str := type_to_string(decl.type);
-        defer free(type_str);
+        // If we are generating a "defaults wrapper", and the argument type is a C++ reference,
+        // we change the Jai facing wrapper function to a value, which can have a default value.
+        // the inner function then takes a pointer to that value. This preserves the ability
+        // to have defaults for reference arguments.
+        type_to_print := decl.type;
+        if decl.decl_flags & .Pointer_To_Value && decl.type.pointer_to
+            type_to_print = decl.type.pointer_to;
 
         // @Hack we may need a higher level contruct to handle translating names that conflict with non-overridable keywords
         if      decl.name == "context"         decl.name = "_context";
@@ -1540,13 +1897,15 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, n
             print_indentation(builder);
         }
 
+        type_str := type_to_string(type_to_print);
+        defer free(type_str);
         print_to_builder(builder, "%: %", decl_name, type_str);
 
-        if decl.expression {
+        if !(flags & .No_Argument_Defaults) && decl.expression {
             append(builder, " = ");
             print_literal_to_builder(builder, cast(*Literal) decl.expression, decl.type);
         }
-        if !no_semicolon append(builder, ";");
+        if !(flags & .No_Semicolon) append(builder, ";");
     } else {
         print("Unhandled type in print_declaration_to_builder: %\n", decl.kind);
     }
@@ -1572,9 +1931,60 @@ function_is_missing_foreign_library :: (func: *Function) -> bool {
     return !func.is_virtual && !func.body && !func.is_objc_binding && func.library == null;
 }
 
+print_block :: (builder: *String_Builder, block: *Block) {
+}
+
 print_function :: (builder: *String_Builder, func: *Function) {
     name := stripped_name(func.name);
     replace_chars(name, " ", #char "_");
+
+    omit_function_defaults := false;
+    if func.decl_flags & .Needs_Argument_Wrapper {
+        //
+        // Here we generate a wrapper around the actual foreign function, so
+        // that we can preserve the defaults from the original source.  This is
+        // a workaround until Jai defeault values can be pointers to constant
+        // things.
+        // 
+        print_to_builder(builder, "% :: (", name);
+        for func.arguments {
+            print_declaration_to_builder(builder, it, flags=Print_Decl_Flags.No_Semicolon | .No_Indent);
+            if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
+        }
+
+        if func.return_type != context.type_def_void {
+            return_str := type_to_string(func.return_type);
+            defer free(return_str);
+            print_to_builder(builder, ") -> % ", return_str);
+            append(builder, "{\n");
+        } else {
+            append(builder, ") {\n");
+        }
+
+        context.tab_depth += 1;
+        print_indentation(builder);
+
+        name = tprint("%_internal", name);
+        omit_function_defaults = true;
+    }
+    defer {
+        if func.decl_flags & .Needs_Argument_Wrapper {
+            append(builder, "\n");
+            print_indentation(builder);
+            if func.return_type != context.type_def_void {
+                append(builder, "return ");
+            }
+            print_to_builder(builder, "%(", name);
+            for func.arguments {
+                append(builder, it.name);
+                if it_index != func.arguments.count - 1 append(builder, ", ");
+            }
+            append(builder, ");\n");
+            context.tab_depth -= 1;
+            print_indentation(builder);
+            append(builder, "}\n");
+        }
+    }
 
     if func.is_virtual {
         print_to_builder(builder, "% : (", name);
@@ -1584,9 +1994,10 @@ print_function :: (builder: *String_Builder, func: *Function) {
     }
     
 
+    print_arg_flags := Print_Decl_Flags.No_Semicolon | .No_Indent;
+    if omit_function_defaults print_arg_flags |= .No_Argument_Defaults;
     for func.arguments {
-        print_declaration_to_builder(builder, it, true, true);
-
+        print_declaration_to_builder(builder, it, flags=print_arg_flags);
         if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
     }
 
@@ -1607,7 +2018,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
 
         append(builder, " {\n");
         context.tab_depth += 1;
-        // @TODO
+        print_block(builder, func.body);
         context.tab_depth -= 1;
 
         print_indentation(builder);
@@ -1625,7 +2036,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
             for func.arguments {
                 if it_index == 0 continue; // skip the self parameter
 
-                print_declaration_to_builder(builder, it, true, true);
+                print_declaration_to_builder(builder, it, Print_Decl_Flags.No_Semicolon | .No_Indent);
 
                 if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
             }
@@ -1633,7 +2044,8 @@ print_function :: (builder: *String_Builder, func: *Function) {
             if func.arguments.count > 0 append(builder, ", ");
 
             for func.arguments {
-                print_declaration_to_builder(builder, it, true, true);
+                print_declaration_to_builder(builder, it, Print_Decl_Flags.No_Semicolon | .No_Indent);
+
 
                 if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
             }
@@ -1681,6 +2093,10 @@ print_function :: (builder: *String_Builder, func: *Function) {
         if func.library {
             lib_name = func.library.name;
         } else {
+            // TODO: a lot of these are functions defined as static, I think.
+            // static as in private, not as in "instance-less."
+            // we could know that and skip them, and avoid the verbose error
+            // messages.
             error("Could not find library for function % (%)\n", func.name, func.foreign_function_name);
         }
 
@@ -1761,11 +2177,19 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
     name := stripped_name(str.name);
 
     if str.template_type_params.count > 0 {
-        template_type_names: [..]string;
-        template_type_names.allocator = __temporary_allocator;
-        for str.template_type_params array_add(*template_type_names, it.name);
+        template_types: [..]string;
+        template_types.allocator = __temporary_allocator;
+        for str.template_type_params {
+            type_string := "Type";
+            if it.type {
+                //print("name: %, type: %\n", it.name, <<it.type);
+                type_string = type_to_string(it.type);
+            }
 
-        struct_type = tprint("%(%: Type)", struct_type, join(..template_type_names, separator=", "));
+            array_add(*template_types, tprint("%: %", it.name, type_string));
+        }
+
+        struct_type = tprint("%(%)", struct_type, join(..template_types, separator=", "));
     }
 
     if name && !(str.flags & str.flags.IS_ANON) {
@@ -1785,7 +2209,7 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
         print_to_builder(builder, "using vtable : * struct {\n");
         context.tab_depth += 1;
         for str.vtable {
-            print_declaration_to_builder(builder, it, in_struct=true);
+            print_declaration_to_builder(builder, it, .In_Struct);
             append(builder, "\n");
         }
         context.tab_depth -= 1;
@@ -1794,6 +2218,7 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
     }
 
     bitfield_info: Bitfield_Info;
+    printed_count := 0;
     for str.declarations {
         if (context.strip_flags & .Constructors) && it.kind == .FUNCTION && (cast(*Function)it).is_constructor {
             continue;
@@ -1802,15 +2227,22 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
             print("skipping static field %\n", it.name);
             continue;
         }
-        print_declaration_to_builder(builder, it, in_struct=true, *bitfield_info);
+        print_declaration_to_builder(builder, it, .In_Struct, *bitfield_info);
         append(builder, "\n");
+        printed_count += 1;
     }
+
+    if printed_count == 0 && str.type.size == 1 {
+        append(builder,  "__empty_struct_padding: u8; // C++ makes empty structs have length 1\n");
+    }
+
     context.tab_depth -= 1;
     print_indentation(builder);
     append(builder, "}");
 
     if str.name && context.generate_static_struct_size_checks && str.template_type_params.count == 0 {
-        print_to_builder(builder, "\n#assert size_of(%) == %;", stripped_name(str.name), str.type.size);
+        if !(str.flags & .IS_ANON)
+            print_to_builder(builder, "\n#run check_struct_size(%, %);", stripped_name(str.name), str.type.size);
     }
 }
 
@@ -1820,8 +2252,13 @@ Bitfield_Info :: struct {
 }
 
 print_namespace :: (builder: *String_Builder, ns: *Namespace) {
+    should_flatten := array_find(context.flatten_namespaces, ns.name);
 
-    print_to_builder(builder, "% :: struct {\n", ns.name);
+    if should_flatten append(builder, "// ");
+    print_to_builder(builder, "% :: struct {", ns.name);
+    if should_flatten append(builder, " // this namespace was flattened by '--flatten-namespace'");
+
+    append(builder, "\n");
 
     context.tab_depth += 1;
     for ns.declarations {
@@ -1831,6 +2268,8 @@ print_namespace :: (builder: *String_Builder, ns: *Namespace) {
     context.tab_depth -= 1;
 
     print_indentation(builder);
+
+    if should_flatten append(builder, "// ");
     append(builder, "}");
 }
 
@@ -1948,6 +2387,7 @@ make_valid_identifer :: (str: string) -> string {
 }
 
 main :: () {
+    Debug :: #import "Debug";
     Debug.init();
 
     libnames: [..] string;
@@ -1970,6 +2410,7 @@ main :: () {
 
     argv: [..] *u8;
     args := get_command_line_arguments();
+    source_files: [..]string;
     for 1..args.count-1 {
         ar := args[it];
 
@@ -2007,6 +2448,11 @@ main :: () {
                 advance(*name, 2);
                 array_add(*libpaths, name);
             }
+        } else if ar == "--flatten-namespace" {
+            if it < args.count - 1 {
+                array_add(*context.flatten_namespaces, args[it + 1]);
+                it += 1;
+            } else error("option '--flatten-namespace' must be followed by a namespace name\n");
         } else if ar == "--strip-prefix" {
             if it < args.count - 1 {
                 context.strip_prefix = args[it + 1];
@@ -2050,6 +2496,8 @@ main :: () {
                 if !file_exists(ar) {
                     error("Error: file '%' could not be found.\n", ar);
                     has_error = true;
+                } else {
+                    array_add(*source_files, ar);
                 }
             }
 
@@ -2099,6 +2547,7 @@ main :: () {
 
     if !has_error {
         cursor := clang_getTranslationUnitCursor(tu);
+        context.translation_unit = tu;
         clang_visitChildren(cursor, handle_toplevel_cursors, *context);
 
         builder: String_Builder;
@@ -2110,13 +2559,28 @@ main :: () {
 
         extra_file_scope_imports_string := join(..imps, "\n");
         print_to_builder(*builder, #string END
+//
+// AUTOGENERATED. DO NOT EDIT.
+//
 #scope_file
 #import "Basic";
 %
 // TODO: these manual types shouldn't be necessary
 uint32_t :: u32;
 int32_t  :: s32;
-size_t   :: s64;
+size_t   :: u64;
+FILE     :: struct { opaque: *void; }
+FLT_MIN  :: 0h00800000;
+FLT_MAX  :: 0h7F7FFFFF;
+
+check_struct_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_location) {
+    size_of_struct := size_of(T);
+    Compiler :: #import "Compiler";
+    if size_of_struct != expected_size_in_bytes {
+        msg := tprint("expected struct '%%' to be %% bytes, but it was %% instead.", T, expected_size_in_bytes, size_of_struct);
+        Compiler.compiler_report(msg, loc=loc);
+    }
+}
 #scope_module
 
 
@@ -2127,7 +2591,7 @@ END, extra_file_scope_imports_string);
             else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
         }
         for context.global_scope.members {
-            print_declaration_to_builder(*builder, it, is_global=true);
+            print_declaration_to_builder(*builder, it, flags=.Is_Global);
             append(*builder, "\n\n");
         }
 
@@ -2178,12 +2642,12 @@ END, extra_file_scope_imports_string);
     if has_error
         exit(1);
 
-    print("\nOK! generated %\n", output_filename);
+    print("\nOK! generated '%' from %\n", output_filename, join(..source_files, separator=", "));
     print("    % functions\n", context.counts.functions);
     print("    % structs\n", context.counts.structs);
 }
 
-raw_tokens_string_from_cursor :: (cur: CXCursor) -> string {
+raw_tokens_string_from_cursor :: (cur: CXCursor, separator := "") -> string {
     //
     // Return the raw tokens as a string from a cursor's range.
     //
@@ -2191,10 +2655,16 @@ raw_tokens_string_from_cursor :: (cur: CXCursor) -> string {
     tokens: *CXToken;
     num_tokens: u32;
     clang_tokenize(context.translation_unit, range, *tokens, *num_tokens);
+    if tokens == null {
+        //error(cur, tprint("could not tokenize '%' %\n", as_str(cur), cur));
+        return "";
+    }
     token_sb: String_Builder;
     for tt: 0..num_tokens - 1 {
         spelling := clang_getTokenSpelling(context.translation_unit, tokens[tt]);
         append(*token_sb, to_string(clang_getCString(spelling)));
+        if separator.count && tt != num_tokens - 1
+            append(*token_sb, separator);
         clang_disposeString(spelling);
     }
 
