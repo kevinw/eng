@@ -20,38 +20,6 @@ Hash :: #import "Hash_Table";
     #import "Windows_Utf8";
 }
 
-copy_and_dispose :: (str: CXString) -> string {
-    temp := to_string(clang_getCString(str));
-    copy := copy_string(temp);
-    clang_disposeString(str);
-    return copy;
-}
-
-get_children :: (cur: CXCursor) -> [..] CXCursor {
-    child_visitor :: (cur: CXCursor, parent: CXCursor, client_data: CXClientData) -> CXChildVisitResult #c_call {
-        new_context: Context;
-        push_context new_context {
-            arr := cast(*[..] CXCursor) client_data;
-            array_add(arr, cur);
-            return CXChildVisit_Continue;
-        }
-    }
-
-    arr: [..] CXCursor;
-    // set the alloctor so that we don't need a context for array_add
-    arr.allocator = context.allocator;
-    clang_visitChildren(cur, child_visitor, *arr);
-    return arr;
-}
-
-get_hash_cxcursor :: (cur: CXCursor) -> u32 {
-    return clang_hashCursor(cur);
-}
-
-compare_cxcursors :: (cur0: CXCursor, cur1: CXCursor) -> bool {
-    return clang_equalCursors(cur0, cur1) != 0;
-}
-
 Number_Flags :: enum_flags {
     None;
     _8BIT;
@@ -2668,3 +2636,36 @@ Pair :: struct(T: Type) { // TODO: should probably just go away and be [2]string
     first: T;
     second: T;
 }
+
+copy_and_dispose :: (str: CXString) -> string {
+    temp := to_string(clang_getCString(str));
+    copy := copy_string(temp);
+    clang_disposeString(str);
+    return copy;
+}
+
+get_children :: (cur: CXCursor) -> [..] CXCursor {
+    child_visitor :: (cur: CXCursor, parent: CXCursor, client_data: CXClientData) -> CXChildVisitResult #c_call {
+        new_context: Context;
+        push_context new_context {
+            arr := cast(*[..] CXCursor) client_data;
+            array_add(arr, cur);
+            return CXChildVisit_Continue;
+        }
+    }
+
+    arr: [..] CXCursor;
+    // set the alloctor so that we don't need a context for array_add
+    arr.allocator = context.allocator;
+    clang_visitChildren(cur, child_visitor, *arr);
+    return arr;
+}
+
+get_hash_cxcursor :: (cur: CXCursor) -> u32 {
+    return clang_hashCursor(cur);
+}
+
+compare_cxcursors :: (cur0: CXCursor, cur1: CXCursor) -> bool {
+    return clang_equalCursors(cur0, cur1) != 0;
+}
+
