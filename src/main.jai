@@ -409,6 +409,7 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
         case CXType_Bool;
             return context.type_def_bool;
 
+        case CXType_Char_S; #through;
         case CXType_Char_U; #through;
         case CXType_UChar; #through;
         case CXType_Char16; #through;
@@ -425,7 +426,6 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
             else if size == 8 return context.type_def_u64;
 
             error("Unhandled int size: %\n", size);
-        case CXType_Char_S; #through;
         case CXType_SChar; #through;
         case CXType_WChar; #through;
         case CXType_Short; #through;
