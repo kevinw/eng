@@ -1,3 +1,7 @@
+//
+// Generates Jai wrappers for C++ headers.
+//
+
 STOP_ON_ERRORS :: true;
 
 #load "generated_clang.jai";
@@ -88,6 +92,7 @@ Declaration :: struct {
     using _expression: Expression;
     kind = .DECLARATION;
     name: string;
+    output_name: string;
     outputted_jai_name: string;
     type: *CType;
     expression: *Expression;
@@ -102,7 +107,9 @@ Declaration :: struct {
 
 Declaration_Flags :: enum_flags {
     Needs_Argument_Wrapper;
-    Pointer_To_Value;
+    Pointer_To_Value; // TODO: rename this to "Reference_Argument" or something
+    Omit_From_Output;
+    Needs_Default_Argument_Cast;
 }
 
 Function :: struct {
@@ -193,6 +200,42 @@ Library_Info :: struct {
     }
 }
 
+
+Declaration_Visit_Result :: enum {
+    Stop;
+    Recurse;
+}
+
+Declaration_Visitor :: #type (decl: *Declaration, parent_decl: *Declaration) -> Declaration_Visit_Result;
+
+visit_declarations :: (visitor: Declaration_Visitor, decl: *Declaration, parent: *Declaration = null, depth := 0) {
+    assert(decl != null);
+
+    if visitor(decl, parent) == .Stop
+        return;
+
+    verbose :: false;
+    if decl.kind == {
+        case .FUNCTION;
+            func := cast(*Function)decl;
+            if verbose { for i: 1..depth print("  "); print("func: %\n", <<func); }
+            for func.arguments visit_declarations(visitor, it, func, depth + 1);
+            if func.body {
+                for func.body.members
+                    visit_declarations(visitor, it, func, depth + 1);
+            }
+        case .NAMESPACE;
+            ns := cast(*Namespace)decl;
+            if verbose { for i: 1..depth print("  "); print("namespace: %\n", <<ns); }
+            for ns.declarations visit_declarations(visitor, it, ns, depth + 1);
+        case .STRUCT;
+            str := cast(*Struct)decl;
+            if verbose { for i: 1..depth print("  "); print("struct: %\n", <<str); }
+            for str.vtable visit_declarations(visitor, it, str, depth + 1);
+            for str.declarations visit_declarations(visitor, it, str, depth + 1);
+    }
+}
+
 TAB_STRING :: "    ";
 
 #add_context using compiler: struct {
@@ -234,7 +277,7 @@ TAB_STRING :: "    ";
     rename_functions_that_conflict_with_struct_names := true;
     generate_static_struct_size_checks := true;
 
-
+    inspect_entity_named: string;
     translation_unit: CXTranslationUnit;
     omit_global_declarations := false;
     strip_prefix: string;
@@ -256,51 +299,6 @@ TAB_STRING :: "    ";
     };
 };
 
-
-recursive_print_anything_under_cursor :: (_in_cursor: CXCursor) {
-
-    Ctx :: struct {
-        jai_ctx: Context;
-        indent := 0;
-    }
-    ctx: Ctx;
-    ctx.jai_ctx = context;
-	clang_visitChildren(_in_cursor, visitor, *ctx);
-    indent :: () { for 1..context.tab_depth print(TAB_STRING); }
-
-    visitor :: (cur: CXCursor, parent: CXCursor, data: CXClientData) -> CXChildVisitResult #c_call {
-        push_context ((cast(*Ctx)data).jai_ctx) {
-        ref_cursor := clang_getCursorDefinition(cur);
-        _cur_type := clang_getCursorType(cur);
-        is_const := clang_isConstQualifiedType(_cur_type);
-        is_refer := _cur_type.kind == CXType_LValueReference;
-        is_volatile := clang_isVolatileQualifiedType(_cur_type);
-        is_pointer := clang_getPointeeType(_cur_type);
-        is_const_ref := false;
-		if is_pointer.kind
-            is_const_ref = !!clang_isConstQualifiedType(is_pointer);
-
-		print("parent '%' meet child '%' with kind % ref name % is_const % is_reference % is_volatile % is_pointer % is_const_ref %\n",
-            as_str(parent), as_str(cur), clang_getCursorKind(cur), as_str(ref_cursor), is_const, is_refer, is_volatile, is_pointer, is_const_ref);
-        tee_template_arg_num := clang_Type_getNumTemplateArguments(is_pointer);
-		if tee_template_arg_num != -1 {
-			print("pointee {} is template\n", is_pointer);
-			for i: 0..tee_template_arg_num-1 {
-				print("pointee template arg %  has type %\n", i, as_str(clang_Type_getTemplateArgumentAsType(is_pointer, cast(u32)i)));
-			}
-		}
-
-        template_arg_num := clang_Type_getNumTemplateArguments(_cur_type);
-		if template_arg_num != -1 {
-			print("% is template\n", as_str(_cur_type));
-			for i: 0..template_arg_num-1 {
-				print("template arg {}  has type {}\n", i, as_str(clang_Type_getTemplateArgumentAsType(_cur_type, cast(u32)i)));
-			}
-		}
-		return .CXChildVisit_Recurse;
-        }
-	};
-}
 
 Strip_Flags :: enum_flags {
     Constructors;
@@ -462,15 +460,14 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
         case CXType_Typedef;
             decl_cur := clang_getTypeDeclaration(ty);
             en := create_typedef(decl_cur, true);
+            if !en return null;
+            
+            out := New(CType);
 
-            if en {
-                out := New(CType);
-                out.type_of_typedef = en;
-                out.size = clang_Type_getSizeOf(clang_getCanonicalType(ty));
-                return out;
-            }
+            out.type_of_typedef = en;
+            out.size = clang_Type_getSizeOf(clang_getCanonicalType(ty));
+            return out;
 
-            return null;
         case CXType_ObjCObject; #through;
         case CXType_Record;
             decl_cur := clang_getTypeDeclaration(ty);
@@ -669,6 +666,7 @@ type_tstring :: (ty: *CType) -> string {
 }
 
 print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
+    assert(ty != null, "passed a null type to print_type_to_builder");
 
     if ty.hardcoded_jai_string.count > 0 {
         append(builder, ty.hardcoded_jai_string);
@@ -719,7 +717,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
 
     if ty.type_of_enum {
         if ty.type_of_enum.name {
-            append(builder, stripped_name(ty.type_of_enum.name));
+            append(builder, stripped_name(ty.type_of_enum));
         } else {
             en := ty.type_of_enum;
             is_signed := (en.type.number_flags & Number_Flags.SIGNED);
@@ -832,7 +830,7 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             append(builder, ty.type_of_typedef.parent_namespace.name);
             append(builder, ".");
         }
-        append(builder, stripped_name(ty.type_of_typedef.name));
+        append(builder, stripped_name(ty.type_of_typedef));
         return;
     }
 
@@ -859,7 +857,7 @@ assign_from_integer_lit :: (decl: *Declaration, cur: CXCursor, parent_cur: CXCur
     if verbose {
         print("decl.type: %\n", <<decl.type);
     }
-    if !decl.expression && decl.type.pointer_to {
+    if !decl.expression && decl.type && decl.type.pointer_to {
         // this is a hack. the llvm capi cannot tell us when we have a null pointer in an
         // argument default: https://bugs.llvm.org/show_bug.cgi?id=36576
         // by reading the tokens we can "see" the null
@@ -884,13 +882,18 @@ create_variable_declaration :: (cur: CXCursor, parent: CXCursor, parent_func: *F
 
     children := get_children(cur);
 
-    // It seems sometimes children can contain many elements. I dont yet know what the case is that causes this
-    // assert(children.count <= 1);
-
-    verbose := false; // parent_func && parent_func.name == "GetTexDataAsRGBA32";
-    if verbose {
-        recursive_print_anything_under_cursor(cur);
+    if parent_func {
+        cur_type := clang_getCursorType(cur);
+        //recursive_print_anything_under_cursor(cur);
+        if cur_type.kind == .CXType_LValueReference {
+            parent_func.decl_flags |= .Needs_Argument_Wrapper;
+            decl.decl_flags |= .Pointer_To_Value;
+        }
     }
+
+    verbose := parent_func && context.inspect_entity_named && parent_func.name == context.inspect_entity_named;
+    if verbose
+        recursive_print_anything_under_cursor(cur);
 
     if children.count == 1 {
         value := create_literal(children[0]);
@@ -1703,22 +1706,39 @@ init_compiler_context :: (con: *Context) {
     con.type_def_objc_selector = _create_typedef_type("Selector", con.type_def_ptr_void);
 }
 
-print_literal_to_builder :: (builder: *String_Builder, lit: *Literal, for_argument_type: *CType = null) {
+print_literal_to_builder :: (builder: *String_Builder, lit: *Literal, for_argument_type: *CType = null) -> (did_print_unary_enum: bool) {
     if lit.literal_kind == {
         case .NULL;    append(builder, "null");
         case .INTEGER;
             if for_argument_type == context.type_def_bool {
-                if lit.int_value == 0
-                    print_to_builder(builder, "false");
-                else
-                    print_to_builder(builder, "true");
+                print_to_builder(builder, ifx lit.int_value == 0 then "false" else "true");
             } else {
+                // For enums, we try to search through the enum's values and
+                // see if our literal matches one of them. It might be better
+                // to just preserve the original tokens from the C++ literal...
+                if for_argument_type.type_of_enum {
+                    en := for_argument_type.type_of_enum;
+                    assert(en.kind == .ENUM);
+
+                    for en.enumerates {
+                        if cast(s64)it.value == lit.int_value {
+                            name := get_enum_value_name(en, it);
+                            if name {
+                                print_to_builder(builder, ".%", name); // use ".Value" unary enum selector
+                                return true;
+                            }
+                        }
+                    }
+                }
+
                 print_to_builder(builder, "%", lit.int_value);
             }
         case .FLOAT;   print_to_builder(builder, "%", formatFloat(lit.float_value, zero_removal=.ONE_ZERO_AFTER_DECIMAL));
         case .STRING;  print_to_builder(builder, "\"%\"", lit.string_value);
         case .RAW_CPP_TOKENS; append(builder, lit.raw_cpp_tokens_value);
     }
+
+    return false;
 }
 
 function_has_a_valist_arg :: (func: *Function) -> bool {
@@ -1736,6 +1756,7 @@ Print_Decl_Flags :: enum_flags {
     In_Struct;
     Is_Global;
     No_Argument_Defaults;
+    Keep_Pointer_to_Value;
 }
 
 print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, flags: Print_Decl_Flags = 0, bitfield_context: *Bitfield_Info = null) {
@@ -1757,20 +1778,28 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
         }
 
         // Comment out "stripped" functions in the output
-        close_comment := false;
+        close_comment := true;
         if context.strip_flags & .Functions_With_Bodies && func.body {
-            append(builder, "/* ");
-            close_comment = true;
+            append(builder, "/* (jaicc: omitted inline function)\n");
+            print_indentation(builder);
+        } else if context.strip_flags & .Functions_With_valist && function_has_a_valist_arg(func) {
+            append(builder, "/* (jaicc: omitted function with valist)\n");
+            print_indentation(builder);
+        } else if context.strip_flags & .Functions_With_Unknown_Foreign_Libs && function_is_missing_foreign_library(func) {
+            append(builder, "/* (jaicc: function missing foreign lib)\n");
+            print_indentation(builder);
+        } else {
+            context.counts.functions += 1;
+            close_comment = false;
         }
-        if context.strip_flags & .Functions_With_valist && function_has_a_valist_arg(func)
-            append(builder, "// ");
-        if context.strip_flags & .Functions_With_Unknown_Foreign_Libs && function_is_missing_foreign_library(func)
-            append(builder, "// ");
+
         print_function(builder, func);
+
         if close_comment {
-            append(builder, "*/ // TODO: inline function\n");
+            append(builder, "\n");
+            print_indentation(builder);
+            append(builder, "*/\n");
         }
-        context.counts.functions += 1;
 
     }
     else if decl.kind == .ENUM print_enum(builder, cast(*Enum) decl);
@@ -1791,7 +1820,7 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
         // the inner function then takes a pointer to that value. This preserves the ability
         // to have defaults for reference arguments.
         type_to_print := decl.type;
-        if decl.decl_flags & .Pointer_To_Value && decl.type.pointer_to
+        if decl.decl_flags & .Pointer_To_Value && decl.type.pointer_to && !(flags & .Keep_Pointer_to_Value)
             type_to_print = decl.type.pointer_to;
 
         // @Hack we may need a higher level contruct to handle translating names that conflict with non-overridable keywords
@@ -1810,7 +1839,7 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
         // TODO: there should probably be some kind of place for the user
         // to resolve this conflict here instead?
         for context.global_scope.members {
-            if stripped_name(it.name) == decl_name {
+            if stripped_name(it) == decl_name {
                 decl_name = tprint("%_", decl_name);
                 break;
             }
@@ -1862,6 +1891,11 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
 
         if !(flags & .No_Argument_Defaults) && decl.expression {
             append(builder, " = ");
+            if decl.decl_flags & .Needs_Default_Argument_Cast {
+                append(builder, "cast(");
+                print_type_to_builder(builder, decl.type);
+                append(builder, ")");
+            }
             print_literal_to_builder(builder, cast(*Literal) decl.expression, decl.type);
         }
         if !(flags & .No_Semicolon) append(builder, ";");
@@ -1894,9 +1928,8 @@ print_block :: (builder: *String_Builder, block: *Block) {
 }
 
 print_function :: (builder: *String_Builder, func: *Function) {
-    name := stripped_name(func.name);
+    name := stripped_name(func);
     replace_chars(name, " ", #char "_");
-
 
     omit_function_defaults := false;
     if func.decl_flags & .Needs_Argument_Wrapper {
@@ -1911,6 +1944,9 @@ print_function :: (builder: *String_Builder, func: *Function) {
             print_declaration_to_builder(builder, it, flags=Print_Decl_Flags.No_Semicolon | .No_Indent);
             if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
         }
+        if func.is_variadic {
+            append(builder, "__args: ..Any");
+        }
 
         if func.return_type != context.type_def_void {
             return_str := type_to_string(func.return_type);
@@ -1924,10 +1960,14 @@ print_function :: (builder: *String_Builder, func: *Function) {
         context.tab_depth += 1;
         print_indentation(builder);
 
+        // change the #foreign function name to something we'll call only
+        // inside this wrapper function. TODO: actually find a unique name
         name = tprint("%_internal", name);
         omit_function_defaults = true;
     }
     defer {
+        // close out the function wrapper after we output the "real" library
+        // function
         if func.decl_flags & .Needs_Argument_Wrapper {
             append(builder, "\n");
             print_indentation(builder);
@@ -1936,13 +1976,15 @@ print_function :: (builder: *String_Builder, func: *Function) {
             }
             print_to_builder(builder, "%(", name);
             for func.arguments {
+                if it.decl_flags & .Pointer_To_Value
+                    append(builder, "*");
                 append(builder, it.name);
                 if it_index != func.arguments.count - 1 append(builder, ", ");
             }
             append(builder, ");\n");
             context.tab_depth -= 1;
             print_indentation(builder);
-            append(builder, "}\n");
+            append(builder, "}");
         }
     }
 
@@ -1955,7 +1997,10 @@ print_function :: (builder: *String_Builder, func: *Function) {
     
 
     print_arg_flags := Print_Decl_Flags.No_Semicolon | .No_Indent;
-    if omit_function_defaults print_arg_flags |= .No_Argument_Defaults;
+    if omit_function_defaults {
+        print_arg_flags |= .No_Argument_Defaults;
+        print_arg_flags |= .Keep_Pointer_to_Value; // insde the wrapper, the foreign function needs to print it's original type.
+    }
     for func.arguments {
         print_declaration_to_builder(builder, it, flags=print_arg_flags);
         if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
@@ -2072,6 +2117,26 @@ print_function :: (builder: *String_Builder, func: *Function) {
     }
 }
 
+get_enum_value_name :: (en: *Enum, it: Enum.Enumerate) -> string {
+    name := it.name;
+
+    if context.strip_enum_values_with_suffix.count > 0
+        if ends_with(name, context.strip_enum_values_with_suffix)
+            return "";
+
+    for context.strip_enum_value_prefixes if it.first == en.name
+        if begins_with(name, it.second)
+            advance(*name, it.second.count);
+
+    if context.strip_enum_prefixes && begins_with(name, en.name) {
+        advance(*name, en.name.count);
+        if begins_with(name, "_")
+            advance(*name, 1);
+    }
+
+    return name;
+}
+
 print_enum :: (builder: *String_Builder, en: *Enum) {
     if context.c_enum_emulation {
         append(builder, "using ");
@@ -2079,26 +2144,12 @@ print_enum :: (builder: *String_Builder, en: *Enum) {
 
     type_str := type_to_string(en.type);
     defer free(type_str);
-    print_to_builder(builder, "% :: enum % {\n", stripped_name(en.name), type_str);
+    print_to_builder(builder, "% :: enum % {\n", stripped_name(en), type_str);
     is_signed := (en.type.number_flags & Number_Flags.SIGNED);
     context.tab_depth += 1;
     for en.enumerates {
-        name := it.name;
-
-        if context.strip_enum_values_with_suffix.count > 0
-            if ends_with(name, context.strip_enum_values_with_suffix)
-                continue;
-
-        for context.strip_enum_value_prefixes if it.first == en.name
-            if begins_with(name, it.second)
-                advance(*name, it.second.count);
-
-        if context.strip_enum_prefixes && begins_with(name, en.name) {
-            advance(*name, en.name.count);
-            if begins_with(name, "_")
-                advance(*name, 1);
-        }
-        
+        name := get_enum_value_name(en, it);
+        if !name continue;
         print_indentation(builder);
         if is_signed print_to_builder(builder, "% :: %;\n", name, cast(s64) it.value);
         else print_to_builder(builder, "% :: %;\n", name, cast(u64) it.value);
@@ -2113,6 +2164,12 @@ replace_typename :: (name: string) -> string {
         return it.second;
 
     return name;
+}
+
+stripped_name :: (decl: *Declaration) -> string {
+    assert(decl != null);
+    if decl.output_name return stripped_name(decl.output_name);
+    return stripped_name(decl.name);
 }
 
 stripped_name :: (name: string) -> string {
@@ -2533,6 +2590,7 @@ FILE     :: struct { opaque: *void; }
 FLT_MIN  :: 0h00800000;
 FLT_MAX  :: 0h7F7FFFFF;
 
+
 check_struct_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_location) {
     size_of_struct := size_of(T);
     Compiler :: #import "Compiler";
@@ -2543,6 +2601,12 @@ check_struct_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_loca
 }
 #scope_module
 
+make_ImVec2 :: inline (a: float, b: float) -> ImVec2 {
+    v: ImVec2 = ---;
+    v.x = a;
+    v.y = b;
+    return v;
+}
 
 END, extra_file_scope_imports_string);
 
@@ -2550,7 +2614,62 @@ END, extra_file_scope_imports_string);
             if it.is_system print_to_builder(*builder, "% :: #foreign_system_library \"%\";\n", it.name, it.path);
             else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
         }
+
+
+
+        // ImGui has "typedef ints" for each enum. but we want to just use the enums directly,
+        // so we get nice type safety, and .unary dots, etc.
+        rename_imgui_enum_ints :: (decl: *Declaration, parent_decl: *Declaration) -> Declaration_Visit_Result {
+
+            get_associated_enum_name :: (name: string) -> string {
+                if name.count > 1 && name[name.count - 1] != #char "_"
+                    return tprint("%_", name);
+                return name;
+            }
+
+            // Look for declarations inside functions (i.e., arguments) or structs (i.e., fields)
+            if parent_decl && 
+                (parent_decl.kind == .FUNCTION || parent_decl.kind == .STRUCT) && 
+                decl.kind == .DECLARATION && decl.type.type_of_typedef != null
+            {
+                old_name := decl.type.type_of_typedef.name;
+                new_name := get_associated_enum_name(old_name);
+                if !new_name return .Recurse;
+
+                //print("% -> %\n", old_name, new_name);
+                for context.global_scope.members {
+                    if it.kind != .ENUM  || it.name != new_name
+                        continue;
+
+                    en := cast(*Enum)it;
+
+                    // Don't output the integer typedef
+                    decl.type.type_of_typedef.decl_flags |= .Omit_From_Output;
+
+                    // Make sure the enums like "FocusedFlags_" get outputted as "FocusFlags"
+                    if en.name.count > 2 && en.name[en.name.count - 1] == #char "_" {
+                        en.output_name = copy_string(en.name);
+                        en.output_name.count -= 1;
+                    }
+
+                    // swap in the enum for the typedef
+                    decl.type.type_of_typedef = null;
+                    decl.type.type_of_enum = en;
+                    
+                    // we'll also need to output a cast, like "cast(EnumType)5" for the default argument
+                    decl.decl_flags |= .Needs_Default_Argument_Cast;
+
+                    break;
+                }
+            }
+            return .Recurse;
+        }
+
+        for context.global_scope.members
+            visit_declarations(rename_imgui_enum_ints, it);
+
         for context.global_scope.members {
+            if it.decl_flags & .Omit_From_Output continue;
             print_declaration_to_builder(*builder, it, flags=.Is_Global);
             append(*builder, "\n\n");
         }
@@ -2667,5 +2786,54 @@ get_hash_cxcursor :: (cur: CXCursor) -> u32 {
 
 compare_cxcursors :: (cur0: CXCursor, cur1: CXCursor) -> bool {
     return clang_equalCursors(cur0, cur1) != 0;
+}
+
+show_cursor_info :: (cur: CXCursor, parent: CXCursor) {
+    ref_cursor := clang_getCursorDefinition(cur);
+    _cur_type := clang_getCursorType(cur);
+    is_const := clang_isConstQualifiedType(_cur_type);
+    is_refer := _cur_type.kind == CXType_LValueReference;
+    is_volatile := clang_isVolatileQualifiedType(_cur_type);
+    is_pointer := clang_getPointeeType(_cur_type);
+    is_const_ref := false;
+    if is_pointer.kind
+        is_const_ref = !!clang_isConstQualifiedType(is_pointer);
+
+    print("parent '%' meet child '%' with kind % ref name % is_const % is_reference % is_volatile % is_pointer % is_const_ref %\n",
+        as_str(parent), as_str(cur), clang_getCursorKind(cur), as_str(ref_cursor), is_const, is_refer, is_volatile, is_pointer, is_const_ref);
+    tee_template_arg_num := clang_Type_getNumTemplateArguments(is_pointer);
+    if tee_template_arg_num != -1 {
+        print("pointee {} is template\n", is_pointer);
+        for i: 0..tee_template_arg_num-1 {
+            print("pointee template arg %  has type %\n", i, as_str(clang_Type_getTemplateArgumentAsType(is_pointer, cast(u32)i)));
+        }
+    }
+
+    template_arg_num := clang_Type_getNumTemplateArguments(_cur_type);
+    if template_arg_num != -1 {
+        print("% is template\n", as_str(_cur_type));
+        for i: 0..template_arg_num-1 {
+            print("template arg {}  has type {}\n", i, as_str(clang_Type_getTemplateArgumentAsType(_cur_type, cast(u32)i)));
+        }
+    }
+}
+
+recursive_print_anything_under_cursor :: (_in_cursor: CXCursor) {
+    Ctx :: struct {
+        jai_ctx: Context;
+        indent := 0;
+    }
+    ctx: Ctx;
+    ctx.jai_ctx = context;
+    visitor(_in_cursor, .{}, *ctx);
+	clang_visitChildren(_in_cursor, visitor, *ctx);
+    indent :: () { for 1..context.tab_depth print(TAB_STRING); }
+
+    visitor :: (cur: CXCursor, parent: CXCursor, data: CXClientData) -> CXChildVisitResult #c_call {
+        push_context ((cast(*Ctx)data).jai_ctx) {
+            show_cursor_info(cur, parent);
+            return .CXChildVisit_Recurse;
+        }
+	};
 }
 
