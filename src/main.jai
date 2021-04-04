@@ -1891,12 +1891,18 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
 
         if !(flags & .No_Argument_Defaults) && decl.expression {
             append(builder, " = ");
-            if decl.decl_flags & .Needs_Default_Argument_Cast {
+
+            temp_builder: String_Builder;
+            temp_builder.allocator = __temporary_allocator;
+            did_print_unary_enum := print_literal_to_builder(*temp_builder, cast(*Literal) decl.expression, decl.type);
+
+            if decl.decl_flags & .Needs_Default_Argument_Cast && !did_print_unary_enum {
                 append(builder, "cast(");
                 print_type_to_builder(builder, decl.type);
                 append(builder, ")");
             }
-            print_literal_to_builder(builder, cast(*Literal) decl.expression, decl.type);
+
+            append(builder, builder_to_string(*temp_builder, __temporary_allocator));
         }
         if !(flags & .No_Semicolon) append(builder, ";");
     } else {
@@ -2583,13 +2589,10 @@ main :: () {
 #import "Basic";
 %
 // TODO: these manual types shouldn't be necessary
-uint32_t :: u32;
-int32_t  :: s32;
 size_t   :: u64;
 FILE     :: struct { opaque: *void; }
 FLT_MIN  :: 0h00800000;
 FLT_MAX  :: 0h7F7FFFFF;
-
 
 check_struct_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_location) {
     size_of_struct := size_of(T);
@@ -2614,8 +2617,6 @@ END, extra_file_scope_imports_string);
             if it.is_system print_to_builder(*builder, "% :: #foreign_system_library \"%\";\n", it.name, it.path);
             else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
         }
-
-
 
         // ImGui has "typedef ints" for each enum. but we want to just use the enums directly,
         // so we get nice type safety, and .unary dots, etc.
