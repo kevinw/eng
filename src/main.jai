@@ -2,6 +2,9 @@
 // Generates Jai wrappers for C++ headers.
 //
 
+// TODO: this could probably just leverage the built-in Program_Print module now, and
+// generate things with a tree of Code_Nodes.
+
 STOP_ON_ERRORS :: true;
 
 #load "generated_clang.jai";
@@ -238,8 +241,21 @@ visit_declarations :: (visitor: Declaration_Visitor, decl: *Declaration, parent:
 
 TAB_STRING :: "    ";
 
+Arg_Print_Mode :: enum {
+    Outer_Wrapper;
+    Foreign_Func_Declaration;
+    Inner_Wrapper_Call;
+}
+
+_default_get_func_args_for_printing :: (func: *Function, mode: Arg_Print_Mode) -> []*Declaration {
+    return func.arguments;
+}
+
 #add_context using compiler: struct {
     global_scope: Block;
+
+    user_data: *void;
+    get_func_args_for_printing := _default_get_func_args_for_printing;
 
     pointer_size: s64; // this should probably be queried from target info?
     anon_counter := 0;
@@ -264,6 +280,8 @@ TAB_STRING :: "    ";
 
     type_def_objc_class: *CType;
     type_def_objc_selector: *CType;
+
+    type_def_jai_string: *CType;
 
     // cxtype_to_type_table: Table(CXType, *CType);
     cursor_to_decl_table: Table(CXCursor, *Declaration, get_hash_cxcursor, compare_cxcursors);
@@ -665,7 +683,7 @@ type_tstring :: (ty: *CType) -> string {
     return tprint("CType(ptr=%, size=%, %)", ty, ty.size, builder_to_string(*sb, __temporary_allocator));
 }
 
-print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
+print_type_to_builder :: (builder: *String_Builder, ty: *CType, flags: Print_Decl_Flags = 0) {
     assert(ty != null, "passed a null type to print_type_to_builder");
 
     if ty.hardcoded_jai_string.count > 0 {
@@ -679,8 +697,8 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
 
         if flags & FLOAT {
             append(builder, "float");
-            if flags & _32BIT append(builder, "32");
-            else if flags & _64BIT append(builder, "64");
+            //if flags & _32BIT append(builder, "32"); // in jai, 'float' is a shorter alias for 'float32'
+            if flags & _64BIT append(builder, "64");
         } else {
             if flags & SIGNED append(builder, "s");
             else append(builder, "u");
@@ -792,6 +810,9 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
             append(builder, "*");
             print_type_to_builder(builder, ty.array_element_type);
         } else {
+            if flags & .In_Function_Args
+                append(builder, "*");
+
             append(builder, "[");
             if ty.array_element_count != -1 {
                 print_to_builder(builder, "%", ty.array_element_count);
@@ -837,9 +858,9 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType) {
     assert(false);
 }
 
-type_to_string :: (ty: *CType) -> string {
+type_to_string :: (ty: *CType, flags: Print_Decl_Flags = 0) -> string {
     builder: String_Builder;
-    print_type_to_builder(*builder, ty);
+    print_type_to_builder(*builder, ty, flags);
     return builder_to_string(*builder);
 }
 
@@ -1714,6 +1735,9 @@ init_compiler_context :: (con: *Context) {
 
     con.type_def_objc_class = _create_typedef_type("Class", con.type_def_ptr_void);
     con.type_def_objc_selector = _create_typedef_type("Selector", con.type_def_ptr_void);
+
+    con.type_def_jai_string = New(CType);
+    con.type_def_jai_string.hardcoded_jai_string = "string";
 }
 
 print_literal_to_builder :: (builder: *String_Builder, lit: *Literal, for_argument_type: *CType = null) -> (did_print_unary_enum: bool) {
@@ -1764,6 +1788,7 @@ Print_Decl_Flags :: enum_flags {
     No_Semicolon;
     No_Indent;
     In_Struct;
+    In_Function_Args;
     Is_Global;
     No_Argument_Defaults;
     Keep_Pointer_to_Value;
@@ -1895,7 +1920,7 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
             print_indentation(builder);
         }
 
-        type_str := type_to_string(type_to_print);
+        type_str := type_to_string(type_to_print, flags);
         defer free(type_str);
         print_to_builder(builder, "%: %", decl_name, type_str);
 
@@ -1941,6 +1966,7 @@ function_is_missing_foreign_library :: (func: *Function) -> bool {
 }
 
 print_block :: (builder: *String_Builder, block: *Block) {
+    // TODO
 }
 
 print_function :: (builder: *String_Builder, func: *Function) {
@@ -1949,20 +1975,19 @@ print_function :: (builder: *String_Builder, func: *Function) {
 
     omit_function_defaults := false;
     if func.decl_flags & .Needs_Argument_Wrapper {
-        //
         // Here we generate a wrapper around the actual foreign function, so
         // that we can preserve the defaults from the original source.  This is
-        // a workaround until Jai defeault values can be pointers to constant
+        // a workaround until Jai default values can be pointers to constant
         // things.
-        // 
         print_to_builder(builder, "% :: (", name);
-        for func.arguments {
-            print_declaration_to_builder(builder, it, flags=Print_Decl_Flags.No_Semicolon | .No_Indent);
-            if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
+
+        wrapper_args := context.get_func_args_for_printing(func, .Outer_Wrapper);
+        for wrapper_args {
+            print_declaration_to_builder(builder, it, flags=Print_Decl_Flags.No_Semicolon | .No_Indent | .In_Function_Args);
+            if (it_index < wrapper_args.count - 1) || func.is_variadic append(builder, ", ");
         }
-        if func.is_variadic {
+        if func.is_variadic
             append(builder, "__args: ..Any");
-        }
 
         if func.return_type != context.type_def_void {
             return_str := type_to_string(func.return_type);
@@ -1991,11 +2016,12 @@ print_function :: (builder: *String_Builder, func: *Function) {
                 append(builder, "return ");
             }
             print_to_builder(builder, "%(", name);
-            for func.arguments {
+            inner_wrapper_args := context.get_func_args_for_printing(func, .Inner_Wrapper_Call);
+            for inner_wrapper_args {
                 if it.decl_flags & .Pointer_To_Value
                     append(builder, "*");
                 append(builder, it.name);
-                if it_index != func.arguments.count - 1 append(builder, ", ");
+                if it_index != inner_wrapper_args.count - 1 append(builder, ", ");
             }
             append(builder, ");\n");
             context.tab_depth -= 1;
@@ -2004,27 +2030,25 @@ print_function :: (builder: *String_Builder, func: *Function) {
         }
     }
 
-    if func.is_virtual {
+    if func.is_virtual
         print_to_builder(builder, "% : (", name);
-    }
-    else {
+    else
         print_to_builder(builder, "% :: (", name);
-    }
-    
 
-    print_arg_flags := Print_Decl_Flags.No_Semicolon | .No_Indent;
+    print_arg_flags := Print_Decl_Flags.No_Semicolon | .No_Indent | .In_Function_Args;
     if omit_function_defaults {
         print_arg_flags |= .No_Argument_Defaults;
         print_arg_flags |= .Keep_Pointer_to_Value; // insde the wrapper, the foreign function needs to print it's original type.
     }
-    for func.arguments {
+
+    foreign_func_args := context.get_func_args_for_printing(func, .Foreign_Func_Declaration);
+    for foreign_func_args {
         print_declaration_to_builder(builder, it, flags=print_arg_flags);
-        if (it_index < func.arguments.count-1) || func.is_variadic append(builder, ", ");
+        if (it_index < foreign_func_args.count - 1) || func.is_variadic append(builder, ", ");
     }
 
-    if func.is_variadic {
+    if func.is_variadic
         append(builder, "__args: ..Any");
-    }
 
     return_str := type_to_string(func.return_type);
     defer free(return_str);
@@ -2628,6 +2652,27 @@ make_ImVec2 :: inline (a: float, b: float) -> ImVec2 {
     return v;
 }
 
+TreeNode :: (fmt: string, args: ..Any) -> bool {
+    fmt_z := tprint("%%\0", fmt);
+    txt := tprint(fmt_z, ..args);
+    return TreeNode(txt.data);
+}
+
+IM_COL32_R_SHIFT  ::  0;
+IM_COL32_G_SHIFT  ::  8;
+IM_COL32_B_SHIFT  ::  16;
+IM_COL32_A_SHIFT  ::  24;
+IM_COL32_A_MASK   ::  0xFF000000;
+// This is a C preprocessor macro, should it be a Jai macro?
+make_col32 :: (R : u32, G: u32, B: u32, A: u32) -> u32 {
+    return cast(u32)((A<<IM_COL32_A_SHIFT) | (B<<IM_COL32_B_SHIFT) | 
+        (G<<IM_COL32_G_SHIFT) | (R<<IM_COL32_R_SHIFT));
+}
+make_col32 :: (c: ImVec4) -> u32 {
+    return make_col32(xx(c.x * 255), xx(c.y * 255), xx(c.z * 255), xx(c.w * 255));
+}
+
+
 END, extra_file_scope_imports_string);
 
         for context.libraries {
@@ -2646,6 +2691,8 @@ END, extra_file_scope_imports_string);
                     return tprint("%_", name);
                 return name;
             }
+
+            imgui_data := cast(*ImGui_Bindings_Gen_Data)context.user_data;
 
             if parent_decl && 
                 (parent_decl.kind == .FUNCTION || parent_decl.kind == .STRUCT) && 
@@ -2685,6 +2732,9 @@ END, extra_file_scope_imports_string);
             // ImGui also has functions with pairs of arguments like "text_begin" and "text_end"
             // for the pointers to the beginning and end of a string. We'll generate wrappers for
             // those function which take a jai string.
+            //
+            // Here we collect pointers to "_begin" arguments, and use them in
+            // get_func_args_for_printing below.
             if decl.kind == .FUNCTION {
                 func := cast(*Function)decl;
                 for func.arguments {
@@ -2699,7 +2749,8 @@ END, extra_file_scope_imports_string);
                     name_part_with_begin := tprint("%_begin", name_part);
                     prev_arg := func.arguments[it_index - 1];
                     if prev_arg.name == name_part || prev_arg.name == name_part_with_begin {
-                        print("found a begin/end pair in function %\n", func.name);
+                        array_add(*imgui_data.begin_end_string_args, prev_arg);
+                        func.decl_flags |= .Needs_Argument_Wrapper;
                     }
                 }
             }
@@ -2707,8 +2758,64 @@ END, extra_file_scope_imports_string);
             return .Recurse;
         }
 
+        ImGui_Bindings_Gen_Data :: struct {
+            begin_end_string_args: [..]*Declaration;
+        }
+
+        imgui_data: ImGui_Bindings_Gen_Data;
+
+        context.user_data = *imgui_data;
+
         for context.global_scope.members
             visit_declarations(imgui_visitor, it);
+
+        // Modify function with _begin and _end string arguments as they get printed.
+        // See the note above about "text_begin".
+        context.get_func_args_for_printing = (func: *Function, mode: Arg_Print_Mode) -> []*Declaration {
+            args: [..]*Declaration;
+            imgui_data := cast(*ImGui_Bindings_Gen_Data)context.user_data;
+            for func.arguments {
+                if array_find(imgui_data.begin_end_string_args, it) {
+                    if mode == {
+                        case .Outer_Wrapper;
+                            // For the outer wrapper, remove any "_begin" part of the argument, and
+                            // change its type to a jai string
+                            arg_copy := New(Declaration);
+                            (<<arg_copy) = <<it;
+                            arg_copy.type = context.type_def_jai_string;
+                            if ends_with(arg_copy.name, "_begin")
+                                arg_copy.name = slice(arg_copy.name, 0, arg_copy.name.count - "_begin".count);
+                            array_add(*args, arg_copy);
+
+                            it_index += 1; // skip the next argument-we collpase the _begin and _end args into one string arg
+
+                            continue;
+                        case .Inner_Wrapper_Call;
+                            // For the inner wrapper function call, we pass the incoming arg
+                            // as two arguments: "jai_string.data, jai_string.count" -- corresponding
+                            // to the _begin and _end parts.
+                            arg_copy := New(Declaration);
+                            (<<arg_copy) = <<it;
+                            if ends_with(arg_copy.name, "_begin")
+                                arg_copy.name = slice(arg_copy.name, 0, arg_copy.name.count - "_begin".count);
+                            base_arg_name := arg_copy.name;
+                            arg_copy.name = tprint("%.data", arg_copy.name);
+                            array_add(*args, arg_copy);
+
+                            arg_copy_2 := New(Declaration);
+                            (<<arg_copy_2) = <<it;
+                            arg_copy_2.name = tprint("%.data + %.count", base_arg_name, base_arg_name);
+                            array_add(*args, arg_copy_2);
+
+                            it_index += 1; // skip the next arg, since we already added a second one above 
+                            continue;
+                    }
+                }
+
+                array_add(*args, it);
+            }
+            return args;
+        };
 
         for context.global_scope.members {
             if it.decl_flags & .Omit_From_Output continue;
