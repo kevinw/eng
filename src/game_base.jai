@@ -48,6 +48,12 @@ State_Base :: struct {
 
     holoplay_capture: Holoplay_Capture;
 
+    scene_view: struct {
+        pass: Pass;
+        color: Texture;
+        depth: Texture;
+    }
+
     canary2 := 4000;
     canary3 := -99;
 }
@@ -203,9 +209,9 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
     {
         push_renderer_context(*context.state.renderer, "main monitor");
         push_value(*current_im_camera, *editor.scene_camera);
-        begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
-        main_monitor_aspect := framebuffer_aspect();
         {
+            push_pass(*scene_view.pass, clear_color=*Vector4.{0.0, 0, 0.0, 1});
+
             // the im draw stuff here (And probably?) should only render 1 view.
             multiview.num_views_this_frame = multiview.num_views; // just to visualize in the editor
             push_value(*multiview.num_views, 1); 
@@ -228,9 +234,11 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
             timestamp(*profiler, .EditorUI);
         }
 
+        {
+            push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            imgui_render(*ui);
+        }
 
-        imgui_render(*ui);
-        end_pass();
         present();
     }
 
@@ -262,6 +270,18 @@ game_base_init :: (host_state: Host_State) {
 
     im_context.renderer = *renderer;
     im_init_renderer(*im_context, index_elements=4000*6, vertex_elements=4000*6, draw_elements=128);
+
+    // editor offscreen rendertarget
+    {
+        using scene_view;
+        create_texture(*color, framebuffer_size(), format=.BGRA8, type=.Render_Target_Color, label="editor-offscreen-color");
+        create_texture(*depth, framebuffer_size(), format=.D24S8, type=.Render_Target_Depth, label="editor-offscreen-depth");
+        pass.color[0] = *color;
+        pass.depth    = *depth;
+        pass.label    = "editor-offscreen";
+    }
+
+    // setup multiview
 
     multiview_framebuffer_size := framebuffer_size();
 

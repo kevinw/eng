@@ -31,6 +31,11 @@ VERTEX_CONSTANT_BUFFER :: struct {
     mvp: [4][4]float;
 }
 
+native_texture_imgui_id :: (texture: *Texture) -> *void {
+    assert(texture != null);
+
+    return cast(*void)(texture.views[0]);
+}
 
 ImGui_ImplDX11_SetupRenderState :: (using ui_state: *UI_State, draw_data: *ImDrawData) {
     d_ctx := ui_state.d3dDeviceContext;
@@ -561,7 +566,7 @@ HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
 }
 
 setup_set_cursor_hook :: (using ui_state: *UI_State) {
-    if Compiler_Bugs.windows_hook_causing_crash
+    if Compiler_Bugs.disable_windows_hook_causing_crash
         return;
 
     WH_CALLWNDPROCRET :: 12;

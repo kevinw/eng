@@ -104,6 +104,8 @@ Editor :: struct {
         }
     };
 
+    scene_view_rect: rl.Rectangle;
+
     show_main_menu: bool = false;
 
     windows: struct {
@@ -127,6 +129,7 @@ Editor :: struct {
         };
         gamepad_viz := false;
         profiler    := true;
+        scene_view     := true;
     };
 }
 
@@ -596,8 +599,8 @@ render_imgui_to_drawlists :: (state: *State) {
         {
             DISTANCE:float = 80.0;
             viewport         := GetMainViewport();
-            work_area_pos    := viewport.GetWorkPos(viewport);   // Instead of using viewport->Pos we use GetWorkPos() to avoid menu bars, if any!
-            work_area_size   := viewport.GetWorkSize(viewport);
+            work_area_pos    := viewport.WorkPos;
+            work_area_size   := viewport.WorkSize;
             window_pos       := ImGui.make_ImVec2(work_area_pos.x + DISTANCE, work_area_pos.y + DISTANCE);
             window_pos_pivot := ImGui.make_ImVec2(0, 0);
             SetNextWindowPos(window_pos, .Always, window_pos_pivot);
@@ -615,8 +618,10 @@ render_imgui_to_drawlists :: (state: *State) {
         }
     }
 
-    if state.editor.play_mode == .Play
+    if state.editor.play_mode == .Play {
+        show_scene_view(*context.state.editor.windows.scene_view, in_play_mode=true);
         return;
+    }
 
     PushPopStyleVar(.Alpha, editor.fading_alpha); // from here on out, we may be fading out the entire editor. when going to play mode
 
@@ -626,8 +631,8 @@ render_imgui_to_drawlists :: (state: *State) {
             .NoBackground;
 
         viewport := GetMainViewport();
-        SetNextWindowPos(viewport.GetWorkPos(viewport));
-        SetNextWindowSize(viewport.GetWorkSize(viewport));
+        SetNextWindowPos(viewport.WorkPos);
+        SetNextWindowSize(viewport.WorkSize);
         SetNextWindowViewport(viewport.ID_);
         PushStyleVar(.WindowRounding, 0);
         PushStyleVar(.WindowBorderSize, 0);
@@ -659,7 +664,9 @@ render_imgui_to_drawlists :: (state: *State) {
         if Begin("prefab cache", *windows.prefab_cache)
             inspect("", *context.state.world.prefab_cache);
     }
+    
     if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
+    
     if windows.undo_internals show_undo_internals(*windows.undo_internals);
     if windows.assets show_assets_window(*windows.assets);
     if windows.entities show_entities_window(*windows.entities);
@@ -667,6 +674,9 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
     if windows.gamepad_viz show_gamepad_window(*windows.gamepad_viz);
     if windows.profiler show_profiler_window(*windows.profiler);
+    
+    if windows.scene_view show_scene_view(*windows.scene_view);
+    
     //inspect("", *context.state.multiview);
     //inspect("", *context.state.editor);
 
@@ -674,8 +684,8 @@ render_imgui_to_drawlists :: (state: *State) {
 }
 
 show_menubar :: () {
-    using ImGui;
     using context.state.editor;
+    using ImGui;
 
     if !show_main_menu || !BeginMainMenuBar() return;
     defer EndMainMenuBar();
@@ -709,6 +719,36 @@ align_all_selected_objects_with_scene_view :: () {
         transform.position = cam.position;
         transform.rotation = cam.rotation;
         // no scale change
+    }
+}
+
+show_scene_view :: (open: *bool, in_play_mode := false) {
+    using ImGui;
+
+    flags := WindowFlags.NoBackground;// | .NoInputs | .NoMouseInputs;
+    if in_play_mode {
+        flags |= WindowFlags.NoDecoration;
+        SetNextWindowPos(GetMainViewport().Pos);
+    }
+
+    PushPopStyleVar(.WindowPadding, ImGui.make_ImVec2(0, 0));
+    defer End();
+    if !Begin(tprint("Scene View##%\0", in_play_mode).data, open, flags) return;
+
+    scene_view_tex := *context.state.scene_view.color;
+    Image(native_texture_imgui_id(scene_view_tex), make_ImVec2(xx scene_view_tex.width, xx scene_view_tex.height));
+
+    // Store the position of the scene view window for later. The screen log
+    // uses it to position itself on top.
+    window_pos := GetWindowPos();
+    vMin := GetWindowContentRegionMin() + window_pos;
+    vMax := GetWindowContentRegionMax() + window_pos;
+    {
+        using context.state.editor;
+        scene_view_rect.x = vMin.x;
+        scene_view_rect.y = vMin.y;
+        scene_view_rect.width  = vMax.x - vMin.x;
+        scene_view_rect.height = vMax.y - vMin.y;
     }
 }
 
@@ -978,7 +1018,15 @@ show_screen_log :: (open: *bool) {
 
     logger_state := screenlog.get_context_state();
 
-    pos: ImVec2 = .{250, 20};
+    pos: ImVec2;
+    {
+        PAD :: 10;
+        pos.x = editor.scene_view_rect.x;
+        pos.y = editor.scene_view_rect.y;
+        pos.x += PAD;
+        pos.y += PAD;
+    }
+
     draw_list := GetForegroundDrawList();
     for logger_state.entries {
         if it.message.data == null || it.message.count == 0
@@ -1014,9 +1062,14 @@ show_screen_log :: (open: *bool) {
     }
 }
 
-hovered_entity_handles :: () -> []Entity_Handle {
+Hovered_Entity :: struct {
+    handle: Entity_Handle;
+    uv: Vector2;
+}
+
+hovered_entity_handles :: () -> []Hovered_Entity {
     // returns valid entity handles underneath the mouse
-    handles: [..]Entity_Handle;
+    handles: [..]Hovered_Entity;
     handles.allocator = __temporary_allocator;
 
     handle: Entity_Handle;
@@ -1024,10 +1077,24 @@ hovered_entity_handles :: () -> []Entity_Handle {
         handle.id = it.entity_id;
         handle.generation = it.entity_generation;
         ok, entity := get_entity(handle, check_count = true);
-        if ok array_add(*handles, handle);
+        if ok {
+            entry := array_add(*handles);
+            entry.handle = handle;
+            entry.uv = it.uv;
+        }
     }
 
     return handles;
+}
+
+editor_state :: inline () -> *Editor { return *context.state.editor; }
+
+is_selected :: (handle: Entity_Handle) -> bool {
+    for editor_state().selected
+        if handle == it.handle
+            return true;
+
+    return false;
 }
 
 editor_update :: (state: *State) {
@@ -1149,9 +1216,28 @@ editor_update :: (state: *State) {
                 world_mouse_pos = mouse_ray.origin + mouse_ray.direction * enter;
 
             clear(*hover);
+            did_set_hover := false;
             for hovered_entity_handles() {
-                set(*hover, it);
-                break;
+                if !did_set_hover {
+                    did_set_hover = true;
+                    set(*hover, it.handle);
+                }
+
+                if is_selected(it.handle) {
+                    ok, entity := get_entity(it.handle);
+                    if ok {
+                        if it.uv.y > 0.9 || it.uv.y < 0.1 {
+                            ImGui.SetMouseCursor(.ResizeNS);
+                            print("north-south\n");
+                        } else if it.uv.x > 0.9 || it.uv.x < 0.1 {
+                            ImGui.SetMouseCursor(.ResizeEW);
+                            print("resize-ew\n");
+                        } else {
+                            ImGui.SetMouseCursor(.None);
+                            print("cursor-none\n");
+                        }
+                    }
+                }
             }
         }
         
@@ -1194,7 +1280,7 @@ editor_update :: (state: *State) {
             selected_is_hovered := false;
             for selected_obj: selected
                 for hovered_handle: hovered
-                    if hovered_handle == selected_obj.handle
+                    if hovered_handle.handle == selected_obj.handle
                         selected_is_hovered = true;
 
             if !selected_is_hovered {
@@ -1316,9 +1402,9 @@ set_or_toggle_selected_in_hover_stack :: () {
 
     hovered := hovered_entity_handles();
     last_idx := -1;
-    for hovered_handle, hovered_idx: hovered {
+    for hovered_obj, hovered_idx: hovered {
         for sel: selected {
-            if sel.handle == hovered_handle {
+            if sel.handle == hovered_obj.handle {
                 last_idx = hovered_idx;
             }
         }
@@ -1329,7 +1415,7 @@ set_or_toggle_selected_in_hover_stack :: () {
     }
 
     if last_idx >= 0 && last_idx < hovered.count {
-        handle := hovered[last_idx];
+        handle := hovered[last_idx].handle;
         editor_undo_push_transform(handle);
         set_selected(handle);
     }
@@ -1490,7 +1576,9 @@ save_changes_modal :: () {
 
     // Always center this window when appearing
     viewport := GetMainViewport();
-    center := viewport.GetCenter(viewport);
+    //ImVec2              GetCenter() const       { return ImVec2(Pos.x + Size.x * 0.5f, Pos.y + Size.y * 0.5f); }
+    center := make_ImVec2(viewport.Pos.x + viewport.Size.x * 0.5, viewport.Pos.y + viewport.Size.y * 0.5);
+    //center := GetCenter(viewport);
     SetNextWindowPos(center, .Appearing, make_ImVec2(0.5, 0.5));
 
     if BeginPopupModal(SAVE_CHANGES_MODAL_ID, null, .AlwaysAutoResize) {
