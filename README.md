@@ -1,13 +1,9 @@
-# jaicc
+# jaicpp
 
-Originally from Jai's `examples/` directory.
+A Jai bindings generator based on clang.
 
-Updated with more options for modifying binding names.
+Originally ported from the Jai compiler's `examples/jaicc`.
 
-    // jai c compiler/converter
-    // Converts C code into Jai code.
-    // Usage: jaicc [options] <inputs>
-    // [options] can be any of Clang's supported flags (see: jaicc -help for details)
-    // Will primarily be useful for generating bindings to pre-existing C libraries
-
+Updated with more features, options for modifying binding names, and made
+useful as a library to use from Jai code.
 

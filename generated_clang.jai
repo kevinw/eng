@@ -1,4 +1,4 @@
-libclang :: #foreign_library "../bin/libclang";
+libclang :: #foreign_library "libclang";
 using CXErrorCode :: enum u32 {
         CXError_Success :: 0;
         CXError_Failure :: 1;

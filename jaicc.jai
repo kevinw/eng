@@ -2,12 +2,11 @@
 // Generates Jai wrappers for C++ headers.
 //
 
-// TODO: this could probably just leverage the built-in Program_Print/Compiler
-// modules now, and generate things with a tree of Code_Nodes. That would make
-// the entire set of Declaration/Struct/Typedef/etc structs obsolete, and all
-// of this much shorter.
-
-STOP_ON_ERRORS :: true;
+// a TODO for those of your feeling entrepreneurial: this could probably just
+// leverage the built-in Program_Print/Compiler modules now, and generate
+// things with a tree of Code_Nodes. That would make the entire set of
+// Declaration/Struct/Typedef/etc structs obsolete, and all of this
+// shorter/more future-proof.
 
 #load "generated_clang.jai";
 #import "Basic";
@@ -199,6 +198,9 @@ Library_Info :: struct {
     path: string; // This should be just what the user has passed to us via -l, I think
     is_system: bool;
 
+    static_path: string;
+    static_depends_on_libs: [..]string;
+
     #if OS == .WINDOWS {
         handle: HMODULE;
     } else #if OS == .LINUX || OS == .MACOS {
@@ -254,13 +256,14 @@ _default_get_func_args_for_printing :: (func: *Function, mode: Arg_Print_Mode) -
     return func.arguments;
 }
 
-#add_context using compiler: struct {
+Get_Function_Arguments_For_Printing_Func :: #type (func: *Function, mode: Arg_Print_Mode) -> []*Declaration;
+
+#add_context opts: Generate_Bindings_Options;
+
+#add_context compiler: *struct {
     global_scope: Block;
 
-    user_data: *void;
-    get_func_args_for_printing := _default_get_func_args_for_printing;
-
-    pointer_size: s64; // this should probably be queried from target info?
+    pointer_size: s64; // TODO: this should probably be queried from target info?
     anon_counter := 0;
 
     type_def_void: *CType;
@@ -293,22 +296,7 @@ _default_get_func_args_for_printing :: (func: *Function, mode: Arg_Print_Mode) -
 
     libraries: [..] *Library_Info;
 
-    // settings
-    c_enum_emulation := false; // use 'using' on each enum declaration to bring all its members into scope
-    rename_functions_that_conflict_with_struct_names := true;
-    generate_static_struct_size_checks := true;
-
-    inspect_entities_named: [..]string;
     translation_unit: CXTranslationUnit;
-    omit_global_declarations := false;
-    strip_prefix: string;
-    flatten_namespaces: [..]string;
-    strip_enum_prefixes := true;
-    strip_enum_values_with_suffix: string;
-    strip_enum_value_prefixes: [..][2]string;
-    extra_file_scope_imports: [..]string;
-    type_replacements: [..][2]string;
-    strip_flags: Strip_Flags = Strip_Flags.Constructors | .Destructors | .Functions_With_Bodies | .Functions_With_valist | .Functions_With_Unknown_Foreign_Libs;
 
     // for printing functions
     tab_depth := 0;
@@ -316,6 +304,7 @@ _default_get_func_args_for_printing :: (func: *Function, mode: Arg_Print_Mode) -
     counts: struct {
         functions: u32;
         structs: u32;
+        enums: u32;
     };
 };
 
@@ -331,7 +320,7 @@ Strip_Flags :: enum_flags {
 create_pointer_to :: (pointee: *CType) -> *CType {
     assert(pointee != null, "create_pointer_to passed a null *CType");
     out := New(CType);
-    out.size = context.pointer_size;
+    out.size = context.compiler.pointer_size;
     out.pointer_to = pointee;
     return out;
 }
@@ -414,13 +403,13 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
             if !pointee return null;
             
             out := New(CType);
-            out.size = context.pointer_size;
+            out.size = context.compiler.pointer_size;
             out.pointer_to = pointee;
             return out;
         case CXType_Void;
-            return context.type_def_void;
+            return context.compiler.type_def_void;
         case CXType_Bool;
-            return context.type_def_bool;
+            return context.compiler.type_def_bool;
 
         case CXType_Char_S; #through;
         case CXType_Char_U; #through;
@@ -434,10 +423,10 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
         case CXType_UInt128;
             size := clang_Type_getSizeOf(ty);
             if size == {
-                case 1; return context.type_def_u8;
-                case 2; return context.type_def_u16;
-                case 4; return context.type_def_u32;
-                case 8; return context.type_def_u64;
+                case 1; return context.compiler.type_def_u8;
+                case 2; return context.compiler.type_def_u16;
+                case 4; return context.compiler.type_def_u32;
+                case 8; return context.compiler.type_def_u64;
             }
 
             error("Unhandled int size: %\n", size);
@@ -450,10 +439,10 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
         case CXType_Int128;
             size := clang_Type_getSizeOf(ty);
             if size == {
-                case 1; return context.type_def_s8;
-                case 2; return context.type_def_s16;
-                case 4; return context.type_def_s32;
-                case 8; return context.type_def_s64;
+                case 1; return context.compiler.type_def_s8;
+                case 2; return context.compiler.type_def_s16;
+                case 4; return context.compiler.type_def_s32;
+                case 8; return context.compiler.type_def_s64;
             }
 
             error("Unhandled uint size: %\n", size);
@@ -461,8 +450,8 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
         case CXType_Double; #through;
         case CXType_LongDouble;
             size := clang_Type_getSizeOf(ty);
-            if size == 4 return context.type_def_float32;
-            else if size == 8 return context.type_def_float64;
+            if size == 4 return context.compiler.type_def_float32;
+            else if size == 8 return context.compiler.type_def_float64;
             error("Unhandled float size: %\n", size);
 
             return null;
@@ -586,13 +575,13 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
             return out;
 
         case CXType_ObjCId;
-            return context.type_def_ptr_void;
+            return context.compiler.type_def_ptr_void;
 
         case CXType_ObjCClass;
-            return context.type_def_objc_class;
+            return context.compiler.type_def_objc_class;
 
         case CXType_ObjCSel;
-            return context.type_def_objc_selector;
+            return context.compiler.type_def_objc_selector;
 
         case CXType_Unexposed;
             // here we need to handle structs with template parameters, i.e. "template<typename T> struct Foo"
@@ -672,7 +661,7 @@ create_type :: (ty: CXType, cur: CXCursor, loc := #caller_location, array_count 
 }
 
 print_indentation :: (builder: *String_Builder) {
-    for 1..context.tab_depth append(builder, TAB_STRING);
+    for 1..context.compiler.tab_depth append(builder, TAB_STRING);
 }
 
 print_type_to_builder :: (builder: *String_Builder, ty: *CType, flags: Print_Decl_Flags = 0) {
@@ -704,12 +693,12 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType, flags: Print_Dec
         return;
     }
 
-    if ty == context.type_def_bool {
+    if ty == context.compiler.type_def_bool {
         append(builder, "bool");
         return;
     }
 
-    if ty == context.type_def_void {
+    if ty == context.compiler.type_def_void {
         append(builder, "void");
         return;
     }
@@ -734,13 +723,13 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType, flags: Print_Dec
             type_str := type_to_string(en.type);
             defer free(type_str);
             print_to_builder(builder, "enum % {\n", type_str);
-            context.tab_depth += 1;
+            context.compiler.tab_depth += 1;
             for en.enumerates {
                 print_indentation(builder);
                 if is_signed print_to_builder(builder, "% :: %;\n", stripped_name(it.name), cast(s64) it.value);
                 else print_to_builder(builder, "% :: %;\n", stripped_name(it.name), cast(u64) it.value);
             }
-            context.tab_depth -= 1;
+            context.compiler.tab_depth -= 1;
 
             print_indentation(builder);
             append(builder, "}");
@@ -782,11 +771,11 @@ print_type_to_builder :: (builder: *String_Builder, ty: *CType, flags: Print_Dec
             if (str.flags & str.flags.IS_UNION) type_name = "union";
 
             print_to_builder(builder, "% {\n", type_name);
-            context.tab_depth += 1;
+            context.compiler.tab_depth += 1;
             for str.declarations {
                 print_declaration_to_builder(builder, it, flags=.In_Struct);
             }
-            context.tab_depth -= 1;
+            context.compiler.tab_depth -= 1;
 
             append(builder, "\n");
             print_indentation(builder);
@@ -915,7 +904,7 @@ create_variable_declaration :: (cur: CXCursor, parent: CXCursor, parent_func: *F
         }
     }
 
-    verbose := parent_func && array_find(context.inspect_entities_named, parent_func.name);
+    verbose := parent_func && array_find(context.opts.inspect_entities_named, parent_func.name);
     if verbose {
         recursive_print_anything_under_cursor(cur);
     }
@@ -1057,17 +1046,20 @@ create_literal :: (cur: CXCursor, verbose := false) -> *Literal {
             lit := New(Literal);
             lit.literal_kind = .INTEGER;
             lit.int_value = clang_EvalResult_getAsLongLong(eval);
+            return lit;
 
         case CXEval_Float;
             lit := New(Literal);
             lit.literal_kind = .FLOAT;
             lit.float_value = clang_EvalResult_getAsDouble(eval);
+            return lit;
 
         case CXEval_StrLiteral;
             lit := New(Literal);
             lit.literal_kind = .STRING;
             c_str := clang_EvalResult_getAsStr(eval);
             lit.string_value = copy_string(to_string(c_str));
+            return lit;
 
         case;
             // sigh, for whatever reason, nullptr is reported as Unexposed and the CXCursor kind is reported as
@@ -1077,10 +1069,9 @@ create_literal :: (cur: CXCursor, verbose := false) -> *Literal {
             // there's an implicit cast that isnt exposed via libclang. -josh 5 February 2019
             //
             // an update: some of these cases are handled elsewhere now, see CXCursor_CXXNullPtrLiteralExpr below. -kevinw April 5 2021
-            return null;
     }
 
-    return lit;
+    return null;
 }
 
 
@@ -1126,7 +1117,7 @@ create_function :: (cur: CXCursor, parent: CXCursor) -> *Function {
         func.foreign_function_name = copy_string(func.name);
         convert_objc_selector_name_to_function_identifier(*func.name);
         func.is_objc_binding = true;
-        array_add_if_unique(*context.unique_objc_selectors, func.foreign_function_name);
+        array_add_if_unique(*context.compiler.unique_objc_selectors, func.foreign_function_name);
 
         if kind == CXCursor_ObjCClassMethodDecl func.is_objc_class_method = true;
     } else {
@@ -1212,10 +1203,10 @@ create_typedef :: (cur: CXCursor, resolving_type_only := false) -> *Typedef {
     assert(clang_getCursorKind(cur) == CXCursor_TypedefDecl);
 
     def: *Typedef;
-    decl, success := table_find(context.cursor_to_decl_table, clang_getCanonicalCursor(cur));
+    decl, success := table_find(context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur));
     if !success {
         def = New(Typedef);
-        table_add(*context.cursor_to_decl_table, clang_getCanonicalCursor(cur), def);
+        table_add(*context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur), def);
     } else {
         assert(decl.kind == .TYPEDEF);
         def = cast(*Typedef) decl;
@@ -1265,10 +1256,10 @@ debug_print_cursor :: (cur: CXCursor) {
 
 create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
     str: *Struct;
-    decl, success := table_find(context.cursor_to_decl_table, clang_getCanonicalCursor(cur));
+    decl, success := table_find(context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur));
     if !success {
         str = New(Struct);
-        table_add(*context.cursor_to_decl_table, clang_getCanonicalCursor(cur), str);
+        table_add(*context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur), str);
     } else {
         assert(decl.kind == .STRUCT);
         str = cast(*Struct) decl;
@@ -1277,8 +1268,8 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
     if !str.name {
         str.name = copy_and_dispose(clang_getCursorSpelling(cur));
         if !str.name {
-            str.name = sprint("anon_struct_%", context.anon_counter);
-            context.anon_counter += 1;
+            str.name = sprint("anon_struct_%", context.compiler.anon_counter);
+            context.compiler.anon_counter += 1;
         }
     }
     
@@ -1371,10 +1362,10 @@ create_struct :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
 
 create_namespace :: (cur: CXCursor) -> *Namespace {
     ns: *Namespace;
-    decl, success := table_find(context.cursor_to_decl_table, clang_getCanonicalCursor(cur));
+    decl, success := table_find(context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur));
     if !success {
         ns = New(Namespace);
-        table_add(*context.cursor_to_decl_table, clang_getCanonicalCursor(cur), ns);
+        table_add(*context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur), ns);
     } else {
         assert(decl.kind == .NAMESPACE);
         ns = cast(*Namespace) decl;
@@ -1404,10 +1395,10 @@ create_enum :: (cur: CXCursor, resolving_type_only := false) -> *Enum {
     assert(clang_getCursorKind(cur) == CXCursor_EnumDecl);
 
     en: *Enum;
-    decl, success := table_find(context.cursor_to_decl_table, clang_getCanonicalCursor(cur));
+    decl, success := table_find(context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur));
     if !success {
         en = New(Enum);
-        table_add(*context.cursor_to_decl_table, clang_getCanonicalCursor(cur), en);
+        table_add(*context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur), en);
     } else {
         assert(decl.kind == .ENUM);
         en = cast(*Enum) decl;
@@ -1416,8 +1407,8 @@ create_enum :: (cur: CXCursor, resolving_type_only := false) -> *Enum {
     if !en.name {
         en.name = copy_and_dispose(clang_getCursorSpelling(cur));
         if !en.name {
-            en.name = sprint("anon_enum_%", context.anon_counter);
-            context.anon_counter += 1;
+            en.name = sprint("anon_enum_%", context.compiler.anon_counter);
+            context.compiler.anon_counter += 1;
         }
     }
     
@@ -1456,10 +1447,10 @@ create_enum :: (cur: CXCursor, resolving_type_only := false) -> *Enum {
 create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struct {
     // this is going to just setup a struct with the correct things that we want
     str: *Struct;
-    decl, success := table_find(context.cursor_to_decl_table, clang_getCanonicalCursor(cur));
+    decl, success := table_find(context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur));
     if !success {
         str = New(Struct);
-        table_add(*context.cursor_to_decl_table, clang_getCanonicalCursor(cur), str);
+        table_add(*context.compiler.cursor_to_decl_table, clang_getCanonicalCursor(cur), str);
     } else {
         assert(decl.kind == .STRUCT);
         str = cast(*Struct) decl;
@@ -1468,8 +1459,8 @@ create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struc
     if !str.name {
         str.name = copy_and_dispose(clang_getCursorSpelling(cur));
         if !str.name {
-            str.name = sprint("anon_struct_%", context.anon_counter);
-            context.anon_counter += 1;
+            str.name = sprint("anon_struct_%", context.compiler.anon_counter);
+            context.compiler.anon_counter += 1;
         }
     }
 
@@ -1547,7 +1538,7 @@ create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struc
                 array_add(*str.declarations, getter);
                 // print("Added getter: %\n", getter.name);
 
-                array_add_if_unique(*context.unique_objc_selectors, getter.foreign_function_name);
+                array_add_if_unique(*context.compiler.unique_objc_selectors, getter.foreign_function_name);
             }
 
             if !(attrs & CXObjCPropertyAttr_readonly) {
@@ -1558,13 +1549,13 @@ create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struc
                 setter.name.count -= 1; // remove colon
 
                 setter.is_objc_binding = true;
-                setter.return_type = context.type_def_void;
+                setter.return_type = context.compiler.type_def_void;
                 array_add(*setter.arguments, _create_declaration(copy_string("self"), create_pointer_to(str.type))); // add self parameter
                 array_add(*setter.arguments, _create_declaration(copy_string("value"), create_type(clang_getCursorType(it), it)));
 
                 array_add(*str.declarations, setter);
                 // print("Added setter: %\n", setter.name);
-                array_add_if_unique(*context.unique_objc_selectors, setter.foreign_function_name);
+                array_add_if_unique(*context.compiler.unique_objc_selectors, setter.foreign_function_name);
             }
             */
             continue;
@@ -1612,42 +1603,47 @@ create_objc_interface :: (cur: CXCursor, resolving_type_only := false) -> *Struc
 create_declaration :: (cur: CXCursor, parent: CXCursor) -> *Declaration {
     kind := clang_getCursorKind(cur);
 
-    if kind == CXCursor_FunctionDecl {
-        return cast(*Declaration) create_function(cur, parent);
-    } else if kind == CXCursor_CXXMethod {
-        func := create_function(cur, parent);
-        return cast(*Declaration) func;
-    } else if kind == CXCursor_Constructor {
-        return cast(*Declaration) create_function(cur, parent);
-    } else if kind == CXCursor_Destructor {
-        return cast(*Declaration) create_function(cur, parent);
-    } else if kind == CXCursor_ObjCInstanceMethodDecl {
-        return cast(*Declaration) create_function(cur, parent);
-    } else if kind == CXCursor_EnumDecl {
-        return cast(*Declaration) create_enum(cur);
-    } else if kind == CXCursor_TypedefDecl {
-        return cast(*Declaration) create_typedef(cur);
-    } else if kind == CXCursor_VarDecl || kind == CXCursor_FieldDecl || kind == CXCursor_ObjCIvarDecl {
-        return create_variable_declaration(cur, parent);
-    } else if kind == CXCursor_StructDecl || kind == CXCursor_UnionDecl || kind == CXCursor_ClassTemplate {
-        return create_struct(cur);
-    } else if kind == CXCursor_Namespace {
-        return cast(*Declaration) create_namespace(cur);
-    } else if kind == CXCursor_ObjCInterfaceDecl {
-        return cast(*Declaration) create_objc_interface(cur);
-    } else if kind == CXCursor_ObjCProtocolDecl {
-        return cast(*Declaration) create_objc_interface(cur);
-    } else if kind == CXCursor_FunctionTemplate {
-        // @TODO
-        error(cur, "Function templates are unsupported right now. Discarding.\n");
-        return null;
-    } else if kind == CXCursor_ConversionFunction {
-        // @TODO
-        error(cur, "Conversion functions are unsupported right now. Discarding.\n");
-        return null;
-    } else if kind == CXCursor_UnexposedDecl {
-        name := copy_and_dispose(clang_getCursorSpelling(cur));
-        //print("name: %\n", name);
+    if kind == {
+        case CXCursor_FunctionDecl; #through;
+        case CXCursor_CXXMethod;    #through;
+        case CXCursor_Constructor;  #through;
+        case CXCursor_Destructor;   #through;
+        case CXCursor_ObjCInstanceMethodDecl;
+            return create_function(cur, parent);
+
+        case CXCursor_EnumDecl;
+            return create_enum(cur);
+        case CXCursor_TypedefDecl;
+            return create_typedef(cur);
+
+        case CXCursor_VarDecl;   #through;
+        case CXCursor_FieldDecl; #through;
+        case CXCursor_ObjCIvarDecl;
+            return create_variable_declaration(cur, parent);
+
+        case CXCursor_StructDecl; #through;
+        case CXCursor_UnionDecl; #through;
+        case CXCursor_ClassTemplate;
+            return create_struct(cur);
+
+        case CXCursor_Namespace;
+            return create_namespace(cur);
+        case CXCursor_ObjCInterfaceDecl;
+            return create_objc_interface(cur);
+        case CXCursor_ObjCProtocolDecl;
+            return cast(*Declaration) create_objc_interface(cur);
+
+        case CXCursor_FunctionTemplate;
+            // @TODO
+            error(cur, "Function templates are unsupported right now. Discarding.\n");
+            return null;
+        case CXCursor_ConversionFunction;
+            // @TODO
+            error(cur, "Conversion functions are unsupported right now. Discarding.\n");
+            return null;
+        case CXCursor_UnexposedDecl;
+            name := copy_and_dispose(clang_getCursorSpelling(cur));
+            //print("name: %\n", name);
     }
 
     error(cur, "Unhandled cursor kind: %\n", kind);
@@ -1678,7 +1674,7 @@ handle_toplevel_cursors :: (cur: CXCursor, parent: CXCursor, client_data: CXClie
         // }
 
         decl := create_declaration(cur, parent);
-        if decl array_add_if_unique(*context.global_scope.members, decl);
+        if decl array_add_if_unique(*context.compiler.global_scope.members, decl);
 
         return CXChildVisit_Continue; // go to the next child in the list! we don't want to recurse here!
     }
@@ -1694,12 +1690,14 @@ size_from_number_flags :: (flags: Number_Flags) -> u32 {
 }
 
 init_compiler_context :: (con: *Context) {
-    con.pointer_size = 8; // @PointerSize
-    con.type_def_void = New(CType);
-    con.type_def_ptr_void = create_pointer_to(con.type_def_void);
+    using con.compiler;
 
-    con.type_def_bool = New(CType);
-    con.type_def_bool.size = 1;
+    pointer_size = 8; // @PointerSize
+    type_def_void = New(CType);
+    type_def_ptr_void = create_pointer_to(type_def_void);
+
+    type_def_bool = New(CType);
+    type_def_bool.size = 1;
 
     make_number_type :: (flags: Number_Flags) -> *CType {
         size := size_from_number_flags(flags);
@@ -1709,31 +1707,31 @@ init_compiler_context :: (con: *Context) {
         return ty;
     }
 
-    con.type_def_u8  = make_number_type(._8BIT);
-    con.type_def_u16 = make_number_type(._16BIT);
-    con.type_def_u32 = make_number_type(._32BIT);
-    con.type_def_u64 = make_number_type(._64BIT);
+    type_def_u8  = make_number_type(._8BIT);
+    type_def_u16 = make_number_type(._16BIT);
+    type_def_u32 = make_number_type(._32BIT);
+    type_def_u64 = make_number_type(._64BIT);
 
-    con.type_def_s8 = make_number_type(Number_Flags._8BIT | .SIGNED);
-    con.type_def_s16 = make_number_type(Number_Flags._16BIT | .SIGNED);
-    con.type_def_s32 = make_number_type(Number_Flags._32BIT | .SIGNED);
-    con.type_def_s64 = make_number_type(Number_Flags._64BIT | .SIGNED);
+    type_def_s8 = make_number_type(Number_Flags._8BIT | .SIGNED);
+    type_def_s16 = make_number_type(Number_Flags._16BIT | .SIGNED);
+    type_def_s32 = make_number_type(Number_Flags._32BIT | .SIGNED);
+    type_def_s64 = make_number_type(Number_Flags._64BIT | .SIGNED);
 
-    con.type_def_float32 = make_number_type(Number_Flags._32BIT | .FLOAT);
-    con.type_def_float64 = make_number_type(Number_Flags._64BIT | .FLOAT);
+    type_def_float32 = make_number_type(Number_Flags._32BIT | .FLOAT);
+    type_def_float64 = make_number_type(Number_Flags._64BIT | .FLOAT);
 
-    con.type_def_objc_class = _create_typedef_type("Class", con.type_def_ptr_void);
-    con.type_def_objc_selector = _create_typedef_type("Selector", con.type_def_ptr_void);
+    type_def_objc_class = _create_typedef_type("Class", type_def_ptr_void);
+    type_def_objc_selector = _create_typedef_type("Selector", type_def_ptr_void);
 
-    con.type_def_jai_string = New(CType);
-    con.type_def_jai_string.hardcoded_jai_string = "string";
+    type_def_jai_string = New(CType);
+    type_def_jai_string.hardcoded_jai_string = "string";
 }
 
 print_literal_to_builder :: (builder: *String_Builder, lit: *Literal, for_argument_type: *CType = null) -> (did_print_unary_enum: bool) {
     if lit.literal_kind == {
         case .NULL;    append(builder, "null");
         case .INTEGER;
-            if for_argument_type == context.type_def_bool {
+            if for_argument_type == context.compiler.type_def_bool {
                 print_to_builder(builder, ifx lit.int_value == 0 then "false" else "true");
             } else {
                 // For enums, we try to search through the enum's values and
@@ -1788,32 +1786,30 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
 
     if decl.kind == .FUNCTION {
         func := cast(*Function)decl;
-        if context.rename_functions_that_conflict_with_struct_names {
-            for context.global_scope.members {
-                if it.kind == .STRUCT {
-                    // print("str: %, decl: ^%\n", it.name, decl.name);
-                    if it.name == decl.name {
-                        print("renaming: %\n", decl.name);
-                        decl.name = sprint("_%", decl.name); // @HACK
-                        break;
-                    }
+        for context.compiler.global_scope.members {
+            if it.kind == .STRUCT {
+                // print("str: %, decl: ^%\n", it.name, decl.name);
+                if it.name == decl.name {
+                    print("renaming: %\n", decl.name);
+                    decl.name = sprint("_%", decl.name); // @HACK
+                    break;
                 }
             }
         }
 
         // Comment out "stripped" functions in the output
         close_comment := true;
-        if context.strip_flags & .Functions_With_Bodies && func.body {
+        if context.opts.strip_flags & .Functions_With_Bodies && func.body {
             append(builder, "/* (jaicc: omitted inline function)\n");
             print_indentation(builder);
-        } else if context.strip_flags & .Functions_With_valist && function_has_a_valist_arg(func) {
+        } else if context.opts.strip_flags & .Functions_With_valist && function_has_a_valist_arg(func) {
             append(builder, "/* (jaicc: omitted function with valist)\n");
             print_indentation(builder);
-        } else if context.strip_flags & .Functions_With_Unknown_Foreign_Libs && function_is_missing_foreign_library(func) {
+        } else if context.opts.strip_flags & .Functions_With_Unknown_Foreign_Libs && function_is_missing_foreign_library(func) {
             append(builder, "/* (jaicc: function missing foreign lib)\n");
             print_indentation(builder);
         } else {
-            context.counts.functions += 1;
+            context.compiler.counts.functions += 1;
             close_comment = false;
         }
 
@@ -1830,11 +1826,11 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
     else if decl.kind == .TYPEDEF print_typedef(builder, cast(*Typedef) decl);
     else if decl.kind == .STRUCT {
         print_struct(builder, cast(*Struct) decl);
-        context.counts.structs += 1;
+        context.compiler.counts.structs += 1;
     }
     else if decl.kind == .NAMESPACE print_namespace(builder, cast(*Namespace) decl);
     else if decl.kind == .DECLARATION {
-        if flags & .Is_Global && context.omit_global_declarations {
+        if flags & .Is_Global && context.opts.omit_global_declarations {
             // Skip global declarations if we were asked to.
             return;
         }
@@ -1862,7 +1858,7 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
         //
         // TODO: there should probably be some kind of place for the user
         // to resolve this conflict here instead?
-        for context.global_scope.members {
+        for context.compiler.global_scope.members {
             if stripped_name(it) == decl_name {
                 decl_name = tprint("%_", decl_name);
                 break;
@@ -1962,6 +1958,11 @@ print_function :: (builder: *String_Builder, func: *Function) {
     name := stripped_name(func);
     replace_chars(name, " ", #char "_");
 
+    // We optionally allow the user to override what the arguments to functions look like.
+    get_func_args_for_printing := context.opts.get_func_args_for_printing;
+    if !get_func_args_for_printing
+        get_func_args_for_printing = _default_get_func_args_for_printing;
+
     omit_function_defaults := false;
     if func.decl_flags & .Needs_Argument_Wrapper {
         // Here we generate a wrapper around the actual foreign function, so
@@ -1970,7 +1971,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
         // things.
         print_to_builder(builder, "% :: (", name);
 
-        wrapper_args := context.get_func_args_for_printing(func, .Outer_Wrapper);
+        wrapper_args := get_func_args_for_printing(func, .Outer_Wrapper);
         for wrapper_args {
             print_declaration_to_builder(builder, it, flags=Print_Decl_Flags.No_Semicolon | .No_Indent | .In_Function_Args);
             if (it_index < wrapper_args.count - 1) || func.is_variadic append(builder, ", ");
@@ -1978,7 +1979,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
         if func.is_variadic
             append(builder, "__args: ..Any");
 
-        if func.return_type != context.type_def_void {
+        if func.return_type != context.compiler.type_def_void {
             return_str := type_to_string(func.return_type);
             defer free(return_str);
             print_to_builder(builder, ") -> % ", return_str);
@@ -1987,7 +1988,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
             append(builder, ") {\n");
         }
 
-        context.tab_depth += 1;
+        context.compiler.tab_depth += 1;
         print_indentation(builder);
 
         // change the #foreign function name to something we'll call only
@@ -2001,11 +2002,11 @@ print_function :: (builder: *String_Builder, func: *Function) {
         if func.decl_flags & .Needs_Argument_Wrapper {
             append(builder, "\n");
             print_indentation(builder);
-            if func.return_type != context.type_def_void {
+            if func.return_type != context.compiler.type_def_void {
                 append(builder, "return ");
             }
             print_to_builder(builder, "%(", name);
-            inner_wrapper_args := context.get_func_args_for_printing(func, .Inner_Wrapper_Call);
+            inner_wrapper_args := get_func_args_for_printing(func, .Inner_Wrapper_Call);
             for inner_wrapper_args {
                 if it.decl_flags & .Pointer_To_Value
                     append(builder, "*");
@@ -2013,7 +2014,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
                 if it_index != inner_wrapper_args.count - 1 append(builder, ", ");
             }
             append(builder, ");\n");
-            context.tab_depth -= 1;
+            context.compiler.tab_depth -= 1;
             print_indentation(builder);
             append(builder, "}");
         }
@@ -2030,7 +2031,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
         print_arg_flags |= .Keep_Pointer_to_Value; // insde the wrapper, the foreign function needs to print it's original type.
     }
 
-    foreign_func_args := context.get_func_args_for_printing(func, .Foreign_Func_Declaration);
+    foreign_func_args := get_func_args_for_printing(func, .Foreign_Func_Declaration);
     for foreign_func_args {
         print_declaration_to_builder(builder, it, flags=print_arg_flags);
         if (it_index < foreign_func_args.count - 1) || func.is_variadic append(builder, ", ");
@@ -2052,16 +2053,16 @@ print_function :: (builder: *String_Builder, func: *Function) {
         else                    append(builder, "#c_call");
 
         append(builder, " {\n");
-        context.tab_depth += 1;
+        context.compiler.tab_depth += 1;
         print_block(builder, func.body);
-        context.tab_depth -= 1;
+        context.compiler.tab_depth -= 1;
 
         print_indentation(builder);
         append(builder, "}");
     } else if func.is_objc_binding {
         // this is an intrinsic to call objc_msgSend
         print_to_builder(builder, "{\n");
-        context.tab_depth += 1;
+        context.compiler.tab_depth += 1;
         print_indentation(builder);
         print_to_builder(builder, "_func: (obj: *void, selector: *void");
 
@@ -2091,7 +2092,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
         print_indentation(builder); print_to_builder(builder, "_func = xx objc_msgSend;\n");
 
         print_indentation(builder);
-        if func.return_type != context.type_def_void {
+        if func.return_type != context.compiler.type_def_void {
             print_to_builder(builder,  "return ");
         }
 
@@ -2120,7 +2121,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
         }
         print_to_builder(builder, ");\n");
 
-        context.tab_depth -= 1;
+        context.compiler.tab_depth -= 1;
         print_indentation(builder); print_to_builder(builder, "}\n");
 
     } else {
@@ -2138,7 +2139,7 @@ print_function :: (builder: *String_Builder, func: *Function) {
         calling_conv := "#foreign";
         if func.is_cpp_method
             calling_conv = "#cpp_method #foreign";
-        else if func.return_type != context.type_def_void {
+        else if func.return_type != context.compiler.type_def_void {
             // For functions returning structs with constructors, we need to have the Jai compiler know via a directive,
             // since it changes the calling convention. Google "C++ Return Value Optimization" for details.
             if func.return_type.type_of_struct && func.return_type.type_of_struct.flags & .HAS_CONSTRUCTOR {
@@ -2158,15 +2159,15 @@ print_function :: (builder: *String_Builder, func: *Function) {
 get_enum_value_name :: (en: *Enum, it: Enum.Enumerate) -> string {
     name := it.name;
 
-    if context.strip_enum_values_with_suffix.count > 0
-        if ends_with(name, context.strip_enum_values_with_suffix)
+    if context.opts.strip_enum_values_with_suffix.count > 0
+        if ends_with(name, context.opts.strip_enum_values_with_suffix)
             return "";
 
-    for context.strip_enum_value_prefixes if it[0] == en.name
+    for context.opts.strip_enum_value_prefixes if it[0] == en.name
         if begins_with(name, it[1])
             advance(*name, it[1].count);
 
-    if context.strip_enum_prefixes && begins_with(name, en.name) {
+    if context.opts.strip_enum_prefixes && begins_with(name, en.name) {
         advance(*name, en.name.count);
         if begins_with(name, "_")
             advance(*name, 1);
@@ -2176,15 +2177,14 @@ get_enum_value_name :: (en: *Enum, it: Enum.Enumerate) -> string {
 }
 
 print_enum :: (builder: *String_Builder, en: *Enum) {
-    if context.c_enum_emulation {
+    if context.opts.c_enum_emulation
         append(builder, "using ");
-    }
 
     type_str := type_to_string(en.type);
     defer free(type_str);
     print_to_builder(builder, "% :: enum % {\n", stripped_name(en), type_str);
-    is_signed := (en.type.number_flags & Number_Flags.SIGNED);
-    context.tab_depth += 1;
+    is_signed := en.type.number_flags & Number_Flags.SIGNED;
+    context.compiler.tab_depth += 1;
     for en.enumerates {
         name := get_enum_value_name(en, it);
         if !name continue;
@@ -2192,13 +2192,14 @@ print_enum :: (builder: *String_Builder, en: *Enum) {
         if is_signed print_to_builder(builder, "% :: %;\n", name, cast(s64) it.value);
         else print_to_builder(builder, "% :: %;\n", name, cast(u64) it.value);
     }
-    context.tab_depth -= 1;
+    context.compiler.tab_depth -= 1;
+    context.compiler.counts.enums += 1;
     print_indentation(builder);
     append(builder, "}");
 }
 
 replace_typename :: (name: string) -> string {
-    for context.type_replacements if it[0] == name
+    for context.opts.type_replacements if it[0] == name
         return it[1];
 
     return name;
@@ -2211,12 +2212,12 @@ stripped_name :: (decl: *Declaration) -> string {
 }
 
 stripped_name :: (name: string) -> string {
-    if context.strip_prefix.count == 0 || name.count == 0 || name.count <= context.strip_prefix.count
+    if context.opts.strip_prefix.count == 0 || name.count == 0 || name.count <= context.opts.strip_prefix.count
         return name;
 
     stripped := name;
-    if begins_with(name, context.strip_prefix) {
-        advance(*stripped, context.strip_prefix.count);
+    if begins_with(name, context.opts.strip_prefix) {
+        advance(*stripped, context.opts.strip_prefix.count);
         
         if stripped.count > 0 && stripped[0] == #char "_"
             advance(*stripped, 1);
@@ -2257,17 +2258,17 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
     }
 
 
-    context.tab_depth += 1;
+    context.compiler.tab_depth += 1;
 
     if str.vtable {
         print_indentation(builder);
         print_to_builder(builder, "using vtable : * struct {\n");
-        context.tab_depth += 1;
+        context.compiler.tab_depth += 1;
         for str.vtable {
             print_declaration_to_builder(builder, it, .In_Struct);
             append(builder, "\n");
         }
-        context.tab_depth -= 1;
+        context.compiler.tab_depth -= 1;
         print_indentation(builder);
         print_to_builder(builder, "};\n");
     }
@@ -2275,7 +2276,7 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
     bitfield_info: Bitfield_Info;
     printed_count := 0;
     for str.declarations {
-        if (context.strip_flags & .Constructors) && it.kind == .FUNCTION && (cast(*Function)it).is_constructor {
+        if (context.opts.strip_flags & .Constructors) && it.kind == .FUNCTION && (cast(*Function)it).is_constructor {
             continue;
         }
         if it.storage_class == .CX_SC_Static {
@@ -2291,13 +2292,15 @@ print_struct :: (builder: *String_Builder, str: *Struct) {
         append(builder,  "__empty_struct_padding: u8; // C++ makes empty structs have length 1\n");
     }
 
-    context.tab_depth -= 1;
+    context.compiler.tab_depth -= 1;
     print_indentation(builder);
     append(builder, "}");
 
-    if str.name && context.generate_static_struct_size_checks && str.template_type_params.count == 0 {
-        if !(str.flags & .IS_ANON)
-            print_to_builder(builder, "\n#run check_struct_size(%, %);", stripped_name(str.name), str.type.size);
+    if str.name && str.template_type_params.count == 0 && !(str.flags & .IS_ANON) {
+        append(builder, "\n");
+        if !context.opts.generate_static_struct_size_checks
+            append(builder, "// ");
+        print_to_builder(builder, "#run check_size(%, %);", stripped_name(str.name), str.type.size);
     }
 }
 
@@ -2307,7 +2310,7 @@ Bitfield_Info :: struct {
 }
 
 print_namespace :: (builder: *String_Builder, ns: *Namespace) {
-    should_flatten := array_find(context.flatten_namespaces, ns.name);
+    should_flatten := array_find(context.opts.flatten_namespaces, ns.name);
 
     if should_flatten append(builder, "// ");
     print_to_builder(builder, "% :: struct {", ns.name);
@@ -2315,12 +2318,12 @@ print_namespace :: (builder: *String_Builder, ns: *Namespace) {
 
     append(builder, "\n");
 
-    context.tab_depth += 1;
+    context.compiler.tab_depth += 1;
     for ns.declarations {
         print_declaration_to_builder(builder, it);
         append(builder, "\n");
     }
-    context.tab_depth -= 1;
+    context.compiler.tab_depth -= 1;
 
     print_indentation(builder);
 
@@ -2368,11 +2371,17 @@ error :: (cur: CXCursor, msg: string, args: ..Any) {
     PATH_SEPARATOR_STRING :: "/";
 }
 
-os_load_library_helper :: (paths: [] string, name: string) -> type_of(Library_Info.handle) {
+os_load_library_helper :: (paths_in: [] string, name: string) -> type_of(Library_Info.handle) {
     handle: type_of(Library_Info.handle);
+
+    paths := paths_in;
+    if paths.count == 0 {
+        paths = string.["."];
+    }
 
     for paths {
         tpath := concatenate(it, PATH_SEPARATOR_STRING, name, "\0");
+        print("full path: %\n", tpath);
         wide_path_data, success, w_len := utf8_to_wide(tpath);
         assert(success);
 
@@ -2411,8 +2420,8 @@ os_load_library :: (paths: [] string, name: string) -> type_of(Library_Info.hand
     //     return handle, true;
     // }
 
-    print("Could not load: %\n", name);
-    #if STOP_ON_ERRORS exit(1);
+    print("Could not load dynamic library: '%'\n", name);
+    exit(1);
     dummy: type_of(Library_Info.handle);
     return dummy, false;
 }
@@ -2429,7 +2438,7 @@ os_symbol_exists_in_library :: (lib: *Library_Info, name: string) -> bool {
 }
 
 find_lib_for_function_name :: (name: string) -> *Library_Info {
-    for context.libraries {
+    for context.compiler.libraries {
         if os_symbol_exists_in_library(it, name) return it;
     }
     return null;
@@ -2441,162 +2450,119 @@ make_valid_identifer :: (str: string) -> string {
     return s;
 }
 
-main :: () {
-    Debug :: #import "Debug";
-    Debug.init();
-
-    libnames: [..] string;
-    libpaths: [..] string;
+Generate_Bindings_Options :: struct {
+    // ## What jai file to generate
     output_filename := "out.jai";
-    has_error := false;
 
-    string_pair_from_equals_expr :: (opt: string) -> bool, [2]string {
-        idx, found := index_of_any_char(opt, "=");
-        if !found return false, .["", ""];
-
-        parts := split(opt, "=");
-        if parts.count != 2 return false, .["", ""];
-
-        string_pair: [2]string;
-        string_pair[0] = parts[0];
-        string_pair[1] = parts[1];
-        return true, string_pair;
-    }
-
-
-    argv: [..] *u8;
-    args := get_command_line_arguments();
-
+    // ## Input options for clang
+    libraries: [..]Library_Info;
+    libnames: [..]string;
+    libpaths: [..]string;
+    include_paths: [..]string;
     source_files: [..]string;
-    for 1..args.count-1 {
-        ar := args[it];
+    extra_clang_arguments: [..]string;
 
-        // @TODO what if the user passes in a path?
-        if begins_with(ar, "-l") {
-            if ar == "-l" {
-                if it < args.count-1 {
-                    array_add(*libnames, args[it+1]);
-                    it += 1;
-                } else error("option '-l' must be followed by a library name!\n");
-            } else {
-                name := ar;
-                advance(*name, 2);
-                array_add(*libnames, name);
-            }
-        } else if begins_with(ar, "-o") {
-            if ar == "-o" {
-                if it < args.count-1 {
-                    output_filename = args[it+1];
-                    it += 1;
-                } else error("option '-o' must be followed by a file name!\n");
-            } else { 
-                name := ar;
-                advance(*name, 2);
-                output_filename = name;
-            }
-        } else if begins_with(ar, "-L") {
-            if ar == "-L" {
-                if it < args.count-1 {
-                    array_add(*libpaths, args[it+1]);
-                    it += 1;
-                } else error("option '-L' must be followed by a path!\n");
-            } else { 
-                name := ar;
-                advance(*name, 2);
-                array_add(*libpaths, name);
-            }
-        } else if ar == "--inspect" {
-            if it < args.count - 1 {
-                array_add(*context.inspect_entities_named, args[it + 1]);
-                it += 1;
-            } else error("options '--inspect' must be followed by an entity name to inspect\n");
-        } else if ar == "--flatten-namespace" {
-            if it < args.count - 1 {
-                array_add(*context.flatten_namespaces, args[it + 1]);
-                it += 1;
-            } else error("option '--flatten-namespace' must be followed by a namespace name\n");
-        } else if ar == "--strip-prefix" {
-            if it < args.count - 1 {
-                context.strip_prefix = args[it + 1];
-                it += 1;
-            } else error("option '--strip-prefix' must be followed by a prefix!\n");
-        } else if ar == "--omit-global-declarations" {
-            context.omit_global_declarations = true;
-        } else if ar == "--strip-enum-values-with-suffix" {
-            if it < args.count - 1 {
-                context.strip_enum_values_with_suffix = args[it + 1];
-                it += 1;
-            } else error("option '--strip-enum-values-with-suffix' must be followed by a suffix!\n");
-        } else if ar == "--type-replacement" {
-            MSG :: "option '--strip-enum-value-prefix' must be followed by a prefix like \"enumName=valuePrefix\"!\n";
-            if it < args.count - 1 {
-                ok, string_pair := string_pair_from_equals_expr(args[it + 1]);
-                if !ok error(MSG);
-                array_add(*context.type_replacements, string_pair);
-                it += 1;
-            } else error(MSG);
-        } else if ar == "--extra-file-scope-import" {
-            if it < args.count - 1 {
-                opt := args[it + 1];
-                array_add(*context.extra_file_scope_imports, opt);
-                it += 1;
-            } else error("option '--extra-file-scope-import' must be followed by an import name!\n");
-        } else if ar == "--strip-enum-value-prefix" {
-            MSG :: "option '--strip-enum-value-prefix' must be followed by a prefix like \"enumName=valuePrefix\"!\n";
-            if it < args.count - 1 {
-                opt := args[it + 1];
-                ok, string_pair := string_pair_from_equals_expr(opt);
-                if !ok error(MSG);
-                array_add(*context.strip_enum_value_prefixes, string_pair);
-                it += 1;
-            } else error(MSG);
-        } else {
-            if !begins_with(ar, "-") {
-                // assuming source file doesnt start with a dash for
-                // short-term simplicity's sake.
 
-                if !file_exists(ar) {
-                    error("Error: file '%' could not be found.\n", ar);
-                    has_error = true;
-                } else {
-                    array_add(*source_files, ar);
-                }
-            }
+    // ## Options to change the generated output.
 
-            // pass the option onto clang
-            array_add(*argv, to_c_string(ar));
-        }
+    // A list of namespaces to flatten. Normally namespace become structs with
+    // functions, but any namespaces in this list will have their functions
+    // just become global declarations.
+    flatten_namespaces:            [..]string;
+
+    // A common prefix to strip from functions and structs.
+    strip_prefix:                  string;
+
+    strip_enum_prefixes            := true;
+    strip_enum_values_with_suffix: string;
+    strip_enum_value_prefixes:     [..][2]string;
+
+    // Jai cannot currently link to global variables declared in libraries. When true, any global variables will be omitted.
+    omit_global_declarations       := true;
+
+    type_replacements:             [..][2]string;
+
+    strip_flags := Strip_Flags.Constructors | .Destructors |
+        .Functions_With_Bodies | .Functions_With_valist |
+        .Functions_With_Unknown_Foreign_Libs;
+    print_foreign_library_declarations := true;
+
+    // Any extra code to include.
+    preamble := "";
+
+    c_enum_emulation := false; // use 'using' on each enum declaration to bring all its members into scope
+    generate_static_struct_size_checks := false;
+
+    //
+    // Optionally give it whatever data you like. Will be passed to callback functions.
+    //
+    user_data: *void;
+
+    // ## Callback functions
+
+    get_func_args_for_printing: Get_Function_Arguments_For_Printing_Func;
+    will_print_bindings: #type ();
+
+    // debug
+    inspect_entities_named: [..]string;
+}
+
+generate_bindings :: (opts: Generate_Bindings_Options) -> (has_error: bool) {
+    has_error := false;
+    if context.compiler free(context.compiler);
+    context.compiler = New(type_of(<<context.compiler));
+    init_compiler_context(*context);
+    context.opts = opts;
+
+    //print("OPTS:\n%\n", formatStruct(context.opts, use_newlines_if_long_form=true));
+
+    //assert(*context.global_scope.members == *context.compiler.global_scope.members); // Jai compiler bug
+    //print("first global_scope.members: %\n", *context.compiler.global_scope.members);
+
+    for context.opts.libraries {
+        ptr := New(Library_Info);
+        (<<ptr) = it;
+        ptr.handle, ptr.is_system = os_load_library(.[], ptr.path);
+        array_add(*context.compiler.libraries, ptr);
     }
 
-    init_compiler_context(*context);
-
-    for libnames {
+    for context.opts.libnames {
         lib := New(Library_Info);
         lib.name = make_valid_identifer(it);
         lib.path = it;
-        lib.handle, lib.is_system = os_load_library(libpaths, lib.path);
+        lib.handle, lib.is_system = os_load_library(context.opts.libpaths, lib.path);
         if !lib.handle {
             print("Could not load library: '%'\n", lib.name);
             continue;
         }
-        array_add(*context.libraries, lib);
+        array_add(*context.compiler.libraries, lib);
     }
 
     index := clang_createIndex(0, 0);
+    defer clang_disposeIndex(index);
  
+    // assemble an array of c-string arguments to pass to clang
+    argv: [..]*u8;
+    {
+        for opts.include_paths         array_add(*argv, to_c_string(tprint("-I%", it)));
+        for opts.extra_clang_arguments array_add(*argv, to_c_string(it));
+        for opts.source_files          array_add(*argv, to_c_string(it));
+    }
+
     tu: CXTranslationUnit;
     err := clang_parseTranslationUnit2(index, null, argv.data, xx argv.count, null, 0, 0, *tu);
+    defer clang_disposeTranslationUnit(tu);
+
     if err != 0 {
         print("Clang returned errror code %\n", err);
-
         has_error = true;
     }
 
     for 1..clang_getNumDiagnostics(tu) {
-        diag := clang_getDiagnostic(tu, it-1);
+        diag := clang_getDiagnostic(tu, it - 1);
 
         severity := clang_getDiagnosticSeverity(diag);
-        if severity == CXDiagnostic_Error || severity == CXDiagnostic_Fatal {
+        if severity == .CXDiagnostic_Error || severity == .CXDiagnostic_Fatal {
             has_error = true;
         }
         str := clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
@@ -2607,32 +2573,32 @@ main :: () {
 
     if !has_error {
         cursor := clang_getTranslationUnitCursor(tu);
-        context.translation_unit = tu;
-        clang_visitChildren(cursor, handle_toplevel_cursors, *context);
+        context.compiler.translation_unit = tu;
+        jai_ctx := context;
+        clang_visitChildren(cursor, handle_toplevel_cursors, *jai_ctx);
+
+        if context.opts.will_print_bindings
+            context.opts.will_print_bindings();
 
         builder: String_Builder;
-
-        imps: [..]string;
-        imps.allocator = __temporary_allocator;
-        for context.extra_file_scope_imports
-            array_add(*imps, tprint("#import \"%\";", it));
-
-        extra_file_scope_imports_string := join(..imps, "\n");
         print_to_builder(*builder, #string END
 //
-// This file is autogenerated.
+// This file was autogenerated.
 //
+END);
+        append(*builder, context.opts.preamble);
+        append(*builder, "\n\n");
+        print_to_builder(*builder, #string END
 #scope_file
 
 #import "Basic";
-%
 // TODO: these manual types shouldn't be necessary
 size_t   :: u64;
 FILE     :: struct { opaque: *void; }
 FLT_MIN  :: 0h00800000;
 FLT_MAX  :: 0h7F7FFFFF;
 
-check_struct_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_location) {
+check_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_location) {
     size_of_struct := size_of(T);
     Compiler :: #import "Compiler";
     if size_of_struct != expected_size_in_bytes {
@@ -2642,190 +2608,26 @@ check_struct_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_loca
 }
 
 #scope_export
-
-make_ImVec2 :: inline (a: float, b: float) -> ImVec2 {
-    v: ImVec2 = ---;
-    v.x = a;
-    v.y = b;
-    return v;
-}
-
-TreeNode :: (fmt: string, args: ..Any) -> bool {
-    fmt_z := tprint("%%\0", fmt);
-    txt := tprint(fmt_z, ..args);
-    return TreeNode(txt.data);
-}
-
-IM_COL32_R_SHIFT  ::  0;
-IM_COL32_G_SHIFT  ::  8;
-IM_COL32_B_SHIFT  ::  16;
-IM_COL32_A_SHIFT  ::  24;
-IM_COL32_A_MASK   ::  0xFF000000;
-// This is a C preprocessor macro, should it be a Jai macro?
-make_col32 :: (R : u32, G: u32, B: u32, A: u32) -> u32 {
-    return cast(u32)((A<<IM_COL32_A_SHIFT) | (B<<IM_COL32_B_SHIFT) | 
-        (G<<IM_COL32_G_SHIFT) | (R<<IM_COL32_R_SHIFT));
-}
-make_col32 :: (c: ImVec4) -> u32 {
-    return make_col32(xx(c.x * 255), xx(c.y * 255), xx(c.z * 255), xx(c.w * 255));
-}
-
-
-END, extra_file_scope_imports_string);
-
-        for context.libraries {
-            if it.is_system print_to_builder(*builder, "% :: #foreign_system_library \"%\";\n", it.name, it.path);
-            else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
+END);
+        if context.opts.print_foreign_library_declarations {
+            for context.compiler.libraries {
+                if it.is_system print_to_builder(*builder, "% :: #foreign_system_library \"%\";\n", it.name, it.path);
+                else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
+            }
         }
 
-        // here's our ImGui specific stuff
-        imgui_visitor :: (decl: *Declaration, parent_decl: *Declaration) -> Declaration_Visit_Result {
-            // ImGui has "typedef ints" for each enum. but we want to just use the enums directly,
-            // so we get nice type safety, and .unary dots, etc.
-            //
-            // Look for declarations inside functions (i.e., arguments) or structs (i.e., fields)
-            get_associated_enum_name :: (name: string) -> string {
-                if name.count > 1 && name[name.count - 1] != #char "_"
-                    return tprint("%_", name);
-                return name;
-            }
-
-            imgui_data := cast(*ImGui_Bindings_Gen_Data)context.user_data;
-
-            if parent_decl && 
-                (parent_decl.kind == .FUNCTION || parent_decl.kind == .STRUCT) && 
-                decl.kind == .DECLARATION && decl.type.type_of_typedef != null
-            {
-                old_name := decl.type.type_of_typedef.name;
-                new_name := get_associated_enum_name(old_name);
-                if !new_name return .Recurse;
-
-                //print("% -> %\n", old_name, new_name);
-                for context.global_scope.members {
-                    if it.kind != .ENUM  || it.name != new_name
-                        continue;
-
-                    en := cast(*Enum)it;
-
-                    // Don't output the integer typedef
-                    decl.type.type_of_typedef.decl_flags |= .Omit_From_Output;
-
-                    // Make sure the enums like "FocusedFlags_" get outputted as "FocusFlags"
-                    if en.name.count > 2 && en.name[en.name.count - 1] == #char "_" {
-                        en.output_name = copy_string(en.name);
-                        en.output_name.count -= 1;
-                    }
-
-                    // swap in the enum for the typedef
-                    decl.type.type_of_typedef = null;
-                    decl.type.type_of_enum = en;
-                    
-                    // we'll also need to output a cast, like "cast(EnumType)5" for the default argument
-                    decl.decl_flags |= .Needs_Default_Argument_Cast;
-
-                    break;
-                }
-            }
-
-            // ImGui also has functions with pairs of arguments like "text_begin" and "text_end"
-            // for the pointers to the beginning and end of a string. We'll generate wrappers for
-            // those function which take a jai string.
-            //
-            // Here we collect pointers to "_begin" arguments, and use them in
-            // get_func_args_for_printing below.
-            if decl.kind == .FUNCTION {
-                func := cast(*Function)decl;
-                for func.arguments {
-                    if it_index == 0 || !ends_with(it.name, "_end")
-                        continue;
-
-                    name_part := slice(it.name, 0, it.name.count - "_end".count);
-                    if !name_part
-                        continue;
-
-                    // the first arg may appear as "text_begin" or just "text"
-                    name_part_with_begin := tprint("%_begin", name_part);
-                    prev_arg := func.arguments[it_index - 1];
-                    if prev_arg.name == name_part || prev_arg.name == name_part_with_begin {
-                        array_add(*imgui_data.begin_end_string_args, prev_arg);
-                        func.decl_flags |= .Needs_Argument_Wrapper;
-                    }
-                }
-            }
-
-            return .Recurse;
-        }
-
-        ImGui_Bindings_Gen_Data :: struct {
-            begin_end_string_args: [..]*Declaration;
-        }
-
-        imgui_data: ImGui_Bindings_Gen_Data;
-
-        context.user_data = *imgui_data;
-
-        for context.global_scope.members
-            visit_declarations(imgui_visitor, it);
-
-        // Modify function with _begin and _end string arguments as they get printed.
-        // See the note above about "text_begin".
-        context.get_func_args_for_printing = (func: *Function, mode: Arg_Print_Mode) -> []*Declaration {
-            args: [..]*Declaration;
-            imgui_data := cast(*ImGui_Bindings_Gen_Data)context.user_data;
-            for func.arguments {
-                if array_find(imgui_data.begin_end_string_args, it) {
-                    if mode == {
-                        case .Outer_Wrapper;
-                            // For the outer wrapper, remove any "_begin" part of the argument, and
-                            // change its type to a jai string
-                            arg_copy := New(Declaration);
-                            (<<arg_copy) = <<it;
-                            arg_copy.type = context.type_def_jai_string;
-                            if ends_with(arg_copy.name, "_begin")
-                                arg_copy.name = slice(arg_copy.name, 0, arg_copy.name.count - "_begin".count);
-                            array_add(*args, arg_copy);
-
-                            it_index += 1; // skip the next argument-we collpase the _begin and _end args into one string arg
-
-                            continue;
-                        case .Inner_Wrapper_Call;
-                            // For the inner wrapper function call, we pass the incoming arg
-                            // as two arguments: "jai_string.data, jai_string.count" -- corresponding
-                            // to the _begin and _end parts.
-                            arg_copy := New(Declaration);
-                            (<<arg_copy) = <<it;
-                            if ends_with(arg_copy.name, "_begin")
-                                arg_copy.name = slice(arg_copy.name, 0, arg_copy.name.count - "_begin".count);
-                            base_arg_name := arg_copy.name;
-                            arg_copy.name = tprint("%.data", arg_copy.name);
-                            array_add(*args, arg_copy);
-
-                            arg_copy_2 := New(Declaration);
-                            (<<arg_copy_2) = <<it;
-                            arg_copy_2.name = tprint("%.data + %.count", base_arg_name, base_arg_name);
-                            array_add(*args, arg_copy_2);
-
-                            it_index += 1; // skip the next arg, since we already added a second one above 
-                            continue;
-                    }
-                }
-
-                array_add(*args, it);
-            }
-            return args;
-        };
-
-        for context.global_scope.members {
+        print("printing % global scope members...\n", context.compiler.global_scope.members.count);
+        for context.compiler.global_scope.members {
             if it.decl_flags & .Omit_From_Output continue;
             print_declaration_to_builder(*builder, it, flags=.Is_Global);
             append(*builder, "\n\n");
         }
 
-        if context.unique_objc_selectors.count {
+        if context.compiler.unique_objc_selectors.count {
             append(*builder, "#scope_file\n\n");
             append(*builder, "_Generated_Selectors :: struct {\n");
-            context.tab_depth += 1;
-            for context.unique_objc_selectors {
+            context.compiler.tab_depth += 1;
+            for context.compiler.unique_objc_selectors {
                 print_indentation(*builder);
                 print_objc_selector_identifier(*builder, it);
                 append(*builder, ": *void = ---;\n");
@@ -2833,26 +2635,26 @@ END, extra_file_scope_imports_string);
 
             print_indentation(*builder);
             append(*builder, "#constructor (this: *_Generated_Selectors) {\n");
-            context.tab_depth += 1;
-            for context.unique_objc_selectors {
+            context.compiler.tab_depth += 1;
+            for context.compiler.unique_objc_selectors {
                 print_indentation(*builder);
                 append(*builder, "this.");
                 print_objc_selector_identifier(*builder, it);
                 print_to_builder(*builder, " = sel_registerName(\"%\");\n", it);
             }
-            context.tab_depth -= 1;
+            context.compiler.tab_depth -= 1;
             print_indentation(*builder); append(*builder, "};\n");
 
-            context.tab_depth += -1;
+            context.compiler.tab_depth += -1;
             append(*builder, "}\n");
             append(*builder, "__selectors: _Generated_Selectors;\n");
         }
 
         // write_builder(*builder);
 
-        file, success := file_open(output_filename, true);
+        file, success := file_open(opts.output_filename, true);
         if !success {
-            error("Error: Could not open file for output %\n", output_filename);
+            error("Error: Could not open file for output: '%'\n", opts.output_filename);
             has_error = true;
         } else {
             str := builder_to_string(*builder);
@@ -2862,15 +2664,17 @@ END, extra_file_scope_imports_string);
         }
     }
 
-    clang_disposeTranslationUnit(tu);
-    clang_disposeIndex(index);
+    return has_error;
+}
 
-    if has_error
-        exit(1);
-
-    print("\nOK! generated '%' from %\n", output_filename, join(..source_files, separator=", "));
-    print("    % functions\n", context.counts.functions);
-    print("    % structs\n", context.counts.structs);
+show_jaicc_results :: () {
+    using context;
+    print("\nOK! generated '%' from %\n", opts.output_filename, join(..opts.source_files, separator=", "));
+    {
+        print("    % functions\n", compiler.counts.functions);
+        print("    % structs\n",   compiler.counts.structs);
+        print("    % enums\n",     compiler.counts.enums);
+    }
 }
 
 raw_tokens_string_from_cursor :: (cur: CXCursor, separator := "") -> string {
@@ -2880,14 +2684,14 @@ raw_tokens_string_from_cursor :: (cur: CXCursor, separator := "") -> string {
     range := clang_getCursorExtent(cur);
     tokens: *CXToken;
     num_tokens: u32;
-    clang_tokenize(context.translation_unit, range, *tokens, *num_tokens);
+    clang_tokenize(context.compiler.translation_unit, range, *tokens, *num_tokens);
     if tokens == null {
         //error(cur, tprint("could not tokenize '%' %\n", as_str(cur), cur));
         return "";
     }
     token_sb: String_Builder;
     for tt: 0..num_tokens - 1 {
-        spelling := clang_getTokenSpelling(context.translation_unit, tokens[tt]);
+        spelling := clang_getTokenSpelling(context.compiler.translation_unit, tokens[tt]);
         append(*token_sb, to_string(clang_getCString(spelling)));
         if separator.count && tt != num_tokens - 1
             append(*token_sb, separator);
@@ -2905,20 +2709,23 @@ copy_and_dispose :: (str: CXString) -> string {
 }
 
 get_children :: (cur: CXCursor) -> [..] CXCursor {
+    Visitor_Data :: struct {
+        arr: [..]CXCursor;
+        jai_context: Context;
+    }
+
     child_visitor :: (cur: CXCursor, parent: CXCursor, client_data: CXClientData) -> CXChildVisitResult #c_call {
-        new_context: Context;
-        push_context new_context {
-            arr := cast(*[..] CXCursor) client_data;
-            array_add(arr, cur);
+        visitor_data := cast(*Visitor_Data)client_data;
+        push_context visitor_data.jai_context {
+            array_add(*visitor_data.arr, cur);
             return CXChildVisit_Continue;
         }
     }
 
-    arr: [..] CXCursor;
-    // set the alloctor so that we don't need a context for array_add
-    arr.allocator = context.allocator;
-    clang_visitChildren(cur, child_visitor, *arr);
-    return arr;
+    visitor_data: Visitor_Data;
+    visitor_data.jai_context = context;
+    clang_visitChildren(cur, child_visitor, *visitor_data);
+    return visitor_data.arr;
 }
 
 get_hash_cxcursor :: (cur: CXCursor) -> u32 {
@@ -2932,19 +2739,20 @@ compare_cxcursors :: (cur0: CXCursor, cur1: CXCursor) -> bool {
 show_cursor_info :: (cur: CXCursor, parent: CXCursor) {
     ref_cursor := clang_getCursorDefinition(cur);
     _cur_type := clang_getCursorType(cur);
-    is_const := clang_isConstQualifiedType(_cur_type);
-    is_refer := _cur_type.kind == CXType_LValueReference;
-    is_volatile := clang_isVolatileQualifiedType(_cur_type);
     is_pointer := clang_getPointeeType(_cur_type);
     is_const_ref := false;
     if is_pointer.kind
         is_const_ref = !!clang_isConstQualifiedType(is_pointer);
 
     print("parent '%' meet child '%' with kind % ref name % is_const % is_reference % is_volatile % is_pointer % is_const_ref %\n",
-        as_str(parent), as_str(cur), clang_getCursorKind(cur), as_str(ref_cursor), is_const, is_refer, is_volatile, is_pointer, is_const_ref);
+        as_str(parent), as_str(cur), clang_getCursorKind(cur),
+        as_str(ref_cursor), clang_isConstQualifiedType(_cur_type),
+        _cur_type.kind == CXType_LValueReference,
+        clang_isVolatileQualifiedType(_cur_type), is_pointer, is_const_ref);
+
     tee_template_arg_num := clang_Type_getNumTemplateArguments(is_pointer);
     if tee_template_arg_num != -1 {
-        print("pointee {} is template\n", is_pointer);
+        print("pointee % is template\n", is_pointer);
         for i: 0..tee_template_arg_num-1 {
             print("pointee template arg %  has type %\n", i, as_str(clang_Type_getTemplateArgumentAsType(is_pointer, cast(u32)i)));
         }
@@ -2954,7 +2762,7 @@ show_cursor_info :: (cur: CXCursor, parent: CXCursor) {
     if template_arg_num != -1 {
         print("% is template\n", as_str(_cur_type));
         for i: 0..template_arg_num-1 {
-            print("template arg {}  has type {}\n", i, as_str(clang_Type_getTemplateArgumentAsType(_cur_type, cast(u32)i)));
+            print("template arg % has type %\n", i, as_str(clang_Type_getTemplateArgumentAsType(_cur_type, cast(u32)i)));
         }
     }
 }
