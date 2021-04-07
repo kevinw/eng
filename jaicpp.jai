@@ -197,10 +197,6 @@ Library_Info :: struct {
     name: string;
     path: string; // This should be just what the user has passed to us via -l, I think
     is_system: bool;
-
-    static_path: string;
-    static_depends_on_libs: [..]string;
-
     #if OS == .WINDOWS {
         handle: HMODULE;
     } else #if OS == .LINUX || OS == .MACOS {
