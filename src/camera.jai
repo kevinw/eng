@@ -6,6 +6,8 @@ Camera :: struct {
     near_plane: float     = 10;
     far_plane:  float     = 1000;
 
+    render_texture: *Texture; @noserialize @noui
+
     matrices_need_update := true;    @noserialize @noui
     last_calced_renderer: *Renderer; @noserialize @noui // TODO: I believe this goes away once we make the looking glass display have its own camera.
     last_w, last_h: u16; @noserialize @noui
@@ -81,8 +83,10 @@ calc_matrices :: inline (using camera: *Camera) {
 }
 
 camera_aspect :: (camera: *Camera) -> float {
-    // TODO: what if render textures, etc...
-    return framebuffer_aspect();
+    if camera.render_texture
+        return aspect(camera.render_texture.size);
+    else
+        return framebuffer_aspect();
 }
 
 pixel_size :: (camera: *Camera) -> u16, u16 {

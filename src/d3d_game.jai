@@ -41,7 +41,6 @@ on_host_init :: (host_state: Host_State) {
         entity1, entity1_handle := create_entity(name="Test1");
         player := add_component(entity1_handle, Player);
         assert(find_component(Player) == player);
-
         assert(player.editor_rect != null, "Player.on_enable should have set the player's editor_rect pointer--was on_enable called?");
     }
 

@@ -210,6 +210,14 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
         push_renderer_context(*context.state.renderer, "main monitor");
         push_value(*current_im_camera, *editor.scene_camera);
         {
+            scene_view_sz := get_scene_view_size();
+            if scene_view_sz != scene_view.color.size && 
+                scene_view_sz.width > 0 && scene_view_sz.height > 0 {
+                //print("resizing scene_view color texture % % (old %)\n", *scene_view.color, scene_view_sz, scene_view.color.size);
+                resize_texture(*scene_view.color, scene_view_sz);
+                resize_texture(*scene_view.depth, scene_view_sz);
+            }
+
             push_pass(*scene_view.pass, clear_color=*Vector4.{0.0, 0, 0.0, 1});
 
             // the im draw stuff here (And probably?) should only render 1 view.
@@ -279,6 +287,8 @@ game_base_init :: (host_state: Host_State) {
         pass.color[0] = *color;
         pass.depth    = *depth;
         pass.label    = "editor-offscreen";
+
+        editor.scene_camera.render_texture = *color;
     }
 
     // setup multiview

@@ -33,6 +33,10 @@ Vector2_s32 :: Vector2Integer(s32);
 Vector2_u32 :: Vector2Integer(u32);
 Vector2_u16 :: Vector2Integer(u16);
 
+operator == :: inline (a: Vector2_u16, b: Vector2_u16) -> bool {
+    return a.x == b.x && a.y == b.y;
+}
+
 v2_constructor :: ($T: Type, x: T, y: T) -> Vector2Integer(T) {
     v: Vector2Integer(T) = ---;
     v.x = x;
@@ -43,6 +47,10 @@ v2_constructor :: ($T: Type, x: T, y: T) -> Vector2Integer(T) {
 v2int  :: #bake_arguments v2_constructor(T = s32);
 v2uint :: #bake_arguments v2_constructor(T = u32);
 v2u16  :: #bake_arguments v2_constructor(T = u16);
+
+aspect :: inline (v: Vector2_u16) -> float {
+    return cast(float)v.x / cast(float)v.y;
+}
 
 copysign :: (x: float, y: float) -> float {
     if y < 0

@@ -2,7 +2,7 @@
 
 DEBUG_NAMES :: #run get_build_options().optimization_level != .RELEASE;
 
-Hardcoded_Index_Type :: u32;
+Hardcoded_Index_Type :: u32; // TODO: make it possible to use 16bit indices
 
 Renderer :: struct {
     using base: Renderer_Base;
@@ -71,7 +71,9 @@ Pass :: struct { // TODO: rename to render target
     label: string;
 
     frame_buffer_view: *ID3D11RenderTargetView;
+    frame_buffer_view_created_for: *ID3D11Texture2D;
     depth_buffer_view: *ID3D11DepthStencilView;
+    depth_buffer_view_created_for: *ID3D11Texture2D;
 }
 
 Pipeline :: struct {
@@ -411,9 +413,70 @@ get_d3d_bind_flags :: (type: Buffer_Type) -> D3D11_BIND_FLAG {
     return 0;
 }
 
+_recreate_srvs :: (tex: *Texture, desc: D3D11_TEXTURE2D_DESC) -> bool {
+    if desc.BindFlags & .D3D11_BIND_SHADER_RESOURCE == 0
+        return true;
+
+    //print("creating srv for texture: %\n", tex.debug_name);
+
+    assert(tex.views.count == 0, "_recreate_srvs expected the views to already be released");
+    assert(tex.texture2D != null, "_recreate_srvs expected a non-null tex.texture2D");
+
+    // create the main SRV
+    {
+        view: *ID3D11ShaderResourceView;
+        if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, null, *view) {
+            print("Error CreateShaderResourceView in _recreate_srvs\n");
+            flush_errors();
+            return false;
+        }
+        #if DEBUG_NAMES
+            if tex.debug_name.count > 0
+                set_debug_name(view, "SRV for '%'", tex.debug_name);
+        array_add(*tex.views, view);
+    }
+
+    if desc.ArraySize > 1 {
+        // TODO: here's a hack where I'm making a ShaderResourceView object
+        // for each single texture layer in a TextureArray. this is so that
+        // later, if we want to render just one texture out of the stack,
+        // we have an SRV ready. perhaps instead these should be made
+        // lazily though? It might be annoying that I have to keep the format
+        // around, but still...
+        for slice_index: 0..desc.ArraySize - 1 {
+            single_desc := D3D11_SHADER_RESOURCE_VIEW_DESC.{
+                ViewDimension = .D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
+                Texture2DArray = .{
+                    MostDetailedMip = 0,
+                    MipLevels = cast,trunc(u32)-1,
+                    ArraySize = 1,
+                }
+            };
+            single_desc.Format = desc.Format;
+            single_desc.Texture2DArray.FirstArraySlice = slice_index;
+
+            view: *ID3D11ShaderResourceView;
+            if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, *single_desc, *view) {
+                print("Error CreateShaderResourceView (ArraySize > 1) in _recreate_srvs\n");
+                flush_errors();
+                return false;
+            }
+            #if DEBUG_NAMES
+                if tex.debug_name.count > 0
+                    set_debug_name(view, "SRV Slice % for '%'", slice_index, tex.debug_name);
+            array_add(*tex.views, view);
+        }
+    }
+
+    return true;
+}
+
 create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1, 
     type := Create_Texture_Type.Normal, format: Texture_Format = .BGRA8, label := "") -> bool
 {
+    
+    assert(tex != null, "create_texture argument 'tex' cannot be null");
+
     using renderer := assert_state();
 
     bind_flags: D3D11_BIND_FLAG;
@@ -458,54 +521,11 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
     #if DEBUG_NAMES
         if label.count > 0 set_debug_name(tex.texture2D, "Texture '%'", label);
 
-    //print("CREATE TEXTURE % %x%\n", label, size.width, size.height);
+    //print("CREATE TEXTURE (w=%, h%=%)\n", label, size.width, size.height);
+    if !_recreate_srvs(tex, desc)
+        return false;
 
     if bind_flags & .D3D11_BIND_SHADER_RESOURCE != 0 {
-        //print("creating srv for texture: %\n", label);
-
-        {
-            view: *ID3D11ShaderResourceView;
-            if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, null, *view) {
-                flush_errors();
-                return false;
-            }
-            #if DEBUG_NAMES
-                if label.count > 0
-                    set_debug_name(view, "SRV for '%'", label);
-            array_add(*tex.views, view);
-        }
-
-        if array_size > 1 {
-            // TODO: here's a hack where I'm making a ShaderResourceView object
-            // for each single texture layer in a TextureArray. this is so that
-            // later, if we want to render just one texture out of the stack,
-            // we have an SRV ready. perhaps instead these should be made
-            // lazily though? It might be annoying that I have to keep the format
-            // around, but still...
-            for slice_index: 0..array_size - 1 {
-                single_desc := D3D11_SHADER_RESOURCE_VIEW_DESC.{
-                    ViewDimension = .D3D11_SRV_DIMENSION_TEXTURE2DARRAY,
-                    Texture2DArray = .{
-                        MostDetailedMip = 0,
-                        MipLevels = cast,trunc(u32)-1,
-                        ArraySize = 1,
-                    }
-                };
-                single_desc.Format = desc.Format;
-                single_desc.Texture2DArray.FirstArraySlice = slice_index;
-
-                view: *ID3D11ShaderResourceView;
-                if S_OK != renderer.device.CreateShaderResourceView(xx renderer.device, xx tex.texture2D, *single_desc, *view) {
-                    flush_errors();
-                    return false;
-                }
-                #if DEBUG_NAMES
-                    if label.count > 0
-                        set_debug_name(view, "SRV Slice % for '%'", slice_index, label);
-                array_add(*tex.views, view);
-            }
-        }
-
         assert(!tex.sampler_state);
 
         // Sampler
@@ -529,6 +549,38 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
     return true;
 }
 
+resize_texture :: (tex: *Texture, size: Vector2_u16) {
+    assert(tex != null, "resize_texture 'tex' argument cannot be null");
+    assert(tex.texture2D != null, "resize_texture 'tex' argument was never created");
+    assert(size.width > 0 && size.height, "resize_texture 'size' argument cannot be zero-width or -height");
+
+    using renderer := assert_state();
+
+    desc: D3D11_TEXTURE2D_DESC;
+    tex.texture2D.GetDesc(tex.texture2D, *desc);
+    assert(desc.Width > 0);
+    assert(desc.Height > 0);
+
+    texture_data : *D3D11_SUBRESOURCE_DATA = null;
+    desc.Width = size.width;
+    desc.Height = size.height;
+
+    for tex.views Release(it);
+    array_reset(*tex.views);
+    Release(tex.texture2D);
+
+    if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
+        print("error recreating for resize_texture: CreateTexture2D\n");
+        print("%\n", desc);
+        flush_errors();
+        return;
+    }
+
+    tex.size = size;
+
+    _recreate_srvs(tex, desc);
+}
+
 begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
     assert_state();
 
@@ -545,16 +597,27 @@ begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
         framebuffers.count = 1;
         depth = renderer.depth_buffer_view;
     } else {
+        assert(pass.color[0] != null, "the first color texture of this pass cannot be null");
+        assert(pass.color[0].texture2D != null, "the first color texture of this pass was not created");
+
         // TODO: do some kind of "init_pass" thing so we don't have to check these every time
+        if pass.frame_buffer_view != null && pass.frame_buffer_view_created_for != pass.color[0].texture2D
+            Release_And_Set_Null(*pass.frame_buffer_view);
+
         if pass.frame_buffer_view == null {
-            assert(pass.color[0] != null);
             check_result(renderer.device.CreateRenderTargetView(
                 cast(*ID3D11Device)renderer.device, cast(*ID3D11Resource)pass.color[0].texture2D, null, *pass.frame_buffer_view));
+            pass.frame_buffer_view_created_for = pass.color[0].texture2D;
         }
+
+        if pass.depth_buffer_view != null && pass.depth_buffer_view_created_for != pass.depth.texture2D
+            Release_And_Set_Null(*pass.depth_buffer_view);
+
         if pass.depth_buffer_view == null {
             assert(pass.depth != null);
             check_result(renderer.device.CreateDepthStencilView(
                 cast(*ID3D11Device)renderer.device, cast(*ID3D11Resource)pass.depth.texture2D, null, *pass.depth_buffer_view));
+            pass.depth_buffer_view_created_for = pass.depth.texture2D;
             #if DEBUG_NAMES
                 set_debug_name(pass.frame_buffer_view, "DepthStencilView for pass '%'", pass.label);
         }
@@ -806,7 +869,7 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
 
     unload_and_return_error :: () #expand {
         unload_texture(*tex);
-        return false, .{};
+        `return false, .{};
     }
 
     device := cast(*ID3D11Device)renderer.device;
@@ -1082,7 +1145,7 @@ load_shader_from_blobs :: (shader: *Shader, compiled_vs_blob: *ID3DBlob, compile
     unload_and_return_shader_error :: (message := "", args: ..Any) #expand {
         if message.count > 0 log(tprint("%\n", message), ..args);
         unload_shader(*new_shader);
-        return false;
+        `return false;
     }
 
     {
@@ -1653,6 +1716,15 @@ CreateInputLayoutDescFromVertexShaderSignature :: (
     }
  
     return hr;
+}
+
+Release_And_Set_Null :: inline (ptr: **$T) {
+    assert(ptr != null);
+    val := <<ptr;
+    if val != null {
+        val.Release(cast(*IUnknown)val);
+        <<ptr = null;
+    }
 }
 
 Release :: inline (ptr: *$T) { // IUnknown Release, checks for null

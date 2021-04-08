@@ -560,6 +560,19 @@ edit_entity_name :: (handle: Entity_Handle) {
     editing_entity_grab_focus = true;
 }
 
+get_scene_view_size :: () -> Vector2_u16 {
+    using context.state.editor;
+
+    if play_mode == .Play {
+        return framebuffer_size();
+    } else {
+        sz: Vector2_u16;
+        sz.x = cast(u16)scene_view_rect.width;
+        sz.y = cast(u16)scene_view_rect.height;
+        return sz;
+    }
+}
+
 render_imgui_to_drawlists :: (state: *State) {
     using state;
     using ImGui;
