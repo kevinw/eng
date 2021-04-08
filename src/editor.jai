@@ -130,7 +130,10 @@ Editor :: struct {
         gamepad_viz := false;
         profiler    := true;
         scene_view     := true;
+        todo := true;
     };
+
+    todos: Todos_State;
 }
 
 Asset :: struct {
@@ -687,8 +690,8 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
     if windows.gamepad_viz show_gamepad_window(*windows.gamepad_viz);
     if windows.profiler show_profiler_window(*windows.profiler);
-    
     if windows.scene_view show_scene_view(*windows.scene_view);
+    if windows.todo show_todo_window(*windows.todo);
     
     //inspect("", *context.state.multiview);
     //inspect("", *context.state.editor);
@@ -732,6 +735,35 @@ align_all_selected_objects_with_scene_view :: () {
         transform.position = cam.position;
         transform.rotation = cam.rotation;
         // no scale change
+    }
+}
+
+#load "todo_list.jai";
+
+
+show_todo_window :: (open: *bool) {
+    using ImGui;
+
+    defer End();
+    if !Begin("TODO", open) return;
+
+    TextUnformatted("TODO");
+    Separator();
+
+    todos_state := *context.state.editor.todos;
+
+    for * get_todos(todos_state) {
+        checked: bool = it.state == .Complete;
+        if Checkbox(tprint("##%\0", it.text).data, *checked) {
+            if checked  {
+                it.state = .Complete;
+            } else {
+                it.state = .Incomplete;
+            }
+            save_todo(todos_state, it);
+        }
+        SameLine();
+        TextWrapped(tprint("%\0", it.text).data);
     }
 }
 

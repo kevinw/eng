@@ -37,3 +37,13 @@ PushPopIndent :: (indent: float) #expand {
     ImGui.Indent(indent);
     `defer ImGui.Unindent(indent);
 }
+
+BeginEndTooltip :: () #expand {
+    ImGui.BeginTooltip();
+    `defer ImGui.EndTooltip();
+}
+
+PushPopTextWrapPos :: (size: float) #expand {
+    ImGui.PushTextWrapPos(size);
+    `defer ImGui.PopTextWrapPos();
+}

@@ -1,5 +1,10 @@
 # TODO
 
+- [x] an editor todo window
+- [ ] fix mouse in new scene view
+- [ ] fix mouse cursors on hover over splitters
+- [ ] finish UV-from-shader to get corner dragging for rectangles!
+
 ## Immediate
 - prototype 2dish uv displacement mapping like Yoku's Island Express?
 - compute shaders https://youtu.be/0DLOJPSxJEg
