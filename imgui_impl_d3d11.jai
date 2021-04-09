@@ -555,11 +555,9 @@ HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
 
     if code >= 0 && wparam == 0 {
         cwp_ret := cast(*CWPRETSTRUCT)lparam;
-        if cast,trunc(u16)(cwp_ret.wParam) == WM_SETCURSOR && cast,trunc(u16)(cwp_ret.lParam) == HTCLIENT {
-            if ImGui_ImplWin32_UpdateMouseCursor()  {
+        if cwp_ret.message == WM_SETCURSOR && cast,trunc(u16)(cwp_ret.lParam) == HTCLIENT
+            if ImGui_ImplWin32_UpdateMouseCursor()
                 return 1;
-            }
-        }
     }
 
     return CallNextHookEx(null, code, wparam, lparam);
