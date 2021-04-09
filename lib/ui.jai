@@ -164,6 +164,10 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
 
     ImGui_Impl_Init(ui, window_handle);
     ImGui_Impl_SetupInputModuleKeymap(ui);
+
+
+    io := ImGui.GetIO();
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
 }
 
 reload_fonts :: (ui: *UI_State) {
