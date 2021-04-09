@@ -2,7 +2,7 @@
 
 - [x] an editor todo window
 - [x] fix mouse in new scene view
-- [ ] fix mouse cursors on hover over splitters
+- [x] fix mouse cursors on hover over splitters
 - [ ] finish UV-from-shader to get corner dragging for rectangles!
 
 ## Immediate
