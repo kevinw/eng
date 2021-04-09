@@ -99,7 +99,6 @@ build_tests :: (build_flags: Build_Flags) {
     }
 
     exit(1);
-
 }
 
 set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {

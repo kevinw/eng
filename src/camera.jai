@@ -85,13 +85,12 @@ calc_matrices :: inline (using camera: *Camera) {
 camera_aspect :: (camera: *Camera) -> float {
     if camera.render_texture
         return aspect(camera.render_texture.size);
-    else
-        return framebuffer_aspect();
+
+    return framebuffer_aspect();
 }
 
 pixel_size :: (camera: *Camera) -> u16, u16 {
-    // TODO: what if render textures, etc...
-    sz := framebuffer_size();
+    sz := ifx camera.render_texture then camera.render_texture.size else framebuffer_size();
     return sz.x, sz.y;
 }
 

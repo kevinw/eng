@@ -6,6 +6,14 @@ Ray :: struct {
 }
 
 
+// negation
+operator - :: inline (a: Vector2) -> Vector2 {
+    v: Vector2 = ---;
+    v.x = -a.x;
+    v.y = -a.x;
+    return v;
+}
+
 raycast :: (plane: Plane3, ray: Ray) -> (bool, float) {
     plane_normal := get_normal(plane);
     plane_distance := plane.d;

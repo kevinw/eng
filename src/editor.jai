@@ -105,6 +105,7 @@ Editor :: struct {
     };
 
     scene_view_rect: rl.Rectangle;
+    mouse_is_over_scene_view: bool;
 
     show_main_menu: bool = false;
 
@@ -576,6 +577,14 @@ get_scene_view_size :: () -> Vector2_u16 {
     }
 }
 
+get_scene_view_screen_mouse_pos :: () -> Vector2 {
+    using context.state.editor;
+    mouse_x, mouse_y := platform.get_client_mouse_pos(_local_host_state.window_handle);
+    pos := v2(mouse_x, mouse_y);
+    pos -= scene_view_rect.position;
+    return pos;
+}
+
 render_imgui_to_drawlists :: (state: *State) {
     using state;
     using ImGui;
@@ -662,7 +671,7 @@ render_imgui_to_drawlists :: (state: *State) {
             PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
             DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
-            if !GetIO().WantCaptureMouse && is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
+            if editor.mouse_is_over_scene_view && is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
                 SetMouseCursor(.ResizeAll);
         }
     }
@@ -1145,6 +1154,9 @@ is_selected :: (handle: Entity_Handle) -> bool {
 editor_update :: (state: *State) {
     using context.state.editor;
 
+    screen_mouse_pos := get_scene_view_screen_mouse_pos();
+    mouse_is_over_scene_view = screen_mouse_pos.x >= 0 && screen_mouse_pos.y > 0 && screen_mouse_pos.x < scene_view_rect.width && screen_mouse_pos.y < scene_view_rect.height;
+
     io := ImGui.GetIO();
 
     defer wants_keyboard = io.WantCaptureKeyboard;
@@ -1172,7 +1184,7 @@ editor_update :: (state: *State) {
 
     // Move editor camera with WASD
 
-    if !io.WantTextInput && !io.WantCaptureMouse && is_key_down(.MOUSE_BUTTON_RIGHT) {
+    if !io.WantTextInput && mouse_is_over_scene_view && is_key_down(.MOUSE_BUTTON_RIGHT) {
         update := false; // camera did move
         {
             // moving with WASD 
@@ -1237,8 +1249,7 @@ editor_update :: (state: *State) {
         }
     }
 
-
-    if !io.WantCaptureMouse { // don't let imgui clicks come through to this one.
+    if mouse_is_over_scene_view { // don't let imgui clicks come through to this one.
         {
             // mouse wheel zoom
             if _local_host_state.mouse_delta.z != 0 {
@@ -1247,10 +1258,10 @@ editor_update :: (state: *State) {
             }
         }
 
+        set_mousepick_camera_offset(*context.state.im_context, scene_view_rect.position);
 
-        mouse_x, mouse_y := platform.get_client_mouse_pos(_local_host_state.window_handle);
-        screen_mouse_pos := v2(mouse_x, mouse_y);
         if set_if_different(*mouse_pos, screen_mouse_pos) {
+            mouse_pos.current = screen_mouse_pos;
             mouse_ray := screen_point_to_ray(*scene_camera, screen_mouse_pos);
             //mouse_ray.direction *= -1; // TODO: why is this necessary???
 
@@ -1273,13 +1284,13 @@ editor_update :: (state: *State) {
                     if ok {
                         if it.uv.y > 0.9 || it.uv.y < 0.1 {
                             ImGui.SetMouseCursor(.ResizeNS);
-                            print("north-south\n");
+                            //print("north-south\n");
                         } else if it.uv.x > 0.9 || it.uv.x < 0.1 {
                             ImGui.SetMouseCursor(.ResizeEW);
-                            print("resize-ew\n");
+                            //print("resize-ew\n");
                         } else {
                             ImGui.SetMouseCursor(.None);
-                            print("cursor-none\n");
+                            //print("cursor-none\n");
                         }
                     }
                 }
@@ -1345,7 +1356,7 @@ editor_update :: (state: *State) {
             }
 
         }
-    } // WantCaptureMouse
+    }
 
     if ImGui.IsMouseClicked(0) {
     } else if drag_state.dragging && !ImGui.IsMouseDown(0) {

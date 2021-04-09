@@ -15,6 +15,11 @@ get_hovered_entities :: (im_ctx: *Im_Context) -> []ObjectIDInfo {
     return ctx.mousepick_hovered;
 }
 
+set_mousepick_camera_offset :: (im_ctx: *Im_Context, offset: Vector2) {
+    ctx := cast(*Im_Context_R)im_ctx;
+    ctx.camera_screen_offset = offset;
+}
+
 renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: [] Im_Vertex, draws: [] Im_Draw_Command) {
     ctx := cast(*Im_Context_R)im_ctx;
     using ctx;
@@ -107,7 +112,14 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
     }
 
     if track_mouse {
+        // TODO: nocheckin if we're rendering to a texture, this screen position could be wrong
         mouse_x, mouse_y := platform.get_client_mouse_pos(get_swapchain_native_window_handle());
+
+        // This accounts for the offset if we're rendering to a texture. I think instead we should probably
+        // just have a reference to the camera doing the rendering? and ask it for the screen pos?
+        // not sure.
+        mouse_x -= cast(s32)camera_screen_offset.x;
+        mouse_y -= cast(s32)camera_screen_offset.y;
 
         using fragment_constants: *Fragment_Constants;
         get_constant_buffer_ptr(*fragment_constants, *fragment_constant_buffer);
@@ -222,6 +234,7 @@ Im_Context_R :: struct {
     // mousepick
     did_init:  bool = false;
     mousepick_hovered: [..]ObjectIDInfo;
+    camera_screen_offset: Vector2;
 
     mousepick_objectids:         Buffer;
     mousepick_objectids_staging: Buffer;
