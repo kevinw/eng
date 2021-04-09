@@ -550,34 +550,34 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
 }
 
 resize_texture :: (tex: *Texture, size: Vector2_u16) {
+    using renderer := assert_state();
+
     assert(tex != null, "resize_texture 'tex' argument cannot be null");
     assert(tex.texture2D != null, "resize_texture 'tex' argument was never created");
     assert(size.width > 0 && size.height, "resize_texture 'size' argument cannot be zero-width or -height");
 
-    using renderer := assert_state();
-
+    // get the texture's description and change the width and height
     desc: D3D11_TEXTURE2D_DESC;
     tex.texture2D.GetDesc(tex.texture2D, *desc);
-    assert(desc.Width > 0);
-    assert(desc.Height > 0);
-
-    texture_data : *D3D11_SUBRESOURCE_DATA = null;
+    assert(desc.Width > 0 && desc.Height > 0);
     desc.Width = size.width;
     desc.Height = size.height;
 
+    // release SRVs
     for tex.views Release(it);
     array_reset(*tex.views);
     Release(tex.texture2D);
 
-    if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
+    // use the desc to create a new texture
+    if S_OK != device.CreateTexture2D(xx device, *desc, null, *tex.texture2D) {
         print("error recreating for resize_texture: CreateTexture2D\n");
         print("%\n", desc);
         flush_errors();
         return;
     }
 
+    // recreate new srvs
     tex.size = size;
-
     _recreate_srvs(tex, desc);
 }
 
