@@ -1799,13 +1799,13 @@ print_declaration_to_builder :: (builder: *String_Builder, decl: *Declaration, f
         // Comment out "stripped" functions in the output
         close_comment := true;
         if context.opts.strip_flags & .Functions_With_Bodies && func.body {
-            append(builder, "/* (jaicc: omitted inline function)\n");
+            append(builder, "/* (jaicpp: omitted inline function)\n");
             print_indentation(builder);
         } else if context.opts.strip_flags & .Functions_With_valist && function_has_a_valist_arg(func) {
-            append(builder, "/* (jaicc: omitted function with valist)\n");
+            append(builder, "/* (jaicpp: omitted function with valist)\n");
             print_indentation(builder);
         } else if context.opts.strip_flags & .Functions_With_Unknown_Foreign_Libs && function_is_missing_foreign_library(func) {
-            append(builder, "/* (jaicc: function missing foreign lib)\n");
+            append(builder, "/* (jaicpp: function missing foreign lib)\n");
             print_indentation(builder);
         } else {
             context.compiler.counts.functions += 1;
@@ -2669,7 +2669,7 @@ END);
     return has_error;
 }
 
-show_jaicc_results :: () {
+show_jaicpp_results :: () {
     using context;
     print("\nOK! generated '%' from %\n", opts.output_filename, join(..opts.source_files, separator=", "));
     {
