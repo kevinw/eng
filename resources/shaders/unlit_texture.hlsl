@@ -20,6 +20,7 @@ struct ObjectIDInfo {
     int entity_generation;
 
     float depth;
+    float2 uv;
 };
 
 AppendStructuredBuffer<ObjectIDInfo> pick_objects : register(u1); // uav starts at one since the rendertarget counts as one
@@ -114,7 +115,8 @@ float4 ps_main(vs_out input): SV_TARGET {
         ObjectIDInfo obj;
         obj.entity_id         = input.entity_id;
         obj.entity_generation = input.entity_generation;
-        obj.depth = input.position.z;
+        obj.depth             = input.position.z;
+        obj.uv                = input.texcoord;
         pick_objects.Append(obj);
     }
 #endif

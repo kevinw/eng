@@ -8,6 +8,7 @@ ObjectIDInfo :: struct { // must match unlit_texture.hlsl
     entity_id:         u32;
     entity_generation: s32;
     depth:             float;
+    uv:                Vector2;
 }
 
 get_hovered_entities :: (im_ctx: *Im_Context) -> []ObjectIDInfo {
