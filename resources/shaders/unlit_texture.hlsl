@@ -111,7 +111,7 @@ float4 ps_main(vs_out input): SV_TARGET {
 #endif
 
 #ifdef MOUSE_PICKING
-    if (distance(floor(input.position.xy), mouse_xy) <= 0.5) { // TODO: @Perf do this without a distance() call
+    if (input.entity_id != 0 && distance(floor(input.position.xy), mouse_xy) <= 0.5) { // TODO: @Perf do this without a distance() call
         ObjectIDInfo obj;
         obj.entity_id         = input.entity_id;
         obj.entity_generation = input.entity_generation;

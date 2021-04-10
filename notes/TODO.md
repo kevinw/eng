@@ -3,11 +3,15 @@
 - [x] an editor todo window
 - [x] fix mouse in new scene view
 - [x] fix mouse cursors on hover over splitters
-- [ ] finish UV-from-shader to get corner dragging for rectangles!
+- [x] finish UV-from-shader to get corner dragging for rectangles!
+- [ ] fix resize dragging when scale goes negative
+- [ ] move jai-soloud into lib/
+- [ ] clicks on a window over the scene view will fall through to it
 
 ## Immediate
 - prototype 2dish uv displacement mapping like Yoku's Island Express?
 - compute shaders https://youtu.be/0DLOJPSxJEg
+- research houdini api
 - http://alextardif.com/Antialiasing.html
 - https://www.youtube.com/watch?v=yG4ChOPyC-4
 - https://rosenzweig.io/blog/asahi-gpu-part-2.html

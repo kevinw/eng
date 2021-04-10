@@ -71,7 +71,8 @@ Editor :: struct {
 
     drag_state: struct {
         dragging: bool;
-        origin: Vector2;
+        origin:   Vector2;
+        edge:     Drag_Edge;
     };
 
     selected: [..]Selected_Object;
@@ -166,6 +167,7 @@ Vec2 :: Vector2;
 Selected_Object :: struct {
     using handle: Entity_Handle;
     original_pos: Vector2;
+    original_scale: Vector2;
 }
 
 InputTextStr :: (str: *string) -> bool {
@@ -433,6 +435,8 @@ editor_draw_world :: (state: *State) {
 
     if play_mode == .Play return;
 
+    im_push_entity_handle(.{});
+
     if selected.count > 0 {
         for selected {
             ok, entity := get_entity(it);
@@ -453,6 +457,8 @@ editor_draw_world :: (state: *State) {
             rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
         }
     }
+
+    screenp("im entity: %", context.state.im_context.entity_handle);
 }
 
 editor_draw :: (state: *State) {
@@ -1151,29 +1157,56 @@ is_selected :: (handle: Entity_Handle) -> bool {
     return false;
 }
 
-get_drag_type_for_entity :: (entity_handle: Entity_Handle, uv: Vector2) -> ImGui.MouseCursor {
-    // This function returns an ImGui.MouseCursor for an entity rectangle,
-    // depending on if you're hovering over a corner, an edge, or the middle.
-    // the mouse cursors are visual, but we're also reusing them as a logical
-    // enum for "where you're hovering".
+Drag_Edge :: enum {
+    None;
+    North;
+    NorthEast;
+    East;
+    SouthEast;
+    South;
+    SouthWest;
+    West;
+    NorthWest;
+}
 
+get_cursor_for_drag_edge :: (drag_mode: Drag_Edge) -> ImGui.MouseCursor {
+    if drag_mode == {
+        case .North; #through;
+        case .South; return .ResizeNS;
+            
+        case .East; #through;
+        case .West; return .ResizeEW;
+
+        case .NorthWest; #through;
+        case .SouthEast; return .ResizeNWSE;
+
+        case .NorthEast; #through;
+        case .SouthWest; return .ResizeNESW;
+
+        case .None; return .Arrow;
+        case;
+            assert(false, "unknown drag_mode: %", drag_mode);
+            return .Arrow;
+    }
+}
+
+get_drag_edge :: (entity_handle: Entity_Handle, uv: Vector2) -> Drag_Edge {
     scl := get_lossy_scale(entity_handle);
     border := v2(4, 4);
     // TODO: need a multiplier with screen space here.
     border = v2(border.x / scl.x, border.y / scl.y);
 
-    cursor: ImGui.MouseCursor = .Arrow;
+    if uv.x < border.x && uv.y < border.y             return .NorthWest;
+    if uv.x > (1 - border.x) && uv.y > (1 - border.y) return .SouthEast;
+    if uv.x > (1 - border.x) && uv.y < border.y       return .NorthEast;
+    if uv.x < border.x && uv.y > (1 - border.y)       return .SouthWest;
 
-    if (uv.x < border.x && uv.y < border.y) || (uv.x > (1.0 - border.x) && uv.y > (1.0 - border.y))
-        return .ResizeNWSE;
-    else if (uv.x > (1.0 - border.x) && uv.y < border.y) || (uv.x < border.x && uv.y > (1.0 - border.y))
-        return .ResizeNESW;
-    else if uv.y > (1.0 - border.y) || uv.y < border.y
-        return .ResizeNS;
-    else if uv.x > (1.0 - border.x) || uv.x < border.x
-        return .ResizeEW;
-    else
-        return .Arrow;
+    if uv.y > (1.0 - border.y) return .South;
+    if uv.y < border.y         return .North;
+    if uv.x > (1.0 - border.x) return .East;
+    if uv.x < border.x         return .West;
+
+    return .None;
 }
 
 editor_update :: (state: *State) {
@@ -1312,8 +1345,9 @@ editor_update :: (state: *State) {
             // i.e., arrow, or "ne corner resize," etc.
             cursor: ImGui.MouseCursor = .Arrow;
             for hovered_entity_handles() {
-                cursor := get_drag_type_for_entity(it.handle, it.uv);
+                cursor := get_cursor_for_drag_edge(get_drag_edge(it.handle, it.uv));
                 ImGui.SetMouseCursor(cursor);
+                screenp("cursor % for handle %", cursor, it.handle);
                 break;
             }
         }
@@ -1350,6 +1384,12 @@ editor_update :: (state: *State) {
             drag_state.origin = world_mouse_pos.xy;
 
             hovered := hovered_entity_handles();
+            for hovered {
+                drag_state.edge = get_drag_edge(it.handle, it.uv);
+                // TODO: how to "join" cursor modes?
+                // or should there be more than one state? one for each object?
+            }
+            screenp("drag_state.edge %\n", drag_state.edge);
 
             // if selected is hovered now, it gets dragged
             // otherwise, if there's something hovered, it becomes selected and started dragging
@@ -1373,9 +1413,10 @@ editor_update :: (state: *State) {
 
             for * selected {
                 trs := get_transform_or_null(it.handle);
-                if trs it.original_pos = trs.position.xy;
+                if !trs continue;
+                it.original_pos   = trs.position.xy;
+                it.original_scale = trs.scale.xy;
             }
-
         }
     }
 
@@ -1395,9 +1436,32 @@ editor_update :: (state: *State) {
     } else if drag_state.dragging && ImGui.IsMouseDown(0) {
         delta := world_mouse_pos.xy - drag_state.origin;
         for selected {
+            using it;
             trs := get_transform_or_null(it);
-            if trs != null
-                trs.position.xy = it.original_pos + delta;
+            if trs == null continue;
+            if drag_state.edge == {
+                case .None;      trs.position.xy = original_pos     + delta;
+                case .East;      trs.scale.x     = original_scale.x + delta.x;
+                case .South;     trs.scale.y     = original_scale.y + delta.y;
+                case .SouthEast; trs.scale.xy    = original_scale   + delta;
+                case .West;
+                    trs.position.x = original_pos.x   + delta.x;
+                    trs.scale.x    = original_scale.x - delta.x;
+                case .North;
+                    trs.position.y = original_pos.y   + delta.y;
+                    trs.scale.y    = original_scale.y - delta.y;
+                case .NorthWest;
+                    trs.position.xy = original_pos   + delta;
+                    trs.scale.xy    = original_scale - delta;
+                case .SouthWest;
+                    trs.position.x  = original_pos.x   + delta.x;
+                    trs.scale.x     = original_scale.x - delta.x;
+                    trs.scale.y     = original_scale.y + delta.y;
+                case .NorthEast;
+                    trs.position.y  = original_pos.y   + delta.y;
+                    trs.scale.y     = original_scale.y - delta.y;
+                    trs.scale.x     = original_scale.x + delta.x;
+            }
         }
     }
 
@@ -1439,7 +1503,7 @@ editor_update :: (state: *State) {
         new_scene_confirming();
     }
 
-    U :: () -> *Undo.Impl  { return *context.state.editor.undo_state; }
+    U :: inline () -> *Undo.Impl  { return *context.state.editor.undo_state; }
 
     if ctrl_down && rl.IsKeyPressed(.KEY_D) {
         editor_undo_push_selected();
@@ -1448,11 +1512,11 @@ editor_update :: (state: *State) {
     }
 
     if ctrl_down && rl.IsKeyPressed(.KEY_Z) {
-        if !Undo.try_undo(*undo_state)
+        if !Undo.try_undo(U())
             log("nothing to undo");
     }
     if ctrl_down && rl.IsKeyPressed(.KEY_Y) {
-        if !Undo.try_redo(*undo_state)
+        if !Undo.try_redo(U())
             log("nothing to redo");
     }
 }
@@ -1470,7 +1534,6 @@ scene_filename_for_short_name :: (short_name: string) -> string {
 clear_selection :: () {
     using context.state.editor;
     if selected.count == 0 return;
-
     array_reset(*selected);
 }
 
