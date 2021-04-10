@@ -6,6 +6,13 @@ Transform :: struct {
     scale:    Vector3    = .{1, 1, 1};
 }
 
+get_lossy_scale :: (it: Entity_Handle) -> Vector3 {
+    transform := get_transform(it);
+    assert(transform != null);
+
+    return transform.scale; // TODO: parents scale, etc
+}
+
 Link :: struct {
     // Note that this requires that transformations are sorted so that
     // parents are always before their children

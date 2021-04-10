@@ -1151,6 +1151,31 @@ is_selected :: (handle: Entity_Handle) -> bool {
     return false;
 }
 
+get_drag_type_for_entity :: (entity_handle: Entity_Handle, uv: Vector2) -> ImGui.MouseCursor {
+    // This function returns an ImGui.MouseCursor for an entity rectangle,
+    // depending on if you're hovering over a corner, an edge, or the middle.
+    // the mouse cursors are visual, but we're also reusing them as a logical
+    // enum for "where you're hovering".
+
+    scl := get_lossy_scale(entity_handle);
+    border := v2(4, 4);
+    // TODO: need a multiplier with screen space here.
+    border = v2(border.x / scl.x, border.y / scl.y);
+
+    cursor: ImGui.MouseCursor = .Arrow;
+
+    if (uv.x < border.x && uv.y < border.y) || (uv.x > (1.0 - border.x) && uv.y > (1.0 - border.y))
+        return .ResizeNWSE;
+    else if (uv.x > (1.0 - border.x) && uv.y < border.y) || (uv.x < border.x && uv.y > (1.0 - border.y))
+        return .ResizeNESW;
+    else if uv.y > (1.0 - border.y) || uv.y < border.y
+        return .ResizeNS;
+    else if uv.x > (1.0 - border.x) || uv.x < border.x
+        return .ResizeEW;
+    else
+        return .Arrow;
+}
+
 editor_update :: (state: *State) {
     using context.state.editor;
 
@@ -1278,22 +1303,18 @@ editor_update :: (state: *State) {
                     did_set_hover = true;
                     set(*hover, it.handle);
                 }
+                break;
+            }
+        }
 
-                if is_selected(it.handle) {
-                    ok, entity := get_entity(it.handle);
-                    if ok {
-                        if it.uv.y > 0.9 || it.uv.y < 0.1 {
-                            ImGui.SetMouseCursor(.ResizeNS);
-                            //print("north-south\n");
-                        } else if it.uv.x > 0.9 || it.uv.x < 0.1 {
-                            ImGui.SetMouseCursor(.ResizeEW);
-                            //print("resize-ew\n");
-                        } else {
-                            ImGui.SetMouseCursor(.None);
-                            //print("cursor-none\n");
-                        }
-                    }
-                }
+        {
+            // Update cursor based on where it is in the object's UV.
+            // i.e., arrow, or "ne corner resize," etc.
+            cursor: ImGui.MouseCursor = .Arrow;
+            for hovered_entity_handles() {
+                cursor := get_drag_type_for_entity(it.handle, it.uv);
+                ImGui.SetMouseCursor(cursor);
+                break;
             }
         }
         
@@ -1330,8 +1351,8 @@ editor_update :: (state: *State) {
 
             hovered := hovered_entity_handles();
 
-            //if selected is hovered now, it gets dragged
-            //otherwise, if there's something hovered, it becomes selected and started dragging
+            // if selected is hovered now, it gets dragged
+            // otherwise, if there's something hovered, it becomes selected and started dragging
 
             selected_is_hovered := false;
             for selected_obj: selected
