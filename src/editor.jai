@@ -780,7 +780,32 @@ show_todo_window :: (open: *bool) {
         SameLine();
         TextWrapped(tprint("%\0", it.text).data);
     }
+
+    just_opened := false;
+    if Button(" + ") {
+        OpenPopup("add_todo");
+        just_opened = true;
+    }
+
+    center_next_window();
+    if BeginPopupModal("add_todo", null, .AlwaysAutoResize) {
+        defer EndPopup();
+
+        TextUnformatted("Enter a new TODO:");
+        did_hit_enter := InputText("##edit", input_buf.data, input_buf.count, flags=.EnterReturnsTrue);
+        if just_opened SetKeyboardFocusHere(-1);
+
+        if did_hit_enter || Button("OK", make_ImVec2(120, 0)) {
+            add_todo(*context.state.editor.todos, to_string(input_buf.data));
+            CloseCurrentPopup();
+        }
+        SameLine();
+        if Button("Cancel", make_ImVec2(120, 0))
+            CloseCurrentPopup();
+    }
 }
+
+input_buf: [600]u8; // @Bloat // TODO: just put this in temp storage right?
 
 show_scene_view :: (open: *bool, in_play_mode := false) {
     using ImGui;
@@ -1703,6 +1728,22 @@ load_scene_confirming :: (scene_filename: string) {
 
 SAVE_CHANGES_MODAL_ID :: "Save Changes?";
 
+get_center_of_main_viewport :: () -> ImGui.ImVec2 {
+    using ImGui;
+
+    //ImVec2              GetCenter() const       { return ImVec2(Pos.x + Size.x * 0.5f, Pos.y + Size.y * 0.5f); }
+    viewport := GetMainViewport();
+    center := make_ImVec2(viewport.Pos.x + viewport.Size.x * 0.5, viewport.Pos.y + viewport.Size.y * 0.5);
+    //center := GetCenter(viewport); // this is an ImGui inline function not currently implemented in the bindings.
+    return center;
+}
+
+center_next_window :: () {
+    using ImGui;
+
+    SetNextWindowPos(get_center_of_main_viewport(), .Appearing, make_ImVec2(0.5, 0.5));
+}
+
 save_changes_modal :: () {
     //
     // ask if the user would like to save scene changes, discard them, or cancel.
@@ -1714,13 +1755,7 @@ save_changes_modal :: () {
         
     using ImGui;
 
-    // Always center this window when appearing
-    viewport := GetMainViewport();
-    //ImVec2              GetCenter() const       { return ImVec2(Pos.x + Size.x * 0.5f, Pos.y + Size.y * 0.5f); }
-    center := make_ImVec2(viewport.Pos.x + viewport.Size.x * 0.5, viewport.Pos.y + viewport.Size.y * 0.5);
-    //center := GetCenter(viewport);
-    SetNextWindowPos(center, .Appearing, make_ImVec2(0.5, 0.5));
-
+    center_next_window();
     if BeginPopupModal(SAVE_CHANGES_MODAL_ID, null, .AlwaysAutoResize) {
         defer EndPopup();
 
