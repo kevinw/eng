@@ -1,5 +1,4 @@
 # TODO
-
 - [x] an editor todo window
 - [x] fix mouse in new scene view
 - [x] fix mouse cursors on hover over splitters

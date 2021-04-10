@@ -1466,12 +1466,23 @@ editor_update :: (state: *State) {
             if trs == null continue;
             if drag_state.edge == {
                 case .None;      trs.position.xy = original_pos     + delta;
-                case .East;      trs.scale.x     = original_scale.x + delta.x;
+                case .East;
+                    trs.scale.x     = original_scale.x + delta.x;
+
                 case .South;     trs.scale.y     = original_scale.y + delta.y;
                 case .SouthEast; trs.scale.xy    = original_scale   + delta;
                 case .West;
                     trs.position.x = original_pos.x   + delta.x;
                     trs.scale.x    = original_scale.x - delta.x;
+
+                    // TODO: this is the logic, the kind that needs to go to the other cases, for when the scale would go negative.
+                    // but now i'm starting to wonder if there isn't a simpler data structure for this that unifies all the cases
+                    // into a direction Vector like (1,-1) and a "two points" system where you're moving the points around. I think
+                    // that is probably the way to go here...rect_from_corners probably already exists anyways.
+                    if trs.scale.x < 0 {
+                        trs.scale.x *= -1;
+                        trs.position.x -= trs.scale.x;
+                    }
                 case .North;
                     trs.position.y = original_pos.y   + delta.y;
                     trs.scale.y    = original_scale.y - delta.y;
