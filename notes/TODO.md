@@ -1,11 +1,6 @@
 # TODO
-- [x] an editor todo window
-- [x] fix mouse in new scene view
-- [x] fix mouse cursors on hover over splitters
-- [x] finish UV-from-shader to get corner dragging for rectangles!
 - [ ] fix resize dragging when scale goes negative
-- [ ] move jai-soloud into lib/
-- [ ] clicks on a window over the scene view will fall through to it
+- [ ] Bring sub libraries into the tree. Maybe instead of a sub module we have a python script that downloads the repos and copies the right files into lib/
 
 ## Immediate
 - prototype 2dish uv displacement mapping like Yoku's Island Express?
@@ -47,9 +42,8 @@
 - [coroutines in C](https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html)
 - mark draw-calls with [more debug APIs](https://seanmiddleditch.com/direct3d-11-debug-api-tricks/)
 - try using Matrix4x3 
-- Shader compile should result in a pink shader for fragments, and a passthrough vertex shader for vert
+- Shader compile error should result in a pink shader for fragments, and a passthrough vertex shader for vert
 - Watch videos and read blogs about and take notes on Peek, Roblox, and Dreams editing tools
-- 2 hour timer; procreate doodling
 - Try catching windows touch events and make rotation of entities with two fingers work via iPad remote desktop
 - In the UI, the color field should have a different background color to
   indicate that the prefab is overridden. As a first attempt at implementing
@@ -65,8 +59,6 @@
       memory, so feel free to memcopy them for me?" or getting into weird
       garbage collection territory where we walk the pointers starting from the
       context state?
-- Bring sub libraries into the tree. Maybe instead of a sub module we have a
-  python script that downloads the repos and copies the right files into lib/
 
 ## Low Priority
 - [delta time fix](https://blogs.unity3d.com/2020/10/01/fixing-time-deltatime-in-unity-2020-2-for-smoother-gameplay-what-did-it-take/)

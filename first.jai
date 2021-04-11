@@ -2,7 +2,7 @@
 
 CHECK_PATH :: "check/";
 
-module_search_paths := string.["c:/jai/Modules", "../jai-soloud", "lib", "src"];
+module_search_paths := string.["c:/jai/Modules", "lib", "src"];
 
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);
@@ -46,8 +46,8 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
 
 add_import_paths :: (opts: *Build_Options, paths: []string) {
     new_paths: [..]string;
-    array_add(*new_paths, ..opts.import_path);
     array_add(*new_paths, ..paths);
+    array_add(*new_paths, ..opts.import_path);
     print("import_path: ");
     for paths print("% ", it);
     print("\n");
