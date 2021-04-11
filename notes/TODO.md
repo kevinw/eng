@@ -1,6 +1,7 @@
 # TODO
 - [ ] fix resize dragging when scale goes negative
 - [ ] Bring sub libraries into the tree. Maybe instead of a sub module we have a python script that downloads the repos and copies the right files into lib/
+- [ ] uvs for dragging sprite renderers are off
 
 ## Immediate
 - prototype 2dish uv displacement mapping like Yoku's Island Express?

@@ -815,6 +815,7 @@ show_scene_view :: (open: *bool, in_play_mode := false) {
     if in_play_mode {
         flags |= WindowFlags.NoDecoration;
         SetNextWindowPos(GetMainViewport().Pos);
+        SetNextWindowSize(GetMainViewport().Size);
     }
 
     PushPopStyleVar(.WindowPadding, ImGui.make_ImVec2(0, 0));
