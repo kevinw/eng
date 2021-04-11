@@ -107,6 +107,7 @@ Editor :: struct {
 
     scene_view_rect: rl.Rectangle;
     mouse_is_over_scene_view: bool;
+    mouse_over_scene_view_window: bool;
 
     show_main_menu: bool = false;
 
@@ -677,7 +678,7 @@ render_imgui_to_drawlists :: (state: *State) {
             PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
             DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
-            if editor.mouse_is_over_scene_view && is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
+            if editor.mouse_is_over_scene_view && editor.mouse_over_scene_view_window && is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
                 SetMouseCursor(.ResizeAll);
         }
     }
@@ -819,6 +820,7 @@ show_scene_view :: (open: *bool, in_play_mode := false) {
     PushPopStyleVar(.WindowPadding, ImGui.make_ImVec2(0, 0));
     defer End();
     if !Begin(tprint("Scene View##%\0", in_play_mode).data, open, flags) return;
+    context.state.editor.mouse_over_scene_view_window = IsWindowHovered();
 
     scene_view_tex := *context.state.scene_view.color;
     Image(native_texture_imgui_id(scene_view_tex), make_ImVec2(xx scene_view_tex.width, xx scene_view_tex.height));
@@ -1267,7 +1269,7 @@ editor_update :: (state: *State) {
 
     // Move editor camera with WASD
 
-    if !io.WantTextInput && mouse_is_over_scene_view && is_key_down(.MOUSE_BUTTON_RIGHT) {
+    if !io.WantTextInput && mouse_is_over_scene_view && mouse_over_scene_view_window && is_key_down(.MOUSE_BUTTON_RIGHT) {
         update := false; // camera did move
         {
             // moving with WASD 
@@ -1332,7 +1334,7 @@ editor_update :: (state: *State) {
         }
     }
 
-    if mouse_is_over_scene_view { // don't let imgui clicks come through to this one.
+    if mouse_is_over_scene_view && mouse_over_scene_view_window { // don't let imgui clicks come through to this one.
         {
             // mouse wheel zoom
             if _local_host_state.mouse_delta.z != 0 {
