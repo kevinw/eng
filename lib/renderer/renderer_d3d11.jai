@@ -1362,9 +1362,8 @@ flush_debug_messages :: () -> int {
             debug_message.severity = cast(Debug_Message.Severity)message.Severity;
             debug_message.text     = str;
             debug_message_callback(debug_message);
-        } else {
-            print("%\n", str);
         }
+        print("%\n", str);
 
         shown_message_count += 1;
     }

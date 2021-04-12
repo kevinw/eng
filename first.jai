@@ -16,6 +16,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
     }
 
     w := compiler_create_workspace("build");
+    //defer compiler_destroy_workspace(w);
     {
         compiler_begin_intercept(w);
         defer compiler_end_intercept(w);

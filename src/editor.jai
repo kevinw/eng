@@ -458,8 +458,6 @@ editor_draw_world :: (state: *State) {
             rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
         }
     }
-
-    screenp("im entity: %", context.state.im_context.entity_handle);
 }
 
 editor_draw :: (state: *State) {
@@ -1219,7 +1217,9 @@ get_cursor_for_drag_edge :: (drag_mode: Drag_Edge) -> ImGui.MouseCursor {
 }
 
 get_drag_edge :: (entity_handle: Entity_Handle, uv: Vector2) -> Drag_Edge {
-    scl := get_lossy_scale(entity_handle);
+    //scl := get_lossy_scale(entity_handle);
+    scl := entity_rect(entity_handle).size;
+
     border := v2(4, 4);
     // TODO: need a multiplier with screen space here.
     border = v2(border.x / scl.x, border.y / scl.y);
@@ -1375,7 +1375,9 @@ editor_update :: (state: *State) {
             for hovered_entity_handles() {
                 cursor := get_cursor_for_drag_edge(get_drag_edge(it.handle, it.uv));
                 ImGui.SetMouseCursor(cursor);
-                screenp("cursor % for handle %", cursor, it.handle);
+                screenp("cursor % for uv % with handle handle %", cursor, it.uv, it.handle);
+                rect := entity_rect(it.handle);
+                screenp("  entity_rect: %", rect);
                 break;
             }
         }

@@ -1,7 +1,6 @@
 Texture2D    color_tex         : register(t0);
 SamplerState color_tex_sampler : register(s0);
 
-
 /*
 TODO generate this constants cbuffer from Jai? ...or vice versa?
     - arguments for generating from the shader:
@@ -35,6 +34,7 @@ struct vs_out
 
     uint entity_id:             INSTANCE_ENTITY_ID;             // https://www.braynzarsoft.net/viewtutorial/q16390-33-instancing-with-indexed-primitives
     int  entity_generation:     INSTANCE_ENTITY_GENERATION;
+    float2 mousepick_texcoord:  TEX1;
 };
 
 #ifdef VERT
@@ -59,6 +59,7 @@ struct vs_in
 
     uint entity_id:             INSTANCE_ENTITY_ID;
     int  entity_generation:     INSTANCE_ENTITY_GENERATION;
+    float2 mousepick_texcoord:  TEX1;
 };
 
 vs_out vs_main(vs_in input) {
@@ -84,6 +85,7 @@ vs_out vs_main(vs_in input) {
 
     output.entity_id = input.entity_id;
     output.entity_generation = input.entity_generation;
+    output.mousepick_texcoord = input.mousepick_texcoord;
 
     return output;
 }
@@ -115,8 +117,8 @@ float4 ps_main(vs_out input): SV_TARGET {
         ObjectIDInfo obj;
         obj.entity_id         = input.entity_id;
         obj.entity_generation = input.entity_generation;
-        obj.depth             = input.position.z;
-        obj.uv                = input.texcoord;
+        obj.depth             = input.position.z; // should probably be calculated depth? relative to the camera?
+        obj.uv                = input.mousepick_texcoord;
         pick_objects.Append(obj);
     }
 #endif

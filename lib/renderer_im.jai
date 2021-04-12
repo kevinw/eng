@@ -145,16 +145,15 @@ im_draw_quad :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, 
     im_set_primitive(ctx, 3);
     im_ensure_space_for(ctx, 6, 4);
 
-    v0 := im_vertex(ctx, p0, t0, c);
-    v1 := im_vertex(ctx, p1, t1, c);
-    v2 := im_vertex(ctx, p2, t2, c);
-    v3 := im_vertex(ctx, p3, t3, c);
+    v0 := im_vertex(ctx, p0, t0, c, mousepick_index = 0);
+    v1 := im_vertex(ctx, p1, t1, c, mousepick_index = 1);
+    v2 := im_vertex(ctx, p2, t2, c, mousepick_index = 2);
+    v3 := im_vertex(ctx, p3, t3, c, mousepick_index = 3);
 
     im_indices(ctx, v0, v1, v2, v2, v0, v3);
 }
 
 im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0 := Vector2.{0, 0}, t1 := Vector2.{1, 1}, c := Vector4.{1, 0, 0, 1}) {
-
     /*draw_cmd := *draw_array[draw_array.count - 1];
 
     // Cull quad against clip rect. @@ Not sure how this interacts with the scale/offset. In what space is clip_rect?
@@ -255,7 +254,15 @@ im_indices :: (using ctx: *Im_Context, indices: ..u16) {
     draw_cmd.index_count += xx indices.count;
 }
 
-im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4) -> u16 {
+mousepick_texcoords :: Vector2.[
+    .{0, 0},
+    .{0, 1},
+    .{1, 1},
+    .{1, 0}
+];
+
+
+im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4, mousepick_index := 0) -> u16 {
     assert(vertex_array.count < vertex_array.allocated);
 
     v := inline array_add(*vertex_array);
@@ -263,9 +270,9 @@ im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4) -> u16
     v.pos.z = current_depth_z;
     v.tex = t;
     v.col = c;
-
     v.entity_id = entity_handle.id;
     v.entity_generation = entity_handle.generation;
+    v.mousepick_texcoord = mousepick_texcoords[mousepick_index];
 
     return cast(u16) (vertex_array.count - 1);
 }
@@ -323,8 +330,9 @@ Im_Vertex :: struct {
     instance_id: u32;
 
     // TODO: just use these in the editor only!
-    entity_id:         u32;
-    entity_generation: s32;
+    entity_id:          u32;
+    entity_generation:  s32;
+    mousepick_texcoord: Vector2;
 }
 
 

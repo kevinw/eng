@@ -329,17 +329,17 @@ DrawRectangleGradientEx :: (rec: Rectangle, col1: Color, col2: Color, col3: Colo
     p2 := v2(rec.x + rec.width, rec.y + rec.height);
     p3 := v2(rec.x + rec.width, rec.y);
 
-    t0 := v2(0, 0);
-    t1 := v2(0, 1);
-    t2 := v2(1, 1);
-    t3 := v2(1, 0);
+    t0 := Vector2.{0, 0};
+    t1 := Vector2.{0, 1};
+    t2 := Vector2.{1, 1};
+    t3 := Vector2.{1, 0};
 
     im_push_z(_ctx, depth_z);
     im_set_texture(_ctx, null);
-    vt0 := im_vertex(_ctx, p0, t0, ColorToNormalized(col1));
-    vt1 := im_vertex(_ctx, p1, t1, ColorToNormalized(col2));
-    vt2 := im_vertex(_ctx, p2, t2, ColorToNormalized(col3));
-    vt3 := im_vertex(_ctx, p3, t3, ColorToNormalized(col4));
+    vt0 := im_vertex(_ctx, p0, t0, ColorToNormalized(col1), mousepick_index=0);
+    vt1 := im_vertex(_ctx, p1, t1, ColorToNormalized(col2), mousepick_index=1);
+    vt2 := im_vertex(_ctx, p2, t2, ColorToNormalized(col3), mousepick_index=2);
+    vt3 := im_vertex(_ctx, p3, t3, ColorToNormalized(col4), mousepick_index=3);
     im_indices(_ctx, vt0, vt1, vt2, vt2, vt0, vt3);
 }
 
