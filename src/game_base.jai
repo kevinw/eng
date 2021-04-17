@@ -208,7 +208,16 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
     // default pass for main monitor
     {
         push_renderer_context(*context.state.renderer, "main monitor");
-        push_value(*current_im_camera, *editor.scene_camera);
+
+        // pick the camera depending on if we're in play mode or edit mode
+        camera: *Camera;
+        game_camera := get_main_camera();
+        if editor.play_mode == .Play && game_camera
+            camera = *game_camera.camera;
+        else
+            camera = *editor.scene_camera;
+
+        push_value(*current_im_camera, camera);
         {
             scene_view_sz := get_scene_view_size();
             if scene_view_sz != scene_view.color.size && 

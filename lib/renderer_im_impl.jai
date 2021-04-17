@@ -91,6 +91,7 @@ renderer_Im_Draw_Callback :: (im_ctx: *Im_Context, indices: [] u16, vertices: []
             projModifier = 0;
         } else {
             cam := context.state.current_im_camera;
+            assert(cam != null, "current_im_camera cannot be null");
             holoplay_capture := context.state.current_im_holoplay_capture;
 
             calc_matrices(cam);
