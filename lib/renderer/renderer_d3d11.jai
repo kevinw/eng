@@ -618,8 +618,9 @@ begin_pass :: (pass: *Pass, clear_color: *Vector4 = null) {
             check_result(renderer.device.CreateDepthStencilView(
                 cast(*ID3D11Device)renderer.device, cast(*ID3D11Resource)pass.depth.texture2D, null, *pass.depth_buffer_view));
             pass.depth_buffer_view_created_for = pass.depth.texture2D;
-            #if DEBUG_NAMES
-                set_debug_name(pass.frame_buffer_view, "DepthStencilView for pass '%'", pass.label);
+            // crashing...
+            //#if DEBUG_NAMES
+                //set_debug_name(pass.depth_buffer_view, "DepthStencilView for pass '%'", pass.label);
         }
         framebuffers.data = *pass.frame_buffer_view;
         framebuffers.count = 1;
