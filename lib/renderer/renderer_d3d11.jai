@@ -1444,6 +1444,7 @@ Profiler :: struct(T: Type) {
 }
 
 init_profiler :: (using profiler: *Profiler($T)) -> bool {
+init_profiler :: (using profiler: *Profiler) -> bool {
     r = assert_state();
     frame_collect = 1 - NUM_FRAMES;
 
@@ -1475,6 +1476,7 @@ init_profiler :: (using profiler: *Profiler($T)) -> bool {
 }
 
 begin_frame :: (using profiler: *Profiler($T)) {
+begin_frame :: (using profiler: *Profiler) {
     profiler_asserts(profiler);
     r.device_context1.Begin(xx r.device_context1, xx disjoint_query[frame_query]);
 	timestamp(profiler, Event.BeginFrame);
@@ -1486,6 +1488,7 @@ timestamp :: (using profiler: *Profiler($T), event: T) {
 }
 
 profiler_asserts :: inline (using profiler: *Profiler($T)) {
+profiler_asserts :: inline (using profiler: *Profiler) {
     assert(profiler != null);
     assert(profiler.r != null);
     assert(frame_query >= 0 && frame_query < NUM_FRAMES);
@@ -1493,6 +1496,7 @@ profiler_asserts :: inline (using profiler: *Profiler($T)) {
 }
 
 end_frame :: (using profiler: *Profiler($T)) {
+end_frame :: (using profiler: *Profiler) {
     profiler_asserts(profiler);
 	timestamp(profiler, Event.EndFrame);
 	r.device_context1.End(xx r.device_context1, xx disjoint_query[frame_query]);
@@ -1502,7 +1506,7 @@ end_frame :: (using profiler: *Profiler($T)) {
         frame_query = 0;
 }
 
-shutdown_profiler :: (using profiler: *Profiler($T)) {
+shutdown_profiler :: (using profiler: *Profiler) {
     for frame: 0..1
         Release(disjoint_query[frame]);
 
@@ -1511,7 +1515,7 @@ shutdown_profiler :: (using profiler: *Profiler($T)) {
             Release(query[value][frame]);
 }
 
-wait_for_data_and_update :: (using profiler: *Profiler($T)) {
+wait_for_data_and_update :: (using profiler: *Profiler) {
 	if frame_collect < 0 {
 		// Haven't run enough frames yet to have data
 		frame_collect += 1;
