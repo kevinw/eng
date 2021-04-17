@@ -1443,7 +1443,6 @@ Profiler :: struct(T: Type) {
     averaging_begin_time:    float;              // Time at which current averaging period started
 }
 
-init_profiler :: (using profiler: *Profiler($T)) -> bool {
 init_profiler :: (using profiler: *Profiler) -> bool {
     r = assert_state();
     frame_collect = 1 - NUM_FRAMES;
@@ -1475,19 +1474,17 @@ init_profiler :: (using profiler: *Profiler) -> bool {
 	return true;
 }
 
-begin_frame :: (using profiler: *Profiler($T)) {
 begin_frame :: (using profiler: *Profiler) {
     profiler_asserts(profiler);
     r.device_context1.Begin(xx r.device_context1, xx disjoint_query[frame_query]);
 	timestamp(profiler, Event.BeginFrame);
 }
 
-timestamp :: (using profiler: *Profiler($T), event: T) {
+timestamp :: (using profiler: *Profiler, event: $E) { // @CompilerBug 54
     profiler_asserts(profiler);
 	r.device_context1.End(xx r.device_context1, xx query[event][frame_query]);
 }
 
-profiler_asserts :: inline (using profiler: *Profiler($T)) {
 profiler_asserts :: inline (using profiler: *Profiler) {
     assert(profiler != null);
     assert(profiler.r != null);
@@ -1495,7 +1492,6 @@ profiler_asserts :: inline (using profiler: *Profiler) {
     assert(profiler.disjoint_query[frame_query] != null);
 }
 
-end_frame :: (using profiler: *Profiler($T)) {
 end_frame :: (using profiler: *Profiler) {
     profiler_asserts(profiler);
 	timestamp(profiler, Event.EndFrame);
