@@ -1,7 +1,4 @@
-*.exe
-*.dll
 *.pdb
-*.lib
 *.exp
 .build/
 .vs/
@@ -12,3 +9,6 @@ temp/
 setup.cfg
 imgui.ini
 gui.cfg
+d3d_game.dll
+d3d_game.lib
+game_dev.exe
