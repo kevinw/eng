@@ -163,17 +163,6 @@ game_base_draw_compile_error :: () {
     rl.DrawRectangleLinesEx(rect, outline_width, color);
 }
 
-tstamp :: (p: *Profiler, event: Profiler_Timestamps) { // @CompilerBug 54
-    // in renderer_d3d11.jai the "timestamp" method used to be allowed to have
-    // a signature like
-
-    // timestamp :: (using profiler: *Profiler(T), event: T)
-
-    // which makes this passthrough message irrelevant
-
-    timestamp(p, event);
-}
-
 game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
     using context.state;
 
@@ -203,17 +192,17 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
             // render quilt
             push_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
             _draw_world();
-            tstamp(*profiler, .MultiviewWorldRender);
+            timestamp(*profiler, .MultiviewWorldRender);
         }
 
         begin_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
         draw_lenticular_lightfield_to_backbuffer();
         end_pass();
         present();
-        tstamp(*profiler, .LenticularBlit);
+        timestamp(*profiler, .LenticularBlit);
     } else {
-        tstamp(*profiler, .MultiviewWorldRender);
-        tstamp(*profiler, .LenticularBlit);
+        timestamp(*profiler, .MultiviewWorldRender);
+        timestamp(*profiler, .LenticularBlit);
     }
 
     // default pass for main monitor
@@ -247,7 +236,7 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
             {
                 push_value(*im.track_mouse, true);
                 _draw_world();
-                tstamp(*profiler, .EditorWorldRender);
+                timestamp(*profiler, .EditorWorldRender);
             }
 
             im_set_texture(im, null);
@@ -259,7 +248,7 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
             physics_2d_draw_debug();
             editor_draw_world(context.state);
             im_flush(im);
-            tstamp(*profiler, .EditorUI);
+            timestamp(*profiler, .EditorUI);
         }
 
         {

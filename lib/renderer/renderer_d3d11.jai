@@ -1480,7 +1480,7 @@ begin_frame :: (using profiler: *Profiler) {
 	timestamp(profiler, Event.BeginFrame);
 }
 
-timestamp :: (using profiler: *Profiler, event: $E) { // @CompilerBug 54
+timestamp :: (using profiler: *Profiler($E), event: E) {
     profiler_asserts(profiler);
 	r.device_context1.End(xx r.device_context1, xx query[event][frame_query]);
 }
