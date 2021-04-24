@@ -146,7 +146,7 @@ draw :: (using it: *SpriteRenderer, transform: *Transform) {
                     ok, entity_ptr := get_entity(it.entity);
                     assert(ok);
                     
-                    print("Warning: sprite_anim._current_frame % has a null texture\n", entity_ptr.name);
+                    //print("Warning: sprite_anim._current_frame % has a null texture\n", entity_ptr.name);
                 }
             case .NineSlice;
                 npatch_info: rl.NPatchInfo;
