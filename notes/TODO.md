@@ -1,12 +1,12 @@
 # TODO
+- [ ] make an overlay with the portrait dimensions
 - [ ] fix resize dragging when scale goes negative
-- [ ] Bring sub libraries into the tree. Maybe instead of a sub module we have a python script that downloads the repos and copies the right files into lib/
 - [ ] uvs for dragging sprite renderers are off
+- prototype an editor list that shows what is on camera at the moment. deprecate the hierarchy window
 
 ## Immediate
 - prototype 2dish uv displacement mapping like Yoku's Island Express?
 - compute shaders https://youtu.be/0DLOJPSxJEg
-- research houdini api
 - http://alextardif.com/Antialiasing.html
 - https://www.youtube.com/watch?v=yG4ChOPyC-4
 - https://rosenzweig.io/blog/asahi-gpu-part-2.html
@@ -27,7 +27,7 @@
 - [forward+ renderer](https://github.com/bcrusco/Forward-Plus-Renderer/tree/master/Forward-Plus/Forward-Plus/source/shaders)
 
 ## High Priority
-- live reload DLL can crash if I save a jai change while another is building. we need a "is building" flag or something
+- live reload DLL can crash if I save a jai change while another is building. We need an "is building" flag or something
 - Materials
 - Depth of field
     - Second: visualize intermediate textures easily with a single log call
@@ -85,6 +85,8 @@
 
 
 ## Research
+- houdini api
+- animation compression libraries like https://github.com/nfrechette/acl
 - [guide to implementing 2d platformers](http://higherorderfun.com/blog/2012/05/20/the-guide-to-implementing-2d-platformers/)
 - [gorgeous top down visuals](https://twitter.com/HiWarp/status/1356809034213564416)
 - Research binary pack formats; C libraries that do virtual file systems
