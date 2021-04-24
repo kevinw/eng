@@ -10,7 +10,7 @@
 #import "Input";
 #import "DPI";
 
-File            :: #import "File";
+#import "File";
 String          :: #import "String";
 Debug           :: #import "Debug";
 Plugin          :: #import "plugin";
@@ -375,7 +375,7 @@ main :: () {
             window_resize_record.width, window_resize_record.height);
 
         s := builder_to_string(*builder, __temporary_allocator);
-        File.write_entire_file(host_config_name, s);
+        write_entire_file(host_config_name, s);
     }
 
     plugin_deinit(shutting_down = true);

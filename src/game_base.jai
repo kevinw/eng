@@ -541,3 +541,5 @@ File :: #import "File";
 config :: #import "config";
 
 multiview_window :: #import "multiview_window";
+#import "Window_Type";
+

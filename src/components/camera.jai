@@ -48,17 +48,41 @@ update :: (cam_follow: *Cam_Follow, cam: *Cam) {
     if !target_transform
         return;
 
+    target_pos := target_transform.position.xy;
+
     if cam_follow.mode == {
         case .Smooth;
-            diff := target_transform.position.xy - transform.position.xy;
+            diff := target_pos - transform.position.xy;
             len  := length(diff);
             if len > minEffectLength {
                 speed := max(fractionSpeed * len, minSpeed);
                 transform.position.xy += Vector2Scale(diff, speed * context.state.Time.delta_time / len);
             }
         case .Center;
-            transform.position.xy = target_transform.position.xy;
+            transform.position.xy = target_pos;
     } 
+
+    //
+    // do the static camera per room thing
+    //
+    {
+
+        //world_screen_width := 
+        screenp("%", target_pos);
+        WIDTH :: 400.0;
+        HALF_SCREEN_WIDTH :: WIDTH * 0.5;
+        transform.position.x = cast(int)((target_pos.x + HALF_SCREEN_WIDTH) / WIDTH) * WIDTH;
+
+        ASPECT :: 9.0 / 16.0;
+        HEIGHT :: WIDTH / ASPECT;
+        HALF_SCREEN_HEIGHT :: HEIGHT * 0.5;
+        OFFSET :: 200.0;
+        transform.position.y = cast(int)((target_pos.y - OFFSET + HALF_SCREEN_HEIGHT) / HEIGHT) * HEIGHT + OFFSET;
+
+        // vary based on player pos
+        transform.position.x += target_pos.x * 0.05;
+    }
+
 
     cam.camera.position = transform.position;
     cam.camera.rotation = transform.rotation;

@@ -46,7 +46,7 @@ _do_recompile :: (t: *Thread) -> s64 {
     //free(host_state.jai_compiler_error_string);
     host_state.jai_compiler_error_string = sprint("% %", output_string, error_string);
 
-    File.write_entire_file(".compiler_errors", output_string);
+    write_entire_file(".compiler_errors", output_string);
 
     return exit_code;
 }
