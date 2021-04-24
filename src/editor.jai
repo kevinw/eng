@@ -650,6 +650,7 @@ render_imgui_to_drawlists :: (state: *State) {
         }
     }
 
+    defer draw_lkg_aspect_overlay(GetForegroundDrawList());
     if state.editor.play_mode == .Play {
         show_scene_view(*context.state.editor.windows.scene_view, in_play_mode=true);
         return;
@@ -713,6 +714,33 @@ render_imgui_to_drawlists :: (state: *State) {
     //inspect("", *context.state.editor);
 
     save_changes_modal();
+}
+
+draw_lkg_aspect_overlay :: (draw_list: *ImGui.ImDrawList) {
+    using context.state.editor;
+    using ImGui;
+
+    LKG_ASP :: 0.75;
+
+    asp := cast(float)scene_view_rect.width / cast(float)scene_view_rect.height;
+
+    p1, p2: ImVec2;
+    if asp > LKG_ASP {
+        // center a rectangle in the sceneview rect, but with the aspect
+        // ratio of the looking glass
+        p1.y = scene_view_rect.y;
+        p2.y = scene_view_rect.height + scene_view_rect.y;
+
+        center_x := scene_view_rect.x + scene_view_rect.width*0.5;
+        w2 := scene_view_rect.height * LKG_ASP * 0.5;
+
+        p1.x = center_x - w2;
+        p2.x = center_x + w2;
+    } else {
+        // TODO
+    }
+
+    draw_list.AddRect(draw_list, p1, p2, make_col32(make_ImVec4(0.2, 0.2, 0.2, 0.5)), rounding=20);
 }
 
 show_menubar :: () {

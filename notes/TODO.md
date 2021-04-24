@@ -1,5 +1,5 @@
 # TODO
-- [ ] make an overlay with the portrait dimensions
+- [x] make an overlay with the portrait dimensions
 - [ ] fix resize dragging when scale goes negative
 - [ ] uvs for dragging sprite renderers are off
 - prototype an editor list that shows what is on camera at the moment. deprecate the hierarchy window
