@@ -136,6 +136,8 @@ Editor :: struct {
         todo := true;
     };
 
+    inspector_has_focus: bool;
+
     todos: Todos_State;
 }
 
@@ -1828,16 +1830,8 @@ draw_inspector :: (open: *bool) {
     using context.state.editor;
     using ImGui;
 
-    defer End();
-    if !Begin("Inspector", open)
-        return;
-
     entity: *Entity;
     entity_handle: Entity_Handle;
-    if selected.count > 1 {
-        Text("Multiple objects are selected.");
-        return;
-    }
 
     ok: bool;
     if selected.count == {
@@ -1846,6 +1840,23 @@ draw_inspector :: (open: *bool) {
         case 1;
             entity_handle = selected[0].handle;
             ok, entity = get_entity(entity_handle);
+    }
+
+    defer End();
+
+    pushed_alpha := false;
+    if selected.count == 0 && !inspector_has_focus {
+        PushStyleVar(.Alpha, 0.2);
+        pushed_alpha = true;
+    }
+    if !Begin("Inspector", open)
+        return;
+    inspector_has_focus = IsWindowFocused();
+    if pushed_alpha PopStyleVar();
+
+    if selected.count > 1 {
+        Text("Multiple objects are selected.");
+        return;
     }
 
     classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
