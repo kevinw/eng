@@ -212,7 +212,7 @@ _copy_file :: (src: string, dest: string) -> bool {
     res := CopyFileW(utf8_to_wide(src), utf8_to_wide(dest), fail_if_exists);
     if res == 0 {
         err := GetLastError();
-        if err log_error("CopyFileW(src='%', dest='%', fail_if_exists=%) --- GetLastError() returned %", src, dest, err);
+        if err log_error("CopyFileW(src='%', dest='%', fail_if_exists=%) --- GetLastError() returned %", src, dest, fail_if_exists, err);
     }
 
     return 0 != res;
