@@ -116,6 +116,7 @@ Editor :: struct {
         demo           := false;
         entities       := true;
         assets         := true;
+        new_assets     := true;
         screenlog      := true;
         undo_internals := false;
         prefab_cache   := false;
@@ -483,13 +484,10 @@ set_asset_selector_visible :: (live_shader_ptr: **Shader) {
 ASSET_SELECTOR_WINDOW_NAME :: "Assets##Selector";
 
 render_asset_selector :: (window_open: *bool) {
+    BeginEnd_return(ASSET_SELECTOR_WINDOW_NAME, window_open);
+
     using ImGui;
-
-    defer End();
-    if !Begin(ASSET_SELECTOR_WINDOW_NAME, window_open) return;
-
     using context.state.editor.windows.asset_selector;
-
     TextFilter.Draw(*filter, "##asset selector filter text");
 
     assets: [..]*Asset;
@@ -701,6 +699,7 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
     
     if windows.undo_internals show_undo_internals(*windows.undo_internals);
+    if windows.new_assets show_new_assets_window(*windows.new_assets);
     if windows.assets show_assets_window(*windows.assets);
     if windows.entities show_entities_window(*windows.entities);
     if windows.inspector draw_inspector(*windows.inspector);
@@ -788,9 +787,7 @@ align_all_selected_objects_with_scene_view :: () {
 show_todo_window :: (open: *bool) {
     using ImGui;
 
-    defer End();
-    if !Begin("TODO", open) return;
-
+    BeginEnd_return("TODO", open);
     TextUnformatted("TODO");
     Separator();
 
@@ -872,9 +869,7 @@ show_profiler_window :: (open: *bool) {
     using context.state;
     using ImGui;
     
-    defer End();
-    if !Begin("Profiler", open) return;
-
+    BeginEnd_return("Profiler", open);
     if profiler_text.count > 0
         TextUnformatted(profiler_text);
     else
@@ -885,21 +880,25 @@ show_gamepad_window :: (open: *bool) {
     using context.state;
     using ImGui;
 
-    defer End();
-    if !Begin("Gamepad", open) return;
-
+    BeginEnd_return("Gamepad", open);
     Gamepad :: #import "Gamepad";
-
     inspect("", *Gamepad.gamepad);
+}
+
+show_new_assets_window :: (open: *bool) {
+    using ImGui;
+
+    BeginEnd_return("Assets", open);
+    if ButtonEx("Reimport All") {
+        Assets.reimport_all();
+    }
 }
 
 show_assets_window :: (open: *bool) {
     using context.state;
     using ImGui;
 
-    defer End();
-    if !Begin("assets", open) return;
-
+    BeginEnd_return("old assets", open);
     for * editor.assets {
         assert(it != null);
         PushPopID(it);
@@ -976,9 +975,7 @@ show_undo_internals :: (open: *bool) {
     using context.state.editor;
     using ImGui;
 
-    defer End();
-    if !Begin("Undo", open) return;
-
+    BeginEnd_return("Undo", open);
     if ButtonEx("Undo", enabled=Undo.can_undo(*undo_state))
         Undo.undo(*undo_state);
 
@@ -995,10 +992,7 @@ show_entities_window :: (open: *bool) {
     using ImGui;
     using context.state;
 
-    defer End();
-    if !Begin("Entities", open)
-        return;
-
+    BeginEnd_return("Entities", open);
     PushFont(ui.small_font);
     if Button("New") {
         PopFont();
@@ -2174,3 +2168,5 @@ temp_c_string :: (s: string) -> *u8 {
     return result;
 }
 
+#scope_file
+Assets :: #import "assets";

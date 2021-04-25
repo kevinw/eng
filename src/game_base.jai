@@ -9,6 +9,8 @@ State_Base :: struct {
 
     canary1 := 9999;
 
+    assets_db: Assets.State;
+
     renderer:      Renderer;
     im_context:    Im_Context_R;
     multiview:     Multiview_State;
@@ -74,6 +76,8 @@ game_base_shutdown :: () {
     world_deinit(world);
     sound_deinit(*sound_state);
     multiview_window.close();
+
+    Assets.shutdown();
 }
 
 game_base_update :: (host_state: Host_State) {
@@ -266,6 +270,8 @@ game_base_init :: (host_state: Host_State) {
     using context.state;
 
     world = *main_world;
+
+    Assets.init();
 
     init(*renderer, host_state.window_handle, debug = GRAPHICS_LAYER_DEBUG);
     array_add(*all_renderers, *renderer);
@@ -542,4 +548,4 @@ config :: #import "config";
 
 multiview_window :: #import "multiview_window";
 #import "Window_Type";
-
+Assets :: #import "assets";

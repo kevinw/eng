@@ -47,3 +47,10 @@ PushPopTextWrapPos :: (size: float) #expand {
     ImGui.PushTextWrapPos(size);
     `defer ImGui.PopTextWrapPos();
 }
+
+BeginEnd_return :: (name: string, open: *bool) #expand {
+    `defer ImGui.End();
+    if !ImGui.Begin(name, open)
+        `return;
+}
+
