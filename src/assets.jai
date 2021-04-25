@@ -1,43 +1,70 @@
+State :: struct {
+    did_init := false;
+    thread_group: Thread_Group;
+}
+
+Asset_Task :: struct {
+    input_filename: string;
+    output_filename: string;
+}
+
+init :: () { using state();
+    if did_init return;
+    did_init = true;
+
+    num_cpus := get_number_of_processors();
+    assert(num_cpus >= 1);
+    if num_cpus > 200  num_cpus = 200;  // Clamp to a value that is reasonable as of 2021, in case we get weird data.
+    #if (OS == .WINDOWS) || (OS == .LINUX) {
+        // This routine reports hyperthreads, so, divide by two, because of Intel marketing.
+        num_cpus /= 2;
+    }
+    num_threads := max(num_cpus - 1, 1);
+    my_logger :: (message: string, data: *void, info: Log_Info) {
+        print("[thread_group] %", message);
+    }
+    old_logger := context.logger;
+    context.logger = my_logger;
+    log("This machine reports % CPUs; starting % threads.\n", num_cpus, num_threads);
+
+    init(*thread_group, num_threads, asset_thread_group_proc);
+    context.logger = old_logger;
+    thread_group.name = "Assets Thread Group";
+    thread_group.logging = true;
+    for * thread_group.worker_info
+        it.thread.data = state();
+
+    start(*thread_group);
+}
+
+shutdown :: () {
+    using state();
+    shutdown(*thread_group);
+}
+
+reimport_all :: () { using state();
+    assert(did_init);
+
+    work := New(Asset_Task);
+    work.input_filename = "assets/textures/pg/Ground/Ground037_1K_AmbientOcclusion.jpg";
+    add_work(*thread_group, work, logging_name="test work item");
+}
+
 #scope_file
+
+asset_thread_group_proc :: (group: *Thread_Group, thread: *Thread, work: *void) -> Thread_Continue_Status {
+    task := cast(*Asset_Task)work;
+    print("thread %: has task %\n", thread, task.input_filename);
+
+    return .CONTINUE;
+}
+
+state :: inline () -> *State { return *context.state.assets_db; }
 
 #import "Thread";
 #import "Basic";
 
-
-Asset_Pipeline :: struct {
-}
-
-asset_thread_proc :: (thread: *Thread) -> s64 {
-    //print("in asset thread!\n");
-    count := 0;
-    while true {
-        Windows :: #import "Windows"; // for Sleep
-        Windows.Sleep(1000);
-        print("asset tick %\n", count);
-        count += 1;
-        tick_single_threaded();
-    }
-    return 0;
-}
-
 #scope_module
-
-asset_thread: *Thread;
-
-tick_single_threaded :: () {
-    // TODO: debug the asset pipeline with a cooperative-multitasking
-    // mode that runs every tick on the main thread.
-}
-
-start_thread :: () {
-    asset_thread = New(Thread);
-    thread_init(asset_thread, asset_thread_proc);
-    thread_start(asset_thread);
-}
-
-stop_thread :: () {
-
-}
 
 longest_common_prefix :: (strings: []string) -> string {
     max_count := 0;
@@ -163,7 +190,7 @@ auto_materials :: () -> []Material_Asset {
     }
 
     visit_ctx: Visit_Ctx;
-    visit_files(".\\resources\\textures\\pg", recursive=false, *visit_ctx, dir_visitor, visit_directories=true, visit_files=false);
+    visit_files(".\\assets\\textures\\pg", recursive=false, *visit_ctx, dir_visitor, visit_directories=true, visit_files=false);
 
     return visit_ctx.materials;
 }
@@ -201,6 +228,26 @@ check_meta_files :: (path: string) {
     visit_files(path, recursive=true, user_data=*ctx, proc=visit_func, visit_directories=true);
 }
 
+create_basis_file :: (input_filename: string, output_filename: string) {
+    path_to_basisu := "lib/basis_universal/bin/basisu.exe";
+    launched, exit_code, stdout, stderr := os_run_command(path_to_basisu, capture_and_return_output=true);
+    if stdout
+        print("output: %\n", stdout);
+    if stderr
+        print("stderr: %\n", stderr);
+
+}
+
+
+tick :: () {
+    results := get_completed_work(*thread_group);
+    for results {
+    }
+}
+
+
+#scope_file
+
 main :: () {
     {
         using context.print_style.default_format_struct;
@@ -209,7 +256,7 @@ main :: () {
         use_newlines_if_long_form = true;
     }
 
-    check_meta_files(".\\resources\\");
+    check_meta_files(".\\assets\\");
 
     materials := auto_materials();
 
@@ -221,10 +268,12 @@ main :: () {
     print("guids:\n%\n%\n%\n", gen_guid(), gen_guid(), gen_guid());
 }
 
-#scope_file
+
 #import "guid";
 
 #import "File_Utilities";
 File :: #import "File";
 #import "String";
 wbml :: #import "wbml";
+#import "System";
+#import "Thread";
