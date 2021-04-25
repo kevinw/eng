@@ -72,7 +72,7 @@ screen_print :: (message: string, ident := "", loc := #caller_location) {
 context_func :: (message: string, logger_data: *void, log_info: Log_Info) {
     ident := "";
     assert(message.count < MAX_COUNT, "expected a screenlog message with a reasonable count, got %", message.count);
-    assert(context.logger_data != null);
+    assert(context.logger_data != null, "screenlog's context.logger_data cannot be null");
     using cast(*Logger_State)context.logger_data;
     assert(canary == EXPECTED_CANARY_VALUE);
     
