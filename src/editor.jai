@@ -1561,6 +1561,9 @@ editor_update :: (state: *State) {
             // Save the scene under the same name.
             save_scene();
         }
+        if rl.IsKeyPressed(.KEY_I) && ctrl_down {
+            Assets.reimport_all();
+        }
     }
 
     if ctrl_down && rl.IsKeyPressed(.KEY_N) {
