@@ -130,7 +130,7 @@ parse_commandline_arguments :: () {
     }
 }
 
-UNHOOK_ALWAYS_ON_TOP_DURING_CRASH :: false;
+UNHOOK_ALWAYS_ON_TOP_DURING_CRASH :: true;
 _unhooking_always_on_top := false;
 
 #if OS == .WINDOWS {

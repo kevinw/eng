@@ -1,4 +1,6 @@
 # TODO
+- [ ] make the context assert handler remove the always on top bit
+
 - some thinking about assets...we have a case where WBML files get loaded for
   "prefabs." should they should ALSO become content-addressable hashed
   artifacts in the .library/ folder? it would be good to have them go through
