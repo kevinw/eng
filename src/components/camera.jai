@@ -65,7 +65,7 @@ update :: (cam_follow: *Cam_Follow, cam: *Cam) {
     //
     // do the static camera per room thing
     //
-    {
+    if 0 {
 
         //world_screen_width := 
         screenp("%", target_pos);
