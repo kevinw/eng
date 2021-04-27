@@ -3,6 +3,7 @@
 .build/
 .vs/
 .history/
+.library/
 temp/
 .compiler_errors
 
