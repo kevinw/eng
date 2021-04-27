@@ -4,7 +4,7 @@
     state :: inline () -> *State { return *context.state.assets_db; }
 } else {
     _module_state: State;
-    state :: inline () -> *State { return _module_state; }
+    state :: inline () -> *State { return *_module_state; }
 }
 
 State :: struct {
@@ -40,6 +40,9 @@ init :: () { using state();
     if did_init return;
     did_init = true;
 
+    File.make_directory_if_it_does_not_exist(".library");
+    File.make_directory_if_it_does_not_exist(".library/content");
+
     test();
 
     num_cpus := get_number_of_processors();
@@ -58,18 +61,21 @@ init :: () { using state();
     log("This machine reports % CPUs; starting % threads.\n", num_cpus, num_threads);
 
     init(*thread_group, num_threads, asset_thread_group_proc);
-    context.logger = old_logger;
     thread_group.name = "Assets Thread Group";
     thread_group.logging = true;
     for * thread_group.worker_info
         it.thread.data = state();
 
     start(*thread_group);
+    context.logger = old_logger;
 }
 
 tick :: () {
+    using state();
+
     results := get_completed_work(*thread_group);
     for results {
+        print("completed result: %\n", it);
     }
 }
 shutdown :: () {
@@ -238,15 +244,35 @@ test :: () {
     assert(v == v2);
 }
 
+path_for_content_hash :: (hash_val: Asset_Hash) -> string {
+
+    hash_str := tstring(hash_val);
+    assert(hash_str.count == 32);
+
+    dir_part := tprint(".library/content/%", slice(hash_str, 0, 2));
+    File.make_directory_if_it_does_not_exist(dir_part);
+
+    return tprint("%/%", dir_part, hash_str);
+}
+
 asset_thread_group_proc :: (group: *Thread_Group, thread: *Thread, work: *void) -> Thread_Continue_Status {
     task := cast(*Asset_Task)work;
     print("thread %: has task %\n", thread, task.input_filename);
 
     temp_file := get_temporary_filename();
     ok := create_basis_file(task.input_filename, temp_file);
+    // TODO check file_length > 0
     assert(ok, "error creating basis texture file for '%'", task.input_filename);
     hash_val := hash_file_contents(temp_file);
     print("got hash % (%) for file %\n", hash_val, tstring(hash_val), temp_file);
+
+    content_path := path_for_content_hash(hash_val);
+    File.file_delete(content_path);
+    if !File.file_move(temp_file, content_path) {
+        log_error("ERROR: could not move generated asset content into path: %", content_path);
+        return .CONTINUE;
+    }
+
     return .CONTINUE;
 }
 
