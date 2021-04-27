@@ -42,6 +42,12 @@ on_host_init :: (host_state: Host_State) {
         player := add_component(entity1_handle, Player);
         assert(find_component(Player) == player);
         assert(player.editor_rect != null, "Player.on_enable should have set the player's editor_rect pointer--was on_enable called?");
+
+        did_remove := remove_component(player);
+        assert(did_remove);
+
+        did_remove_again := remove_component(player);
+        assert(!did_remove_again);
     }
 
     load_scene(1);

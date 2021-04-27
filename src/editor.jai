@@ -1902,7 +1902,14 @@ draw_inspector :: (open: *bool) {
         return;
     }
 
-    component_ptr_to_delete: *Component;
+    Popup_Context :: struct {
+        component_ptr: *Component;
+        component_ti: *Type_Info_Struct;
+
+        component_ptr_to_delete: *Component;
+    }
+    popup_ctx: Popup_Context;
+
     for entity.components {
         component_ti := component_bit_to_ti(it.bit);
         assert(component_ti != null);
@@ -1910,18 +1917,24 @@ draw_inspector :: (open: *bool) {
         component_ptr := get_component(entity, component_ti);
         assert(component_ptr != null);
         PushPopFont(context.state.ui.small_font);
-        inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl);
-        PushPopID(cast(*void)it_index);
-        if BeginPopupContextItem("component context menu") {
-            defer EndPopup();
-            if Selectable(tprint("Delete %\0", component_ti.name).data) {
-                component_ptr_to_delete = component_ptr;
+
+        popup_ctx.component_ptr = component_ptr;
+        popup_ctx.component_ti = component_ti;;
+
+        inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl, xx popup_cb, *popup_ctx);
+        popup_cb :: (popup_ctx_data: *Popup_Context) {
+            using popup_ctx_data;
+            if BeginPopupContextItem("component context menu") {
+                defer EndPopup();
+                if Selectable(tprint("Delete %\0", component_ti.name).data)
+                    component_ptr_to_delete = cast(*Component)component_ptr;
             }
         }
     }
 
-    if component_ptr_to_delete
-        remove_component(component_ptr_to_delete);
+    if popup_ctx.component_ptr_to_delete {
+        remove_component(popup_ctx.component_ptr_to_delete, undo=*undo_state);
+    }
 
     {
         PushPopFont(context.state.ui.small_font);

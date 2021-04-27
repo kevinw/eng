@@ -60,6 +60,7 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Cat
 Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
 Categorize_Type_Func :: #type (ti: *Type_Info) -> Struct_Looks_Like;
 Custom_Ctrl_Func :: #type (name: string, data: *void, ti_info: *Type_Info);
+Popup_Callback_Func :: #type (data: *void);
 
 push_or_commit_item :: (data: *void, size_in_bytes: int) {
     impl := *context.state.editor.undo_state;
@@ -69,11 +70,12 @@ push_or_commit_item :: (data: *void, size_in_bytes: int) {
         Undo.commit(impl);
 }
 
-inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null) {
-    inspect(name, t, type_info(T), show_node_func, categorize_type_func, custom_ctrl);
+
+inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null, popup_cb: Popup_Callback_Func = null, popup_cb_data: *void = null) {
+    inspect(name, t, type_info(T), show_node_func, categorize_type_func, custom_ctrl, popup_cb);
 }
 
-inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null) {
+inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null, popup_cb: Popup_Callback_Func = null, popup_cb_data: *void = null) {
     using ImGui;
 
     if show_node_func != null && !show_node_func(name, data, info)
@@ -81,8 +83,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
     default_size:ImVec2;
 
-    PushID(data);
-    defer PopID();
+    PushPopID(data);
 
     undo := *context.state.editor.undo_state;
 
@@ -173,7 +174,9 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                         //tree_node_flags := TreeNodeFlags.DefaultOpen;
                         tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
                         PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
-                        if TreeNodeEx(tree_node_str.data, tree_node_flags) {
+                        tree_node_open := TreeNodeEx(tree_node_str.data, tree_node_flags);
+                        if popup_cb popup_cb(popup_cb_data);
+                        if tree_node_open {
                             PopStyleColor();
 
                             for * member: uniquely_placed_members(ti_struct)
@@ -296,7 +299,6 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
         case .OVERLOAD_SET;
             // @@
     }
-
 }
 
 #scope_file

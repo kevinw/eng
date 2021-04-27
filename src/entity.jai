@@ -23,7 +23,6 @@ velocity_system :: (td: *Transform, vd: *Velocity @const, n: u32, dt: float) {
 ...that's cool. i wonder if there's an easy way to bridge the gap between what
 we have now, and this kind of thing...
 */
-
 #load "components/transform.jai";
 #load "components/camera.jai";
 #load "components/sprite_renderer.jai";
@@ -222,17 +221,56 @@ get_component :: (entity: *Entity, $component_type: Type) -> *component_type {
     return null;
 }
 
-remove_component :: (component_ptr: *Component) {
+remove_component :: (component_ptr: *Component, undo: *Undo.Impl = null) -> bool {
     assert(component_ptr != null);
 
     ok, entity := get_entity(component_ptr.entity);
     if !ok {
         log_error("error: trying to remove_component but the entity is already dead");
-        return;
+        return false;
     }
 
-    log_error("TODO: actually implement remove component");
+    did_remove_index := -1;
+    initial_count := entity.components.count;
+    expected_count := initial_count - 1;
+    for entity.components {
+        component_bit := it.bit;
+        component_handle := it.component_handle;
+        {
+            #insert #run runtime_bit_bucket_chooser(#string END
+                if component_ptr != get_item_ptr(bucket, component_handle)
+                    continue;
 
+                if Bucket_Value_Type == Transform {
+                    log_error("removing a Transform is not currently allowed");
+                    return false;
+                }
+
+                did_delete := delete_item(bucket, component_handle, undo);
+                assert(did_delete, "delete_item for component failed");
+                entity.component_bits &= ~component_bit;
+                assert((entity.component_bits & component_bit) == 0);
+                did_remove_index = it_index;
+            END);
+        }
+
+        if did_remove_index != -1
+            break;
+    }
+
+    if did_remove_index != -1
+        array_unordered_remove_by_index(*entity.components, did_remove_index);
+
+    #if ROBUSTNESS_CHECKS {
+        if did_remove_index != -1 {
+            count := 0;
+            for entity.components count += 1;
+            assert(count == expected_count,
+                "expected entity to have % components after remove_component, but it had %", expected_count, count);
+        }
+    }
+
+    return did_remove_index != -1;
 }
 
 
@@ -1064,15 +1102,14 @@ spawn_prefab_from_filename :: (filename: string, world_pos: Vector3=.{}, undo:*U
     assert(e_ok);
 
     trs := get_transform(entity);
-    if trs != null {
+    if trs != null
         trs.position = world_pos;
-    }
 
     return entity, new_handles[0];
 }
 
 #scope_file
-
+ROBUSTNESS_CHECKS :: true;
 
 #import "Basic";
 File :: #import "File";
