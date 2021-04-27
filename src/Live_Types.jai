@@ -30,7 +30,7 @@ LiveTextureEntry :: struct {
     using _live_entry: LiveEntry;
 
     filename: string;
-    using resource: rl.Texture;
+    using resource: Texture;
 }
 
 LiveMaterialEntry :: struct {
