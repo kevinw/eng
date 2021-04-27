@@ -1,10 +1,20 @@
 # TODO
-- [x] make an overlay with the portrait dimensions
-- [ ] fix resize dragging when scale goes negative
-- [ ] uvs for dragging sprite renderers are off
-- prototype an editor list that shows what is on camera at the moment. deprecate the hierarchy window
+- some thinking about assets...we have a case where WBML files get loaded for
+  "prefabs." should they should ALSO become content-addressable hashed
+  artifacts in the .library/ folder? it would be good to have them go through
+  the same system. at least for release builds. during the editor cycle, there
+  might be too much garbage, since they would change all the time? I'm not
+  sure...but in general, having a "function" that takes arguments, hashes them,
+  and the "input", and gives you an expensive output. we could "cache" that
+  easily! some stuff to read: asset systems usually use reference
+  counting...why? how could we easily do something like that? how does an
+  asset database/cache interact with the "multiple worlds" thing? 
+
 
 ## Immediate
+- prototype an editor list that shows what is on camera at the moment. deprecate the hierarchy window
+- fix resize dragging when scale goes negative
+- uvs for dragging sprite renderers are off
 - prototype 2dish uv displacement mapping like Yoku's Island Express?
 - compute shaders https://youtu.be/0DLOJPSxJEg
 - http://alextardif.com/Antialiasing.html
