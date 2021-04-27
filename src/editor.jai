@@ -793,18 +793,24 @@ show_todo_window :: (open: *bool) {
 
     todos_state := *context.state.editor.todos;
 
-    for * get_todos(todos_state) {
-        checked: bool = it.state == .Complete;
-        if Checkbox(tprint("##%\0", it.text).data, *checked) {
-            if checked  {
-                it.state = .Complete;
-            } else {
-                it.state = .Incomplete;
+    items := get_todos(todos_state);
+    if items.count {
+        for * items {
+            checked: bool = it.state == .Complete;
+            if Checkbox(tprint("##%\0", it.text).data, *checked) {
+                if checked  {
+                    it.state = .Complete;
+                } else {
+                    it.state = .Incomplete;
+                }
+                save_todo(todos_state, it);
             }
-            save_todo(todos_state, it);
+            SameLine();
+            TextWrapped(tprint("%\0", it.text).data);
         }
-        SameLine();
-        TextWrapped(tprint("%\0", it.text).data);
+    } else {
+        PushPopStyleColor(.Text, .{.35, .35, .35, 1});
+        TextUnformatted("(no items)");
     }
 
     just_opened := false;
