@@ -441,7 +441,7 @@ code_node_as_string :: (node: *Code_Node) -> string {
         case .PROCEDURE_HEADER;
             proc_header := cast(*Code_Procedure_Header)node;
             return tprint("Code_Procedure_Header { name=%, filename=%, line=% }",
-                proc_header.name, proc_header.filename, proc_header.l0);
+                proc_header.name, get_filename(proc_header), proc_header.l0);
                 
         case .IDENT;
             ident := cast(*Code_Ident)node;
@@ -469,3 +469,6 @@ code_node_as_string :: (node: *Code_Node) -> string {
     }
 }
 
+
+#scope_file
+#import "Compiler";
