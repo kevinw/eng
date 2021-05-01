@@ -110,6 +110,7 @@ Editor :: struct {
     mouse_over_scene_view_window: bool;
 
     show_main_menu: bool = false;
+    show_aspect_ratio_guide := true;
 
     windows: struct {
         inspector      := true;
@@ -648,7 +649,11 @@ render_imgui_to_drawlists :: (state: *State) {
         }
     }
 
-    defer draw_lkg_aspect_overlay(GetForegroundDrawList());
+    defer {
+        if state.editor.show_aspect_ratio_guide
+            draw_lkg_aspect_overlay(GetForegroundDrawList());
+    }
+
     if state.editor.play_mode == .Play {
         show_scene_view(*context.state.editor.windows.scene_view, in_play_mode=true);
         return;
@@ -759,6 +764,8 @@ show_menubar :: () {
     if BeginMenu("View") {
         defer EndMenu();
 
+        MenuItem("Show LKG-Portrait Aspect Ratio Guide", null, *show_aspect_ratio_guide);
+        Separator();
         MenuItem("Show Main Menu", null, *show_main_menu);
         Separator();
         MenuItem("ImGui Demo Window", null, *windows.demo);
