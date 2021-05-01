@@ -372,7 +372,7 @@ Build_Flags :: enum_flags {
 }
 
 
-define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool) {
+define_constants :: (workspace: int, build_flags: Build_Flags, is_host: bool, print_constants_to_stdout := true) {
     release :=               build_flags & .Release != 0;
 
     debug_module :=             !release;
@@ -399,8 +399,11 @@ END,
     building_dlls,
     graphics_layer_debug,
 );
-    print("------\n%", constants);
-    print("%------\n", add_build_string_constants);
+
+    if print_constants_to_stdout {
+        print("------\n%", constants);
+        print("%------\n", add_build_string_constants);
+    }
 
     Compiler.add_build_string(add_build_string_constants, workspace);
 

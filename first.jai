@@ -1,6 +1,7 @@
 #scope_file
 
 CHECK_PATH :: "check/";
+PRINT_CONSTANTS :: false;
 
 module_search_paths := string.["c:/jai/Modules", "lib", "src"];
 
@@ -38,7 +39,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
         set_optimization(*opts, build_flags);
         set_build_options(opts, w);
 
-        define_constants(w, build_flags, is_host = false);
+        define_constants(w, build_flags, is_host = false, print_constants_to_stdout = PRINT_CONSTANTS);
         add_build_file(tprint("src/%.jai", game_dll_source_name), w);
 
         run_compiler_loop(w, true);
@@ -49,9 +50,9 @@ add_import_paths :: (opts: *Build_Options, paths: []string) {
     new_paths: [..]string;
     array_add(*new_paths, ..paths);
     array_add(*new_paths, ..opts.import_path);
-    print("import_path: ");
-    for paths print("% ", it);
-    print("\n");
+    //print("import_path: ");
+    //for paths print("% ", it);
+    //print("\n");
     opts.import_path = paths;
 }
 
@@ -75,7 +76,7 @@ build_host :: (build_flags: Build_Flags) {
         if build_flags & .Release {
             add_build_file("src/d3d_game.jai", w);
         }
-        define_constants(w, build_flags, is_host = true);
+        define_constants(w, build_flags, is_host = true, print_constants_to_stdout = PRINT_CONSTANTS);
         add_build_file("src/host.jai", w);
 
         if build_flags & .Release != 0 {
@@ -94,7 +95,7 @@ build_tests :: (build_flags: Build_Flags) {
         add_import_paths(*opts, module_search_paths);
         opts.output_type = .EXECUTABLE;
         set_build_options(opts, w);
-        define_constants(w, build_flags, is_host = false);
+        define_constants(w, build_flags, is_host = false, print_constants_to_stdout = PRINT_CONSTANTS);
         add_build_file("tests/test_transform_link.jai", w);
         run_compiler_loop(w, do_ecs_metaprogram=true);
     }
@@ -108,8 +109,8 @@ set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
         build_opts.backend = .LLVM;
         set_optimization_level(build_opts, opt_level=3, size_level=1);
     } else {
-        build_opts.backend = .LLVM;
-        //build_opts.backend = .X64;
+        //build_opts.backend = .LLVM;
+        build_opts.backend = .X64;
         set_optimization_level(build_opts, opt_level=0, size_level=0);
     }
 }
