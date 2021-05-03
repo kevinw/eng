@@ -836,6 +836,7 @@ show_todo_window :: (open: *bool) {
 
         if did_hit_enter || Button("OK", make_ImVec2(120, 0)) {
             add_todo(*context.state.editor.todos, to_string(input_buf.data));
+            input_buf[0] = #char "\0";
             CloseCurrentPopup();
         }
         SameLine();
