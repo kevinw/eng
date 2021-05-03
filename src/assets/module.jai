@@ -80,7 +80,10 @@ tick :: () {
 }
 shutdown :: () {
     using state();
-    shutdown(*thread_group);
+    if did_init {
+        shutdown(*thread_group);
+        did_init  = false;
+    }
 }
 
 reimport_all :: () {
