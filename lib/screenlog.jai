@@ -75,6 +75,8 @@ context_func :: (message: string, logger_data: *void, log_info: Log_Info) {
     assert(context.logger_data != null, "screenlog's context.logger_data cannot be null");
     using cast(*Logger_State)context.logger_data;
     assert(canary == EXPECTED_CANARY_VALUE);
+
+    print("%\n", message);
     
     time_on_screen := TIME_ON_SCREEN;
     if log_info.common_flags & .ERROR {

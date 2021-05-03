@@ -1,3 +1,4 @@
+MARK_UNLOADED_DLLS_AS_NO_ACCESS :: false; // disabled until I figure out why VirtualAlloc with PAGE_NOACCESS is failing after FreeLibrary()
 
 Module :: struct {
     filename: string;
@@ -71,11 +72,13 @@ unload :: (plugin: *Module) -> bool {
     if plugin.native_module == null return false;
 
     if !FreeLibrary(plugin.native_module) {
-        log_error("error calling FreeLibrary on '%'", plugin.native_module);
+        log_errorr("FreeLibrary(plugin.filename=%) failed with code % - %\n",
+            plugin.filename, GetLastError(), GetLastErrorAsString());
+
         return false;
     }
-
-    {
+    
+    if MARK_UNLOADED_DLLS_AS_NO_ACCESS {
         // Here we lock the old DLL memory as PAGE_NOACCESS, so that if we
         // accidentally keep a function pointer to it, we'll immediately get a
         // breakpoint when trying to call the function, instead of jumping to
@@ -85,8 +88,21 @@ unload :: (plugin: *Module) -> bool {
         using plugin.module_info;
         if lpBaseOfDll != null {
             old_protect_flags: u32;
-            valloc_ptr := VirtualAlloc(lpBaseOfDll, cast(u64)SizeOfImage, MEM_RESERVE, PAGE_NOACCESS);
-            assert(valloc_ptr != null, "VirtualAlloc failed");
+            size := cast(u64)SizeOfImage;
+            valloc_ptr := VirtualAlloc(
+                lpBaseOfDll, size, MEM_RESERVE, PAGE_NOACCESS);
+
+            if valloc_ptr == null {
+                log_error("VirtualAlloc failed. GetLastError(): % - %\n", GetLastError(), GetLastErrorAsString());
+
+                #import "windows_ex";
+                mem_basic_info: MEMORY_BASIC_INFORMATION;
+                sz := VirtualQuery(lpBaseOfDll, *mem_basic_info, size_of(MEMORY_BASIC_INFORMATION));
+                assert(sz != 0);
+                log("mem_basic_info: %\n", mem_basic_info);
+
+            }
+            assert(valloc_ptr != null, "VirtualAlloc(addr=%, size=%, MEM_RESERVE, PAGE_NOACCESS) failed", lpBaseOfDll, size);
         }
     }
 
@@ -236,6 +252,7 @@ GetModuleInformation :: (
 
 #import "Basic";
 #import "Windows";
+#import "windows_ex";
 #import "File";
 #import "Windows_Utf8";
 #import "File_Utilities";

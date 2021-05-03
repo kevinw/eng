@@ -126,24 +126,9 @@ init_array_with_holes :: (arr: *$A/Array_With_Holes, debug_name := "no-name") {
 }
 
 #if ROBUSTNESS_CHECKS {
-kernel32 :: #foreign_system_library "kernel32";
 unlock_freelist :: (arr: *$A/Array_With_Holes) #expand {
-    #import "Windows";
 
-    WORD :: u16;
-
-    MEMORY_BASIC_INFORMATION :: struct {
-        BaseAddress : *void;
-        AllocationBase: *void;
-        AllocationProtect: DWORD;
-        PartitionId: WORD;
-        RegionSize: int;
-        State: DWORD;
-        Protect: DWORD;
-        Type: DWORD;
-    }
-
-    VirtualQuery :: (lpAddress: *void, mbi: *MEMORY_BASIC_INFORMATION, len: int) -> int #foreign kernel32;
+    #import "windows_ex";
 
     assert(arr != null && arr.items.data != null);
     page_size := get_page_size();
@@ -373,8 +358,8 @@ for_expansion :: (handles: *HandleIterator($A), body: Code, flags: For_Flags) #e
     {
         unlock_freelist(arr);
         assert(arr.items[0].generation == SENTINEL_GENERATION,
-            tprint("gen (address %) of first item for % at root addr % was not %: %",
-                *arr.items[0].generation, arr.debug_name, arr.items, SENTINEL_GENERATION, arr.items[0].generation));
+            "gen (address %) of first item for % at root addr % was not %: %",
+                *arr.items[0].generation, arr.debug_name, *arr.items, SENTINEL_GENERATION, arr.items[0].generation);
     }
     #assert !(flags & .REVERSE);
 

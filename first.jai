@@ -3,7 +3,7 @@
 CHECK_PATH :: "check/";
 PRINT_CONSTANTS :: false;
 
-module_search_paths := string.["c:/jai/Modules", "lib", "src"];
+module_search_paths := string.["lib", "src", "c:/jai/Modules"];
 
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);
@@ -109,8 +109,8 @@ set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
         build_opts.backend = .LLVM;
         set_optimization_level(build_opts, opt_level=3, size_level=1);
     } else {
-        //build_opts.backend = .LLVM;
-        build_opts.backend = .X64;
+        build_opts.backend = .LLVM;
+        //build_opts.backend = .X64;
         set_optimization_level(build_opts, opt_level=0, size_level=0);
     }
 }

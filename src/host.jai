@@ -158,8 +158,17 @@ _unhooking_always_on_top := false;
 
 }
 
+
 main :: () {
     get_time(); // start the clock!
+
+    {
+        using context.print_style.default_format_struct;
+
+        //draw_type_name = true;
+        //use_long_form_if_more_than_this_many_members = -1;
+        //use_newlines_if_long_form = true;
+    }
 
     #if DEBUG_MODULE {
         Debug.init();
