@@ -1,4 +1,5 @@
 # TODO
+- [ ] Fix the gimbal lock when flying the scene cam around.
 - [ ] make the context assert handler remove the always on top bit
 
 - some thinking about assets...we have a case where WBML files get loaded for
