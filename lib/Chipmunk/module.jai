@@ -1,4 +1,4 @@
-#module_parameters(LINK_STATIC := false);
+#module_parameters()(LINK_STATIC := false);
 #scope_file
 
 #if OS == .WINDOWS {

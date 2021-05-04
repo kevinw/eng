@@ -5,12 +5,11 @@
 
 setlocal
 set IMGUI_DIR=\src\jai-imgui
-if not exist imgui mkdir imgui
-copy %IMGUI_DIR%\imgui.jai .\imgui\module.jai || exit /b 1
-xcopy /y /q /E %IMGUI_DIR%\win .\imgui\win\ || exit /b 1
-copy /y %IMGUI_DIR%\win\dll\imgui.dll .. || exit /b 1
-copy /y %IMGUI_DIR%\win\dll\imgui.pdb .. || exit /b 1
+set DEST=imgui_docking
+if not exist %DEST% mkdir %DEST%
+copy %IMGUI_DIR%\imgui.jai %DEST%\module.jai || exit /b 1
+xcopy /y /q /E %IMGUI_DIR%\win %DEST%\win\ || exit /b 1
 @echo.
-@echo Success - Updated 'imgui' folder" from "%IMGUI_DIR%" and copied DLL/PDB into ..
+@echo Success - Updated '%DEST%' folder" from "%IMGUI_DIR%"
 @echo.
 

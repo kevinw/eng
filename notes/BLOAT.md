@@ -1,4 +1,5 @@
 # bloat
+- define_constants loads the same set of #import modules for both the host and the plugin, but that's probably not neccessary
 - mouse pick:
     at least disable it while the editor is away.
     make sure it's not running in the gpu unless we're moving the mouse

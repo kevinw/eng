@@ -416,18 +416,53 @@ END,
     // have an extra DLL dependency.
     imports_with_module_params := tprint(#string END
 
-__module_param_import_Chipmunk :: #import "Chipmunk"(LINK_STATIC = %);
-__module_param_import_ImGui    :: #import "imgui_docking"(LINK_STATIC = %);
+__module_param_import_Chipmunk :: #import "Chipmunk"()(LINK_STATIC = %);
+__module_param_import_ImGui    :: #import "imgui_docking"()(LINK_STATIC = %);
 __module_param_import_lz4      :: #import "lz4-1.9.3"(LINK_STATIC = %);
+#import "Thread"; // contains an #add_context--so we must import it here; see @ProgramParameters below
 
 END, link_externals_as_static, link_externals_as_static, link_externals_as_static);
+
 
     Compiler.add_build_string(imports_with_module_params, workspace);
 
     fn :: "generated/Build_Constants.jai";
     File.write_entire_file(fn, constants);
     Compiler.add_build_file(fn, workspace);
+
+    // @ProgramParameters
+    // we will wait for the Compiler to actually process these strings, since
+    // if any other code runs an #import with the modules above, we'll get an
+    // error later when the build strings added here get processed--module
+    // parameters are only allowed to be present in the "first" import.
+    //
+    // TODO: should we instead move the #imports into the code directly? I'm
+    // not sure they need to be here as part of the metaprogram.
+    wait_for_compiler_to_see_build_strings(workspace);
 }
+
+wait_for_compiler_to_see_build_strings :: (workspace: int) -> bool {
+    while true {
+        message := compiler_wait_for_message();
+        if !message || message.workspace != workspace continue;
+
+        if message.kind == {
+            case .COMPILATION_PHASE;
+                msg := cast(*Message_Phase)message;
+                if msg.phase == .TYPECHECKED_ALL_WE_CAN {
+                    return true;
+                }
+        }
+
+        if message.kind == .COMPLETE {
+            print("error: got compiler message COMPLETE\n");
+            return false;
+        }
+    }
+
+    return false;
+}
+
 
 
 #scope_file

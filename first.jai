@@ -73,10 +73,10 @@ build_host :: (build_flags: Build_Flags) {
         }
         set_optimization(*opts, build_flags);
         set_build_options(opts, w);
+        define_constants(w, build_flags, is_host = true, print_constants_to_stdout = PRINT_CONSTANTS);
         if build_flags & .Release {
             add_build_file("src/d3d_game.jai", w);
         }
-        define_constants(w, build_flags, is_host = true, print_constants_to_stdout = PRINT_CONSTANTS);
         add_build_file("src/host.jai", w);
 
         if build_flags & .Release != 0 {
