@@ -281,6 +281,18 @@ main :: () {
             case .KEYBOARD;
                 if it.key_pressed && it.key_code == cast(Key_Code)#char "Q" && it.alt_pressed && it.ctrl_pressed
                     platform.request_window_close(the_window);
+
+                #if OS == .WINDOWS {
+                    if (it.key_code == .MOUSE_BUTTON_LEFT || it.key_code == .MOUSE_BUTTON_MIDDLE || it.key_code == .MOUSE_BUTTON_RIGHT) {
+                        if it.key_pressed {
+                            if is_any_mouse_down() && GetCapture() == null
+                                SetCapture(host_state.window_handle);
+                        } else {
+                            if !is_any_mouse_down() && GetCapture() == host_state.window_handle
+                                ReleaseCapture();
+                        }
+                    }
+                }
         }
         if window_has_been_closed break;
 
@@ -395,4 +407,22 @@ main :: () {
 
 is_key_pressed :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .START != 0; }
 is_key_down    :: (key: Key_Code) -> bool { return input_button_states[cast(int)key] & .DOWN != 0; }
+is_any_mouse_down :: () -> bool {
+    left := input_button_states[Key_Code.MOUSE_BUTTON_LEFT];
+    middle := input_button_states[Key_Code.MOUSE_BUTTON_MIDDLE];
+    right := input_button_states[Key_Code.MOUSE_BUTTON_RIGHT];
+
+    is_held :: inline (val: Key_Current_State) -> bool {
+        return (val & .DOWN) && !(val & .END);
+    }
+
+    res := is_held(left) || is_held(right) || is_held(middle);
+    //print("is_any_mouse_down(left=%, middle=%, right=%) -> %\n", left, middle, right, res);
+    return res;
+}
+
+#if OS == .WINDOWS {
+    user32 :: #foreign_system_library "user32";
+    GetCapture :: () -> HWND #foreign user32;
+}
 
