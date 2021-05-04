@@ -47,6 +47,7 @@ Window_State_Operation :: enum {
     Toggle_Always_On_Top;
     Toggle_Transparent_When_Out_Of_Focus;
     Force_Plugin_DLL_Reload;
+    Request_Application_Quit;
 }
 
 

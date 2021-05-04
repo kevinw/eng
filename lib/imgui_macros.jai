@@ -54,3 +54,12 @@ BeginEnd_return :: (name: string, open: *bool) #expand {
         `return;
 }
 
+BeginEndMenu :: (name: string, code: Code) #expand {
+    using ImGui;
+
+    if BeginMenu(name) {
+        defer EndMenu();
+        #insert code;
+    }
+}
+

@@ -114,7 +114,7 @@ Editor :: struct {
 
     windows: struct {
         inspector      := true;
-        demo           := false;
+        imgui_demo     := false;
         entities       := true;
         assets         := true;
         new_assets     := true;
@@ -702,22 +702,19 @@ render_imgui_to_drawlists :: (state: *State) {
             inspect("", *context.state.world.prefab_cache);
     }
     
-    if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
-
+    if windows.imgui_demo     ImGui.ShowDemoWindow(*windows.imgui_demo);
     if windows.undo_internals show_undo_internals(*windows.undo_internals);
-    if windows.new_assets show_new_assets_window(*windows.new_assets);
-    if windows.assets show_assets_window(*windows.assets);
-    if windows.entities show_entities_window(*windows.entities);
-    if windows.inspector draw_inspector(*windows.inspector);
+    if windows.new_assets     show_new_assets_window(*windows.new_assets);
+    if windows.assets         show_assets_window(*windows.assets);
+    if windows.entities       show_entities_window(*windows.entities);
+    if windows.inspector      draw_inspector(*windows.inspector);
+    if windows.gamepad_viz    show_gamepad_window(*windows.gamepad_viz);
+    if windows.profiler       show_profiler_window(*windows.profiler);
+    if windows.scene_view     show_scene_view(*windows.scene_view);
+    if windows.todo           show_todo_window(*windows.todo);
+    if windows.about          show_about_window(*windows.about);
+
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
-    if windows.gamepad_viz show_gamepad_window(*windows.gamepad_viz);
-    if windows.profiler show_profiler_window(*windows.profiler);
-    if windows.scene_view show_scene_view(*windows.scene_view);
-    if windows.todo show_todo_window(*windows.todo);
-    if windows.about show_about_window(*windows.todo);
-    
-    //inspect("", *context.state.multiview);
-    //inspect("", *context.state.editor);
 
     save_changes_modal();
 }
@@ -749,6 +746,8 @@ draw_lkg_aspect_overlay :: (draw_list: *ImGui.ImDrawList) {
     draw_list.AddRect(draw_list, p1, p2, make_col32(make_ImVec4(0.2, 0.2, 0.2, 0.5)), rounding=20);
 }
 
+NUM_SAVE_SLOTS :: 8;
+
 show_menubar :: () {
     using context.state.editor;
     using ImGui;
@@ -756,23 +755,34 @@ show_menubar :: () {
     if !show_main_menu || !BeginMainMenuBar() return;
     defer EndMainMenuBar();
 
-    if BeginMenu("Edit") {
-        defer EndMenu(); 
+    BeginEndMenu("File", #code {
+        BeginEndMenu("Load Slot", #code {
+            for i: 1..NUM_SAVE_SLOTS if MenuItem(tprint("Load Slot %\0", i).data)
+                load_scene_confirming(scene_filename_for_slot(i));
+        });
+        BeginEndMenu("Save Slot", #code {
+            for i: 1..NUM_SAVE_SLOTS if MenuItem(tprint("Save Slot %\0", i).data)
+                save_scene(scene_filename_for_slot(i));
+        });
 
-        if MenuItem("Align Object to View", null, null, selected.count > 0) {
+        Separator();
+        if MenuItem("Quit")
+            _local_host_state.change_window_state(.Request_Application_Quit);
+    });
+
+    BeginEndMenu("Edit", #code {
+        if MenuItem("Align Object to View", null, null, selected.count > 0)
             align_all_selected_objects_with_scene_view();
-        }
-    }
-    if BeginMenu("View") {
-        defer EndMenu();
+    });
 
+    BeginEndMenu("View", #code {
         MenuItem("Show LKG-Portrait Aspect Ratio Guide", null, *show_aspect_ratio_guide);
         Separator();
         MenuItem("Show Main Menu", null, *show_main_menu);
         Separator();
-        MenuItem("ImGui Demo Window", null, *windows.demo);
+        MenuItem("ImGui Demo Window", null, *windows.imgui_demo);
         MenuItem("About", null, *windows.about);
-    }
+    });
 }
 
 align_all_selected_objects_with_scene_view :: () {
@@ -1591,7 +1601,7 @@ editor_update :: (state: *State) {
     }
 
     if !io.WantCaptureKeyboard {
-        for i: 0..7 {
+        for i: 0..NUM_SAVE_SLOTS-1 {
             key_code := cast(rl.KeyboardKey)(cast(s32)rl.KeyboardKey.KEY_ONE + i);
             if rl.IsKeyPressed(key_code) {
                 filename := scene_filename_for_slot(i + 1);

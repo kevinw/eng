@@ -76,6 +76,8 @@ change_window_state :: (window_state_operation: Window_State_Operation) {
             log(ifx transparent_while_not_focused then "transparent on focus lost ON" else "transparent on focus lost OFF");
         case .Force_Plugin_DLL_Reload;
             plugin_requested_reload = true;
+        case .Request_Application_Quit;
+            platform.request_window_close(the_window);
     }
 }
 
@@ -270,6 +272,7 @@ main :: () {
     window_move_record: Window_Move_Record;
     window_resize_record: Window_Resize_Record;
 
+    // Main Loop
     window_has_been_closed: bool;
     while true {
         auto_release_temp();
