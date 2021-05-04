@@ -44,3 +44,5 @@ GetLastErrorAsString :: () -> string {
 
 kernel32 :: #foreign_system_library "kernel32";
 #import "Windows";
+#import "Windows_Utf8";
+#import "Basic";

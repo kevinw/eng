@@ -72,7 +72,7 @@ unload :: (plugin: *Module) -> bool {
     if plugin.native_module == null return false;
 
     if !FreeLibrary(plugin.native_module) {
-        log_errorr("FreeLibrary(plugin.filename=%) failed with code % - %\n",
+        log_error("FreeLibrary(plugin.filename=%) failed with code % - %\n",
             plugin.filename, GetLastError(), GetLastErrorAsString());
 
         return false;
