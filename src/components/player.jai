@@ -172,7 +172,8 @@ update :: (using player: *Player) {
     attacking := player_is_attacking(player);
 
     input_types := inp.Input_Type.ALL;
-    if context.state.editor.play_mode == .Edit
+    play_mode := context.state.editor.play_mode == .Play;
+    if !play_mode
         input_types = ~inp.Input_Type.KEYBOARD_WASD;
 
     // Separate because in the platformer controls we don't treat up and down as
@@ -197,10 +198,14 @@ update :: (using player: *Player) {
 
     gamepad :: 0;
 
-    a_jump_input_is_present := rl.IsKeyDown(.KEY_SPACE) ||
-        (input_types & .KEYBOARD_WASD && rl.IsKeyDown(.KEY_W)) ||
-        rl.IsKeyDown(.KEY_UP) ||
-        rl.IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+    a_jump_input_is_present: bool;
+    if !play_mode
+        a_jump_input_is_present = false;
+    else
+        a_jump_input_is_present = rl.IsKeyDown(.KEY_SPACE) ||
+            (input_types & .KEYBOARD_WASD && rl.IsKeyDown(.KEY_W)) ||
+            rl.IsKeyDown(.KEY_UP) ||
+            rl.IsGamepadButtonDown(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
 
     jump_button_this_frame := !is_being_knocked_back && a_jump_input_is_present;
     jump_button_pressed_this_frame := jump_button_this_frame && !jump_button_last_frame;
@@ -210,7 +215,7 @@ update :: (using player: *Player) {
 
     if !is_being_knocked_back {
         // ATTACK
-        attack_button := rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT);
+        attack_button := play_mode && (rl.IsKeyPressed(.KEY_E) || rl.IsGamepadButtonPressed(gamepad, .GAMEPAD_BUTTON_RIGHT_FACE_LEFT));
         if attack_button && !player_is_attacking(player) {
             sprite_timer = 0;
             attack_cooldown_timer = get_attack_time(player);
