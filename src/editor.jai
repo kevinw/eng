@@ -132,10 +132,11 @@ Editor :: struct {
                 shader: *Shader;
             };
         };
-        gamepad_viz := false;
-        profiler    := true;
+        gamepad_viz    := false;
+        profiler       := true;
         scene_view     := true;
-        todo := true;
+        todo           := true;
+        about          := false;
     };
 
     inspector_has_focus: bool;
@@ -702,7 +703,7 @@ render_imgui_to_drawlists :: (state: *State) {
     }
     
     if windows.demo ImGui.ShowDemoWindow(*editor.windows.demo);
-    
+
     if windows.undo_internals show_undo_internals(*windows.undo_internals);
     if windows.new_assets show_new_assets_window(*windows.new_assets);
     if windows.assets show_assets_window(*windows.assets);
@@ -713,6 +714,7 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.profiler show_profiler_window(*windows.profiler);
     if windows.scene_view show_scene_view(*windows.scene_view);
     if windows.todo show_todo_window(*windows.todo);
+    if windows.about show_about_window(*windows.todo);
     
     //inspect("", *context.state.multiview);
     //inspect("", *context.state.editor);
@@ -769,6 +771,7 @@ show_menubar :: () {
         MenuItem("Show Main Menu", null, *show_main_menu);
         Separator();
         MenuItem("ImGui Demo Window", null, *windows.demo);
+        MenuItem("About", null, *windows.about);
     }
 }
 
@@ -790,6 +793,29 @@ align_all_selected_objects_with_scene_view :: () {
 
 #load "todo_list.jai";
 
+show_about_window :: (open: *bool) {
+    using ImGui;
+    BeginEnd_return("About", open);
+
+    Text("unnamed game engine");
+    Text("by Kevin Watters <kevinwatters@gmail.com>");
+
+    Separator();
+
+    if CollapsingHeader("Build Configuration")
+        return;
+
+    bool_str :: (b: bool) -> *s8 #expand {
+        if b return "true";
+        else return "false";
+    }
+    PushPopFont(context.state.ui.small_font);
+    // TODO: generate a table to use here in metaprogram_common
+    BulletText("DEBUG_MODULE :: %s", bool_str(DEBUG_MODULE));
+    BulletText("GUARD_ALLOCATOR :: %s", bool_str(GUARD_ALLOCATOR));
+    BulletText("BUILDING_DLLS :: %s", bool_str(BUILDING_DLLS));
+    BulletText("GRAPHICS_LAYER_DEBUG :: %s", bool_str(GRAPHICS_LAYER_DEBUG));
+}
 
 show_todo_window :: (open: *bool) {
     using ImGui;
