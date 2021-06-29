@@ -43,7 +43,9 @@ operator - :: (a: Vector2, b: s64) -> Vector2 {
 operator == :: (v1: Vector2, v2: Vector2) -> bool { return v1.x == v2.x && v1.y == v2.y; }
 operator != :: (v1: Vector2, v2: Vector2) -> bool { return v1.x != v2.x || v1.y != v2.y; }
 
-normalized :: (using v: Vector3, epsilon := 0, fallback := Vector3.{}) -> Vector3 {
+normalized :: (v: Vector3, epsilon := 0, fallback := Vector3.{}) -> Vector3 {
+    using res := v;
+
     sq := sqrt(x*x + y*y + z*z);
     if sq == 0 return fallback;
 

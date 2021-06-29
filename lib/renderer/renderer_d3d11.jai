@@ -1243,6 +1243,8 @@ init :: (renderer_ptr: *Renderer, hwnd: HWND, debug := true) {
     if debug
         create_device_flags |= .D3D11_CREATE_DEVICE_DEBUG;
 
+    create_device_flags |= .D3D11_CREATE_DEVICE_SINGLETHREADED;
+
     feature_levels := D3D_FEATURE_LEVEL.[ .D3D_FEATURE_LEVEL_11_1 ];
     check_result(D3D11CreateDevice(null, .D3D_DRIVER_TYPE_HARDWARE, null, create_device_flags, feature_levels.data,
             feature_levels.count, D3D11_SDK_VERSION, *base_device, null, *base_device_context));

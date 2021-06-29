@@ -30,7 +30,7 @@ _do_recompile :: (t: *Thread) -> s64 {
     arguments: [..]string;
     array_add(*arguments, "jai", "-x64", "first.jai", "--", "reload", cmdline_args.game_name);
 
-    cmd_string := String.concatenate(..arguments, " ");
+    cmd_string := String.join(..arguments, " ");
     defer free(cmd_string);
     print("Running jai compiler: %\n", cmd_string);
 

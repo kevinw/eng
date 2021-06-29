@@ -227,7 +227,7 @@ main :: () {
     host_state.window_handle         = the_window;
     host_state.input_button_states   = *input_button_states;
     host_state.change_window_state   = change_window_state;
-    host_state.pending_resizes       = *pending_resizes;
+    host_state.get_window_resizes    = get_window_resizes;
     host_state.built_with_backend    = #run get_compiler_codegen_backend();
 
     if cmdline_args.topmost_window
@@ -306,12 +306,12 @@ main :: () {
         host_state.mouse_delta.z = mouse_delta_z;
         for events_this_frame array_add(*host_state.events_this_frame, it);
 
-        for pending_moves if it.window == the_window {
+        for get_window_moves() if it.window == the_window {
             window_move_record = it;
             window_did_move = true;
             remove it;
         }
-        for pending_resizes if it.window == the_window {
+        for get_window_resizes() if it.window == the_window {
             window_resize_record = it;
             window_did_resize = true;
         }

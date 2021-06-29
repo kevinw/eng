@@ -6,12 +6,17 @@
 for_expansion :: (handler: *Text_File_Handler, body: Code, flags: For_Flags) #expand {
     #assert !(flags & .POINTER) && !(flags & .REVERSE);
 
+    index := 0;
     while true {
         line, found := consume_next_line(handler);
         if !found break;
 
         `it := line;
+        `it_index := index;
+
         #insert body;
+
+        index += 1;
     }
 }
 

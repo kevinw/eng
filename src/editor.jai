@@ -336,6 +336,12 @@ live_shader_editor :: (name: string, live_shader: **Shader) {
 
 live_image_editor :: (live_texture_ptr: *LiveTexture) {
     using ImGui;
+
+    if live_texture_ptr == null {
+        Text("NULL");
+        return;
+    }
+
     live_texture := <<live_texture_ptr;
     if !has_value(live_texture) {
         PushPopID("null image");
@@ -510,8 +516,9 @@ render_asset_selector :: (window_open: *bool) {
             // TODO: this is requesting we load the image. we should probably
             // have a background task, or a "pending image loads" queue or
             // something...
-            if it.type == .Texture && !has_value(it.live_texture)
+            if it.type == .Texture && !has_value(it.live_texture) {
                 it.live_texture = LoadLiveTexture(it.filename);
+            }
         }
 
         if selected_asset_type == {
@@ -1900,12 +1907,18 @@ imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> 
     // from a LiveTexture (namely, a void pointer to the GL texture ID, and an
     // ImVec2 for the size).
 
-    if !has_value(<<live_texture) return null, empty_size;
+    if live_texture == null || !has_value(<<live_texture)
+        return null, empty_size;
 
-    size := ImGui.make_ImVec2(cast(float)live_texture.resource.width, cast(float)live_texture.resource.height);
-    return cast(*void)*live_texture.resource, size;
+    assert(live_texture.canary == LiveTexture.CANARY_TYPE_VALUE);
+    texture := live_texture.resource;
+
+    if texture.views.count == 0
+        return null, empty_size;
+
+    texture_ptr := texture.views[0];
+    return cast(*void)texture_ptr, ImGui.make_ImVec2(cast(float)texture.width, cast(float)texture.height);
 }
-
 
 draw_inspector :: (open: *bool) {
     using context.state.editor;
@@ -2128,14 +2141,14 @@ copy_into_owned_string :: (str: *string, new_value: string) {
 }
 
 save_scene :: (filename: string) {
-    using context.state.editor;
+    using editor_state();
     save_prefab(filename);
     log("saved scene '%'", filename);
     Undo.mark_needs_save(*undo_state, false);
 }
 
 save_scene :: () {
-    using context.state.editor;
+    using editor_state();
     if last_loaded_scene_filename.count == 0 {
         // TODO: show a modal, or a file dialog
         new_filename := find_unused_scene_filename();
@@ -2167,6 +2180,8 @@ HelpMarker :: (desc: string) {
 ImGui :: #import "imgui_docking";
 #scope_file
 
+editor_state :: () -> *Editor { return *context.state.editor; }
+
 ButtonEx :: (label: *u8, size:ImGui.ImVec2 = .{}, enabled := true) -> bool {
     using ImGui;
     if !enabled PushStyleVar(.Alpha, 0.5);
@@ -2186,7 +2201,6 @@ String         :: #import "String";
 #import "Sloppy_Math";
 #import "Input";
 #import "Random";
-
 
 screenlog      :: #import "screenlog";
 wbml           :: #import "wbml";

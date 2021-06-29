@@ -89,7 +89,7 @@ game_base_update :: (host_state: Host_State) {
     }
 
     Gamepad.update_gamepad();
-    handle_input_module_renderer_resize(host_state.window_handle, host_state.pending_resizes);
+    handle_input_module_renderer_resize(host_state.window_handle);
     ImGui_Impl_ProcessInputEvents(*ui, host_state.events_this_frame);
 
     ImGui_Impl_NewFrame(*ui, host_state.window_handle, rl.GetScreenWidth(), rl.GetScreenHeight());
@@ -429,20 +429,22 @@ _update_raylib_temp :: (host_state: Host_State) {
 }
 
 
-handle_input_module_renderer_resize :: (window_handle: Window_Type, pending_resizes: *[..]Window_Resize_Record) {
+handle_input_module_renderer_resize :: (window_handle: Window_Type) {
     // The Jai input module queues up records for window resizes.
     // Here we resize the swapchain for the newest size.
     did_resize: bool;
     w, h: int;
-    for * <<pending_resizes if it.window == window_handle {
+    for * _local_host_state.get_window_resizes() if it.window == window_handle {
         did_resize = true;
         w = it.width;
         h = it.height;
-        remove it;
+        //remove it;
     }
 
-    if did_resize
+    if did_resize {
+        print("did_resize\n");
         resize_swapchain(xx w, xx h);
+    }
 }
 
 update_profiler_text :: () {

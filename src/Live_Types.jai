@@ -4,17 +4,20 @@ Live_Asset_Database :: struct {
     materials: [..]LiveMaterialEntry;
 }
 
-LiveThing :: struct(T: Type) {
+LiveThing :: struct(T: Type, CANARY: int) {
     using _entry: *T; @noui @noserialize
+
+    CANARY_TYPE_VALUE :: CANARY;
+    canary := CANARY;
 }
 
 has_value :: (thing: LiveThing) -> bool {
     return thing._entry != null;
 }
 
-LiveTexture   :: LiveThing(LiveTextureEntry);
-LiveSprite    :: LiveThing(LiveSpriteEntry);
-LiveMaterial  :: LiveThing(LiveMaterialEntry);
+LiveTexture   :: LiveThing(LiveTextureEntry, 42);
+LiveSprite    :: LiveThing(LiveSpriteEntry, 999);
+LiveMaterial  :: LiveThing(LiveMaterialEntry, 2021);
 
 LiveEntry :: struct {
     count: u16;

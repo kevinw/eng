@@ -208,7 +208,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func, custom_ctrl);
         case .ENUM;
             ti_enum := cast(*Type_Info_Enum)info;
-            if ti_enum.enum_type_flags & .Is_Flags {
+            if ti_enum.enum_type_flags & .FLAGS {
                 // enum_flags
                 if ti_enum.internal_type.runtime_size > 4 {
                     TextUnformatted("TODO: 64bit enum_flags");
