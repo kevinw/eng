@@ -135,7 +135,7 @@ Editor :: struct {
         gamepad_viz    := false;
         profiler       := true;
         scene_view     := true;
-        todo           := true;
+        todo           := false;
         about          := false;
     };
 
@@ -1506,7 +1506,7 @@ editor_update :: (state: *State) {
                 // TODO: how to "join" cursor modes?
                 // or should there be more than one state? one for each object?
             }
-            screenp("drag_state.edge %\n", drag_state.edge);
+            //screenp("drag_state.edge %\n", drag_state.edge);
 
             // if selected is hovered now, it gets dragged
             // otherwise, if there's something hovered, it becomes selected and started dragging
