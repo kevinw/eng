@@ -6,6 +6,7 @@ request_window_close :: (native_handle: *void) {
 }
 
 set_window_opacity :: (native_handle: *void, opacity: float) {
+    log("set_window_opacity(%, opacity=%)", native_handle, opacity);
     #if OS == .WINDOWS {
         user32 :: #foreign_system_library "user32";
         SetLayeredWindowAttributes :: (hwnd: HWND, color_key: u32, alpha: u8, flags: u32) -> s32 #foreign user32;
@@ -65,6 +66,8 @@ set_window_borderless_fullscreen :: (native_handle: *void) -> Windowed_State {
 }
 
 set_window_borderless :: (native_handle: *void, borderless: bool, old_window_info: *RECT = null) -> Windowed_State {
+    log("set_window_borderless(%, borderless=%)", native_handle, borderless);
+
     #if OS == .WINDOWS {
         BORDERLESS_STYLE     :u32 : WS_VISIBLE | WS_POPUP;
         NOT_BORDERLESS_STYLE :u32 : WS_VISIBLE | WS_OVERLAPPEDWINDOW;

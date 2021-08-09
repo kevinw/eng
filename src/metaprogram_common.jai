@@ -1,4 +1,5 @@
-DEFAULT_SRC_PLUGIN :: "d3d_game";
+DEFAULT_SRC_PLUGIN :: "jumper";
+//DEFAULT_SRC_PLUGIN :: "d3d_game";
 //DEFAULT_SRC_PLUGIN :: "game";
 
 is_name_a_System_Stage :: inline (name: string) -> bool    {
@@ -327,14 +328,15 @@ generate_systems :: (metaprogram: *Metaprogram) {
 
 
 collect_component_functions :: (tc: *Compiler.Message_Typechecked, metaprogram: *Metaprogram) {
-    for decl: tc.declarations {
-        if !decl.root_expression continue;
+    for tc: tc.declarations {
+        decl := tc.expression;
+        if !decl.expression continue;
 
-        if decl.root_expression.kind == {
+        if decl.expression.kind == {
           case .LITERAL;
             // here we catch the definition of the "all_component_types" array
             if decl.name == "all_component_types" || decl.name == "all_test_types" {
-                literal := cast(*Compiler.Code_Literal)decl.root_expression;
+                literal := cast(*Compiler.Code_Literal)decl.expression;
                 if literal.value_type == .ARRAY {
                     for literal.array_literal_info.array_members {
                         if it.kind == .IDENT {
@@ -351,7 +353,7 @@ collect_component_functions :: (tc: *Compiler.Message_Typechecked, metaprogram: 
             // entity.jai which walks the type table?
 
           case .PROCEDURE_HEADER;
-            header := cast(*Compiler.Code_Procedure_Header) decl.root_expression;
+            header := cast(*Compiler.Code_Procedure_Header) decl.expression;
 
             if header.procedure_flags & .POLYMORPHIC
                 continue;  // Do nothing with polymorphic procedures.
@@ -487,7 +489,7 @@ code_node_as_string :: (node: *Code_Node) -> string {
 
         case .DECLARATION;
             decl := cast(*Code_Declaration)node;
-            return tprint("Code_Declaration { name: %, root_expression: % }", decl.name, code_node_as_string(decl.root_expression));
+            return tprint("Code_Declaration { name: %, expression: % }", decl.name, code_node_as_string(decl.expression));
 
         case .LITERAL;
             literal := cast(*Code_Literal)node;

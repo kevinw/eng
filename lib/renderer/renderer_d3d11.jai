@@ -1128,7 +1128,7 @@ _load_shader_from_file_at_runtime :: (shader: *Shader, filename: string, vs_main
 
     debug_name: string;
     if debug_name_postfix.count > 0
-        debug_name = tprint("%%", filename, debug_name_postfix);
+        debug_name = tprint("%1%2", filename, debug_name_postfix);
     else
         debug_name = filename;
 

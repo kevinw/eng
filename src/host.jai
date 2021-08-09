@@ -228,6 +228,7 @@ main :: () {
     host_state.input_button_states   = *input_button_states;
     host_state.change_window_state   = change_window_state;
     host_state.get_window_resizes    = get_window_resizes;
+    host_state.set_cursor = set_win32_cursor;
     host_state.built_with_backend    = #run get_compiler_codegen_backend();
 
     if cmdline_args.topmost_window
@@ -321,10 +322,11 @@ main :: () {
         // Set the window to be a little transparent when it's not in focus, if we're always on top.
         {
             win_active := platform.is_window_active(the_window);
-            if (!win_active && window_was_active && platform.is_window_always_on_top(the_window)) && transparent_while_not_focused
+            if (!win_active && window_was_active && platform.is_window_always_on_top(the_window)) && transparent_while_not_focused {
                 platform.set_window_opacity(the_window, 0.63);
-            else if (win_active && !window_was_active) || !transparent_while_not_focused
+            } else if (win_active && !window_was_active) {
                 platform.set_window_opacity(the_window, 1.0);
+            }
 
             window_was_active = win_active;
         }
@@ -427,5 +429,10 @@ is_any_mouse_down :: () -> bool {
 #if OS == .WINDOWS {
     user32 :: #foreign_system_library "user32";
     GetCapture :: () -> HWND #foreign user32;
+    SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
+
+    set_win32_cursor :: (cursor: *void) #c_call {
+        SetCursor(xx cursor);
+    }
 }
 

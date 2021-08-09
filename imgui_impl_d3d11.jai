@@ -535,6 +535,13 @@ ImGui_ImplDX11_InvalidateDeviceObjects :: (using ui_state: *UI_State) {
 HHOOK :: HANDLE;
 HOOKPROC :: #type (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call;
 
+CWPSTRUCT :: struct {
+    lParam:  LPARAM;
+    wParam:  WPARAM;
+    message: u32;
+    hwnd:    HWND;
+}
+
 CWPRETSTRUCT :: struct {
     lResult: LRESULT;
     lParam:  LPARAM;
@@ -548,35 +555,43 @@ CallNextHookEx      :: (hhk: HHOOK, code: s32, wparam: WPARAM, lparam: LPARAM) -
 SetWindowsHookExA   :: (id_hook: s32, hook_fn: HOOKPROC, hmod: HINSTANCE, thread_id: DWORD) -> HHOOK #foreign user32;
 UnhookWindowsHookEx :: (hhk: HHOOK) -> BOOL #foreign user32;
 
+WORD :: s16;
+
+LOWORD :: (l: LPARAM) -> WORD {
+    return cast(WORD)(l & 0xffff);
+}
+
 #program_export
 HookProc :: (code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #c_call {
     HTCLIENT :: 1;
     TRUE     :: 1;
 
+    ctx: Context;
+    push_context ctx {
+    //print("HookProc(code=%, wparam=%, lparam=%)\n", code, wparam, lparam);
+
     if code >= 0 {
-        cwp_ret := cast(*CWPRETSTRUCT)lparam;
-        if cwp_ret.message == WM_SETCURSOR && cwp_ret.lParam == HTCLIENT
-            if ImGui_ImplWin32_UpdateMouseCursor()
-                return 1;
+        cwp := cast(*CWPSTRUCT)lparam;
+
+        //print("cwp is %\n", formatStruct(cwp, use_newlines_if_long_form=true, use_long_form_if_more_than_this_many_members=0));
+
+        //print("cwp: %\n", get_win32_message_name(cwp.message));
+
+
+        if cwp.message == WM_SETCURSOR && LOWORD(cwp.lParam) == HTCLIENT {
+            ctx: Context;
+            //push_context ctx { print("received WM_SETCURSOR / HTCLIENT\n"); }
+            if ImGui_ImplWin32_UpdateMouseCursor() {
+                print("   NOT HOOKING NEXT\n");
+                return TRUE;
+            }
+        }
+    }
+
     }
 
     return CallNextHookEx(null, code, wparam, lparam);
 }
-
-setup_set_cursor_hook :: (using ui_state: *UI_State) {
-    WH_CALLWNDPROCRET :: 12;
-
-    // unhook a previous one
-    if hook != null
-        if 0 == cast(int)UnhookWindowsHookEx(hook)
-            print("Error in UnhookWindowsHookEx: %", GetLastError());
-
-    // hook up the new callback
-    hook = SetWindowsHookExA(WH_CALLWNDPROCRET, HookProc, null, GetCurrentThreadId());
-    if hook == null
-        print("SetWindowsHookExA error: %\n", GetLastError());
-}
-
 
 ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> bool {
     // Setup backend capabilities flags
@@ -584,8 +599,6 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     io.BackendRendererName = "imgui_impl_dx11_jai";
     io.BackendFlags_ |= .RendererHasVtxOffset;  // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
     io.BackendFlags_ |= .HasMouseCursors;       // We have mouse cursors
-
-    setup_set_cursor_hook(ui_state);
 
     // Get factory from device
     pDXGIDevice:   *IDXGIDevice;
@@ -614,7 +627,6 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
 }
 
 ImGui_Impl_DidReloadDLL :: (ui_state: *UI_State) {
-    setup_set_cursor_hook(ui_state);
 }
 
 
@@ -685,17 +697,20 @@ ImGui_ImplWin32_UpdateMouseCursor :: () -> bool #c_call {
     IDC_SIZENWSE :: 32642;
     IDC_SIZEWE   :: 32644;
 
-    SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
+    //SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
 
     io := ImGui.GetIO();
-    if io.ConfigFlags_ & .NoMouseCursorChange
+    if io.ConfigFlags_ & .NoMouseCursorChange {
+        ctx: Context;
+        push_context ctx { print(".NoMouseCursorChange\n"); }
         return false;
+    }
 
     imgui_cursor := ImGui.GetMouseCursor();
 
     if imgui_cursor == .None || io.MouseDrawCursor {
         // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
-        SetCursor(null);
+        _local_host_state.set_cursor(null);
     } else {
         // Show OS mouse cursor
         win32_cursor:s64 = IDC_ARROW;
@@ -709,8 +724,15 @@ ImGui_ImplWin32_UpdateMouseCursor :: () -> bool #c_call {
             case .ResizeNWSE;   win32_cursor = IDC_SIZENWSE;
             case .Hand;         win32_cursor = IDC_HAND;
             case .NotAllowed;   win32_cursor = IDC_NO;
+            case; {
+                ctx: Context;
+                push_context ctx {
+                    log_error("unexpected imgui_cursor %", imgui_cursor);
+                }
+            }
         }
-        SetCursor(LoadCursorW(null, cast(*u8)win32_cursor));
+
+        _local_host_state.set_cursor(cast(*void)win32_cursor);
     }
     return true;
 }
@@ -762,6 +784,7 @@ set_debug_name :: (child_obj: *$T, name: string) {
     child.SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)name.count, name.data);
 }
 
+#import "win32_util";
 #import "d3d11";
 #import "dxgi";
 #import "D3dcompiler";
