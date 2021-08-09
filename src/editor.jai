@@ -142,6 +142,8 @@ Editor :: struct {
     inspector_has_focus: bool;
 
     todos: Todos_State;
+
+    grid: Grid.State;
 }
 
 Asset :: struct {
@@ -436,6 +438,8 @@ editor_init :: (editor: *Editor) {
 
         copy_File_Visit_Info(asset, it);
     }
+
+    Grid.init(*editor.grid);
 }
 
 is_valid_drag_rect :: (rectangle: rl.Rectangle) -> bool {
@@ -469,6 +473,10 @@ editor_draw_world :: (state: *State) {
             rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
         }
     }
+
+    screenp("drawing grid");
+    calc_matrices(*scene_camera);
+    Grid.draw(*grid, scene_camera.view_projection_matrix);
 }
 
 editor_draw :: (state: *State) {
@@ -2256,3 +2264,4 @@ temp_c_string :: (s: string) -> *u8 {
 
 #scope_file
 Assets :: #import "assets";
+Grid :: #import "grid";

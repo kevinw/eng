@@ -99,6 +99,7 @@ Buffer_Usage_Flags :: enum_flags u8 {
 
 Primitive_Type :: enum u8 {
     Triangles;
+    Line_List;
 }
 
 Cull_Mode :: enum u8 {

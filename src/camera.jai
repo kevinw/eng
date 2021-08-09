@@ -15,6 +15,7 @@ Camera :: struct {
     struct {
         view_matrix:       Matrix4;              @noserialize @noui
         projection_matrix: Matrix4;              @noserialize @noui
+        view_projection_matrix: Matrix4;         @noserialize @noui
         inverse_view_projection_matrix: Matrix4; @noserialize @noui
     }
 }
@@ -61,10 +62,10 @@ _update_matrices :: (using camera: *Camera) {
         //reference_up_vector = Vector3.{0, 1, 0},
         x_is_forward        = false);
 
-    vp := multiply(projection_matrix, view_matrix);
+    view_projection_matrix = multiply(projection_matrix, view_matrix);
 
     inverse_succeeded := false;
-    inverse_view_projection_matrix, inverse_succeeded = inverse(vp);
+    inverse_view_projection_matrix, inverse_succeeded = inverse(view_projection_matrix);
     if !inverse_succeeded
         log_error("taking the inverse of the camera VP matrix failed");
 

@@ -711,7 +711,8 @@ make_pipeline :: (
 
     if primitive_type == {
         case .Triangles; pipeline.primitive_type = .D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-        case; assert(false, "TODO: impl");
+        case .Line_List;  pipeline.primitive_type = .D3D_PRIMITIVE_TOPOLOGY_LINELIST;
+        case; assert(false, "TODO: impl for this primitive type");
     }
 
     // Depth stencil state

@@ -167,6 +167,72 @@ game_base_draw_compile_error :: () {
     rl.DrawRectangleLinesEx(rect, outline_width, color);
 }
 
+game_base_default_update_and_draw :: (host_state: Host_State) {
+    using context.state;
+
+    set_context(*renderer);
+    game_base_update(host_state);
+    //begin_frame(*profiler);
+    //defer end_frame(*profiler);
+
+    // draw the main window
+    im := *im_context;
+
+    // default pass for main monitor
+    {
+        push_renderer_context(*context.state.renderer, "main monitor");
+
+        // pick the camera depending on if we're in play mode or edit mode
+        camera: *Camera;
+        game_camera := get_main_camera();
+        if editor.play_mode == .Play && game_camera
+            camera = *game_camera.camera;
+        else
+            camera = *editor.scene_camera;
+
+        push_value(*current_im_camera, camera);
+        {
+            scene_view_sz := get_scene_view_size();
+            if scene_view_sz != scene_view.color.size && 
+                scene_view_sz.width > 0 && scene_view_sz.height > 0 {
+                //print("resizing scene_view color texture % % (old %)\n", *scene_view.color, scene_view_sz, scene_view.color.size);
+                resize_texture(*scene_view.color, scene_view_sz);
+                resize_texture(*scene_view.depth, scene_view_sz);
+            }
+
+            push_pass(*scene_view.pass, clear_color=*Vector4.{0.0, 0, 0.0, 1});
+
+            // the im draw stuff here (And probably?) should only render 1 view.
+            multiview.num_views_this_frame = multiview.num_views; // just to visualize in the editor
+            push_value(*multiview.num_views, 1); 
+
+            {
+                push_value(*im.track_mouse, true);
+                _draw_world();
+                //timestamp(*profiler, .EditorWorldRender);
+            }
+
+            im_set_texture(im, null);
+            //wait_for_data_and_update(*profiler);
+            //update_profiler_text();
+            editor_draw(context.state);
+            im_flush(im);
+
+            physics_2d_draw_debug();
+            editor_draw_world(context.state);
+            im_flush(im);
+            //timestamp(*profiler, .EditorUI);
+        }
+
+        {
+            push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            imgui_render(*ui);
+        }
+
+        present();
+    }
+}
+
 game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
     using context.state;
 
