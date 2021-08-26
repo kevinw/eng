@@ -183,7 +183,7 @@ main :: () {
 
     os_dpi_init(); // must be called before any window creation
 
-    found, exe_path, exe_name := String.split_by_character_from_right(get_path_of_running_executable(), #char "/");
+    found, exe_path, exe_name := String.split_from_right(get_path_of_running_executable(), #char "/");
     if !found {
         print("Error: unable to find my own exe\n");
         exit(1);
