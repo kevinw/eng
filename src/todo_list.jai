@@ -169,8 +169,8 @@ resort_todos :: (todos_state: *Todos_State) {
 }
 
 find_checkbox_markdown :: (line: string) -> (index: int, state: Todo_Item.State) {
-    empty_idx   := index_of_string(line, "- [ ]");
-    checked_idx := index_of_string(line, "- [x]");
+    empty_idx   := find_index_from_left(line, "- [ ]");
+    checked_idx := find_index_from_left(line, "- [x]");
 
     if empty_idx != -1
         return empty_idx, .Incomplete;
@@ -183,7 +183,7 @@ find_checkbox_markdown :: (line: string) -> (index: int, state: Todo_Item.State)
 _get_scoped_todo_file_handler :: () -> Text_File_Handler, string #expand {
     handler: Text_File_Handler;
     handler.do_version_number = false;
-    found, exe_path, exe_name := split_by_character_from_right(get_path_of_running_executable(), #char "/");
+    found, exe_path, exe_name := split_from_right(get_path_of_running_executable(), #char "/");
     if !found {
         log("error: Unable to find my own executable?!");
         handler.failed = true;

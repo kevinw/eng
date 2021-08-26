@@ -135,7 +135,7 @@ Sprite :: struct {
 }
 
 parse_int2 :: (s: string) -> Int2 {
-    i := index_of_string(s, ", ");
+    i := find_index_from_left(s, ", ");
     assert(i != -1, "expected a comma-space in '%'", s);
     x_str := slice(s, 0, i);
     y_str := slice(s, i + 2, s.count);
@@ -208,7 +208,7 @@ parse_spriter_atlas :: (filename: string) -> []Sprite {
             current_entry.name = copy_string(line);
             //print("name: %\n", current_entry.name);
         } else {
-            index := index_of_string(line, ": ");
+            index := find_index_from_left(line, ": ");
             assert(index != -1, "expected a colon space in '%'", line);
 
             key := slice(line, 0, index);

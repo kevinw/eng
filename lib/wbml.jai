@@ -1019,7 +1019,7 @@ make_Any :: (type: *Type_Info, value_pointer: *void) -> Any {
 strip_trailing_decimal_zeros :: (s: *string) {
     // TODO: just format the damn float differently....
     // TODO: international decimal points may not be "."
-    if String.last_index_of_char(<<s, #char ".") == -1 return;
+    if String.find_index_from_right(<<s, #char ".") == -1 return;
     while String.ends_with(<<s, "0") s.count -= 1;
     if String.ends_with(<<s, ".") s.count -= 1;
 }

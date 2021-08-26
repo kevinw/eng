@@ -11,7 +11,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
     // Don't generate an executable for this build script.
     opts := stop_normal_build();
 
-    if String.count_substring_matches(game_dll_source_name, ".") > 0 {
+    if String.find_index_from_left(game_dll_source_name, #char ".") != -1 {
         compiler_report(tprint("Error: no dots in source name please: '%'", game_dll_source_name), loc, .ERROR);
         return;
     }
