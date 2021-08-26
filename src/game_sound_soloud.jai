@@ -53,7 +53,7 @@ sound_init :: (using state: *Sound_State) {
     fx.whack       = create_and_load_wav("resources/sfx/whack.mp3", 0.4);
     fx.landing     = create_and_load_wav("resources/sfx/landing.wav", 0.3);
     fx.ow          = create_and_load_wav("resources/sfx/player/539917__cmoki__ow-sound.mp3", 0.3);
-    bgm            = create_and_load_wavstream("resources/music/Jivasifoki.mp3");
+    bgm            = create_and_load_wavstream("resources/music/Resting.mp3");
 
     WavStream_setLooping(bgm, xx true);
     WavStream_setVolume(bgm, 0.1);

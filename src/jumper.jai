@@ -33,6 +33,10 @@ on_host_init :: (host_state: Host_State) {
 
     editor.show_aspect_ratio_guide = false;
 
+    #import "soloud";
+    sound_state.bgm_voice = Soloud_play(sound_state.soloud, sound_state.bgm);
+    log("played %", sound_state.bgm_voice);
+
     //load_scene(1);
 }
 
