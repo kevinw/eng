@@ -37,10 +37,8 @@ is_event_func :: (stage: System_Stage) -> bool {
 }
 
 stop_normal_build :: () -> Compiler.Build_Options {
-    opts := Compiler.get_build_options();
-    opts.output_type = .NO_OUTPUT;
-    Compiler.set_build_options(opts);
-    return opts;
+    set_build_options_dc(.{do_output=false});
+    return Compiler.get_build_options();
 }
 
 compiler_scoped_intercept :: (w: int) #expand {
