@@ -1,0 +1,9 @@
+{
+    textures [
+        {
+            name "color"
+            path "assets/textures/Ground037_1K_Color.jpg"
+        }
+    ]
+}
+
