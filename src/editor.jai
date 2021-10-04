@@ -97,6 +97,8 @@ Editor :: struct {
 
     entities_window_size: ImGui.ImVec2;
 
+    is_mouse_looking := false;
+
     pending_scene_load: struct {
         filename: string; @owned
         state: enum {
@@ -698,7 +700,7 @@ render_imgui_to_drawlists :: (state: *State) {
             PopStyleVar(2);
             assert(GetIO().ConfigFlags_ & .DockingEnable != 0);
             DockSpace(GetID("Main DockSpace"), .{}, DockNodeFlags.PassthruCentralNode);
-            if editor.mouse_is_over_scene_view && editor.mouse_over_scene_view_window && is_key_down(.MOUSE_BUTTON_RIGHT) // TODO: only change the cursor when the mouse is over the "scene"
+            if editor.mouse_is_over_scene_view && editor.mouse_over_scene_view_window && want_mouselook() // TODO: only change the cursor when the mouse is over the "scene"
                 SetMouseCursor(.ResizeAll);
         }
     }
@@ -1359,7 +1361,9 @@ editor_update :: (state: *State) {
 
     // Move editor camera with WASD
 
-    if !io.WantTextInput && mouse_is_over_scene_view && mouse_over_scene_view_window && is_key_down(.MOUSE_BUTTON_RIGHT) {
+    is_mouse_looking = !io.WantTextInput && ((mouse_is_over_scene_view && mouse_over_scene_view_window) || is_mouse_looking) && want_mouselook();
+
+    if is_mouse_looking {
         update := false; // camera did move
         {
             // moving with WASD 
@@ -2187,6 +2191,10 @@ HelpMarker :: (desc: string) {
 #scope_export
 ImGui :: #import "imgui_docking";
 #scope_file
+
+want_mouselook :: () -> bool {
+    return is_key_down(.MOUSE_BUTTON_RIGHT) || is_key_down(#char "C");
+}
 
 editor_state :: () -> *Editor { return *context.state.editor; }
 

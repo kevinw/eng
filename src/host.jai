@@ -160,6 +160,8 @@ _unhooking_always_on_top := false;
 
 }
 
+_host_window_resizes_this_frame: []Window_Resize_Record;
+
 
 main :: () {
     get_time(); // start the clock!
@@ -227,7 +229,7 @@ main :: () {
     host_state.window_handle         = the_window;
     host_state.input_button_states   = *input_button_states;
     host_state.change_window_state   = change_window_state;
-    host_state.get_window_resizes    = get_window_resizes;
+    host_state.get_window_resizes    = () => _host_window_resizes_this_frame;
     host_state.set_cursor = set_win32_cursor;
     host_state.built_with_backend    = #run get_compiler_codegen_backend();
 
@@ -312,7 +314,10 @@ main :: () {
             window_did_move = true;
             remove it;
         }
-        for get_window_resizes() if it.window == the_window {
+
+        _host_window_resizes_this_frame = get_window_resizes(); // this function frees the array it returns the next time you call it.
+
+        for _host_window_resizes_this_frame if it.window == the_window {
             window_resize_record = it;
             window_did_resize = true;
         }

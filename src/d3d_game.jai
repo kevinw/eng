@@ -9,6 +9,9 @@ State :: struct {
 
 update_and_draw :: (host_state: Host_State) {
     game_base_default_multiview_update_and_draw(host_state);
+
+    using context.state;
+    Soloud_setPause(sound_state.soloud, sound_state.bgm_voice, cast(s32)(editor.play_mode != .Play)); 
 }
 
 on_host_did_reload_game_dll :: (host_state: Host_State) {
@@ -48,6 +51,12 @@ on_host_init :: (host_state: Host_State) {
 
         did_remove_again := remove_component(player);
         assert(!did_remove_again);
+    }
+
+    // music init
+    {
+        #import "soloud";
+        sound_state.bgm_voice = Soloud_play(sound_state.soloud, sound_state.bgm);
     }
 
     load_scene(1);

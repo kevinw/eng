@@ -5,7 +5,12 @@ State :: struct {
 }
 
 update_and_draw :: (host_state: Host_State) {
+    using context.state;
+
     game_base_default_update_and_draw(host_state);
+
+    Soloud_setPause(sound_state.soloud, sound_state.bgm_voice, cast(s32)(editor.play_mode != .Play)); 
+
 }
 
 on_host_did_reload_game_dll :: (host_state: Host_State) {
