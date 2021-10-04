@@ -298,6 +298,11 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             TextUnformatted(tprint("%: Type %", to_string(name), s));
         case .OVERLOAD_SET;
             // @@
+
+        case .VARIANT;
+        // @Incomplete: Can do something better here.
+            tiv := cast(*Type_Info_Variant) info;
+            inspect(name, data, tiv.variant_of);
     }
 }
 
