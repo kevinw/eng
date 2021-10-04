@@ -402,11 +402,11 @@ look_rotation :: (forward: Vector3, up := Vector3.{0, 1, 0}) -> Quaternion {
 editor_init :: (editor: *Editor) {
     {
         using editor;
-        pos :: Vector3.{500, 300, -300};
-        scene_camera.position = pos;
-        target := pos;
+        pos :: Vector3.{0, 5, -5};
+        target := Vector3.{0, 0, 0};
         target.z = 0;
-        //scene_camera.rotation = get_rotation(make_look_at_matrix(pos, target, reference_up_vector=Vector3.{0, 1, 0}, x_is_forward = false));
+
+        scene_camera.position = pos;
         scene_camera.matrices_need_update = true;
     }
 
@@ -740,24 +740,29 @@ draw_lkg_aspect_overlay :: (draw_list: *ImGui.ImDrawList) {
     using context.state.editor;
     using ImGui;
 
-    LKG_ASP :: 0.75;
-
     asp := cast(float)scene_view_rect.width / cast(float)scene_view_rect.height;
 
     p1, p2: ImVec2;
-    if asp > LKG_ASP {
+    multiview_aspect_ratio: float = ---;
+    {
+        using context.state.multiview.device_params;
+        multiview_aspect_ratio = cast(float)width / cast(float)height;
+    }
+
+    if asp > multiview_aspect_ratio {
         // center a rectangle in the sceneview rect, but with the aspect
         // ratio of the looking glass
         p1.y = scene_view_rect.y;
         p2.y = scene_view_rect.height + scene_view_rect.y;
 
         center_x := scene_view_rect.x + scene_view_rect.width*0.5;
-        w2 := scene_view_rect.height * LKG_ASP * 0.5;
+        w2 := scene_view_rect.height * multiview_aspect_ratio * 0.5;
 
         p1.x = center_x - w2;
         p2.x = center_x + w2;
     } else {
-        // TODO
+        screenp("TODO: my aspect %, lkg aspect %", asp, multiview_aspect_ratio);
+        return;
     }
 
     draw_list.AddRect(draw_list, p1, p2, make_col32(make_ImVec4(0.2, 0.2, 0.2, 0.5)), rounding=20);

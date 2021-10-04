@@ -35,6 +35,7 @@ on_host_init :: (host_state: Host_State) {
     sound_state.soloud = host_state.soloud_context;
 
     game_base_init(host_state);
+    editor.scene_camera.position = .{500, 300, -300};
     set_function_pointers();
 
     // tests

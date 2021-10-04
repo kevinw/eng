@@ -161,7 +161,7 @@ Lenticular_Constants :: struct {
 apply_settings_to_buffer_ptr :: (using constants: *Lenticular_Constants, fb_size: Vector2_u16) {
     using ctx();
 
-    viewColumns := 5; // TODO: no
+    viewColumns := 5; // TODO: Get this from the device config instead
     viewRows    := 9;
 
     //print("device_params: %\n", formatStruct(device_params, use_newlines_if_long_form=true));
