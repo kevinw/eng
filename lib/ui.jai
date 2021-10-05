@@ -147,9 +147,9 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
     {
         using style := ImGui.GetStyle();
 
-        FrameRounding = 1.5;
+        FrameRounding = 1.45;
         GrabRounding = 3.0;
-        TabRounding = 5.0;
+        TabRounding = 4.5;
 
         // we keep the "original" style around for when we scale it later
         ui.original_style = New(type_of(<<style));
