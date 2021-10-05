@@ -21,15 +21,13 @@ should_display_struct_member :: (member: *Type_Info_Struct_Member) -> bool {
     if member.flags & .CONSTANT != 0
         return false;
 
-    for member.notes
-        if it == "noui"
-            return false;
+    for member.notes if it == "noui"
+        return false;
 
     return true;
 }
 
 categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Categorize_Type_Func) -> Struct_Looks_Like {
-
     if categorize_type_func != null {
         user_categorization := categorize_type_func(ti_struct);
         if user_categorization != .None
@@ -57,10 +55,10 @@ categorize_ti_struct :: (ti_struct: *Type_Info_Struct, categorize_type_func: Cat
 
 #assert(categorize_ti_struct(cast(*Type_Info_Struct)type_info(Vector3), null) == .Float3);
 
-Show_Node_Func :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
+Show_Node_Func       :: #type (name: *u8, data: *void, info: *Type_Info) -> bool;
 Categorize_Type_Func :: #type (ti: *Type_Info) -> Struct_Looks_Like;
-Custom_Ctrl_Func :: #type (name: string, data: *void, ti_info: *Type_Info);
-Popup_Callback_Func :: #type (data: *void);
+Custom_Ctrl_Func     :: #type (name: string, data: *void, ti_info: *Type_Info);
+Popup_Callback_Func  :: #type (data: *void);
 
 push_or_commit_item :: (data: *void, size_in_bytes: int) {
     impl := *context.state.editor.undo_state;
@@ -70,16 +68,26 @@ push_or_commit_item :: (data: *void, size_in_bytes: int) {
         Undo.commit(impl);
 }
 
-
-inspect :: inline (name: *u8, t: *$T, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null, popup_cb: Popup_Callback_Func = null, popup_cb_data: *void = null) {
-    inspect(name, t, type_info(T), show_node_func, categorize_type_func, custom_ctrl, popup_cb);
+Inspect_Opts :: struct {
+    show_node_func:       Show_Node_Func;
+    categorize_type_func: Categorize_Type_Func;
+    custom_ctrl_func:     Custom_Ctrl_Func;
+    popup_cb:             Popup_Callback_Func;
+    popup_cb_data:        *void;
+    filter:               *ImGui.TextFilter;
 }
 
-inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_Func = null, categorize_type_func: Categorize_Type_Func = null, custom_ctrl: Custom_Ctrl_Func = null, popup_cb: Popup_Callback_Func = null, popup_cb_data: *void = null) {
+inspect :: inline (name: *u8, t: *$T, opts: Inspect_Opts = .{}) {
+    inspect(name, t, type_info(T), opts);
+}
+
+inspect :: (name: *u8, data: *void, info:*Type_Info, opts: Inspect_Opts = .{}) {
     using ImGui;
 
-    if show_node_func != null && !show_node_func(name, data, info)
+    if opts.show_node_func != null && !opts.show_node_func(name, data, info)
         return;
+
+    show := opts.filter == null || TextFilter.PassFilter(opts.filter, tprint("%\0", name));
 
     default_size:ImVec2;
 
@@ -87,6 +95,9 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
 
     undo := *context.state.editor.undo_state;
 
+    // This first if block is all the single, non-recursive leaf elements.
+    // Down below is the if handling structs and arrays.
+    if show {
     if #complete info.type == {
         case .INTEGER;
             ti_int := cast(*Type_Info_Integer) info;
@@ -128,68 +139,13 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 else
                     TextUnformatted(tprint("%: null", name));
             } else
-                inspect(name, next_data, info_pointer.pointer_to, show_node_func, categorize_type_func, custom_ctrl);
+                inspect(name, next_data, info_pointer.pointer_to, opts);
         case .PROCEDURE;
             TextUnformatted("TODO: procedure inspect");
         case .VOID;
             TextUnformatted(tprint("%: %", name, data));
         case .CODE;
             TextUnformatted("Code");
-        case .STRUCT;
-            ti_struct := cast(*Type_Info_Struct) info;
-
-            category := categorize_ti_struct(ti_struct, categorize_type_func);
-            if category == .Has_Custom_Control && custom_ctrl != null {
-                custom_ctrl(to_string(name), data, ti_struct);
-            } else {
-                if category == {
-                    case .Float2;
-                        DragFloat2(name, cast(*[2]float)data);
-                        push_or_commit_item(data, size_of(float) * 2);
-                    case .Float3;
-                        DragFloat3(name, cast(*[3]float)data);
-                        push_or_commit_item(data, size_of(float) * 3);
-                    case .Float4;
-                        DragFloat4(name, cast(*[4]float)data);
-                        push_or_commit_item(data, size_of(float) * 4);
-                    case .Color_Byte4;
-                        bytes := cast(*u8)data;
-                        // TODO: no need to round trip to floats here; ImGui supports editing bytes with the .Uint8 flag
-                        floats: [4]float;
-                        for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
-                        if ColorEdit4(name, *floats, ImGui.ColorEditFlags.Float | .NoInputs) {
-                            Undo.push(undo, data, 4);
-                            for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255); }
-                        }
-                        if IsItemDeactivatedAfterEdit()
-                            Undo.commit(undo);
-                    case;
-                        tree_node_str:string;
-                        if name != null && c_style_strlen(name) > 0
-                            tree_node_str = tprint("%: %\0", to_string(name), ti_struct.name);
-                        else
-                            tree_node_str = ti_struct.name;
-
-                        //tree_node_flags := TreeNodeFlags.None;
-                        //tree_node_flags := TreeNodeFlags.DefaultOpen;
-                        tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
-                        PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
-                        tree_node_open := TreeNodeEx(tree_node_str.data, tree_node_flags);
-                        if popup_cb popup_cb(popup_cb_data);
-                        if tree_node_open {
-                            PopStyleColor();
-
-                            for * member: uniquely_placed_members(ti_struct)
-                                if should_display_struct_member(member)
-                                    inspect(member.name.data, data + member.offset_in_bytes, member.type, show_node_func, categorize_type_func, custom_ctrl);
-
-                            if tree_node_flags & .NoTreePushOnOpen == 0
-                                TreePop();
-                        } else {
-                            PopStyleColor();
-                        }
-                }
-            }
         case .ARRAY;
             info_array := cast(*Type_Info_Array) info;
             array_count, array_data := Reflection.get_array_count_and_data(data, info_array);
@@ -199,13 +155,10 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 defer TreePop();
                 for 0..array_count-1 {
                     item_name := temp_c_string(tprint("%[%]", array_name, it));
-                    inspect(item_name, array_data + it * element_size, info_array.element_type, show_node_func, categorize_type_func, custom_ctrl);
+                    inspect(item_name, array_data + it * element_size, info_array.element_type, opts);
                 }
             }
-        case .ANY;
-            // @@ Display type and inspect value.
-            any := cast(*Any)data;
-            inspect(name, any.value_pointer, any.type, show_node_func, categorize_type_func, custom_ctrl);
+
         case .ENUM;
             ti_enum := cast(*Type_Info_Enum)info;
             if ti_enum.enum_type_flags & .FLAGS {
@@ -285,8 +238,6 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
                 }
             }
             
-        case .POLYMORPHIC_VARIABLE;
-            // @@ ??
         case .TYPE;
             type_ti := << cast(**Type_Info)data;
 
@@ -296,11 +247,80 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, show_node_func: Show_Node_F
             s := builder_to_string(*sb, __temporary_allocator);
 
             TextUnformatted(tprint("%: Type %", to_string(name), s));
-        case .OVERLOAD_SET;
-            // @@
 
+        case .OVERLOAD_SET;         TextUnformatted("TODO: Handle OVERLOAD_SET in imgui_inspector");
+        case .POLYMORPHIC_VARIABLE; TextUnformatted("TODO: Handle .POLYMORPHIC_VARIABLE in imgui_inspector");
+
+        case .STRUCT;  // handled below. keep recursive elements in the if below
+        case .ANY;     // handled below
+        case .VARIANT; // handled below
+    }
+    }
+
+    if info.type == {
+        case .STRUCT;
+            ti_struct := cast(*Type_Info_Struct) info;
+
+            category := categorize_ti_struct(ti_struct, opts.categorize_type_func);
+            if category == .Has_Custom_Control && custom_ctrl != null {
+                custom_ctrl(to_string(name), data, ti_struct);
+            } else {
+                if category == {
+                    case .Float2;
+                        DragFloat2(name, cast(*[2]float)data);
+                        push_or_commit_item(data, size_of(float) * 2);
+                    case .Float3;
+                        DragFloat3(name, cast(*[3]float)data);
+                        push_or_commit_item(data, size_of(float) * 3);
+                    case .Float4;
+                        DragFloat4(name, cast(*[4]float)data);
+                        push_or_commit_item(data, size_of(float) * 4);
+                    case .Color_Byte4;
+                        bytes := cast(*u8)data;
+                        // TODO: no need to round trip to floats here; ImGui supports editing bytes with the .Uint8 flag
+                        floats: [4]float;
+                        for * floats { (<<it) = cast(float)(<<(bytes + it_index)) / cast(float)255; }
+                        if ColorEdit4(name, *floats, ImGui.ColorEditFlags.Float | .NoInputs) {
+                            Undo.push(undo, data, 4);
+                            for floats { <<(bytes + it_index) = cast(u8)(floats[it_index] * 255); }
+                        }
+                        if IsItemDeactivatedAfterEdit()
+                            Undo.commit(undo);
+                    case;
+                        tree_node_str:string;
+                        if name != null && c_style_strlen(name) > 0
+                            tree_node_str = tprint("%: %\0", to_string(name), ti_struct.name);
+                        else
+                            tree_node_str = ti_struct.name;
+
+                        //tree_node_flags := TreeNodeFlags.None;
+                        //tree_node_flags := TreeNodeFlags.DefaultOpen;
+                        tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
+                        PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
+                        tree_node_open := TreeNodeEx(tree_node_str.data, tree_node_flags);
+
+                        if opts.popup_cb
+                            opts.popup_cb(opts.popup_cb_data);
+
+                        if tree_node_open {
+                            PopStyleColor();
+
+                            for * member: uniquely_placed_members(ti_struct)
+                                if should_display_struct_member(member)
+                                    inspect(member.name.data, data + member.offset_in_bytes, member.type, opts);
+
+                            if tree_node_flags & .NoTreePushOnOpen == 0
+                                TreePop();
+                        } else {
+                            PopStyleColor();
+                        }
+                }
+            }
+        case .ANY;
+            any := cast(*Any)data;
+            inspect(name, any.value_pointer, any.type, opts);
         case .VARIANT;
-        // @Incomplete: Can do something better here.
+            // @Incomplete: Can do something better here.
             tiv := cast(*Type_Info_Variant) info;
             inspect(name, data, tiv.variant_of);
     }

@@ -60,6 +60,7 @@ Editor :: struct {
     tweens: Tweens;
 
     selector_filter: ImGui.TextFilter;
+    quick_search_filter: ImGui.TextFilter;
 
     play_mode: Play_Mode = .Edit; // now also set in game_base_init
     fading_to_play: bool;
@@ -98,6 +99,8 @@ Editor :: struct {
     entities_window_size: ImGui.ImVec2;
 
     is_mouse_looking := false;
+
+    quick_search_just_opened := false;
 
     pending_scene_load: struct {
         filename: string; @owned
@@ -139,6 +142,7 @@ Editor :: struct {
         scene_view     := true;
         todo           := false;
         about          := false;
+        quick_search   := false;
     };
 
     inspector_has_focus: bool;
@@ -709,7 +713,10 @@ render_imgui_to_drawlists :: (state: *State) {
     if editor.windows.ecs_internals {
         defer End();
         if Begin("DEBUG", *editor.windows.ecs_internals)
-            inspect("internals", *state.world.entities.items, categorize_type_func=categorize_type, custom_ctrl=custom_ctrl);
+            inspect("internals", *state.world.entities.items, Inspect_Opts.{
+                categorize_type_func=categorize_type,
+                custom_ctrl_func=custom_ctrl,
+            });
     }
 
     using editor;
@@ -729,6 +736,7 @@ render_imgui_to_drawlists :: (state: *State) {
     if windows.profiler       show_profiler_window(*windows.profiler);
     if windows.scene_view     show_scene_view(*windows.scene_view);
     if windows.todo           show_todo_window(*windows.todo);
+    if windows.quick_search   show_quick_search_window(*windows.quick_search);
     if windows.about          show_about_window(*windows.about);
 
     if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
@@ -826,6 +834,28 @@ align_all_selected_objects_with_scene_view :: () {
 }
 
 #load "todo_list.jai";
+
+show_quick_search_window :: (open: *bool) {
+    using ImGui;
+    using context.state.editor;
+
+    BeginEnd_return("Quick Search", open);
+    TextWrapped(#string END
+TODO: This is currently broken. The problem is filtering structs and arrays in 'inspect.'
+
+By the time we recurse down into the sub elements to see if something was visible, we've already used ImGui to render the "header" element for the struct/array.
+END);
+
+    TextFilter.Draw(*quick_search_filter);
+    if quick_search_just_opened {
+        quick_search_just_opened = false;
+        SetKeyboardFocusHere(-1);
+    }
+
+    inspect_opts := editor_inspect_opts();
+    inspect_opts.filter = *quick_search_filter;
+    inspect("", *context.state.editor, opts=inspect_opts);
+}
 
 show_about_window :: (open: *bool) {
     using ImGui;
@@ -1335,6 +1365,11 @@ get_drag_edge :: (entity_handle: Entity_Handle, uv: Vector2) -> Drag_Edge {
     return .None;
 }
 
+toggle_pause :: () {
+    using context.state;
+    global_time_scale = ifx global_time_scale > 0 then 0.0 else 1.0;
+}
+
 editor_update :: (state: *State) {
     using context.state.editor;
 
@@ -1352,10 +1387,12 @@ editor_update :: (state: *State) {
     
     if !io.WantTextInput {
         if rl.IsKeyPressed(.KEY_P) {
-            if context.state.global_time_scale > 0
-                context.state.global_time_scale = 0;
-            else
-                context.state.global_time_scale = 1;
+            if ctrl_down {
+                windows.quick_search = true;
+                quick_search_just_opened = true;
+            } else {
+                toggle_pause();
+            }
         }
         if rl.IsKeyPressed(.KEY_M) {
             log_error("todo: implement multiview toggling again");
@@ -1446,6 +1483,7 @@ editor_update :: (state: *State) {
             // mouse wheel zoom
             if _local_host_state.mouse_delta.z != 0 {
                 scene_camera.fov += cast(float)_local_host_state.mouse_delta.z / 120.0 * 0.05;
+                screenp("fov % (THIS ISN'T RIGHT...RADIANS)", scene_camera.fov);
                 scene_camera.matrices_need_update = true;
             }
         }
@@ -1921,6 +1959,32 @@ save_changes_modal :: () {
 
 #scope_file 
 
+editor_inspect_opts :: () -> Inspect_Opts {
+    opts := Inspect_Opts.{
+        show_node_func=classify_node,
+        categorize_type_func=categorize_type, 
+        custom_ctrl_func=custom_ctrl,
+    };
+    return opts;
+}
+
+popup_cb :: (popup_ctx_data_void: *void) {
+    using ImGui;
+    using popup_ctx_data := cast(*Popup_Context)popup_ctx_data_void;
+    if BeginPopupContextItem("component context menu") {
+        defer EndPopup();
+        if Selectable(tprint("Delete %\0", component_ti.name).data)
+            component_ptr_to_delete = cast(*Component)component_ptr;
+    }
+}
+
+Popup_Context :: struct {
+    component_ptr: *Component;
+    component_ti: *Type_Info_Struct;
+
+    component_ptr_to_delete: *Component;
+}
+
 imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> (*void, ImGui.ImVec2) {
     // A shortcut for getting the things you need to render an image in ImGui
     // from a LiveTexture (namely, a void pointer to the GL texture ID, and an
@@ -1958,6 +2022,8 @@ draw_inspector :: (open: *bool) {
     defer End();
 
     {
+        // We make the inspector window transparent if nothing is selected. (If
+        // it's docked, it will remain opaque.)
         pushed_alpha := false;
         if selected.count == 0 && !inspector_has_focus {
             PushStyleVar(.Alpha, 0.2);
@@ -1973,25 +2039,19 @@ draw_inspector :: (open: *bool) {
         return;
     }
 
-    classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
-        // Here we have the inspector omit showing info for the  "using component: Component;"
-        // field (this is the field that makes a struct a subclass of Component).
-        return cast(*Type_Info)type_info(Component) != ti;
-    }
-
     if entity == null {
         PushPopStyleColor(.Text, .{.35, .35, .35, 1});
         Text("Nothing selected.");
         return;
     }
 
-    Popup_Context :: struct {
-        component_ptr: *Component;
-        component_ti: *Type_Info_Struct;
 
-        component_ptr_to_delete: *Component;
-    }
+    inspect_opts := editor_inspect_opts();
+
+    // special popup for entities
     popup_ctx: Popup_Context;
+    inspect_opts.popup_cb=popup_cb;
+    inspect_opts.popup_cb_data=*popup_ctx;
 
     for entity.components {
         component_ti := component_bit_to_ti(it.bit);
@@ -2002,17 +2062,10 @@ draw_inspector :: (open: *bool) {
         PushPopFont(context.state.ui.small_font);
 
         popup_ctx.component_ptr = component_ptr;
-        popup_ctx.component_ti = component_ti;;
+        popup_ctx.component_ti = component_ti;
 
-        inspect("", component_ptr, component_ti, classify_node, categorize_type, custom_ctrl, xx popup_cb, *popup_ctx);
-        popup_cb :: (popup_ctx_data: *Popup_Context) {
-            using popup_ctx_data;
-            if BeginPopupContextItem("component context menu") {
-                defer EndPopup();
-                if Selectable(tprint("Delete %\0", component_ti.name).data)
-                    component_ptr_to_delete = cast(*Component)component_ptr;
-            }
-        }
+        inspect("", component_ptr, component_ti, opts=inspect_opts);
+
     }
 
     if popup_ctx.component_ptr_to_delete {
@@ -2199,6 +2252,12 @@ HelpMarker :: (desc: string) {
 #scope_export
 ImGui :: #import "imgui_docking";
 #scope_file
+
+classify_node :: (name: *u8, data: *void, ti: *Type_Info) -> bool {
+    // Here we have the inspector omit showing info for the  "using component: Component;"
+    // field (this is the field that makes a struct a subclass of Component).
+    return cast(*Type_Info)type_info(Component) != ti;
+}
 
 want_mouselook :: () -> bool {
     return is_key_down(.MOUSE_BUTTON_RIGHT) || is_key_down(#char "C");
