@@ -260,13 +260,21 @@ update :: (using player: *Player) {
              rect.y >= p.y && rect.y < p.y + speed.y * Time.delta_time))
         {
             hitObstacle = true;
+            oldSpeedY := speed.y;
             speed.y = 0.0;
             p.y = rect.y;
             if !grounded && grounded_timer <= 0 {
                 // landed
                 grounded_timer = LAND_FX_TIMER;
-                spawn_prefab("player_dust", <<position);
-                play_sfx("landing");
+                
+                // attenuate volume of landing sound based on Y speed
+                landing_strength := pow(clamp(cast(float)oldSpeedY / 400.0, 0, 1), 1.7);
+                //landing_strength := 1.0;
+
+                play_sfx("landing", landing_strength);
+                if landing_strength > 0.5 {
+                    spawn_prefab("player_dust", <<position);
+                }
             }
 
             grounded = true;

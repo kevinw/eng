@@ -40,9 +40,15 @@ play_sound :: (wav: *Wav, volume := 1.0) {
     Soloud_play(soloud_state(), wav, volume);
 }
 
-play_sfx :: ($name: string) {
+play_sfx :: ($name: string, volume:float = -1.0) {
     wav := get_field_value(*context.state.sound_state.fx, name, *Wav);
-    Soloud_play(soloud_state(), wav);
+
+    // TODO: why is using the Volume argument below not working? does using
+    // Wav_setVolume like this here affect other instances of this wav
+    // currenlty playing?
+    Wav_setVolume(wav, volume); 
+
+    Soloud_play(soloud_state(), wav, Volume=volume);
 }
 
 sound_init :: (using state: *Sound_State) {
