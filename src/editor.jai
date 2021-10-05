@@ -1957,15 +1957,16 @@ draw_inspector :: (open: *bool) {
 
     defer End();
 
-    pushed_alpha := false;
-    if selected.count == 0 && !inspector_has_focus {
-        PushStyleVar(.Alpha, 0.2);
-        pushed_alpha = true;
+    {
+        pushed_alpha := false;
+        if selected.count == 0 && !inspector_has_focus {
+            PushStyleVar(.Alpha, 0.2);
+            pushed_alpha = true;
+        }
+        defer if pushed_alpha PopStyleVar();
+        if !Begin("Inspector", open) return;
+        inspector_has_focus = IsWindowFocused();
     }
-    if !Begin("Inspector", open)
-        return;
-    inspector_has_focus = IsWindowFocused();
-    if pushed_alpha PopStyleVar();
 
     if selected.count > 1 {
         Text("Multiple objects are selected.");
