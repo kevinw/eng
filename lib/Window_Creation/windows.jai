@@ -136,10 +136,10 @@ WINDOWED_STYLE         : u32 : WS_OVERLAPPEDWINDOW;
 FULLSCREEN_STYLE       : u32 : WS_VISIBLE | WS_POPUP;
 SECONDARY_WINDOW_STYLE : u32 : WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
 
-window_class_initted := false;
 #scope_file
 DPI :: #import "DPI";
 
+window_class_initted := false;
 WINDOW_CLASS_NAME :: "Default Window Class";
 
 // @@ Move these to Windows.jai?
@@ -202,12 +202,20 @@ init_window_class :: (background_color_rgb: [3] float) {
     window_class_initted = true;
 }
 
+#scope_export
+
+get_dimensions :: (hwnd: HWND, right_handed: bool) -> (x: s32, y: s32, width: s32, height: s32, success := true) {
+    rect: RECT;
+    success := GetClientRect(hwnd, *rect);
+    if !success  return 0, 0, 0, 0, false;
+
+    y := ifx right_handed then rect.bottom else rect.top;
+    return rect.left, y, rect.right - rect.left, rect.bottom - rect.top;
+}
 
 // Mouse pointer
 
-#scope_export
-
-get_mouse_pointer_position :: (hwnd: HWND, right_handed: bool) -> x: int, y: int, success: bool {
+get_mouse_pointer_position :: (hwnd: HWND, right_handed: bool) -> (x: int, y: int, success: bool) {
     p: POINT;
     win_success := GetCursorPos(*p);
     if !win_success return 0, 0, false;

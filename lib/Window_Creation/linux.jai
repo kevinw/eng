@@ -1,4 +1,9 @@
 
+//
+// This x_global_display stuff is not the right way to do it. We should
+// probably wrap the window type such that it contains a display pointer
+// and a window pointer, thus is enough to uniquely identify a window.
+//
 #import "X11";
 
 #scope_file
@@ -164,6 +169,13 @@ swap_buffers :: (win: Window) {
     XUnlockDisplay(x_global_display);
 }
 
+get_dimensions :: (win: Window, right_handed: bool) -> (x: s32, y: s32, width: s32, height: s32, success := true) {
+    xwa: XWindowAttributes;
+    XGetWindowAttributes(x_global_display, win, *xwa);
+
+    y := ifx right_handed then xwa.y+xwa.height else xwa.y;
+    return xwa.x, y, xwa.width, xwa.height;
+}
 
 get_mouse_pointer_position :: (dpy: *Display, win: Window, right_handed: bool) -> x: int, y: int, success: bool {
     root_x, root_y: s32;
