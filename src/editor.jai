@@ -761,7 +761,9 @@ draw_lkg_aspect_overlay :: (draw_list: *ImGui.ImDrawList) {
         p1.x = center_x - w2;
         p2.x = center_x + w2;
     } else {
-        screenp("TODO: my aspect %, lkg aspect %", asp, multiview_aspect_ratio);
+        // In this case we're cropping I think? so it doesn't make sense to
+        // show an overlay. But another option in the future could be to
+        // letterbox the content.
         return;
     }
 
@@ -1292,7 +1294,7 @@ Drag_Edge :: enum {
 }
 
 get_cursor_for_drag_edge :: (drag_mode: Drag_Edge) -> ImGui.MouseCursor {
-    if drag_mode == {
+    if #complete drag_mode == {
         case .North; #through;
         case .South; return .ResizeNS;
             
