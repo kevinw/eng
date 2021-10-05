@@ -170,7 +170,12 @@ imgui_init :: (ui: *UI_State, window_handle: *void) {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
 }
 
-imgui_deinit :: ImGui_Impl_Shutdown;
+imgui_deinit :: (ui: *UI_State) {
+    free(ui.original_style);
+    ui.original_style = null;
+
+    ImGui_Impl_Shutdown(ui);
+}
 
 reload_fonts :: (ui: *UI_State) {
     regular_size := 15 * ui.config.current_style_scale;
