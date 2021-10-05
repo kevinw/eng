@@ -530,6 +530,16 @@ ImGui_ImplDX11_InvalidateDeviceObjects :: (using ui_state: *UI_State) {
     Release_And_Set_Null(*VertexShader);
 }
 
+ImGui_Impl_Shutdown :: (ui_state: *UI_State) {
+    if ui_state.ctx == null
+        return;
+
+    ImGui.SetCurrentContext(ui_state.ctx);
+    ImGui_ImplDX11_InvalidateDeviceObjects(ui_state);
+    ImGui.DestroyContext(ui_state.ctx);
+    ui_state.ctx = null;
+}
+
 // Hopefully in the future it will be easier to provide custom WindowProc functionality
 // through Jai's windows impl.
 HHOOK :: HANDLE;

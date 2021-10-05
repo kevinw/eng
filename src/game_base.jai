@@ -78,6 +78,7 @@ game_base_shutdown :: () {
     multiview_window.close();
 
     Assets.shutdown();
+    imgui_deinit(*ui);
 }
 
 game_base_update :: (host_state: Host_State) {
