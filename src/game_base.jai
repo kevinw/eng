@@ -356,6 +356,14 @@ game_base_init :: (host_state: Host_State) {
     world_init(world);
     imgui_init(*ui, host_state.window_handle);
     sound_init(*sound_state);
+
+    // Start in play mode for release builds.
+    #if BUILDING_DLLS {
+        editor.play_mode = .Edit;
+    } else {
+        editor.play_mode = .Play;
+    }
+
     editor_init(*editor);
 
     im_context.renderer = *renderer;

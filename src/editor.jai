@@ -61,7 +61,7 @@ Editor :: struct {
 
     selector_filter: ImGui.TextFilter;
 
-    play_mode: Play_Mode = .Edit;
+    play_mode: Play_Mode = .Edit; // now also set in game_base_init
     fading_to_play: bool;
     fading_alpha: float = 1;
 
