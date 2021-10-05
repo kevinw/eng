@@ -136,10 +136,11 @@ WINDOWED_STYLE         : u32 : WS_OVERLAPPEDWINDOW;
 FULLSCREEN_STYLE       : u32 : WS_VISIBLE | WS_POPUP;
 SECONDARY_WINDOW_STYLE : u32 : WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
 
+window_class_initted := false;
+
 #scope_file
 DPI :: #import "DPI";
 
-window_class_initted := false;
 WINDOW_CLASS_NAME :: "Default Window Class";
 
 // @@ Move these to Windows.jai?
