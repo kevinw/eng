@@ -1371,7 +1371,7 @@ toggle_pause :: () {
 }
 
 editor_update :: (state: *State) {
-    using context.state.editor;
+    using state.editor;
 
     screen_mouse_pos := get_scene_view_screen_mouse_pos();
     mouse_is_over_scene_view = screen_mouse_pos.x >= 0 && screen_mouse_pos.y > 0 && screen_mouse_pos.x < scene_view_rect.width && screen_mouse_pos.y < scene_view_rect.height;
