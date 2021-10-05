@@ -1,17 +1,4 @@
 # TODO
-- [ ] Fix the gimbal lock when flying the scene cam around.
-- [ ] make the context assert handler remove the always on top bit
-
-- some thinking about assets...we have a case where WBML files get loaded for
-  "prefabs." should they should ALSO become content-addressable hashed
-  artifacts in the .library/ folder? it would be good to have them go through
-  the same system. at least for release builds. during the editor cycle, there
-  might be too much garbage, since they would change all the time? I'm not
-  sure...but in general, having a "function" that takes arguments, hashes them,
-  and the "input", and gives you an expensive output. we could "cache" that
-  easily! some stuff to read: asset systems usually use reference
-  counting...why? how could we easily do something like that? how does an
-  asset database/cache interact with the "multiple worlds" thing? 
 
 
 ## Immediate
@@ -50,6 +37,18 @@
     - remember now that `#align 16` exists in Jai...might be an easy fix there.
 
 ## Medium Priority
+- some thinking about assets...we have a case where WBML files get loaded for
+  "prefabs." should they should ALSO become content-addressable hashed
+  artifacts in the .library/ folder? it would be good to have them go through
+  the same system. at least for release builds. during the editor cycle, there
+  might be too much garbage, since they would change all the time? I'm not
+  sure...but in general, having a "function" that takes arguments, hashes them,
+  and the "input", and gives you an expensive output. we could "cache" that
+  easily! some stuff to read: asset systems usually use reference
+  counting...why? how could we easily do something like that? how does an
+  asset database/cache interact with the "multiple worlds" thing? 
+- Fix the gimbal lock when flying the scene cam around.
+- make the context assert handler remove the always on top bit
 - Color palettes
 - swapchain/renderer rework - we need one renderer, but two swapchains
 - reverse Z depth
@@ -98,10 +97,7 @@
 
 
 ## Research
-- houdini api
-- animation compression libraries like https://github.com/nfrechette/acl
 - [guide to implementing 2d platformers](http://higherorderfun.com/blog/2012/05/20/the-guide-to-implementing-2d-platformers/)
-- [gorgeous top down visuals](https://twitter.com/HiWarp/status/1356809034213564416)
 - Research binary pack formats; C libraries that do virtual file systems
 - 2d parallax mapping textures with view dependent lighting
 - game design books like Jesse Schnell's "Book of Lenses"
