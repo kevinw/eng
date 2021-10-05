@@ -12,7 +12,7 @@ create :: (main_renderer: *Renderer, debug := true, x: s32, y: s32, width: s32, 
     }
     using ctx();
     assert(window == null, "Window was already created.");
-    log("creating multiview window with width=%, height=%", width, height);
+    log("[multiview] creating multiview window with width=%, height=%", width, height);
     window = create_window(width, height, "", x, y, parent=parent);
     if borderless
         platform.set_window_borderless(window, true, x, y, width, height);

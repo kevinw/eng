@@ -110,7 +110,7 @@ LoadLiveSprite :: (filename: string) -> (sprite: LiveSprite, was_new: bool) {
 }
 
 LoadLiveTexture :: (filename: string) -> LiveTexture {
-    log("LoadLiveTexture(%)", filename);
+    log("[live] load tex '%'", filename);
 
     assert(filename.count > 0);
     using context.state;

@@ -411,7 +411,7 @@ main :: () {
     }
 
     plugin_deinit(shutting_down = true);
-    log("host - exit OK.");
+    log("[host] exit OK");
 }
 
 #scope_file

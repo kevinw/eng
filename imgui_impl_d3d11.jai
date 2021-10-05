@@ -92,7 +92,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         };
         desc.ByteWidth = cast(u32)(VertexBufferSize * size_of(ImDrawVert));
         if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *VB) < 0 {
-            log("imgui_d3d11 - Error creating the vertex buffer");
+            log("[imgui_d3d11] Error creating the vertex buffer");
             return false;
         }
         set_debug_name(VB, "ImGui vertex buffer");
@@ -384,7 +384,7 @@ END;
 
 #if GRAPHICS_LAYER_DEBUG {
         vertexShaderBlob: *ID3DBlob;
-        log("imgui_d3d11 - compiling imgui shader % (%)", "main", "vs_4_0");
+        log("[imgui_d3d11] compiling imgui shader % (%)", "main", "vs_4_0");
         if S_OK != D3DCompile(vertexShader.data, vertexShader.count, null, null, null, "main", "vs_4_0", 0, 0, *vertexShaderBlob, null)
             return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
         defer Release(vertexShaderBlob);
@@ -448,7 +448,7 @@ END;
 
 #if GRAPHICS_LAYER_DEBUG {
         pixelShaderBlob: *ID3DBlob;
-        log("imgui_d3d11 - compiling imgui shader % (%)", "main", "ps_4_0");
+        log("[imgui_d3d11] compiling imgui shader % (%)", "main", "ps_4_0");
         if D3DCompile(pixelShader.data, pixelShader.count, null, null, null, "main", "ps_4_0", 0, 0, *pixelShaderBlob, null) < 0
             return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
         defer Release(pixelShaderBlob);

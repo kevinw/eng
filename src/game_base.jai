@@ -86,7 +86,7 @@ game_base_update :: (host_state: Host_State) {
 
     if !first_update {
         first_update = true;
-        log("first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
+        log("[game_base] first update at %", formatFloat(host_state.time, trailing_width=6, width=6));
     }
 
     Gamepad.update_gamepad();
@@ -517,7 +517,6 @@ handle_input_module_renderer_resize :: (window_handle: Window_Type) {
     }
 
     if did_resize {
-        print("did_resize\n");
         resize_swapchain(xx w, xx h);
     }
 }

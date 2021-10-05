@@ -39,20 +39,20 @@ load :: (plugin: *Module, filename: string, COPY_TO_TEMP_PATH := true) -> bool {
     }
 
     // load dll
-    log("plugin loading % (copied from %)", temp_path, filename);
+    log("[plugin] loading % (copied from %)", temp_path, filename);
     new_dll := LoadLibraryA(to_c_string(temp_path));
     if !new_dll {
-        log_error("could not load '%'", temp_path);
+        log_error("[plugin] could not load '%'", temp_path);
         return false;
     }
 
     // Here we store the address of the loaded DLL for later.
     if 0 == cast(int)GetModuleInformation(GetCurrentProcess(), new_dll, *plugin.module_info, size_of(type_of(plugin.module_info)))
-        log_error("GetModuleInformation failed");
+        log_error("[plugin] GetModuleInformation failed");
 
     file_time, ok := file_modtime(filename);
     if !ok {
-        log_error("could not read DLL write time: %", filename);
+        log_error("[plugin] could not read DLL write time: %", filename);
         return false;
     }
     plugin.last_write_time = file_time;
@@ -72,7 +72,7 @@ unload :: (plugin: *Module) -> bool {
     if plugin.native_module == null return false;
 
     if !FreeLibrary(plugin.native_module) {
-        log_error("FreeLibrary(plugin.filename=%) failed with code % - %\n",
+        log_error("[plugin] FreeLibrary(plugin.filename=%) failed with code % - %\n",
             plugin.filename, GetLastError(), GetLastErrorAsString());
 
         return false;
@@ -93,13 +93,13 @@ unload :: (plugin: *Module) -> bool {
                 lpBaseOfDll, size, MEM_RESERVE, PAGE_NOACCESS);
 
             if valloc_ptr == null {
-                log_error("VirtualAlloc failed. GetLastError(): % - %\n", GetLastError(), GetLastErrorAsString());
+                log_error("[plugin] VirtualAlloc failed. GetLastError(): % - %\n", GetLastError(), GetLastErrorAsString());
 
                 #import "windows_ex";
                 mem_basic_info: MEMORY_BASIC_INFORMATION;
                 sz := VirtualQuery(lpBaseOfDll, *mem_basic_info, size_of(MEMORY_BASIC_INFORMATION));
                 assert(sz != 0);
-                log("mem_basic_info: %\n", mem_basic_info);
+                log("[plugin] mem_basic_info: %\n", mem_basic_info);
 
             }
             assert(valloc_ptr != null, "VirtualAlloc(addr=%, size=%, MEM_RESERVE, PAGE_NOACCESS) failed", lpBaseOfDll, size);
@@ -126,7 +126,7 @@ wait_for_readable_file :: (filename: string) -> bool {
         if last_err == ERROR_SHARING_VIOLATION {
             Sleep (100);
         } else {
-            log_error("an unexpected error while waiting for a file to become readable: % (for file '%')", last_err, filename);
+            log_error("[plugin] an unexpected error while waiting for a file to become readable: % (for file '%')", last_err, filename);
             return false;
         }
     }

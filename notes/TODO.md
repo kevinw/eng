@@ -2,7 +2,7 @@
 
 
 ## Immediate
-- prototype an editor list that shows what is on camera at the moment. deprecate the hierarchy window
+- Prototype an editor list that shows what is on camera at the moment. Deprecate the hierarchy window.
 - fix resize dragging when scale goes negative
 - uvs for dragging sprite renderers are off
 - prototype 2dish uv displacement mapping like Yoku's Island Express?
