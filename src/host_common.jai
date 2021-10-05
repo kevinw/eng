@@ -15,6 +15,7 @@ Game_Window_Flags :: enum_flags {
 
 Host_State :: struct {
     set_cursor: #type (cursor: *void) #c_call;
+    set_cursor_cb: #type (cb: WM_SETCURSOR_Callback);
     game_window_flags: Game_Window_Flags = .DEV_DEFAULT;
     jai_compiler_did_error: bool;
     jai_compiler_error_string: string;

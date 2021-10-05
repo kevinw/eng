@@ -34,6 +34,7 @@ plugin_init :: (old_value: *void, host_state: Host_State) {
         // here, plugin_init is getting called for the first time. let's allocate
         // room for a State struct and continue with initialization.
         context.state = New(State);
+        _local_host_state = host_state;
         on_host_init(host_state);
     } else {
         // in this case, there is a game running, and old_value has

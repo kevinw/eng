@@ -534,6 +534,8 @@ ImGui_Impl_Shutdown :: (ui_state: *UI_State) {
     if ui_state.ctx == null
         return;
 
+    _local_host_state.set_cursor_cb(null);
+
     ImGui.SetCurrentContext(ui_state.ctx);
     ImGui_ImplDX11_InvalidateDeviceObjects(ui_state);
     ImGui.DestroyContext(ui_state.ctx);
@@ -633,10 +635,19 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     d3dDevice.AddRef(xx d3dDevice);
     d3dDeviceContext.AddRef(xx d3dDeviceContext);
 
+    assert(_local_host_state.set_cursor_cb != null);
+    _local_host_state.set_cursor_cb(Win32CursorCallback);
+
     return true;
 }
 
-ImGui_Impl_DidReloadDLL :: (ui_state: *UI_State) {
+Win32CursorCallback :: () -> bool #c_call {
+    return ImGui_ImplWin32_UpdateMouseCursor();
+}
+
+ImGui_Impl_DidReloadDLL :: (ui_state: *UI_State, host_state: *Host_State) {
+    assert(host_state.set_cursor_cb != null);
+    host_state.set_cursor_cb(Win32CursorCallback);
 }
 
 
@@ -708,13 +719,11 @@ ImGui_ImplWin32_UpdateMouseCursor :: () -> bool #c_call {
     IDC_SIZEWE   :: 32644;
 
     //SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
+    ctx: Context;
 
     io := ImGui.GetIO();
-    if io.ConfigFlags_ & .NoMouseCursorChange {
-        ctx: Context;
-        push_context ctx { print(".NoMouseCursorChange\n"); }
+    if io.ConfigFlags_ & .NoMouseCursorChange
         return false;
-    }
 
     imgui_cursor := ImGui.GetMouseCursor();
 
@@ -736,9 +745,7 @@ ImGui_ImplWin32_UpdateMouseCursor :: () -> bool #c_call {
             case .NotAllowed;   win32_cursor = IDC_NO;
             case; {
                 ctx: Context;
-                push_context ctx {
-                    log_error("unexpected imgui_cursor %", imgui_cursor);
-                }
+                push_context ctx { log_error("unexpected imgui_cursor %", imgui_cursor); }
             }
         }
 

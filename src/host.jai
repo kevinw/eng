@@ -231,6 +231,7 @@ main :: () {
     host_state.change_window_state   = change_window_state;
     host_state.get_window_resizes    = () => _host_window_resizes_this_frame;
     host_state.set_cursor = set_win32_cursor;
+    host_state.set_cursor_cb = set_wm_setcursor_callback;
     host_state.built_with_backend    = #run get_compiler_codegen_backend();
 
     if cmdline_args.topmost_window
@@ -435,9 +436,9 @@ is_any_mouse_down :: () -> bool {
     user32 :: #foreign_system_library "user32";
     GetCapture :: () -> HWND #foreign user32;
     SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
-
+    LoadCursorW :: (hInstance: HINSTANCE, lpCursorName: *void) -> HCURSOR #foreign user32;
     set_win32_cursor :: (cursor: *void) #c_call {
-        SetCursor(xx cursor);
+        SetCursor(xx LoadCursorW(null, cursor));
     }
 }
 
