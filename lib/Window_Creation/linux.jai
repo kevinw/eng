@@ -12,6 +12,9 @@ DPI :: #import "DPI";
 
 window_minimized := false;
 
+XdndVersion: s32 = 5;  // I dunno, some version.
+XdndAware:   Atom;
+
 Saved_Window_Info :: struct {
     
 }
@@ -88,8 +91,14 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
     if !x_global_display
         init_global_display();
 
-    XLockDisplay(x_global_display);
-    root := DefaultRootWindow(x_global_display);
+    d := x_global_display;
+
+    if !XdndAware {
+        XdndAware = XInternAtom(d, "XdndAware", False);
+    }
+    
+    XLockDisplay(d);
+    root := DefaultRootWindow(d);
     if parent == None then parent = root;
 
     attr := s32.[
@@ -99,8 +108,8 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
         None
     ];
     
-    vi := glXChooseVisual(x_global_display, 0, attr.data);
-    cmap := XCreateColormap(x_global_display, parent, vi.visual, AllocNone);
+    vi := glXChooseVisual(d, 0, attr.data);
+    cmap := XCreateColormap(d, parent, vi.visual, AllocNone);
 
 
     background_color: XColor;
@@ -108,14 +117,14 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
     background_color.red     = to_u16(background_color_rgb[0]);
     background_color.green   = to_u16(background_color_rgb[1]);
     background_color.blue    = to_u16(background_color_rgb[2]);
-    XAllocColor(x_global_display, cmap, *background_color);
+    XAllocColor(d, cmap, *background_color);
 
     
     swa: XSetWindowAttributes;
     swa.colormap = cmap;
     swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask | FocusChangeMask;
     swa.background_pixel = background_color.pixel;
-    win := XCreateWindow(x_global_display, parent, xx window_x, xx window_y, xx width, xx height, 0, vi.depth, InputOutput, vi.visual, cast(u64) (CWColormap | CWEventMask), *swa);
+    win := XCreateWindow(d, parent, xx window_x, xx window_y, xx width, xx height, 0, vi.depth, InputOutput, vi.visual, cast(u64) (CWColormap | CWEventMask), *swa);
 
     to_u16 :: (f: float) -> u16 {
         u := cast(s32)(f * 65535);
@@ -125,10 +134,10 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
         return cast(u16) u;
     }
 
-//    XSetWindowBackground(x_global_display, win, background_color.pixel);
+//    XSetWindowBackground(d, win, background_color.pixel);
     
     win_name := temp_c_string(window_name);
-    if window_name then XStoreName(x_global_display, win, win_name);
+    if window_name then XStoreName(d, win, win_name);
 
     class_hints := XAllocClassHint();
     if class_hints {
@@ -141,19 +150,21 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
             class_hints.res_name = "jai-application";
             class_hints.res_class = "JAI-Application";
         }
-        XSetClassHint(x_global_display, win, class_hints);
+        XSetClassHint(d, win, class_hints);
     }
 
+    XChangeProperty(d, win, XdndAware, XA_ATOM, 32, PropModeReplace, cast(*u8)*XdndVersion, 1);
+    
     _x, _y, swidth, sheight := DPI.os_dpi_get_backing_coordinates(win, cast(float64) window_x, cast(float64) window_y, cast(float64) width, cast(float64) height);
-    XMoveResizeWindow(x_global_display, win, xx _x, xx _y, xx swidth, xx sheight);
+    XMoveResizeWindow(d, win, xx _x, xx _y, xx swidth, xx sheight);
 
-    XMapWindow(x_global_display, win);
+    XMapWindow(d, win);
 
-    XSetWMProtocols(x_global_display, win, *x_global_wm_delete_window, 1);
+    XSetWMProtocols(d, win, *x_global_wm_delete_window, 1);
 
     array_add(*x_global_windows, win);
 
-    XUnlockDisplay(x_global_display);
+    XUnlockDisplay(d);
     return win;
 }
 
@@ -209,6 +220,7 @@ get_mouse_pointer_position :: inline (right_handed := false) -> x: int, y: int, 
     x, y, success := get_mouse_pointer_position(dpy, win, right_handed);
     return x, y, success;
 }
+
 
 //#scope_file
 

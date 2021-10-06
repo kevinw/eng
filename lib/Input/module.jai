@@ -20,6 +20,7 @@ Event_Type :: enum u32 {  // If we set this to u8, our packing will stop matchin
     WINDOW      :: 3;
     MOUSE_WHEEL :: 4;
     QUIT        :: 5;
+    DRAG_AND_DROP_FILES :: 6;
 }
 
 Key_Current_State :: enum_flags u32 {
@@ -159,6 +160,8 @@ Event :: struct {
     
     typical_wheel_delta: s32;  // Used only for mouse events.
     wheel_delta: s32;          // Used only for mouse events.
+
+    files: [] string;  // Used only for drag and drop events. Heap-allocated, lives until events are reset for the next frame.
 }
 
 // Per-frame mouse deltas:
@@ -261,3 +264,4 @@ resizes_to_free: [..] Window_Resize_Record;
 
 #import "Basic";
 #import "Window_Type";
+

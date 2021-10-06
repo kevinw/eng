@@ -80,12 +80,42 @@ update_x11_window_events :: () {
 
         if xev.type == {
 
-        case ClientMessage;
-        	if x_global_wm_delete_window == cast(Atom) xev.xclient.data.l[0] {
-        		event: Event;
-	            event.type = Event_Type.QUIT;
-	            array_add(*events_this_frame, event);
-        	}
+          case ClientMessage;
+            message := xev.xclient.message_type;
+            if message == x_global_wm_protocols {
+                message0 := cast(Atom) xev.xclient.data.l[0];
+
+                // This can't be a switch, because the values are not constant!
+                // Except come on guys, every single implementation of X11 in the universe
+                // is going to agree on these values. Why are we pretending they are not constant?
+                // How about if we just look them up once and then hardcode them into this program?
+                // We'd save startup time...
+
+        	    if message0 == x_global_wm_delete_window {
+        		    event: Event;
+	                event.type = .QUIT;
+	                array_add(*events_this_frame, event);
+        	    }
+            } else if message == XdndEnter {
+                /*
+                Just pretend like we accept everything. Dude I don't even know.
+                if xev.xclient.data.l[1] & 1 {
+                    // More than three types, so look in XdndTypeList.
+                } else {
+                    // Only three types, check three in turn and stop when we find
+                    // the one we support.
+                }
+                */
+            } else if message == XdndPosition {
+            } else if message == XdndStatus {
+            } else if message == XdndTypeList {
+            } else if message == XdndActionCopy {
+            } else if message == XdndDrop {
+            } else if message == XdndLeave {
+            } else if message == XdndFinished {
+            } else if message == XdndSelection {
+            } else if message == XdndProxy {
+            }
         case KeyPress;
             event: Event;
 
@@ -303,3 +333,6 @@ add_resize_record :: (hwnd: Window, width: s32, height: s32) {
     record.width = width;
     record.height = height;
 }
+
+#scope_file
+

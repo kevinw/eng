@@ -1,4 +1,5 @@
 #import "Windows";
+#import "Windows_Utf8";
 
 
 //
@@ -412,14 +413,33 @@ MyWindowProc :: (hwnd: HWND, message: u32,
 
             SetWindowPos(hwnd, HWND_TOPMOST, rect.left, rect.top, w, h, SWP_NOACTIVATE|SWP_NOZORDER);
             return 0;
-          case WM_SETCURSOR;
-            HTCLIENT :: 1;
-            if (lParam & 0xffff) == HTCLIENT {
-              if _setcursor_cb != null && _setcursor_cb() {
-                return 1;
-              }
-              return DefWindowProcW(hwnd, message, wParam, lParam);
-            }
+          case WM_DROPFILES;
+ 	  	    drop := cast(HDROP) wParam;
+ 	 	    // If "0xFFFFFFFF" as the second parameter: return the count of files dropped.
+ 	 	    file_paths_count := DragQueryFileW(drop, 0xFFFFFFFF, null, 0);
+            files: [..] string;
+            
+ 	 	    for i: 0..file_paths_count-1 {
+ 	 	        // If nulll as the third parameter: return the length of the path, not counting the trailing '\0'.
+ 	 	        file_name_wide_count := DragQueryFileW(drop, i, null, 0) + 2;
+ 	 	        assert(file_name_wide_count > 0);
+ 	            
+ 	  	        file_name_wide := cast(*u16) alloc(file_name_wide_count * size_of(u16), __temporary_allocator);
+ 	 	        ok := DragQueryFileW(drop, i, file_name_wide, file_name_wide_count);
+ 	 	        assert(ok > 0); // means success
+ 	            
+ 	  	        file_name := wide_to_utf8(file_name_wide);
+ 	 	        array_add(*files, file_name);
+ 	 	    }
+            
+ 	 	    DragFinish(drop);
+ 	        
+ 	  	    event: Event;
+ 	 	    event.type  = .DRAG_AND_DROP_FILES;
+            event.files = files;
+ 	 	    array_add(*events_this_frame, event);
+            return 0;
+
           case;
 	        return DefWindowProcW(hwnd, message, wParam, lParam);
 	    }
