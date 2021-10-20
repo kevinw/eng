@@ -613,6 +613,7 @@ get_scene_view_screen_mouse_pos :: () -> Vector2 {
     return pos;
 }
 
+// Make calls to ImGui to create our editor UI.
 render_imgui_to_drawlists :: (state: *State) {
     using state;
     using ImGui;
