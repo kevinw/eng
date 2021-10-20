@@ -1,14 +1,11 @@
 #load "game_base.jai";
 
-PARTICLES :: true;
-
 State :: struct {
     using state_base:  State_Base;
-
 }
 
 update_and_draw :: (host_state: Host_State) {
-    game_base_default_multiview_update_and_draw(host_state);
+    game_base_update_and_draw(host_state, multiview=false);
 
     using context.state;
     Soloud_setPause(sound_state.soloud, sound_state.bgm_voice, cast(s32)(editor.play_mode != .Play)); 
