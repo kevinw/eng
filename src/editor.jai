@@ -952,7 +952,7 @@ show_scene_view :: (open: *bool, in_play_mode := false) {
     if !Begin(tprint("Scene View##%\0", in_play_mode).data, open, flags) return;
     context.state.editor.mouse_over_scene_view_window = IsWindowHovered();
 
-    scene_view_tex := *context.state.scene_view.color;
+    scene_view_tex := *context.state.scene_view.color; // TODO: does this mean we are a frame behind?
     Image(native_texture_imgui_id(scene_view_tex), make_ImVec2(xx scene_view_tex.width, xx scene_view_tex.height));
 
     // Store the position of the scene view window for later. The screen log
@@ -1434,6 +1434,9 @@ editor_update :: (state: *State) {
                 if !is_approximately_zero(input_dir.x) { scene_camera.position += local_move.x * right; update = true; }
                 if !is_approximately_zero(input_dir.y) { scene_camera.position += local_move.y * up; update = true; }
                 if !is_approximately_zero(input_dir.z) { scene_camera.position += local_move.z * forward; update = true; }
+                if !values_are_close(input_dir, .{0, 0, 0}) {
+                    screenp("scene_camera position %", scene_camera.position);
+                }
             }
         }
 
@@ -1443,14 +1446,13 @@ editor_update :: (state: *State) {
             if _local_host_state.mouse_delta.x != 0 || _local_host_state.mouse_delta.y != 0 {
                 #if 1 {
                     rotate_delta := mouse_rotate_speed * make_vector3(
-                        // TODO: why are these backwards?
-                        -cast(float)_local_host_state.mouse_delta.y,
-                         cast(float)_local_host_state.mouse_delta.x,
+                        cast(float)_local_host_state.mouse_delta.y,
+                        -cast(float)_local_host_state.mouse_delta.x,
                         0);
 
-                    x: Quaternion; set_from_axis_and_angle(*x, Vector3.{1, 0, 0}, rotate_delta.x * TO_RADIANS);
-                    y: Quaternion; set_from_axis_and_angle(*y, Vector3.{0, 1, 0}, rotate_delta.y * TO_RADIANS);
-                    z: Quaternion; set_from_axis_and_angle(*z, Vector3.{0, 0, 1}, rotate_delta.z * TO_RADIANS);
+                    x: Quaternion; set_from_axis_and_angle(*x, .{1, 0, 0}, rotate_delta.x * TO_RADIANS);
+                    y: Quaternion; set_from_axis_and_angle(*y, .{0, 1, 0}, rotate_delta.y * TO_RADIANS);
+                    z: Quaternion; set_from_axis_and_angle(*z, .{0, 0, 1}, rotate_delta.z * TO_RADIANS);
 
                     temp := z * y * x * scene_camera.rotation;
                     normalize_or_identity(*temp);
@@ -1458,12 +1460,11 @@ editor_update :: (state: *State) {
 
                     euler := euler_angles(scene_camera.rotation);
                     euler.z = 0;
-                    screenp("euler %", euler);
                     scene_camera.rotation = quaternion_from_euler(euler);
 
                 } else {
                     euler := euler_angles(scene_camera.rotation);
-                    euler.y += _local_host_state.mouse_delta.x;
+                    euler.y -= _local_host_state.mouse_delta.x;
                     euler.x -= _local_host_state.mouse_delta.y;
                     //log("mouse_delta %", _local_host_state.mouse_delta);
                     scene_camera.rotation = quaternion_from_euler(euler);
@@ -1482,8 +1483,9 @@ editor_update :: (state: *State) {
         {
             // mouse wheel zoom
             if _local_host_state.mouse_delta.z != 0 {
-                scene_camera.fov += cast(float)_local_host_state.mouse_delta.z / 120.0 * 0.05;
-                screenp("fov % (THIS ISN'T RIGHT...RADIANS)", scene_camera.fov);
+                scene_camera.fov_degrees += cast(float)_local_host_state.mouse_delta.z / 120.0 * 2.0;
+                scene_camera.fov_degrees = clamp(scene_camera.fov_degrees, 20.0, 140.0);
+                screenp("fov: %", scene_camera.fov_degrees);
                 scene_camera.matrices_need_update = true;
             }
         }
@@ -1519,9 +1521,9 @@ editor_update :: (state: *State) {
             for hovered_entity_handles() {
                 cursor := get_cursor_for_drag_edge(get_drag_edge(it.handle, it.uv));
                 ImGui.SetMouseCursor(cursor);
-                screenp("cursor % for uv % with handle handle %", cursor, it.uv, it.handle);
-                rect := entity_rect(it.handle);
-                screenp("  entity_rect: %", rect);
+                //screenp("cursor % for uv % with handle handle %", cursor, it.uv, it.handle);
+                //rect := entity_rect(it.handle);
+                //screenp("  entity_rect: %", rect);
                 break;
             }
         }
@@ -1877,7 +1879,6 @@ load_scene_confirming :: (scene_filename: string) {
     using context.state.editor;
     
     if !undo_state.needs_save {
-        log("we didn't need to save; loading scene '%'", scene_filename);
         load_scene(scene_filename);
         return;
     }

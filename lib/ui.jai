@@ -1,4 +1,4 @@
-#load "../imgui_impl_d3d11.jai";
+#load "imgui_impl_d3d11.jai";
 
 make_ImVec4 :: (x: float, y: float, z: float, w: float) -> ImGui.ImVec4 {
     v: ImGui.ImVec4 = ---;

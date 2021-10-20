@@ -1,7 +1,7 @@
 Camera :: struct {
     position: Vector3;
     rotation: Quaternion;
-    fov:      float       = 30;
+    fov_degrees: float = 60;
 
     near_plane: float     = 10;
     far_plane:  float     = 1000;
@@ -29,7 +29,7 @@ Holoplay_Capture :: struct {
 
 /// Returns the camera's distance from the center, a positive number.
 get_cam_distance :: (using camera: *Camera, using holoplay_capture: *Holoplay_Capture) -> (dist: float) {
-    return size / tan(fov * 0.5 * TO_RADIANS);
+    return size / tan(fov_degrees * 0.5 * TO_RADIANS);
 }
 
 reset_lkg_camera :: (using camera: *Camera, holoplay_capture: *Holoplay_Capture) -> (dist: float) {
@@ -52,14 +52,13 @@ _update_matrices :: (using camera: *Camera) {
     look_at := position + forward * 10; // TODO: there's probably a better way
 
     aspect := camera_aspect(camera);
-    projection_matrix = make_projection_matrix(fov, aspect,
+    projection_matrix = make_projection_matrix(fov_degrees * TO_RADIANS, aspect,
         near_plane, far_plane, depth_range_01 = true);
 
     view_matrix = make_look_at_matrix(
         viewpoint = position,
         look_at   = look_at,
         reference_up_vector = up,
-        //reference_up_vector = Vector3.{0, 1, 0},
         x_is_forward        = false);
 
     view_projection_matrix = multiply(projection_matrix, view_matrix);
