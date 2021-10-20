@@ -12,6 +12,7 @@ TODO generate this constants cbuffer from Jai? ...or vice versa?
 #define ALPHA_DISCARD
 #define MOUSE_PICKING
 //#define IRIDESCENCE
+#define MULTIVIEW_INSTANCING // when defined, we will draw an instance for every view (48 for example in Looking Glass devices). the projection and view matrices need to be modified to slide along a linear rail corresponding with the view index.
 
 #ifdef MOUSE_PICKING
 struct ObjectIDInfo {
@@ -66,16 +67,16 @@ vs_out vs_main(vs_in input) {
     float4x4 _view = view;
     float4x4 _proj = projection;
 
+#ifdef MULTIVIEW_INSTANCING
     // for multiview LKG rendering, modify the view and projection matrices
     // based on which view we are rendering.
     float currentViewLerp = 0;
     if (numViews > 1)
         currentViewLerp = (float)input.instance_id / ((float)numViews - 1) - 0.5;
 
-    // TODO: do we need a local vector here?
-    // TODO: why are these -= instead of += like in the LKG examples?
-    _view[3].x -= currentViewLerp * viewConeSweep;
-    _proj[2].x -= currentViewLerp * projModifier;
+    _view[3].x += currentViewLerp * viewConeSweep;
+    _proj[2].x += currentViewLerp * projModifier;
+#endif
 
     vs_out output;
     output.position = mul(float4(input.position, 1), mul(_view, _proj));
@@ -108,8 +109,7 @@ float4 ps_main(vs_out input): SV_TARGET {
 #endif
 
 #ifdef IRIDESCENCE
-    // TODO: @Perf this could probably be in the vertex shader.
-    ApplyIridescence(col.rgb, input.rendertarget_array_index);
+    ApplyIridescence(col.rgb, input.rendertarget_array_index); // TODO: @Perf this could probably be in the vertex shader.
 #endif
 
 #ifdef MOUSE_PICKING
