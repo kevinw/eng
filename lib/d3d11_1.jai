@@ -435,7 +435,7 @@ D3D11_LOGIC_OP :: enum u32 {       // Operation:
 }
 
 FALSE: BOOL: 0;
-TRUE: BOOL: cast(BOOL)1;
+TRUE: BOOL: 1;
 S_FALSE: HRESULT = 0x00000001;
 
 #scope_file

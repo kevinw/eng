@@ -465,11 +465,14 @@ END;
         set_debug_name(PixelShader, "ImGui fragment shader");
     }
 
+    TRUE  : BOOL : 1;
+    FALSE : BOOL : 0;
+
     // Create the blending setup
     {
         desc: D3D11_BLEND_DESC ;
-        desc.AlphaToCoverageEnable                 = cast(BOOL)false;
-        desc.RenderTarget[0].BlendEnable           = cast(BOOL)true;
+        desc.AlphaToCoverageEnable                 = FALSE;
+        desc.RenderTarget[0].BlendEnable           = TRUE;
         desc.RenderTarget[0].SrcBlend              = .D3D11_BLEND_SRC_ALPHA;
         desc.RenderTarget[0].DestBlend             = .D3D11_BLEND_INV_SRC_ALPHA;
         desc.RenderTarget[0].BlendOp               = .D3D11_BLEND_OP_ADD;
@@ -478,6 +481,7 @@ END;
         desc.RenderTarget[0].BlendOpAlpha          = .D3D11_BLEND_OP_ADD;
         desc.RenderTarget[0].RenderTargetWriteMask = cast(u8)D3D11_COLOR_WRITE_ENABLE_ALL;
         d3dDevice.CreateBlendState(d3dDevice, *desc, *BlendState);
+        set_debug_name(BlendState, "ImGui blend state");
     }
 
     // Create the rasterizer state
