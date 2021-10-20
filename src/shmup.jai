@@ -34,7 +34,7 @@ on_host_init :: (host_state: Host_State) {
 
 update_and_draw :: (host_state: Host_State) {
     using context.state;
-    game_base_default_multiview_update_and_draw(host_state);
+    game_base_update_and_draw(host_state, multiview=true);
 }
 
 on_host_shutdown :: () {

@@ -168,11 +168,22 @@ game_base_draw_compile_error :: () {
     rl.DrawRectangleLinesEx(rect, outline_width, color);
 }
 
+game_base_update_and_draw :: (host_state: Host_State, $multiview: bool = false) {
+    #if multiview {
+        game_base_default_multiview_update_and_draw(host_state);
+    } else {
+        game_base_default_update_and_draw(host_state);
+    }
+}
+
 game_base_default_update_and_draw :: (host_state: Host_State) {
     using context.state;
 
+    BLACK :: Vector4.{0, 0, 0, 1};
+
     set_context(*renderer);
     game_base_update(host_state);
+
     //begin_frame(*profiler);
     //defer end_frame(*profiler);
 
@@ -184,24 +195,15 @@ game_base_default_update_and_draw :: (host_state: Host_State) {
         push_renderer_context(*context.state.renderer, "main monitor");
 
         // pick the camera depending on if we're in play mode or edit mode
-        camera: *Camera;
         game_camera := get_main_camera();
-        if editor.play_mode == .Play && game_camera
-            camera = *game_camera.camera;
-        else
-            camera = *editor.scene_camera;
+        camera := ifx editor.play_mode == .Play && game_camera != null then *game_camera.camera else *editor.scene_camera;
 
         push_value(*current_im_camera, camera);
         {
             scene_view_sz := get_scene_view_size();
-            if scene_view_sz != scene_view.color.size && 
-                scene_view_sz.width > 0 && scene_view_sz.height > 0 {
-                //print("resizing scene_view color texture % % (old %)\n", *scene_view.color, scene_view_sz, scene_view.color.size);
-                resize_texture(*scene_view.color, scene_view_sz);
-                resize_texture(*scene_view.depth, scene_view_sz);
-            }
-
-            push_pass(*scene_view.pass, clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            resize_if_necesssary(*scene_view.color, scene_view_sz);
+            resize_if_necesssary(*scene_view.depth, scene_view_sz);
+            push_pass(*scene_view.pass, clear_color=*BLACK);
 
             // the im draw stuff here (And probably?) should only render 1 view.
             multiview.num_views_this_frame = multiview.num_views; // just to visualize in the editor
@@ -226,7 +228,7 @@ game_base_default_update_and_draw :: (host_state: Host_State) {
         }
 
         {
-            push_default_pass(clear_color=*Vector4.{0.0, 0, 0.0, 1});
+            push_default_pass(clear_color=*BLACK);
             imgui_render(*ui);
         }
 
