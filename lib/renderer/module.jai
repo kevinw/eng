@@ -166,5 +166,16 @@ push_default_pass :: (clear_color: *Vector4 = null, enabled := true) #expand {
     `defer end_pass();
 }
 
+resize_if_necesssary :: (texture: *Texture, size: Vector2_u16) -> bool {
+    if size.x > 0 && size.y > 0 {
+        if size.x != texture.width || size.y != texture.height {
+            resize_texture(texture, size);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 #load "renderer_d3d11.jai";
 
