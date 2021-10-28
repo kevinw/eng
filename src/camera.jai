@@ -1,10 +1,13 @@
 Camera :: struct {
     position: Vector3;
     rotation: Quaternion;
-    fov_degrees: float = 60;
+    fov_degrees: float = 60; // TODO: we should probably serialize radians and use set_fov_degrees as a function
 
-    near_plane: float     = 10;
+    near_plane: float     = 0.1;
     far_plane:  float     = 1000;
+
+    reverse_z  := false; // Invert so Z=1 at near plane
+    infinite_z := false; // Far plane at infinity
 
     render_texture: *Texture; @noserialize @noui
 
@@ -27,9 +30,15 @@ Holoplay_Capture :: struct {
     view_cone_modifier: float = 1;
 }
 
+set_position_and_rotation :: (camera: *Camera, position: Vector3, rotation: Quaternion) {
+    camera.position = position;
+    camera.rotation = rotation;
+    camera.matrices_need_update = true;
+}
+
 /// Returns the camera's distance from the center, a positive number.
 get_cam_distance :: (using camera: *Camera, using holoplay_capture: *Holoplay_Capture) -> (dist: float) {
-    return size / tan(fov_degrees * 0.5 * TO_RADIANS);
+    return size / tan(fov_degrees * TO_RADIANS * 0.5);
 }
 
 reset_lkg_camera :: (using camera: *Camera, holoplay_capture: *Holoplay_Capture) -> (dist: float) {

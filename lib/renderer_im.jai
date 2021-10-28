@@ -153,6 +153,18 @@ im_draw_quad :: (using ctx: *Im_Context, p0: Vector2, p1: Vector2, p2: Vector2, 
     im_indices(ctx, v0, v1, v2, v2, v0, v3);
 }
 
+im_draw_quad :: (using ctx: *Im_Context, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t0: Vector2, t1: Vector2, t2: Vector2, t3: Vector2, c: Vector4) {
+    im_set_primitive(ctx, 3);
+    im_ensure_space_for(ctx, 6, 4);
+
+    v0 := im_vertex(ctx, p0, t0, c, mousepick_index = 0);
+    v1 := im_vertex(ctx, p1, t1, c, mousepick_index = 1);
+    v2 := im_vertex(ctx, p2, t2, c, mousepick_index = 2);
+    v3 := im_vertex(ctx, p3, t3, c, mousepick_index = 3);
+
+    im_indices(ctx, v0, v1, v2, v2, v0, v3);
+}
+
 im_draw_rect :: inline (using ctx: *Im_Context, p0: Vector2, p1: Vector2, t0 := Vector2.{0, 0}, t1 := Vector2.{1, 1}, c := Vector4.{1, 0, 0, 1}) {
     /*draw_cmd := *draw_array[draw_array.count - 1];
 
@@ -261,6 +273,19 @@ mousepick_texcoords :: Vector2.[
     .{1, 0}
 ];
 
+im_vertex :: (using ctx: *Im_Context, p: Vector3, t: Vector2, c: Vector4, mousepick_index := 0) -> u16 {
+    assert(vertex_array.count < vertex_array.allocated);
+
+    v := inline array_add(*vertex_array);
+    v.pos = p * make_vector3(scale.x, scale.y, 1) + make_vector3(offset.x, offset.y, 0);
+    v.tex = t;
+    v.col = c;
+    v.entity_id = entity_handle.id;
+    v.entity_generation = entity_handle.generation;
+    v.mousepick_texcoord = mousepick_texcoords[mousepick_index];
+
+    return cast(u16) (vertex_array.count - 1);
+}
 
 im_vertex :: (using ctx: *Im_Context, p: Vector2, t: Vector2, c: Vector4, mousepick_index := 0) -> u16 {
     assert(vertex_array.count < vertex_array.allocated);

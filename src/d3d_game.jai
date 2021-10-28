@@ -57,7 +57,8 @@ on_host_init :: (host_state: Host_State) {
         sound_state.bgm_voice = Soloud_play(sound_state.soloud, sound_state.bgm);
     }
 
-    load_scene(1);
+    //load_scene(1);
+    new_scene();
 }
 
 set_function_pointers :: () {
@@ -72,7 +73,7 @@ editor_did_drag :: (rect: rl.Rectangle) {
 
     color := rl.RED;
     color.b = cast(u8)random_get_within_range(100, 255);
-    block, block_h := envitem(world,
+    block, block_h := make_platform(world,
         rect.x, rect.y, rect.width, rect.height,
         .PLATFORM, color, is_editor=true);
 
@@ -81,7 +82,7 @@ editor_did_drag :: (rect: rl.Rectangle) {
     Undo.commit(*editor.undo_state);
 }
 
-envitem :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: rl.Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
+make_platform :: (world: *World, x: float, y: float, width: float, height: float, collision: Collision_Type, color: rl.Color, is_editor: bool = false) -> (*Entity, Entity_Handle) {
     undo: *Undo.Impl;
     if is_editor undo = *context.state.editor.undo_state;
 
