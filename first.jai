@@ -3,7 +3,7 @@
 CHECK_PATH :: "check/";
 PRINT_CONSTANTS :: false;
 
-module_search_paths := string.["lib", "src", "c:/jai/Modules"];
+module_search_paths := string.["lib", "src", "../jai/Modules", "generated"];
 
 build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := #caller_location) {
     set_working_directory(#filepath);

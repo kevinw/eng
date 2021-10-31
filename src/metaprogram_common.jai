@@ -455,8 +455,8 @@ wait_for_compiler_to_see_build_strings :: (workspace: int) -> bool {
         }
 
         if message.kind == .COMPLETE {
-            print("error: got compiler message COMPLETE\n");
-            return false;
+            print("\n\nerror: got compiler message COMPLETE--this means there was an error in our generated code\n");
+            exit(1);
         }
     }
 
