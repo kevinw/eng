@@ -67,7 +67,7 @@ change_window_state :: (window_state_operation: Window_State_Operation) {
     if window_state_operation == {
         case .Toggle_Borderless_Fullscreen;
             fullscreen := toggle_borderless_fullscreen(the_window);
-            log(ifx fullscreen then "window borderless fullscreen" else "windowed mode");
+            //log(ifx fullscreen then "window borderless fullscreen" else "windowed mode");
         case .Toggle_Always_On_Top;
             top := platform.toggle_always_on_top(the_window);
             log(ifx top then "window always on top" else "window not topmost");

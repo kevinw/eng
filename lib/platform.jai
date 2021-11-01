@@ -66,7 +66,7 @@ set_window_borderless_fullscreen :: (native_handle: *void) -> Windowed_State {
 }
 
 set_window_borderless :: (native_handle: *void, borderless: bool, old_window_info: *RECT = null) -> Windowed_State {
-    log("set_window_borderless(%, borderless=%)", native_handle, borderless);
+    //log("set_window_borderless(%, borderless=%)", native_handle, borderless);
 
     #if OS == .WINDOWS {
         BORDERLESS_STYLE     :u32 : WS_VISIBLE | WS_POPUP;

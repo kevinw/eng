@@ -1526,10 +1526,11 @@ editor_update :: (state: *State) {
 
     if mouse_is_over_scene_view && mouse_over_scene_view_window { // don't let imgui clicks come through to this one.
         {
-            // mouse wheel zoom
+            // mousewheel zoom
             if _local_host_state.mouse_delta.z != 0 {
-                fov_degrees := scene_camera.vertical_fov_radians;
-                fov_degrees += cast(float)_local_host_state.mouse_delta.z / 120.0 * 2.0;
+                MOUSE_WHEEL_SENSITIVITY :: 120.0; // TODO: make this a @Setting
+                fov_degrees := scene_camera.vertical_fov_radians * TO_DEGREES;
+                fov_degrees += cast(float)_local_host_state.mouse_delta.z / MOUSE_WHEEL_SENSITIVITY * -2.0;
                 fov_degrees = clamp(fov_degrees, 20.0, 140.0);
                 screenp("fov: %", fov_degrees);
                 scene_camera.vertical_fov_radians = fov_degrees * TO_RADIANS;
@@ -2204,12 +2205,6 @@ entity_selector :: (name: string, entity_handle: *Entity_Handle) -> bool {
 }
 
 focus_editor_camera_on_entity :: (entity_handle: Entity_Handle) {
-    camera := get_main_camera();
-    if camera == null {
-        log_error("no camera to move");
-        return;
-    }
-
     ok, entity := get_entity(entity_handle);
     if !ok return;
 
