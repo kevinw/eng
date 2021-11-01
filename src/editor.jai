@@ -1989,7 +1989,8 @@ Popup_Context :: struct {
 
 imtex :: (live_texture: *LiveTexture, empty_size := ImGui.ImVec2.{100, 100}) -> (*void, ImGui.ImVec2) {
     // A shortcut for getting the things you need to render an image in ImGui
-    // from a LiveTexture (namely, a void pointer to the GL texture ID, and an
+    // from a LiveTexture (namely, a void pointer to the GL texture ID, or on
+    // direct3d a pointer to the texture view, and an
     // ImVec2 for the size).
 
     if live_texture == null || !has_value(<<live_texture)
