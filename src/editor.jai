@@ -480,7 +480,7 @@ editor_draw_world :: (state: *State) {
         }
     }
 
-    screenp("scene cam (pos=%, rot=%, fov_degrees=%)", scene_camera.position, scene_camera.rotation, scene_camera.fov_degrees);
+    screenp("scene cam (pos=%, rot=%, fov_degrees=%)", scene_camera.position, scene_camera.rotation, scene_camera.vertical_fov_radians * TO_DEGREES);
 
     screenp("drawing grid");
     calc_matrices(*scene_camera);
@@ -1486,6 +1486,8 @@ editor_update :: (state: *State) {
             mouse_rotate_speed :: 0.16;
             if _local_host_state.mouse_delta.x != 0 || _local_host_state.mouse_delta.y != 0 {
                 #if 1 {
+                    screenp("mouse delta % %", _local_host_state.mouse_delta.x, _local_host_state.mouse_delta.y);
+
                     rotate_delta := mouse_rotate_speed * make_vector3(
                         cast(float)_local_host_state.mouse_delta.y,
                         -cast(float)_local_host_state.mouse_delta.x,
@@ -1495,19 +1497,21 @@ editor_update :: (state: *State) {
                     y: Quaternion; set_from_axis_and_angle(*y, .{0, 1, 0}, rotate_delta.y * TO_RADIANS);
                     z: Quaternion; set_from_axis_and_angle(*z, .{0, 0, 1}, rotate_delta.z * TO_RADIANS);
 
-                    //temp := z * y * x * scene_camera.rotation;
-                    //normalize_or_identity(*temp);
-                    //scene_camera.rotation = temp;
+                    temp := z * y * x * scene_camera.rotation;
+                    normalize_or_identity(*temp);
+                    scene_camera.rotation = temp;
 
                     euler := euler_angles(scene_camera.rotation);
                     euler.z = 0;
+                    screenp("euler %", euler);
                     scene_camera.rotation = quaternion_from_euler(euler);
 
                 } else {
                     euler := euler_angles(scene_camera.rotation);
                     euler.y -= _local_host_state.mouse_delta.x;
-                    euler.x -= _local_host_state.mouse_delta.y;
+                    euler.x += _local_host_state.mouse_delta.y;
                     //log("mouse_delta %", _local_host_state.mouse_delta);
+                    screenp("euler(2) %", euler);
                     scene_camera.rotation = quaternion_from_euler(euler);
                 }
                 update = true;
@@ -1524,9 +1528,11 @@ editor_update :: (state: *State) {
         {
             // mouse wheel zoom
             if _local_host_state.mouse_delta.z != 0 {
-                scene_camera.fov_degrees += cast(float)_local_host_state.mouse_delta.z / 120.0 * 2.0;
-                scene_camera.fov_degrees = clamp(scene_camera.fov_degrees, 20.0, 140.0);
-                screenp("fov: %", scene_camera.fov_degrees);
+                fov_degrees := scene_camera.vertical_fov_radians;
+                fov_degrees += cast(float)_local_host_state.mouse_delta.z / 120.0 * 2.0;
+                fov_degrees = clamp(fov_degrees, 20.0, 140.0);
+                screenp("fov: %", fov_degrees);
+                scene_camera.vertical_fov_radians = fov_degrees * TO_RADIANS;
                 scene_camera.matrices_need_update = true;
             }
         }
