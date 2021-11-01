@@ -480,9 +480,49 @@ editor_draw_world :: (state: *State) {
         }
     }
 
+    screenp("scene cam (pos=%, rot=%, fov_degrees=%)", scene_camera.position, scene_camera.rotation, scene_camera.vertical_fov_radians * TO_DEGREES);
+
     screenp("drawing grid");
     calc_matrices(*scene_camera);
     Grid.draw(*grid, scene_camera.view_projection_matrix);
+
+    // draw gizmo at origin
+    ctx := *context.state.im_context;
+    im_set_texture(ctx, null);
+
+    {
+        // Draw red/blue/green gizmo at origin showing directions to help diagnose camera/projection issues.
+        W :: 0.03;
+        L :: 2;
+
+        im_set_viewport_transform(ctx, scale_x=1, scale_y=1, offset_x=0, offset_y=0);
+
+        // x
+        im_draw_quad(ctx, .{0, 0, W}, .{L, 0, W}, .{L, 0, -W}, .{0, 0, -W},
+                          .{0, 0}, .{0, 1}, .{1 ,1}, .{0, 1},
+                          c=.{1, 0, 0, 1});
+        im_draw_quad(ctx, .{0, W, 0}, .{L, W, 0}, .{L, -W, 0}, .{0, -W, 0},
+                          .{0, 0}, .{0, 1}, .{1 ,1}, .{0, 1},
+                          c=.{1, 0, 0, 1});
+
+        // y
+        im_draw_quad(ctx, .{-W, 0, 0}, .{-W, L, 0}, .{W, L, 0}, .{W, 0, 0},
+                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                          c=.{0, 1, 0, 1});
+        im_draw_quad(ctx, .{0, 0, -W}, .{0, L, -W}, .{0, L, W}, .{0, 0, W},
+                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                          c=.{0, 1, 0, 1});
+
+        // z
+        im_draw_quad(ctx, .{-W, 0, 0}, .{-W, 0, L}, .{W, 0, L}, .{W, 0, 0},
+                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                          c=.{0, 0, 1, 1});
+        im_draw_quad(ctx, .{0, -W, 0}, .{0, -W, L}, .{0, W, L}, .{0, W, 0},
+                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                          c=.{0, 0, 1, 1});
+
+        im_flush(ctx);
+    }
 }
 
 editor_draw :: (state: *State) {
@@ -1412,16 +1452,16 @@ editor_update :: (state: *State) {
         update := false; // camera did move
         {
             // moving with WASD 
-            editor_cam_speed := Vector3.{250, 250, 50};
+            editor_cam_speed := Vector3.{150, 150, 30};
             if is_key_down(.SHIFT) editor_cam_speed *= 2;
 
             input_dir: Vector3;
-            if is_key_down(#char "D") input_dir.x += 1;
-            if is_key_down(#char "A") input_dir.x -= 1;
-            if is_key_down(#char "Q") input_dir.y += 1;
-            if is_key_down(#char "E") input_dir.y -= 1;
-            if is_key_down(#char "W") input_dir.z += 1;
-            if is_key_down(#char "S") input_dir.z -= 1;
+            if is_key_down(#char "D") input_dir.x += 1; // right
+            if is_key_down(#char "A") input_dir.x -= 1; // left
+            if is_key_down(#char "Q") input_dir.y -= 1; // down
+            if is_key_down(#char "E") input_dir.y += 1; // up
+            if is_key_down(#char "W") input_dir.z += 1; // forward
+            if is_key_down(#char "S") input_dir.z -= 1; // back
 
             if input_dir.x != 0 || input_dir.y != 0 || input_dir.z != 0 {
                 input_dir   = normalize(input_dir);
@@ -1446,6 +1486,8 @@ editor_update :: (state: *State) {
             mouse_rotate_speed :: 0.16;
             if _local_host_state.mouse_delta.x != 0 || _local_host_state.mouse_delta.y != 0 {
                 #if 1 {
+                    screenp("mouse delta % %", _local_host_state.mouse_delta.x, _local_host_state.mouse_delta.y);
+
                     rotate_delta := mouse_rotate_speed * make_vector3(
                         cast(float)_local_host_state.mouse_delta.y,
                         -cast(float)_local_host_state.mouse_delta.x,
@@ -1461,13 +1503,15 @@ editor_update :: (state: *State) {
 
                     euler := euler_angles(scene_camera.rotation);
                     euler.z = 0;
+                    screenp("euler %", euler);
                     scene_camera.rotation = quaternion_from_euler(euler);
 
                 } else {
                     euler := euler_angles(scene_camera.rotation);
                     euler.y -= _local_host_state.mouse_delta.x;
-                    euler.x -= _local_host_state.mouse_delta.y;
+                    euler.x += _local_host_state.mouse_delta.y;
                     //log("mouse_delta %", _local_host_state.mouse_delta);
+                    screenp("euler(2) %", euler);
                     scene_camera.rotation = quaternion_from_euler(euler);
                 }
                 update = true;
@@ -1484,9 +1528,11 @@ editor_update :: (state: *State) {
         {
             // mouse wheel zoom
             if _local_host_state.mouse_delta.z != 0 {
-                scene_camera.fov_degrees += cast(float)_local_host_state.mouse_delta.z / 120.0 * 2.0;
-                scene_camera.fov_degrees = clamp(scene_camera.fov_degrees, 20.0, 140.0);
-                screenp("fov: %", scene_camera.fov_degrees);
+                fov_degrees := scene_camera.vertical_fov_radians;
+                fov_degrees += cast(float)_local_host_state.mouse_delta.z / 120.0 * 2.0;
+                fov_degrees = clamp(fov_degrees, 20.0, 140.0);
+                screenp("fov: %", fov_degrees);
+                scene_camera.vertical_fov_radians = fov_degrees * TO_RADIANS;
                 scene_camera.matrices_need_update = true;
             }
         }
@@ -1860,6 +1906,8 @@ new_scene :: () {
     clear_selection();
     reset_world(context.state.world);
     free_and_clear_string(*context.state.editor.last_loaded_scene_filename);
+    set_position_and_rotation(*context.state.editor.scene_camera,
+        position=.{1, 3, -10}, rotation=.{0, 0, 0, 0});
 }
 
 new_scene_confirming :: () {

@@ -2,6 +2,7 @@
 
 
 ## Immediate
+- Make a scene showing off [various springs](https://theorangeduck.com/page/spring-roll-call)
 - Prototype an editor list that shows what is on camera at the moment. Deprecate the hierarchy window.
 - fix resize dragging when scale goes negative
 - uvs for dragging sprite renderers are off

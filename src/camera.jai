@@ -1,10 +1,13 @@
 Camera :: struct {
     position: Vector3;
     rotation: Quaternion;
-    fov_degrees: float = 60;
+    vertical_fov_radians: float = 60 * TO_RADIANS;
 
-    near_plane: float     = 10;
+    near_plane: float     = 0.1;
     far_plane:  float     = 1000;
+
+    reverse_z  := false; // Invert so Z=1 at near plane
+    infinite_z := false; // Far plane at infinity
 
     render_texture: *Texture; @noserialize @noui
 
@@ -27,9 +30,15 @@ Holoplay_Capture :: struct {
     view_cone_modifier: float = 1;
 }
 
+set_position_and_rotation :: (camera: *Camera, position: Vector3, rotation: Quaternion) {
+    camera.position = position;
+    camera.rotation = rotation;
+    camera.matrices_need_update = true;
+}
+
 /// Returns the camera's distance from the center, a positive number.
 get_cam_distance :: (using camera: *Camera, using holoplay_capture: *Holoplay_Capture) -> (dist: float) {
-    return size / tan(fov_degrees * 0.5 * TO_RADIANS);
+    return size / tan(vertical_fov_radians * 0.5);
 }
 
 reset_lkg_camera :: (using camera: *Camera, holoplay_capture: *Holoplay_Capture) -> (dist: float) {
@@ -52,7 +61,7 @@ _update_matrices :: (using camera: *Camera) {
     look_at := position + forward * 10; // TODO: there's probably a better way
 
     aspect := camera_aspect(camera);
-    projection_matrix = make_projection_matrix(fov_degrees * TO_RADIANS, aspect,
+    projection_matrix = make_projection_matrix(vertical_fov_radians, aspect,
         near_plane, far_plane, depth_range_01 = true);
 
     view_matrix = make_look_at_matrix(
