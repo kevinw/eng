@@ -483,40 +483,37 @@ editor_draw_world :: (state: *State) {
     // draw gizmo at origin
     ctx := *context.state.im_context;
     im_set_texture(ctx, null);
+    push_blend(ctx, blend=false, flush=false);
 
-    {
-        // Draw red/blue/green gizmo at origin showing directions to help diagnose camera/projection issues.
-        W :: 0.03;
-        L :: 2;
+    // Draw red/blue/green gizmo at origin showing directions to help diagnose camera/projection issues.
+    W :: 0.09;
+    L :: 2;
 
-        im_set_viewport_transform(ctx, scale_x=1, scale_y=1, offset_x=0, offset_y=0);
+    // x
+    im_draw_quad(ctx, .{0, 0, W}, .{L, 0, W}, .{L, 0, -W}, .{0, 0, -W},
+                        .{0, 0}, .{0, 1}, .{1 ,1}, .{0, 1},
+                        c=.{1, 0, 0, 1});
+    im_draw_quad(ctx, .{0, W, 0}, .{L, W, 0}, .{L, -W, 0}, .{0, -W, 0},
+                        .{0, 0}, .{0, 1}, .{1 ,1}, .{0, 1},
+                        c=.{1, 0, 0, 1});
 
-        // x
-        im_draw_quad(ctx, .{0, 0, W}, .{L, 0, W}, .{L, 0, -W}, .{0, 0, -W},
-                          .{0, 0}, .{0, 1}, .{1 ,1}, .{0, 1},
-                          c=.{1, 0, 0, 1});
-        im_draw_quad(ctx, .{0, W, 0}, .{L, W, 0}, .{L, -W, 0}, .{0, -W, 0},
-                          .{0, 0}, .{0, 1}, .{1 ,1}, .{0, 1},
-                          c=.{1, 0, 0, 1});
+    // y
+    im_draw_quad(ctx, .{-W, 0, 0}, .{-W, L, 0}, .{W, L, 0}, .{W, 0, 0},
+                        .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                        c=.{0, 1, 0, 1});
+    im_draw_quad(ctx, .{0, 0, -W}, .{0, L, -W}, .{0, L, W}, .{0, 0, W},
+                        .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                        c=.{0, 1, 0, 1});
 
-        // y
-        im_draw_quad(ctx, .{-W, 0, 0}, .{-W, L, 0}, .{W, L, 0}, .{W, 0, 0},
-                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
-                          c=.{0, 1, 0, 1});
-        im_draw_quad(ctx, .{0, 0, -W}, .{0, L, -W}, .{0, L, W}, .{0, 0, W},
-                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
-                          c=.{0, 1, 0, 1});
+    // z
+    im_draw_quad(ctx, .{-W, 0, 0}, .{-W, 0, L}, .{W, 0, L}, .{W, 0, 0},
+                        .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                        c=.{0, 0, 1, 1});
+    im_draw_quad(ctx, .{0, -W, 0}, .{0, -W, L}, .{0, W, L}, .{0, W, 0},
+                        .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
+                        c=.{0, 0, 1, 1});
 
-        // z
-        im_draw_quad(ctx, .{-W, 0, 0}, .{-W, 0, L}, .{W, 0, L}, .{W, 0, 0},
-                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
-                          c=.{0, 0, 1, 1});
-        im_draw_quad(ctx, .{0, -W, 0}, .{0, -W, L}, .{0, W, L}, .{0, W, 0},
-                          .{0, 0}, .{0, 1}, .{1, 1}, .{1, 0},
-                          c=.{0, 0, 1, 1});
-
-        im_flush(ctx);
-    }
+    im_flush(ctx);
 }
 
 editor_draw :: (state: *State) {
@@ -1484,7 +1481,7 @@ editor_update :: (state: *State) {
 
                     rotate_delta := mouse_rotate_speed * make_vector3(
                         cast(float)_local_host_state.mouse_delta.y,
-                        -cast(float)_local_host_state.mouse_delta.x,
+                        cast(float)_local_host_state.mouse_delta.x,
                         0);
 
                     x: Quaternion; set_from_axis_and_angle(*x, .{1, 0, 0}, rotate_delta.x * TO_RADIANS);

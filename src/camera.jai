@@ -55,6 +55,19 @@ reset_lkg_camera :: (using camera: *Camera, holoplay_capture: *Holoplay_Capture)
     return dist;
 }
 
+make_look_at_matrix :: (viewpoint: Vector3, look_at: Vector3, reference_up_vector: Vector3, $x_is_forward := true) -> Matrix4 #must {
+    forward := look_at - viewpoint;
+    normalize_or_z_axis(*forward);
+    left := cross_product(reference_up_vector, forward);
+    normalize_or_z_axis(*left);
+    up := cross_product(forward, left);
+    normalize_or_z_axis(*up);  // Just for accuracy's sake.
+
+    rotation := make_matrix_from_rows(left * 1, up, forward * -1);
+    result := translate(rotation, -viewpoint);
+    return result;
+}
+
 _update_matrices :: (using camera: *Camera) {
     forward := rotate(Vector3.{0, 0, 1}, rotation);
     up      := rotate(Vector3.{0, 1, 0}, rotation);
@@ -67,8 +80,7 @@ _update_matrices :: (using camera: *Camera) {
     view_matrix = make_look_at_matrix(
         viewpoint = position,
         look_at   = look_at,
-        reference_up_vector = up,
-        x_is_forward        = false);
+        reference_up_vector = up);
 
     view_projection_matrix = multiply(projection_matrix, view_matrix);
 
