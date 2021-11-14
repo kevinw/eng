@@ -925,10 +925,23 @@ unload_texture :: (texture: *Texture) {
     print("TODO: impl unload texture\n");
 }
 
+// Finds fxc.exe, the shader compiler that comes installed in a Windows Kit.
+find_fxc :: () -> string { // returns temporary string
+    push_allocator(__temporary_allocator, null);
 
-find_fxc :: () -> string {
-    // TODO: @Hardcoded @Hack
-    return "c:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.19041.0\\x64\\fxc.exe";
+    root, windows_version := Windows_Resources.find_windows_kit_root();
+    replace_chars(root, "\\", #char "/");
+    root_path := parse_path(root);
+    if root_path.words.count == 0 {
+        compiler_report("Error finding Windows Kit");
+        exit(1);
+    }
+
+    // Find_windows_kit_root gives us the Lib/ directory--we need to go up two levels and then
+    // back down into "bin/<windows kit version>".
+    path_version := root_path.words[root_path.words.count - 1];
+    array_add(*root_path.words, "..", "..", "bin", path_version, "x64", "fxc.exe");
+    return path_to_string(reduce_path(root_path));
 }
 
 get_temporary_filename :: () -> string {
@@ -1763,6 +1776,7 @@ SWAPCHAIN_BUFFER_COUNT :: 3;
 #import "Basic";
 #import "Math";
 #import "Windows_Utf8";
+Windows_Resources :: #import "Windows_Resources";
 #import "D3dcompiler";
 #import "dxgi";
 #import "Windows";
@@ -1776,3 +1790,4 @@ SWAPCHAIN_BUFFER_COUNT :: 3;
 #import "String";
 #import "Build_Constants";
 #import "math_extra";
+#import "File_Utilities";
