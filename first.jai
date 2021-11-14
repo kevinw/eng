@@ -109,8 +109,8 @@ set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
         build_opts.backend = .LLVM;
         set_optimization_level(build_opts, opt_level=3, size_level=1);
     } else {
-        build_opts.backend = .LLVM;
-        //build_opts.backend = .X64;
+        //build_opts.backend = .LLVM;
+        build_opts.backend = .X64;
         set_optimization_level(build_opts, opt_level=0, size_level=0);
     }
 }
