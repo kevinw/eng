@@ -397,12 +397,6 @@ file_list_infos :: (path: string, recursive := false, follow_symlinks := false) 
     return infos;
 }
 
-
-look_rotation :: (forward: Vector3, up := Vector3.{0, 1, 0}) -> Quaternion {
-    m := make_look_at_matrix(.{0, 0, 0}, forward, up, x_is_forward = false);
-    return get_rotation(m);
-}
-
 editor_init :: (editor: *Editor) {
     {
         using editor;
