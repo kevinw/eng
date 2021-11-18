@@ -874,101 +874,11 @@ align_all_selected_objects_with_scene_view :: () {
 }
 
 #load "todo_list.jai";
-
-show_quick_search_window :: (open: *bool) {
-    using ImGui;
-    using context.state.editor;
-
-    BeginEnd_return("Quick Search", open);
-
-    enter_pressed := false;
-
-    TextFilter.Draw(*quick_search_filter);
-    if quick_search.just_opened {
-        quick_search.just_opened = false;
-        quick_search.selected_index = 0;
-        quick_search.selected_index_delta = 0;
-        SetKeyboardFocusHere(-1);
-    } else {
-        if IsItemDeactivated() && IsKeyPressed(GetKeyIndex(.Escape)) {
-            log("escape pressed!");
-            <<open = false;
-        } else if IsKeyPressed(GetKeyIndex(.Enter)) {
-            enter_pressed = true;
-        }
-        
-        quick_search.selected_index_delta = 0;
-        if IsKeyPressed(GetKeyIndex(.DownArrow))
-            quick_search.selected_index_delta += 1;
-        if IsKeyPressed(GetKeyIndex(.UpArrow))
-            quick_search.selected_index_delta -= 1;
-    }
-
-    needs_update := true;
-    for quick_search_tasks {
-        if TextFilter.PassFilter(*quick_search_filter, it.label) {
-            if it_index == quick_search.selected_index {
-                needs_update = false;
-                break;
-            }
-        }
-    }
-
-    MAX_VAL :: 999999;
-    min_delta := MAX_VAL;
-    if quick_search.selected_index_delta != 0 || needs_update {
-        new_index := quick_search.selected_index + quick_search.selected_index_delta;
-        for quick_search_tasks {
-            if TextFilter.PassFilter(*quick_search_filter, it.label) {
-                diff := abs(it_index - new_index);
-                if diff < min_delta {
-                    quick_search.selected_index = it_index;
-                    min_delta = diff;
-                }
-            }
-        }
-        if min_delta == MAX_VAL
-            quick_search.selected_index = 0;
-    }
-
-
-    count := 0;
-    for quick_search_tasks {
-        if TextFilter.PassFilter(*quick_search_filter, it.label) {
-            needs_to_run := false;
-            if Selectable(it.label.data, it_index == quick_search.selected_index)
-                needs_to_run = true;
-            if enter_pressed && it_index == quick_search.selected_index
-                needs_to_run = true;
-            if needs_to_run {
-                it.func();
-                <<open = false;
-            }
-            count += 1;
-        }
-    }
-
-    /*
-    inspect_opts := editor_inspect_opts();
-    inspect_opts.filter = *quick_search_filter;
-    inspect("", *context.state.editor, opts=inspect_opts);
-    */
-}
-
-Quick_Search_Entry :: struct {
-    label: string;
-    func: #type ();
-}
+#load "editor/quick_search.jai";
 
 request_application_quit :: () {
     _local_host_state.change_window_state(.Request_Application_Quit);
 }
-
-
-quick_search_tasks := Quick_Search_Entry.[
-    .{"Show ImGui Demo Window", show_imgui_demo_window},
-    .{"Quit", request_application_quit}
-];
 
 show_about_window :: (open: *bool) {
     using ImGui;
