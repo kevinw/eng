@@ -184,7 +184,7 @@ ID3D11DeviceContext1_VTable :: struct {
 
     ClearView: (
         pView: *ID3D11View,
-        Color: [4]float,
+        Color: *[4]float,
         pRect: *D3D11_RECT,
         NumRects: u32 ) #foreign;
 

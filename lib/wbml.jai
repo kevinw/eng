@@ -770,7 +770,7 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
     any := make_Any(ti, ptr);
     if on_deserialize(*any, node, userdata) return;
 
-    if (ti.type) == {
+    if ti.type == {
         case .STRUCT;
             if check_type(node, .Object, verbose, debug_name) {
                 ti_struct := cast(*Type_Info_Struct)ti;
@@ -783,6 +783,7 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                             write_value(field.value, ptr + it.offset_in_bytes, it.type,
                                 child_debug_name, verbose, on_deserialize, userdata);
                         }
+            }
 
 		case .ARRAY;
             if check_type(node, .Array, verbose, debug_name) {
