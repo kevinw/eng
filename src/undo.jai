@@ -94,7 +94,7 @@ push_array :: (using impl: *Impl, array: *[..]$T, loc := #caller_location) {
     assert(item.resizable_array.allocated == array.allocated);
 
     // We store a copy of the data to compare later.
-    item.resizable_array.data = alloc(array.allocated * item.size, array.allocator, array.allocator_data);
+    item.resizable_array.data = alloc(array.allocated * item.size, array.allocator);
     memcpy(item.resizable_array.data, array.data, array.count * item.size);
 
     //print("push_array copied % bytes from % to temp %\n", array.count * item.size, array.data, item.resizable_array.data);
@@ -200,9 +200,9 @@ commit :: (using impl: *Impl) {
                 arr := cast(*Resizable_Array)temp_item.pointer;
                 temp_arr := temp_item.resizable_array;
 
-                if temp_arr.allocator != null {
-                    assert(temp_arr.allocator == arr.allocator, "allocators did not match for arr %: % vs %", arr, temp_arr.allocator, arr.allocator);
-                    assert(temp_arr.allocator_data == arr.allocator_data);
+                if temp_arr.allocator.proc != null {
+                    assert(temp_arr.allocator.proc == arr.allocator.proc, "allocators did not match for arr %: % vs %", arr, temp_arr.allocator, arr.allocator);
+                    assert(temp_arr.allocator.data == arr.allocator.data);
                 }
                 assert(temp_arr.data != arr.data);
 
@@ -261,7 +261,7 @@ free_item :: (item: Item) {
                 (cast(*Resizable_Array)item.pointer).data != item.resizable_array.data,
                 "the undo Item's copied data pointer shouldn't be equal to the original's"
             );
-            free(item.resizable_array.data, item.resizable_array.allocator, item.resizable_array.allocator_data);
+            free(item.resizable_array.data, item.resizable_array.allocator);
         case .String_Replacement;
             assert(
                 (cast(*string)item.pointer).data != item.str.data,

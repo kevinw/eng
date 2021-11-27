@@ -198,7 +198,7 @@ main :: () {
             GWP :: #import "gwpasan";
             print("[host] Using slow guard allocator\n");
             GWP.init(max_allocation = 100000, sample_rate = 1);
-            context.allocator = GWP.allocator;
+            context.allocator = .{GWP.allocator, null};
         } else {
             print("[host] WARNING: requested Page_Guard allocator, but host was not built with it included.\n");
         }

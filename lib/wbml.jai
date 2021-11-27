@@ -826,15 +826,14 @@ write_value :: (node_incoming: *Node, ptr: *void, ti: *Type_Info,
                         array := cast(*Resizable_Array)ptr;
                         desired_items := node._array.elements.count;
                         if desired_items > array.allocated {
-                            if !array.allocator {
-                                if context.allocator {
+                            if !array.allocator.proc {
+                                if context.allocator.proc {
                                     array.allocator      = context.allocator;
-                                    array.allocator_data = context.allocator_data;
                                 } else {
                                     array.allocator      = context.default_allocator;
                                 }
                             }
-                            array.data = realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator, array.allocator_data);
+                            array.data = realloc(array.data, desired_items * elem_size, array.allocated * elem_size, array.allocator);
                             assert(array.data != null);
                             array.allocated = desired_items;
                         }
