@@ -1,8 +1,10 @@
-// TODO: use metaprogramming @annotations on functions to populate this list
-quick_search_tasks := Quick_Search_Entry.[
-    .{"Show ImGui Demo Window", show_imgui_demo_window},
-    .{"Quit", request_application_quit}
-];
+Quick_Search_Entry :: struct {
+    label: string;
+    func: #type ();
+}
+
+// quick_search_tasks := Quick_SearchEntry.[ /* .. */ ];
+#placeholder quick_search_tasks; // filled in metaprogram_common.jai
 
 show_quick_search_window :: (open: *bool) {
     using ImGui;
@@ -85,9 +87,4 @@ show_quick_search_window :: (open: *bool) {
     inspect_opts.filter = *quick_search_filter;
     inspect("", *context.state.editor, opts=inspect_opts);
     */
-}
-
-Quick_Search_Entry :: struct {
-    label: string;
-    func: #type ();
 }

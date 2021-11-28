@@ -855,7 +855,7 @@ show_menubar :: () {
 
 show_imgui_demo_window :: () {
     context.state.editor.windows.imgui_demo = true;
-}
+} @QuickSearch
 
 align_all_selected_objects_with_scene_view :: () {
     using context.state.editor;
@@ -879,6 +879,10 @@ align_all_selected_objects_with_scene_view :: () {
 request_application_quit :: () {
     _local_host_state.change_window_state(.Request_Application_Quit);
 }
+
+quit :: () {
+    request_application_quit();
+} @QuickSearch
 
 show_about_window :: (open: *bool) {
     using ImGui;
@@ -1464,7 +1468,7 @@ editor_update :: (state: *State) {
         }
 
         {
-            // rotation with mouse delta
+            // rotation with mouse delta (mouselook)
             mouse_rotate_speed :: 0.16;
             if _local_host_state.mouse_delta.x != 0 || _local_host_state.mouse_delta.y != 0 {
                 #if 1 {

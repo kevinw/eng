@@ -68,6 +68,7 @@ run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
                     if !did_generate_systems && msg.phase == .TYPECHECKED_ALL_WE_CAN {
                         did_generate_systems = true;
                         generate_systems(*metaprogram);
+                        output_quick_search(*metaprogram);
                     }
             }
         }
@@ -78,9 +79,15 @@ run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
     }
 }
 
+Quick_Search_Metaprogram_Entry :: struct {
+    label: string;
+    proc_name: string;
+}
+
 Metaprogram :: struct {
     workspace: s64;
     system_funcs: [..]*Compiler.Code_Procedure_Header;
+    quick_search_procs: [..]Quick_Search_Metaprogram_Entry;
     component_type_names: [..]string; // TODO: should these be *Type_Infos?
 }
 
@@ -105,6 +112,21 @@ is_argument_a_pointer_to_a_component :: (arg_decl: *Compiler.Code_Declaration, m
     if found return true, metaprogram.component_type_names[index];
     
     else return false, name;
+}
+
+output_quick_search :: (metaprogram: *Metaprogram) {
+    // Quick search entries
+    args: [..]string;
+    args.allocator = temp;
+    for metaprogram.quick_search_procs
+        array_add(*args, tprint("    .{\"%\", %},", it.label, it.proc_name));
+    quick_search_code_text := tprint(#string END
+quick_search_tasks := Quick_Search_Entry.[
+    %
+];
+END, String.join(..args, separator="\n"));
+
+    Compiler.add_build_string(quick_search_code_text, metaprogram.workspace);
 }
 
 generate_systems :: (metaprogram: *Metaprogram) {
@@ -360,6 +382,17 @@ collect_component_functions :: (tc: *Compiler.Message_Typechecked, metaprogram: 
             // procs.
             if header.arguments.count > 0 && is_name_a_System_Stage(header.name)
                 array_add_if_unique(*metaprogram.system_funcs, header);
+            
+            for header.notes {
+                prefix :: "QuickSearch";
+                if it.text == prefix {
+                    label_copy := sprint("%", header.name);
+                    capitalize_and_spacify_snake_case(label_copy);
+                    entry := array_add(*metaprogram.quick_search_procs);
+                    entry.label = label_copy;
+                    entry.proc_name = header.name;
+                }
+            }
         }
     }
 }
@@ -510,3 +543,4 @@ code_node_as_string :: (node: *Code_Node) -> string {
 
 #scope_file
 #import "Compiler";
+#load "../lib/string_util.jai";
