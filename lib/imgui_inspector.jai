@@ -75,6 +75,7 @@ Inspect_Opts :: struct {
     popup_cb:             Popup_Callback_Func;
     popup_cb_data:        *void;
     filter:               *ImGui.TextFilter;
+    hide_first_collapsing_arrow: bool;
 }
 
 inspect :: inline (name: *u8, t: *$T, opts: Inspect_Opts = .{}) {
@@ -296,8 +297,18 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, opts: Inspect_Opts = .{}) {
                         //tree_node_flags := TreeNodeFlags.None;
                         //tree_node_flags := TreeNodeFlags.DefaultOpen;
                         tree_node_flags := TreeNodeFlags.CollapsingHeader | .DefaultOpen;
-                        PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
-                        tree_node_open := TreeNodeEx(tree_node_str.data, tree_node_flags);
+
+                        tree_node_open: bool;
+                        child_opts := opts;
+                        {
+                            hide_collapsing_arrow := opts.hide_first_collapsing_arrow;
+                            child_opts.hide_first_collapsing_arrow = false;
+                            if hide_collapsing_arrow Unindent(GetTreeNodeToLabelSpacing());
+                            defer if hide_collapsing_arrow Indent(GetTreeNodeToLabelSpacing());
+
+                            PushStyleColor(.Header, ImVec4.{0, 0, 0, 0});
+                            tree_node_open = TreeNodeEx(tree_node_str.data, tree_node_flags);
+                        }
 
                         if opts.popup_cb
                             opts.popup_cb(opts.popup_cb_data);
@@ -307,7 +318,7 @@ inspect :: (name: *u8, data: *void, info:*Type_Info, opts: Inspect_Opts = .{}) {
 
                             for * member: uniquely_placed_members(ti_struct)
                                 if should_display_struct_member(member)
-                                    inspect(member.name.data, data + member.offset_in_bytes, member.type, opts);
+                                    inspect(member.name.data, data + member.offset_in_bytes, member.type, child_opts);
 
                             if tree_node_flags & .NoTreePushOnOpen == 0
                                 TreePop();

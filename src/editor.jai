@@ -2105,6 +2105,7 @@ draw_inspector :: (open: *bool) {
     popup_ctx: Popup_Context;
     inspect_opts.popup_cb=popup_cb;
     inspect_opts.popup_cb_data=*popup_ctx;
+    inspect_opts.hide_first_collapsing_arrow = true; // don't show collapsing group arrow for Components.
 
     for entity.components {
         component_ti := component_bit_to_ti(it.bit);
