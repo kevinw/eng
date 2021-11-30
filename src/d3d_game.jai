@@ -35,6 +35,8 @@ on_host_init :: (host_state: Host_State) {
     editor.scene_camera.position = .{500, 300, -300};
     set_function_pointers();
 
+    add_material("pbr", "resources/shaders/unlit_texture.hlsl");
+
     // tests
     {
         scoped_test_world();

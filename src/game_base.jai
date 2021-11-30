@@ -13,6 +13,7 @@ State_Base :: struct {
 
     renderer:      Renderer;
     im_context:    Im_Context_R;
+    mesh_rendering_constants: Buffer;
     multiview:     Multiview_State;
     mview_window:  multiview_window.State;
 
@@ -211,7 +212,7 @@ game_base_default_update_and_draw :: (host_state: Host_State) {
 
             {
                 push_value(*im.track_mouse, true);
-                _draw_world();
+                _draw_world(camera);
                 //timestamp(*profiler, .EditorWorldRender);
             }
 
@@ -264,7 +265,7 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
         {
             // render quilt
             push_pass(*multiview.offscreen.pass, clear_color=*Vector4.{0, 0, 0, 0});
-            _draw_world();
+            _draw_world(cam);
             timestamp(*profiler, .MultiviewWorldRender);
         }
 
@@ -308,7 +309,7 @@ game_base_default_multiview_update_and_draw :: (host_state: Host_State) {
 
             {
                 push_value(*im.track_mouse, true);
-                _draw_world();
+                _draw_world(camera);
                 timestamp(*profiler, .EditorWorldRender);
             }
 
@@ -555,7 +556,7 @@ END,
 }
 
 
-_draw_world :: () {
+_draw_world :: (cam: *Camera) {
     ctx := *context.state.im_context;
 
     push_blend(ctx, blend=false, flush=false);
@@ -565,6 +566,10 @@ _draw_world :: () {
 
     world := context.state.world;
     world_draw(world);
+
+    // TODO: make these calls hook into some kind of compile-time @EventCallback
+    draw_all_mesh_renderers(world, cam);
+
     im_flush(ctx);
 }
 

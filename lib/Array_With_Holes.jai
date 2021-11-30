@@ -405,8 +405,11 @@ for_expansion :: (arr: *$A/Array_With_Holes, body: Code, flags: For_Flags) #expa
         
         if slot.generation <= 0 continue; // dead
 
-        #if (flags & .POINTER) `it := *slot.value;
-        else `it := slot.value;
+        #if flags & .POINTER {
+            `it := *slot.value;
+        } else {
+            `it := slot.value;
+        }
         `it_index := index; // TODO: not sure it_index is useful here...
 
         #insert body;

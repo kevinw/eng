@@ -118,6 +118,9 @@ Editor :: struct {
     mouse_is_over_scene_view: bool;
     mouse_over_scene_view_window: bool;
 
+
+    draw_2d_rectangles_around_selections: bool;
+
     show_main_menu: bool = false;
     show_aspect_ratio_guide := true;
 
@@ -457,24 +460,26 @@ editor_draw_world :: (state: *State) {
 
     im_push_entity_handle(.{});
 
-    if selected.count > 0 {
-        for selected {
-            ok, entity := get_entity(it);
-            if !ok continue;
-            rect, depth_z := entity_rect_and_depth(entity);
-            rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE, depth_z = depth_z);
+    if draw_2d_rectangles_around_selections {
+        if selected.count > 0 {
+            for selected {
+                ok, entity := get_entity(it);
+                if !ok continue;
+                rect, depth_z := entity_rect_and_depth(entity);
+                rl.DrawRectangleLinesEx(entity_rect(entity), 2, rl.WHITE, depth_z = depth_z);
+            }
+        } else if drag_state.dragging {
+            dragging_rect := rect_from_points(drag_state.origin, world_mouse_pos.xy);
+            if is_valid_drag_rect(dragging_rect)
+                rl.DrawRectangleLinesEx(dragging_rect, 3, rl.RED);
         }
-    } else if drag_state.dragging {
-        dragging_rect := rect_from_points(drag_state.origin, world_mouse_pos.xy);
-        if is_valid_drag_rect(dragging_rect)
-            rl.DrawRectangleLinesEx(dragging_rect, 3, rl.RED);
-    }
 
-    if hover.has_value {
-        ok, entity := get_entity(hover, check_count = true);
-        if ok {
-            rect, depth_z := entity_rect_and_depth(entity);
-            rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
+        if hover.has_value {
+            ok, entity := get_entity(hover, check_count = true);
+            if ok {
+                rect, depth_z := entity_rect_and_depth(entity);
+                rl.DrawRectangleLinesEx(rect, 1, rl.Color.{200, 200, 255, 128}, depth_z = depth_z);
+            }
         }
     }
 
@@ -1911,6 +1916,16 @@ new_scene_confirming :: () {
     ImGui.OpenPopup(SAVE_CHANGES_MODAL_ID);
 }
 
+add_sphere :: () {
+    using context.state;
+    entity, entity_handle := create_entity(context.state.world, "Sphere", undo=*editor.undo_state, world_pos=.{0, 0, 0});
+    set_selected(entity_handle);
+
+    mesh_renderer := add_component(entity_handle, Mesh_Renderer);
+    mesh_renderer.mesh = New(Mesh);
+    create_sphere_mesh(mesh_renderer.mesh);
+} @QuickSearch
+
 load_scene_confirming :: (scene_filename: string) {
     using context.state.editor;
     
@@ -2371,5 +2386,6 @@ temp_c_string :: (s: string) -> *u8 {
 }
 
 #scope_file
+#import "mesh";
 Assets :: #import "assets";
 Grid :: #import "grid";

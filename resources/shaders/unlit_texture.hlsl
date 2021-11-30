@@ -44,6 +44,7 @@ cbuffer constants : register(b0)
 {
     float4x4 projection;
     float4x4 view;
+    float4x4 model;
 
     // LKG constants
     float viewConeSweep;
@@ -79,7 +80,7 @@ vs_out vs_main(vs_in input) {
 #endif
 
     vs_out output;
-    output.position = mul(float4(input.position, 1), mul(_view, _proj));
+    output.position = mul(float4(input.position, 1), mul(mul(model, _view), _proj));
     output.texcoord = input.texcoord;
     output.color    = input.color;
     output.rendertarget_array_index = input.instance_id;

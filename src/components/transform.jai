@@ -13,6 +13,16 @@ get_lossy_scale :: (it: Entity_Handle) -> Vector3 {
     return transform.scale; // TODO: parents scale, etc
 }
 
+get_matrix :: (it: *Transform) -> Matrix4 {
+    // @Perf should Transform cache its transform? probably
+
+    translate := make_translation_matrix4(it.position);
+    rotate    := make_rotation_matrix4(it.rotation);
+    scale     := make_scale_matrix4(it.scale);
+
+    return translate * rotate * scale;
+}
+
 Link :: struct {
     // Note that this requires that transformations are sorted so that
     // parents are always before their children

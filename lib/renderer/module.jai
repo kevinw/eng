@@ -2,7 +2,7 @@
 
 /*
 
-ok so here's the problem!
+ok so here's a problem to fix!
 
     i made a mistake when making ANOTHER renderer for the second window.
     really i should have made a swap chain object (or something), and then
@@ -155,7 +155,6 @@ begin_default_pass :: (clear_color: *Vector4 = null) {
     begin_pass(null, clear_color);
 }
 
-
 push_pass :: (pass: *Pass, clear_color: *Vector4 = null) #expand {
     begin_pass(pass, clear_color);
     `defer end_pass();
@@ -176,6 +175,41 @@ resize_if_necesssary :: (texture: *Texture, size: Vector2_u16) -> bool {
 
     return false;
 }
+
+// TODO: replace Buffer with this? it's probably better to be type-safe always!
+// and if we want differently typed views of the same underying GPU memory, we
+// can use an "owned" flag
+GPU_Buffer :: struct(T: Type) {
+    Elem_Type :: T;
+
+    buffer: Buffer;
+}
+
+is_initialized :: (gpu_buffer: GPU_Buffer) -> bool { return is_initialized(gpu_buffer.buffer); }
+
+create_gpu_buffer :: ($T: Type, count: u32, debug_name := "") -> GPU_Buffer(T) {
+    total_size_in_bytes:u32 = size_of(T) * count; // TODO: ALIGNMENT???
+
+    gpu_buffer: GPU_Buffer(T);
+    gpu_buffer.buffer = create_constant_buffer(total_size_in_bytes);
+    return gpu_buffer;
+}
+
+/*
+    #if #run type_info(T).type == .ARRAY {
+        ti := type_info(T);
+        ti_array := cast(*Type_Info_Array)ti;
+        if ti.array_type == .FIXED {
+            ti_array := cast(*Type_Info_Array)type_info(T);
+            print("ti_array: %\n", ti_array);
+            print("  count: %\n", ti_array.array_count);
+            print("  array_tpe: %\n", ti_array.element_type);
+
+            //todo. encode some metadata about the type in Buffer? or rethink buffers to be able to have a typesafe wrapper? I think maybe that's the better option here.
+        }
+    }
+    // TODO: maybe Buffer should be surrounded by a thing which is parameterized by T?
+*/
 
 #load "renderer_d3d11.jai";
 

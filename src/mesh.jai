@@ -35,7 +35,7 @@ Sub_Mesh :: struct {
 }
 
 unload_mesh :: (mesh: *Mesh) {
-    // TODO
+    log("TODO: unload_mesh %", mesh); // TODO
 }
 
 Loader :: struct {
@@ -50,6 +50,16 @@ Vertex :: struct {
     instance_id: u32;
     entity_id: u32;
     entity_generation: s32;
+}
+
+make_Vertex :: inline (x: float, y: float, z: float,
+                        s: float, t: float,
+                        r: float, g: float, b: float, a: float) -> Vertex {
+    using v: Vertex;
+    pos      = make_vector3(x, y, z);
+    texcoord = make_vector2(s, t);
+    color    = make_vector4(r, g, b, a);
+    return v;
 }
 
 load_mesh :: (mesh: *Mesh, filename: string) -> bool {
@@ -79,6 +89,66 @@ load_mesh :: (mesh: *Mesh, filename: string) -> bool {
     return true;
 
 }
+
+create_sphere_mesh :: (mesh: *Mesh, stacks: int = 24, sectors: int = 48) {
+    Index_Type :: u32;
+
+    verts := NewArray((stacks + 1) * (sectors + 1), Vertex);
+    inds  := NewArray((stacks + 1) * (sectors + 1) * 6, Index_Type);
+    defer free(verts.data);
+    defer free(inds.data);
+
+    sector_step := TAU / cast(float)sectors;
+    stack_step := PI / cast(float)stacks;
+
+    vert_i := 0;
+    for i: 0..stacks {
+        stack_angle := PI/2.0 - cast(float)i * cast(float)stack_step;
+        xy := cos(stack_angle);
+        z := sin(stack_angle);
+
+        for j: 0..sectors {
+            sector_angle := cast(float)j * sector_step;
+            x := xy * cos(sector_angle);
+            y := xy * sin(sector_angle);
+
+            s := cast(float)i / cast(float)sectors;
+            t := cast(float)i / cast(float)stacks;
+
+            verts[vert_i] = make_Vertex(x, y, z, s, t, 1, 1, 1, 1);
+            vert_i += 1;
+        }
+    }
+
+    inds_i := 0;
+    for i: 0..stacks-1 {
+        k1 := i * (sectors+1);
+        k2 := k1 + (sectors+1);
+        for j: 0..sectors-1 {
+            if i != 0 {
+                inds[inds_i] = cast(u32)(k1); inds_i += 1;
+                inds[inds_i] = cast(u32)(k2); inds_i += 1;
+                inds[inds_i] = cast(u32)(k1+1); inds_i += 1;
+            }
+            if i != stacks-1 {
+                inds[inds_i] = cast(u32)(k1+1); inds_i += 1;
+                inds[inds_i] = cast(u32)(k2); inds_i += 1;
+                inds[inds_i] = cast(u32)(k2+1); inds_i += 1;
+            }
+
+            k1+=1;
+            k2+=1;
+        }
+    }
+
+    assert(mesh.sub_meshes.count == 0);
+    submesh := array_add(*mesh.sub_meshes);
+
+    submesh.vertices = create_immutable_buffer(verts, .Vertex, "vertices for sphere");
+    submesh.indices =  create_immutable_buffer(inds, .Index,   "indices for sphere");
+    submesh.material = get_material("pbr");
+}
+
 
 #scope_file
 

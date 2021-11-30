@@ -94,6 +94,10 @@ Buffer :: struct {
     element_count: u32; // not sure this should be here...
 }
 
+is_initialized :: (buffer: Buffer) -> bool {
+    return buffer.d3d_buffer != null;
+}
+
 
 ////////
 
@@ -297,16 +301,20 @@ create_count_buffer :: (debug_name := "") -> Buffer {
 }
 
 create_constant_buffer :: ($T: Type, debug_name := "") -> Buffer {
-    // TODO: maybe Buffer should be surrounded by a thing which is parameterized by T?
+    size_in_bytes:u32 : #run next_multiple_of(16, size_of(T));
+    return create_constant_buffer(size_in_bytes, debug_name);
+}
+
+create_constant_buffer :: (size_in_bytes: u32, debug_name := "") -> Buffer {
     assert_state();
     using renderer;
 
     constant_buffer_desc := D3D11_BUFFER_DESC.{
-        ByteWidth      = #run next_multiple_of(16, size_of(T)),
         Usage          = .D3D11_USAGE_DYNAMIC,
         BindFlags      = .D3D11_BIND_CONSTANT_BUFFER,
         CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE,
     };
+    constant_buffer_desc.ByteWidth = size_in_bytes;
 
     buf: Buffer;
     check_result(device.CreateBuffer(xx device, *constant_buffer_desc, null, *buf.d3d_buffer));
@@ -927,7 +935,7 @@ unload_texture :: (texture: *Texture) {
 
 // Finds fxc.exe, the shader compiler that comes installed in a Windows Kit.
 find_fxc :: () -> string { // returns temporary string
-    push_allocator(__temporary_allocator, null);
+    push_allocator(temp);
 
     root, windows_version := Windows_Resources.find_windows_kit_root();
     replace_chars(root, "\\", #char "/");
