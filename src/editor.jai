@@ -767,20 +767,23 @@ render_imgui_to_drawlists :: (state: *State) {
             inspect("", *context.state.world.prefab_cache);
     }
     
-    if windows.imgui_demo     ImGui.ShowDemoWindow(*windows.imgui_demo);
-    if windows.undo_internals show_undo_internals(*windows.undo_internals);
-    if windows.new_assets     show_new_assets_window(*windows.new_assets);
-    if windows.assets         show_assets_window(*windows.assets);
-    if windows.entities       show_entities_window(*windows.entities);
-    if windows.inspector      draw_inspector(*windows.inspector);
-    if windows.gamepad_viz    show_gamepad_window(*windows.gamepad_viz);
-    if windows.profiler       show_profiler_window(*windows.profiler);
-    if windows.scene_view     show_scene_view(*windows.scene_view);
-    if windows.todo           show_todo_window(*windows.todo);
-    if windows.quick_search   show_quick_search_window(*windows.quick_search);
-    if windows.about          show_about_window(*windows.about);
+    {
+        using windows;
+        if imgui_demo     ImGui.ShowDemoWindow(*imgui_demo);
+        if undo_internals show_undo_internals(*undo_internals);
+        if new_assets     show_new_assets_window(*new_assets);
+        if assets         show_assets_window(*assets);
+        if entities       show_entities_window(*entities);
+        if inspector      draw_inspector(*inspector);
+        if gamepad_viz    show_gamepad_window(*gamepad_viz);
+        if profiler       show_profiler_window(*profiler);
+        if scene_view     show_scene_view(*scene_view);
+        if todo           show_todo_window(*todo);
+        if quick_search   show_quick_search_window(*quick_search);
+        if about          show_about_window(*about);
 
-    if windows.asset_selector.visible render_asset_selector(*windows.asset_selector.visible);
+        if asset_selector.visible render_asset_selector(*asset_selector.visible);
+    }
 
     save_changes_modal();
 }
