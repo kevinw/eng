@@ -2,6 +2,8 @@
 DEFAULT_SRC_PLUGIN :: "d3d_game";
 //DEFAULT_SRC_PLUGIN :: "game";
 
+RUN_METAPROGRAM_CHECK :: false;
+
 is_name_a_System_Stage :: inline (name: string) -> bool    {
     #insert #run (() -> string {
         sb: String_Builder;
@@ -57,6 +59,10 @@ run_compiler_loop :: (workspace: int, $do_ecs_metaprogram: bool) {
     while true {
         message := compiler_wait_for_message();
         if !message || message.workspace != workspace continue;
+
+        #if RUN_METAPROGRAM_CHECK {
+            Check.do_error_checking(message, check_bindings=true);
+        }
 
         #if do_ecs_metaprogram {
             if message.kind == {
@@ -544,3 +550,5 @@ code_node_as_string :: (node: *Code_Node) -> string {
 #scope_file
 #import "Compiler";
 #load "../lib/string_util.jai";
+Check :: #import "Check";
+
