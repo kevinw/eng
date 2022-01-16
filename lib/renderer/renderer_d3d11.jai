@@ -220,12 +220,12 @@ apply_bindings :: (shader: *Shader,
     vert_offsets.allocator = __temporary_allocator;
     for vertex_buffers array_add(*vert_offsets, 0);
 
-    device_context.IASetVertexBuffers(device_context, 0, cast(u32)vert_buffers.count, vert_buffers.data, vert_strides.data, vert_offsets.data);
+    vtable(device_context).IASetVertexBuffers(device_context, 0, cast(u32)vert_buffers.count, vert_buffers.data, vert_strides.data, vert_offsets.data);
 
     if index_buffer != null {
-        device_context.IASetIndexBuffer(device_context, index_buffer.d3d_buffer, .DXGI_FORMAT_R32_UINT, 0);
+        vtable(device_context).IASetIndexBuffer(device_context, index_buffer.d3d_buffer, .DXGI_FORMAT_R32_UINT, 0);
     } else {
-        device_context.IASetIndexBuffer(device_context, null, .DXGI_FORMAT_UNKNOWN, 0);
+        vtable(device_context).IASetIndexBuffer(device_context, null, .DXGI_FORMAT_UNKNOWN, 0);
     }
 
     shader_resource_views: [..]*ID3D11ShaderResourceView;
@@ -253,10 +253,10 @@ apply_bindings :: (shader: *Shader,
         array_add(*sampler_states, it.sampler_state);
     }
 
-    device_context.PSSetShaderResources(device_context, 0, cast(u32)shader_resource_views.count, shader_resource_views.data);
+    vtable(device_context).PSSetShaderResources(device_context, 0, cast(u32)shader_resource_views.count, shader_resource_views.data);
     flush_debug_messages();
 
-    device_context.PSSetSamplers(device_context, 0, cast(u32)sampler_states.count, sampler_states.data);
+    vtable(device_context).PSSetSamplers(device_context, 0, cast(u32)sampler_states.count, sampler_states.data);
     flush_debug_messages();
 
 }
@@ -522,7 +522,7 @@ create_texture :: (tex: *Texture, size: Vector2_u16, array_size:u32 = 1,
     assert(tex.texture2D == null, "TODO: figure out reinit semantics...");
     tex.size = size;
     tex.debug_name = copy_string(label); // TODO: instead of storing our own copy, we could just possibly use the driver's private data thing set by set_debug_name
-    if S_OK != device.CreateTexture2D(xx device, *desc, texture_data, *tex.texture2D) {
+    if S_OK != vtable(device).CreateTexture2D(device, *desc, texture_data, *tex.texture2D) {
         flush_errors();
         return false;
     }
@@ -577,7 +577,7 @@ resize_texture :: (tex: *Texture, size: Vector2_u16) {
     Release(tex.texture2D);
 
     // use the desc to create a new texture
-    if S_OK != device.CreateTexture2D(xx device, *desc, null, *tex.texture2D) {
+    if S_OK != vtable(device).CreateTexture2D(device, *desc, null, *tex.texture2D) {
         print("error recreating for resize_texture: CreateTexture2D\n");
         print("%\n", desc);
         flush_errors();
@@ -761,18 +761,18 @@ apply_pipeline :: (pipeline: *Pipeline) {
 
     using pipeline;
 
-    device_context.IASetPrimitiveTopology(device_context, primitive_type);
-    device_context.IASetInputLayout(device_context, shader.input_layout);
+    vtable(device_context).IASetPrimitiveTopology(device_context, primitive_type);
+    vtable(device_context).IASetInputLayout(device_context, shader.input_layout);
 
-    device_context.VSSetShader(device_context, shader.vert, null, 0);
-    device_context.RSSetState(device_context, xx rasterizer_state);
+    vtable(device_context).VSSetShader(device_context, shader.vert, null, 0);
+    vtable(device_context).RSSetState(device_context, xx rasterizer_state);
 
-    device_context.PSSetShader(device_context, shader.frag, null, 0);
+    vtable(device_context).PSSetShader(device_context, shader.frag, null, 0);
 
-    device_context.OMSetDepthStencilState(device_context, depth_stencil_state, 0);
+    vtable(device_context).OMSetDepthStencilState(device_context, depth_stencil_state, 0);
 
     blend_factors :: float.[ 1, 1, 1, 1 ];
-    device_context.OMSetBlendState(device_context, blend_state, *blend_factors, 0xffffffff);
+    vtable(device_context).OMSetBlendState(device_context, blend_state, *blend_factors, 0xffffffff);
 }
 
 apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float = -1) {
@@ -800,7 +800,8 @@ apply_viewport :: (x: float = 0, y: float = 0, width: float = -1, height: float 
     viewport.MinDepth = 0;
     viewport.MaxDepth = 1;
     
-    renderer.device_context1.RSSetViewports(xx renderer.device_context1, 1, *viewport);
+    ID3D11DeviceContext1_RSSetViewports(renderer.device_context1, 1, *viewport);
+    //renderer.device_context1.RSSetViewports(xx renderer.device_context1, 1, *viewport);
 }
 
 Shader_Stage :: enum {
@@ -884,7 +885,7 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
 
     device := cast(*ID3D11Device)renderer.device;
     {
-        res := device.CreateTexture2D(device, *textureDesc, *textureData, *tex.texture2D);
+        res := vtable(device).CreateTexture2D(device, *textureDesc, *textureData, *tex.texture2D);
         if res != S_OK {
             flush_errors();
             unload_and_return_error();
@@ -894,7 +895,7 @@ load_texture_from_data :: (width: u32, height: u32, bytes_per_pixel: u32, data: 
     }
     {
         view: *ID3D11ShaderResourceView;
-        res := device.CreateShaderResourceView(device, xx tex.texture2D, null, *view);
+        res := vtable(device).CreateShaderResourceView(device, xx tex.texture2D, null, *view);
         if res != S_OK {
             flush_errors();
             unload_and_return_error();
@@ -1235,7 +1236,7 @@ _get_swapchain_framebuffer :: (using renderer: *Renderer) {
 
     //print("swap chain frame buffer %x%\n", depth_buffer_desc.Width, depth_buffer_desc.Height);
 
-    check_result(device.CreateTexture2D(cast(*ID3D11Device)device, *depth_buffer_desc, null, *depth_buffer));
+    check_result(vtable(device).CreateTexture2D(device, *depth_buffer_desc, null, *depth_buffer));
     assert(depth_buffer != null);
     #if DEBUG_NAMES set_debug_name(depth_buffer, "Depth Buffer for Renderer %", renderer);
 
@@ -1620,13 +1621,13 @@ set_debug_name :: (child_obj: *$T, name: string, args: ..Any, check_for_existing
     }
 
     child := cast(*ID3D11DeviceChild)child_obj;
-    assert(child.SetPrivateData != null);
+    assert(vtable(child).SetPrivateData != null);
 
     full_message: string;
     if args.count > 0 full_message = tprint(name, ..args);
     else full_message = name;
 
-    res := child.SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)full_message.count, full_message.data);
+    res := vtable(child).SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)full_message.count, full_message.data);
     if flush_debug_messages() > 0 {
         print("Existing private data was: \"%\"\n", get_debug_name(child));
     }
@@ -1641,7 +1642,7 @@ get_debug_name :: (child_obj: *$T) -> string {
     buf_size: u32 = N;
 
     child := cast(*ID3D11DeviceChild)child_obj;
-    res := child.GetPrivateData(child, *WKPDID_D3DDebugObjectName, *buf_size, buf);
+    res := vtable(child).GetPrivateData(child, *WKPDID_D3DDebugObjectName, *buf_size, buf);
 
     name: string;
     if res == S_OK && buf_size > 0 {
@@ -1785,7 +1786,7 @@ SWAPCHAIN_BUFFER_COUNT :: 3;
 #import "Math";
 #import "Windows_Utf8";
 Windows_Resources :: #import "Windows_Resources";
-#import "D3dcompiler";
+#import "d3d_compiler";
 #import "dxgi";
 #import "Windows";
 #import "d3d11_shader"; // for shader reflection

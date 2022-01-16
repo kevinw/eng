@@ -48,7 +48,7 @@ ImGui_ImplDX11_SetupRenderState :: (using ui_state: *UI_State, draw_data: *ImDra
     vp.MaxDepth = 1.0;
     vp.TopLeftX = 0;
     vp.TopLeftY = 0;
-    d_ctx.RSSetViewports(d_ctx, 1, *vp);
+    ID3D11DeviceContext1_RSSetViewports(d_ctx, 1, *vp);
 
     // Setup shader and vertex buffers
     stride:u32 = size_of(ImDrawVert);
@@ -83,7 +83,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
 
     // Create and grow vertex/index buffers if needed
     if !VB || VertexBufferSize < draw_data.TotalVtxCount {
-        if VB != null { VB.Release(xx VB); VB = null; }
+        if VB != null { vtable(VB).Release(VB); VB = null; }
         VertexBufferSize = draw_data.TotalVtxCount + 5000;
         desc := D3D11_BUFFER_DESC.{
             Usage          = .D3D11_USAGE_DYNAMIC,
@@ -91,7 +91,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
             CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE,
         };
         desc.ByteWidth = cast(u32)(VertexBufferSize * size_of(ImDrawVert));
-        if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *VB) < 0 {
+        if vtable(d3dDevice).CreateBuffer(d3dDevice, *desc, null, *VB) < 0 {
             log("[imgui_d3d11] Error creating the vertex buffer");
             return false;
         }
@@ -99,7 +99,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     }
 
     if !IB || IndexBufferSize < draw_data.TotalIdxCount {
-        if IB != null { IB.Release(xx IB); IB = null; }
+        if IB != null { vtable(IB).Release(IB); IB = null; }
         IndexBufferSize = draw_data.TotalIdxCount + 10000;
         desc := D3D11_BUFFER_DESC.{
             Usage = .D3D11_USAGE_DYNAMIC,
@@ -107,7 +107,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
             CPUAccessFlags = .D3D11_CPU_ACCESS_WRITE,
         };
         desc.ByteWidth = cast(u32)(IndexBufferSize * size_of(ImDrawIdx));
-        if d3dDevice.CreateBuffer(d3dDevice, *desc, null, *IB) < 0 {
+        if vtable(d3dDevice).CreateBuffer(d3dDevice, *desc, null, *IB) < 0 {
             log_error("failed creating index buffer");
             return false;
         }
@@ -116,9 +116,9 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
 
     // Upload vertex/index data into a single contiguous GPU buffer
     vtx_resource, idx_resource: D3D11_MAPPED_SUBRESOURCE;
-    if d_ctx.Map(xx d_ctx, xx VB, 0, .D3D11_MAP_WRITE_DISCARD, 0, *vtx_resource) != S_OK
+    if vtable(d_ctx).Map(d_ctx, xx VB, 0, .D3D11_MAP_WRITE_DISCARD, 0, *vtx_resource) != S_OK
         return false;
-    if d_ctx.Map(xx d_ctx, xx IB, 0, .D3D11_MAP_WRITE_DISCARD, 0, *idx_resource) != S_OK
+    if vtable(d_ctx).Map(d_ctx, xx IB, 0, .D3D11_MAP_WRITE_DISCARD, 0, *idx_resource) != S_OK
         return false;
 
     vtx_dst := cast(*ImDrawVert)vtx_resource.pData;
@@ -130,14 +130,14 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         vtx_dst += cmd_list.VtxBuffer.Size;
         idx_dst += cmd_list.IdxBuffer.Size;
     }
-    d_ctx.Unmap(xx d_ctx, xx VB, 0);
-    d_ctx.Unmap(xx d_ctx, xx IB, 0);
+    vtable(d_ctx).Unmap(d_ctx, VB, 0);
+    vtable(d_ctx).Unmap(d_ctx, IB, 0);
 
     // Setup orthographic projection matrix into our constant buffer
     // Our visible imgui space lies from draw_data.DisplayPos (top left) to draw_data.DisplayPos+data_data.DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
     {
         mapped_resource: D3D11_MAPPED_SUBRESOURCE;
-        if d_ctx.Map(xx d_ctx, xx VertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, *mapped_resource) != S_OK
+        if vtable(d_ctx).Map(d_ctx, xx VertexConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, *mapped_resource) != S_OK
             return false;
 
         constant_buffer := cast(*VERTEX_CONSTANT_BUFFER)mapped_resource.pData;
@@ -159,7 +159,7 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
         mvp[2] = make_float4(0.0,         0.0,           0.5,       0.0 );
         mvp[3] = make_float4((R+L)/(L-R),  (T+B)/(B-T),  0.5,       1.0 );
         memcpy(*constant_buffer.mvp, mvp[0].data, size_of(type_of(mvp)));
-        d_ctx.Unmap(xx d_ctx, xx VertexConstantBuffer, 0);
+        vtable(d_ctx).Unmap(d_ctx, xx VertexConstantBuffer, 0);
     }
 
     // Backup DX state that will be modified to restore it afterwards (unfortunately this is very ugly looking and verbose. Close your eyes!)
@@ -199,25 +199,25 @@ ImGui_Impl_RenderDrawData :: (using ui_state: *UI_State, draw_data: *ImGui.ImDra
     old: BACKUP_DX11_STATE;
     old.ScissorRectsCount = D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
     old.ViewportsCount = D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
-    d_ctx.RSGetScissorRects(d_ctx, *old.ScissorRectsCount, old.ScissorRects.data);
-    d_ctx.RSGetViewports(d_ctx, *old.ViewportsCount, old.Viewports.data);
-    d_ctx.RSGetState(d_ctx, *old.RS);
-    d_ctx.OMGetBlendState(d_ctx, *old.BlendState, *old.BlendFactor, *old.SampleMask);
-    d_ctx.OMGetDepthStencilState(d_ctx, *old.DepthStencilState, *old.StencilRef);
-    d_ctx.PSGetShaderResources(d_ctx, 0, 1, *old.PSShaderResource);
-    d_ctx.PSGetSamplers(d_ctx, 0, 1, *old.PSSampler);
+    vtable(d_ctx).RSGetScissorRects(d_ctx, *old.ScissorRectsCount, old.ScissorRects.data);
+    vtable(d_ctx).RSGetViewports(d_ctx, *old.ViewportsCount, old.Viewports.data);
+    vtable(d_ctx).RSGetState(d_ctx, *old.RS);
+    vtable(d_ctx).OMGetBlendState(d_ctx, *old.BlendState, *old.BlendFactor, *old.SampleMask);
+    vtable(d_ctx).OMGetDepthStencilState(d_ctx, *old.DepthStencilState, *old.StencilRef);
+    vtable(d_ctx).PSGetShaderResources(d_ctx, 0, 1, *old.PSShaderResource);
+    vtable(d_ctx).PSGetSamplers(d_ctx, 0, 1, *old.PSSampler);
     old.PSInstancesCount = 256;
     old.VSInstancesCount = 256;
     old.GSInstancesCount = 256;
-    d_ctx.PSGetShader(d_ctx, *old.PS, old.PSInstances.data, *old.PSInstancesCount);
-    d_ctx.VSGetShader(d_ctx, *old.VS, old.VSInstances.data, *old.VSInstancesCount);
-    d_ctx.VSGetConstantBuffers(d_ctx, 0, 1, *old.VSConstantBuffer);
-    d_ctx.GSGetShader(d_ctx, *old.GS, old.GSInstances.data, *old.GSInstancesCount);
+    vtable(d_ctx).PSGetShader(d_ctx, *old.PS, old.PSInstances.data, *old.PSInstancesCount);
+    vtable(d_ctx).VSGetShader(d_ctx, *old.VS, old.VSInstances.data, *old.VSInstancesCount);
+    vtable(d_ctx).VSGetConstantBuffers(d_ctx, 0, 1, *old.VSConstantBuffer);
+    vtable(d_ctx).GSGetShader(d_ctx, *old.GS, old.GSInstances.data, *old.GSInstancesCount);
 
-    d_ctx.IAGetPrimitiveTopology(d_ctx, *old.PrimitiveTopology);
-    d_ctx.IAGetIndexBuffer(d_ctx, *old.IndexBuffer, *old.IndexBufferFormat, *old.IndexBufferOffset);
-    d_ctx.IAGetVertexBuffers(d_ctx, 0, 1, *old.VertexBuffer, *old.VertexBufferStride, *old.VertexBufferOffset);
-    d_ctx.IAGetInputLayout(d_ctx, *old.InputLayout);
+    vtable(d_ctx).IAGetPrimitiveTopology(d_ctx, *old.PrimitiveTopology);
+    vtable(d_ctx).IAGetIndexBuffer(d_ctx, *old.IndexBuffer, *old.IndexBufferFormat, *old.IndexBufferOffset);
+    vtable(d_ctx).IAGetVertexBuffers(d_ctx, 0, 1, *old.VertexBuffer, *old.VertexBufferStride, *old.VertexBufferOffset);
+    vtable(d_ctx).IAGetInputLayout(d_ctx, *old.InputLayout);
 
     // Setup desired DX state
     ImGui_ImplDX11_SetupRenderState(ui_state, draw_data);
@@ -309,7 +309,7 @@ ImGui_ImplDX11_CreateFontsTexture :: (using ui_state: *UI_State) {
         subResource.pSysMem = pixels;
         subResource.SysMemPitch = desc.Width * 4;
         subResource.SysMemSlicePitch = 0;
-        d3dDevice.CreateTexture2D(d3dDevice, *desc, *subResource, *pTexture);
+        vtable(d3dDevice).CreateTexture2D(d3dDevice, *desc, *subResource, *pTexture);
         if pTexture != null
             set_debug_name(pTexture, "ImGui default font texture");
 
@@ -389,15 +389,15 @@ END;
             return false; // NB: Pass ID3DBlob* pErrorBlob to D3DCompile() to get error showing in (const char*)pErrorBlob->GetBufferPointer(). Make sure to Release() the blob!
         defer Release(vertexShaderBlob);
 
-        blob_data := vertexShaderBlob.GetBufferPointer(vertexShaderBlob);
-        blob_size := vertexShaderBlob.GetBufferSize(vertexShaderBlob);
+        blob_data := vtable(vertexShaderBlob).GetBufferPointer(vertexShaderBlob);
+        blob_size := vtable(vertexShaderBlob).GetBufferSize(vertexShaderBlob);
 } else {
         blob :: #run run_fxc_on_string(vertexShader, .Vertex, "vs_4_0", "main");
         blob_data := blob.data;
         blob_size := cast(u64)blob.count;
 }
 
-        if d3dDevice.CreateVertexShader(d3dDevice, blob_data, blob_size, null, *VertexShader) != S_OK
+        if vtable(d3dDevice).CreateVertexShader(d3dDevice, blob_data, blob_size, null, *VertexShader) != S_OK
             return false;
         set_debug_name(VertexShader, "ImGui vertex shader");
 
@@ -624,9 +624,9 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     assert(d3dDevice != null, "must set d3dDevice in UI_State before calling ImGui_Impl_Init in the d3d11 backend");
     assert(d3dDeviceContext != null, "must set d3dDeviceContext in UI_State before calling ImGui_Impl_Init in the d3d11 backend");
 
-    if d3dDevice.QueryInterface(xx d3dDevice, *uid(IDXGIDevice.uuid), cast(**void)*pDXGIDevice) == S_OK
-        if pDXGIDevice.GetParent(xx pDXGIDevice, *uid(IDXGIAdapter.uuid), cast(**void)*pDXGIAdapter) == S_OK
-            if pDXGIAdapter.GetParent(xx pDXGIAdapter, *uid(IDXGIFactory.uuid), cast(**void)*pFactory) == S_OK
+    if vtable(d3dDevice).QueryInterface(d3dDevice, *uid(IDXGIDevice_UUID), cast(**void)*pDXGIDevice) == S_OK
+        if vtable(pDXGIDevice).GetParent(pDXGIDevice, *uid(IDXGIAdapter_UUID), cast(**void)*pDXGIAdapter) == S_OK
+            if vtable(pDXGIAdapter).GetParent(pDXGIAdapter, *uid(IDXGIFactory_UUID), cast(**void)*pFactory) == S_OK
             {
                 Factory = pFactory;
             }
@@ -636,11 +636,11 @@ ImGui_Impl_Init :: (using ui_state: *UI_State, native_window_handle: *void) -> b
     Release(pDXGIDevice);
     Release(pDXGIAdapter);
 
-    d3dDevice.AddRef(xx d3dDevice);
-    d3dDeviceContext.AddRef(xx d3dDeviceContext);
+    vtable(d3dDevice).AddRef(d3dDevice);
+    vtable(d3dDeviceContext).AddRef(d3dDeviceContext);
 
-    assert(_local_host_state.set_cursor_cb != null);
-    _local_host_state.set_cursor_cb(Win32CursorCallback);
+    //assert(_local_host_state.set_cursor_cb != null);
+    //_local_host_state.set_cursor_cb(Win32CursorCallback);
 
     return true;
 }
@@ -766,7 +766,7 @@ ImTextureID :: ImGui.ImTextureID;
 
 Release :: inline (ptr: *$T) {
     if ptr != null
-        ptr.Release(cast(*IUnknown)ptr);
+        vtable(ptr).Release(cast(*IUnknown)ptr);
 }
 
 Release_And_Set_Null :: inline (ptr_address: **$T) {
@@ -775,7 +775,7 @@ Release_And_Set_Null :: inline (ptr_address: **$T) {
     ptr := <<ptr_address;
 
     if ptr != null {
-        ptr.Release(cast(*IUnknown)ptr);
+        vtable(ptr).Release(cast(*IUnknown)ptr);
         <<ptr_address = null;
     }
 }
@@ -794,21 +794,21 @@ set_debug_name :: (child_obj: *$T, name: string) {
 
     WKPDID_D3DDebugObjectName :: GUID.{ 0x429b8c22,0x9188,0x4b0c, .[ 0x87,0x42,0xac,0xb0,0xbf,0x85,0xc2,0x00 ]};
     child := cast(*ID3D11DeviceChild)child_obj;
-    assert(child.SetPrivateData != null);
+    assert(vtable(child).SetPrivateData != null);
 
     // don't try to set if it already has a name (pooled objects like RasterizerState)
     buf_size: u32 = 512;
     buf := talloc(buf_size);
-    if S_OK == child.GetPrivateData(child, *WKPDID_D3DDebugObjectName, *buf_size, buf) && buf_size > 0
+    if S_OK == ID3D11DeviceChild_GetPrivateData(child, *WKPDID_D3DDebugObjectName, *buf_size, buf) && buf_size > 0
         return; 
 
-    child.SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)name.count, name.data);
+    ID3D11DeviceChild_SetPrivateData(child, *WKPDID_D3DDebugObjectName, cast(u32)name.count, name.data);
 }
 
 #import "win32_util";
 #import "d3d11";
 #import "dxgi";
-#import "D3dcompiler";
+#import "d3d_compiler";
 #import "Windows";
 #import "compiler_bugs";
 Debug :: #import "Debug";

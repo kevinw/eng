@@ -12,9 +12,6 @@ DPI :: #import "DPI";
 
 window_minimized := false;
 
-XdndVersion: s32 = 5;  // I dunno, some version.
-XdndAware:   Atom;
-
 Saved_Window_Info :: struct {
     
 }
@@ -93,18 +90,20 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
 
     d := x_global_display;
 
-    if !XdndAware {
-        XdndAware = XInternAtom(d, "XdndAware", False);
-    }
-    
     XLockDisplay(d);
     root := DefaultRootWindow(d);
     if parent == None then parent = root;
 
+    // These attributes must match the attibutes we use to create the GL context. :GlContextAttributes
+    //        -rluba, 2021-11-30
     attr := s32.[
         GLX_RGBA,
         GLX_DEPTH_SIZE, 24,
         GLX_DOUBLEBUFFER,
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_STENCIL_SIZE, 8,
         None
     ];
     
@@ -122,7 +121,7 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
     
     swa: XSetWindowAttributes;
     swa.colormap = cmap;
-    swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask | FocusChangeMask;
+    swa.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | StructureNotifyMask | FocusChangeMask | EnterWindowMask | LeaveWindowMask | PointerMotionHintMask | PointerMotionMask;
     swa.background_pixel = background_color.pixel;
     win := XCreateWindow(d, parent, xx window_x, xx window_y, xx width, xx height, 0, vi.depth, InputOutput, vi.visual, cast(u64) (CWColormap | CWEventMask), *swa);
 
@@ -153,8 +152,6 @@ create_window :: (width: int, height: int, window_name: string, window_x := 0, w
         XSetClassHint(d, win, class_hints);
     }
 
-    XChangeProperty(d, win, XdndAware, XA_ATOM, 32, PropModeReplace, cast(*u8)*XdndVersion, 1);
-    
     _x, _y, swidth, sheight := DPI.os_dpi_get_backing_coordinates(win, cast(float64) window_x, cast(float64) window_y, cast(float64) width, cast(float64) height);
     XMoveResizeWindow(d, win, xx _x, xx _y, xx swidth, xx sheight);
 

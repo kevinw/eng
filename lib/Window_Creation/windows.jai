@@ -179,28 +179,60 @@ init_window_class :: (background_color_rgb: [3] float) {
 
     // @LanguageSemantics: Maybe we want to change the relative precedence of << and | so that this does not happen:
     brush := CreateSolidBrush((b << 16) | (g << 8) | r);
+
+    //
+    // windows_windowproc_exists is only called at compile-time.
+    // (We could use a compiler feature to mark procedures as being compile-time-only!)
+    // It looks through Context for a member called _windows_windowproc. If that member
+    // exists, it means some other module provides a WindowProc for us to register
+    // in the window class. If not, we put an empty proc there. Why? Well, in Windows
+    // you can't just ask for events on a window, they have to dispatch through
+    // a WindowProc that is registered at creation time. But we want our input handler
+    // to be in a different module, and we want that module and this module to be
+    // interchangeable with other things. We didn't want this dumb constraint imposed
+    // by Windows to control how our code can be factored. The line must be drawn here!!!!
+    //
+    // So this was our solution for now. We'll see how this evolves.
+    //        -jblow, 14 November 2021.
+    //
+    #if #run windows_windowproc_exists() {
+        WindowProc :: Context._windows_windowproc;
+    } else {
+        WindowProc :: DefWindowProcW;
+    }
     
     wc: WNDCLASSEXW;
     wc.cbSize = size_of(WNDCLASSEXW);
     wc.style                = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-    wc.lpfnWndProc          = xx MyWindowProc;
+    wc.lpfnWndProc          = xx WindowProc;
     wc.cbClsExtra           = 0;
     wc.cbWndExtra           = 0;
     wc.hInstance            = hInstance;
     wc.hIcon                = icon;
-    wc.hCursor              = LoadCursorW(null, cast(*u8) IDC_ARROW);
+    wc.hCursor              = LoadCursorW(null, IDC_ARROW);
     wc.hbrBackground        = brush;  // cast(HBRUSH) GetStockObject(WHITE_BRUSH);
     
     wc.lpszMenuName         = null;
     wc.lpszClassName        = utf8_to_wide(WINDOW_CLASS_NAME);
 
-    // Register the window class
+    // Register the window class.
     if RegisterClassExW(*wc) == 0 {
         log_error("RegisterClassExW returned 0.\n");
         return;
     }
 
     window_class_initted = true;
+}
+
+windows_windowproc_exists :: () -> bool {
+    info := type_info(Context);
+    for info.members {
+        if it.name == "_windows_windowproc" {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 #scope_export

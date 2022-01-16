@@ -11,7 +11,6 @@
 #scope_module
 
 #import "Basic";
-#import "Input";  // @Cleanup: Should we not import this here? The problem right now is registering the window proc. But we could provide it as a module parameter or initialization routine parameter.  -jblow, 26 August 2018
 
 DEFAULT_WINDOW_CREATION_COLOR :: float.[.15,.15,.2];
 

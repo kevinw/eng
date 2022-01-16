@@ -459,6 +459,7 @@ __module_param_import_Chipmunk :: #import "Chipmunk"()(LINK_STATIC = %);
 __module_param_import_ImGui    :: #import "imgui_docking"()(LINK_STATIC = %);
 __module_param_import_lz4      :: #import "lz4-1.9.3"(LINK_STATIC = %);
 #import "Thread"; // contains an #add_context--so we must import it here; see @ProgramParameters below
+#import "Input";  // also contains an #add_context
 
 END, link_externals_as_static, link_externals_as_static, link_externals_as_static);
 

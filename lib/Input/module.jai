@@ -9,8 +9,8 @@
     #load "windows.jai";
 } else #if OS == .LINUX {
     #load "x11.jai";
-} else #if OS == .MACOSX {
-    #load "osx.jai";
+} else #if OS == .MACOS {
+    #load "macos.jai";
 }
 
 Event_Type :: enum u32 {  // If we set this to u8, our packing will stop matching C's.

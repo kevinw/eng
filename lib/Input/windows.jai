@@ -11,6 +11,10 @@
 
 window_minimized := false; // @@ Hack.
 
+set_imgui_mode :: (imgui_mode := true) {
+    // Use this if you are doing immediate-mode API stuff that sets cursors and want to prevent cursors from flickering. Windows is annoying to interface with.
+    windows_ignore_setcursor_messages = imgui_mode;
+}
 
 //#scope_export
 
@@ -146,6 +150,8 @@ get_vk :: (key: Key_Code) -> VK: u64 {
     return 0;
 }
 
+
+#add_context _windows_windowproc :: MyWindowProc;
 
 MyWindowProc :: (hwnd: HWND, message: u32,
                  wParam: WPARAM, lParam: LPARAM) -> s64 #c_call {
@@ -440,20 +446,16 @@ MyWindowProc :: (hwnd: HWND, message: u32,
  	 	    array_add(*events_this_frame, event);
             return 0;
 
+          case WM_SETCURSOR;
+            if windows_ignore_setcursor_messages return 0;
+	        else return DefWindowProcW(hwnd, message, wParam, lParam);
+            
           case;
 	        return DefWindowProcW(hwnd, message, wParam, lParam);
 	    }
 
         return 0;
     }
-}
-
-WM_SETCURSOR_Callback :: #type () -> bool #c_call;
-
-_setcursor_cb: WM_SETCURSOR_Callback;
-
-set_wm_setcursor_callback :: (cb: WM_SETCURSOR_Callback) {
-    _setcursor_cb = cb;
 }
 
 update_window_events :: () {
@@ -716,9 +718,6 @@ WHEEL_DELTA :: 120;
 using Key_Current_State;
 
 add_resize_record :: (hwnd: HWND) {
-    client_rect: RECT;
-    GetClientRect(hwnd, *client_rect);
-
     record: *Window_Resize_Record;
     for * pending_resizes {
         if it.window == hwnd {
@@ -730,6 +729,9 @@ add_resize_record :: (hwnd: HWND) {
     if !record {
         record = array_add(*pending_resizes);
     }
+
+    client_rect: RECT;
+    GetClientRect(hwnd, *client_rect);
 
     record.window = hwnd;
     record.width  = client_rect.right;
@@ -760,3 +762,5 @@ add_move_record :: (hwnd: HWND) {
 
 
 
+#scope_file
+windows_ignore_setcursor_messages := false;

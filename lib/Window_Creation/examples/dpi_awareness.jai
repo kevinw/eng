@@ -26,7 +26,7 @@ main :: () {
             if it.type == Event_Type.KEYBOARD {
                 if it.key_pressed == 0 continue;
 
-                if        it.key_code == xx #char "T" {
+                if it.key_code == xx #char "T" {
                     free(copied_to_clipboard_text);
                     copied_to_clipboard_text = sprint("'%' Copied to clipboard.", text_to_copy_to_clipboard);
                     Clipboard.os_clipboard_set_text("Hello, Sailor!");
@@ -47,9 +47,10 @@ main :: () {
             }
         }
 
-        is_resized, record := is_a_window_resized();
-        if (is_resized && record.window == the_window) {
-            window_resized_to(record.width, record.height);
+        for get_window_resizes() {
+            if (it.window == the_window) {
+                window_resized_to(it.width, it.height);
+            }
         }
 
 
@@ -359,3 +360,5 @@ compile_shader :: (type: GLenum, source: string) -> u32 {
     
     return v;
 }
+
+#import "System";

@@ -4,15 +4,19 @@
 
 #scope_file
 
+Input :: #import "Input";
+
+window_minimized := false; // @@ Hack.
+
 App_Delegate :: struct {
     using delegate: NSApplicationDelegate;
 
     applicationShouldTerminate :: (using self: *App_Delegate, _sel: Selector, sender: id) -> NSApplicationTerminateReply #c_call {
         jai_context: Context;
         push_context jai_context {
-            event: Event;
-            event.type = Event_Type.QUIT;
-            array_add(*osx_externally_generated_events, event);
+            event: Input.Event;
+            event.type = .QUIT;
+            array_add(*Input.osx_externally_generated_events, event);
         }
         return NSTerminateCancel;
     } @selector(applicationShouldTerminate:)
@@ -23,11 +27,11 @@ App_Delegate :: struct {
     } @selector(applicationWillTerminate:)
 
     applicationDidResignActive :: (using self: *App_Delegate, _sel: Selector, notification: *NSNotification) #c_call {
-        input_application_has_focus = false;
+        Input.input_application_has_focus = false;
     } @selector(applicationDidResignActive:)
 
     applicationDidBecomeActive :: (using self: *App_Delegate, _sel: Selector, notification: *NSNotification) #c_call {
-        input_application_has_focus = true;
+        Input.input_application_has_focus = true;
     } @selector(applicationDidBecomeActive:)
 
     applicationDidFinishLaunching :: (self: *App_Delegate, _sel: Selector, app: *NSApplication) #c_call {
@@ -52,9 +56,9 @@ Window_Delegate :: struct {
         push_context jai_context {
             // win := NSNotification.object(notification);
 
-            event: Event;
-            event.type = Event_Type.QUIT;
-            array_add(*osx_externally_generated_events, event);
+            event: Input.Event;
+            event.type = .QUIT;
+            array_add(*Input.osx_externally_generated_events, event);
         }
     } @selector(windowWillClose:)
 
@@ -71,7 +75,7 @@ Window_Delegate :: struct {
     /*
     windowWillResize :: (using self: *Window_Delegate, _sel: Selector, sender: *NSWindow, toSize: NSSize) -> NSSize #c_call {
         push_context jai_context {
-            add_resize_record(sender, cast(s32) toSize.width, cast(s32) toSize.height);
+            Input.add_resize_record(sender, cast(s32) toSize.width, cast(s32) toSize.height);
             return toSize;
         }
     } @selector(windowDidResize:toSize:)
@@ -85,7 +89,7 @@ Window_Delegate :: struct {
             frame := NSView.frame(view);
             fb := NSView.convertRectToBacking(view, frame);
 
-            add_resize_record(my_window, cast(s32) frame.size.width, cast(s32) frame.size.height);
+            Input.add_resize_record(my_window, cast(s32) frame.size.width, cast(s32) frame.size.height);
 
             view.drawRect(view, frame);
         }
@@ -213,7 +217,7 @@ Saved_Window_Info :: struct {
 
 
 toggle_fullscreen :: (win: *NSWindow, desire_fullscreen: bool, saved: *Saved_Window_Info) -> success: bool, width: s32, height: s32 {
-    #if #run AVAILABLE_MACOSX(MACOSX_10_7) {
+    #if #run AVAILABLE_MACOS(MACOS_10_7) {
         view := NSWindow.contentView(win);
         frame := NSView.frame(view);
 

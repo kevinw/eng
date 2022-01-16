@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set JAI_DIR=\jai
+set JAI_DIR=..\..\..\jai
 
 
 set DEST=Window_Creation
