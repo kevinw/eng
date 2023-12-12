@@ -5,10 +5,10 @@
 #module_parameters()(LINK_STATIC := false);
 
 #if LINK_STATIC {
-    user32 :: #foreign_system_library "user32";
-    imgui :: #foreign_library,no_dll "./win/static/imgui";
+    user32 :: #system_library "user32";
+    imgui :: #library,no_dll "./win/static/imgui";
 } else {
-    imgui :: #foreign_library "./win/dll/imgui";
+    imgui :: #library "./win/dll/imgui";
 }
 
 make_ImVec2 :: inline (a: float, b: float) -> ImVec2 {
@@ -502,10 +502,6 @@ ImVec4 :: struct {
     EndListBox :: () -> void #foreign imgui "?EndListBox@ImGui@@YAXXZ";
     ListBox :: (label: *u8, current_item: *s32, items: **u8, items_count: s32, height_in_items: s32 = -1) -> bool #foreign imgui "?ListBox@ImGui@@YA_NPEBDPEAHQEBQEBDHH@Z";
     ListBox :: (label: *u8, current_item: *s32, items_getter: #type (a0: *void, a1: s32, a2: **u8) -> bool #c_call, data: *void, items_count: s32, height_in_items: s32 = -1) -> bool #foreign imgui "?ListBox@ImGui@@YA_NPEBDPEAHP6A_NPEAXHPEAPEBD@Z2HH@Z";
-    PlotLines :: (label: *u8, values: *float, values_count: s32, values_offset: s32 = 0, overlay_text: *u8 = null, scale_min: float = 340282346638528859000000000000000000000.0, scale_max: float = 340282346638528859000000000000000000000.0, graph_size: ImVec2 = ImVec2.{0,0}, stride: s32 = 4) -> void #foreign imgui "?PlotLines@ImGui@@YAXPEBDPEBMHH0MMUImVec2@@H@Z";
-    PlotLines :: (label: *u8, values_getter: #type (a0: *void, a1: s32) -> float #c_call, data: *void, values_count: s32, values_offset: s32 = 0, overlay_text: *u8 = null, scale_min: float = 340282346638528859000000000000000000000.0, scale_max: float = 340282346638528859000000000000000000000.0, graph_size: ImVec2 = ImVec2.{0,0}) -> void #foreign imgui "?PlotLines@ImGui@@YAXPEBDP6AMPEAXH@Z1HH0MMUImVec2@@@Z";
-    PlotHistogram :: (label: *u8, values: *float, values_count: s32, values_offset: s32 = 0, overlay_text: *u8 = null, scale_min: float = 340282346638528859000000000000000000000.0, scale_max: float = 340282346638528859000000000000000000000.0, graph_size: ImVec2 = ImVec2.{0,0}, stride: s32 = 4) -> void #foreign imgui "?PlotHistogram@ImGui@@YAXPEBDPEBMHH0MMUImVec2@@H@Z";
-    PlotHistogram :: (label: *u8, values_getter: #type (a0: *void, a1: s32) -> float #c_call, data: *void, values_count: s32, values_offset: s32 = 0, overlay_text: *u8 = null, scale_min: float = 340282346638528859000000000000000000000.0, scale_max: float = 340282346638528859000000000000000000000.0, graph_size: ImVec2 = ImVec2.{0,0}) -> void #foreign imgui "?PlotHistogram@ImGui@@YAXPEBDP6AMPEAXH@Z1HH0MMUImVec2@@@Z";
     Value :: (prefix: *u8, b: bool) -> void #foreign imgui "?Value@ImGui@@YAXPEBD_N@Z";
     Value :: (prefix: *u8, v: s32) -> void #foreign imgui "?Value@ImGui@@YAXPEBDH@Z";
     Value :: (prefix: *u8, v: u32) -> void #foreign imgui "?Value@ImGui@@YAXPEBDI@Z";

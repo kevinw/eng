@@ -4,4 +4,4 @@ xxh3 :: inline (bytes_string: string) -> [2]u64 {
 
 XXH3_128bits :: (input: *void, len: u64) -> [2]u64 #foreign xxhash_lib;
 
-xxhash_lib :: #foreign_library,no_dll "xxHash/xxhash";
+xxhash_lib :: #library,no_dll "xxHash/xxhash";

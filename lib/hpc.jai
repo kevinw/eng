@@ -19,7 +19,7 @@ main_socket :: () {
         s_addr     : u32;
     }
 
-    ws2_32 :: #foreign_system_library "ws2_32";
+    ws2_32 :: #system_library "ws2_32";
     WORD               :: u16;
     WSASYS_STATUS_LEN  :: 128;
     WSADESCRIPTION_LEN :: 256;
@@ -108,7 +108,7 @@ main :: () {
     ERROR_PIPE_BUSY       :: 231;
     PIPE_READMODE_MESSAGE:DWORD : 0x00000002;
 
-    kernel32 :: #foreign_system_library "kernel32";
+    kernel32 :: #system_library "kernel32";
     WaitNamedPipeA :: (lpNamedPipeName: *u8, nTimeOut: DWORD) -> BOOL #foreign kernel32;
     SetNamedPipeHandleState :: (
       hNamedPipe: HANDLE,

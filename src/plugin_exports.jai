@@ -1,4 +1,4 @@
-#import "Hotloader";
+#import "File_Watcher";
 
 #program_export
 plugin_sanity_checks :: (host_state: Host_State, host_context_size: int) {

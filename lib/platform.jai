@@ -8,7 +8,7 @@ request_window_close :: (native_handle: *void) {
 set_window_opacity :: (native_handle: *void, opacity: float) {
     //log("set_window_opacity(%, opacity=%)", native_handle, opacity);
     #if OS == .WINDOWS {
-        user32 :: #foreign_system_library "user32";
+        user32 :: #system_library "user32";
         SetLayeredWindowAttributes :: (hwnd: HWND, color_key: u32, alpha: u8, flags: u32) -> s32 #foreign user32;
         LWA_ALPHA :: 0x00000002;
 
@@ -164,7 +164,7 @@ path_exists :: (path: string) -> bool {
 #if OS == .WINDOWS {
     #import "Windows";
     #import "Windows_Utf8";
-    user32 :: #foreign_system_library "user32";
+    user32 :: #system_library "user32";
     MapWindowPoints :: (hwnd1: *void, hwnd2: *void, points: *POINT, point_count: u32) -> s32 #foreign user32;
 }
 

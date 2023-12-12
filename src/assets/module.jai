@@ -186,7 +186,7 @@ auto_materials :: () -> []Material_Asset {
 get_temporary_filename :: () -> string {
     #import "Windows";
     #import "Windows_Utf8";
-    kernel32 :: #foreign_system_library "kernel32";
+    kernel32 :: #system_library "kernel32";
     GetTempPathW     :: (buffer_length_in_tchars: u32, buffer: *u16) -> u32 #foreign kernel32;
     GetTempFileNameW :: (path_name: *u16, prefix_string: *u16, unique: u32, temp_filename: *u16) -> u32 #foreign kernel32;
 
@@ -215,7 +215,7 @@ tstring :: (asset_hash: Asset_Hash) -> string {
 }
 
 from_string :: (asset_hash_string: string) -> bool, Asset_Hash {
-    Crt      :: #foreign_system_library "msvcrt";
+    Crt      :: #system_library "msvcrt";
     strtoull :: (src: *u8, end_part: **u8, base: s32) -> u64 #foreign Crt "_strtoui64";
 
     asset_hash: Asset_Hash;

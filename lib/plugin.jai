@@ -216,7 +216,7 @@ reload :: (plugin: *Module, force_reload := false) -> bool {
 
 // some additional win32 api definitions missing from the jai stdlib
 wchar_t :: u16;
-kernel32 :: #foreign_system_library "kernel32";
+kernel32 :: #system_library "kernel32";
 FreeLibrary :: (module: HANDLE) -> s32 #foreign kernel32;
 CopyFileW :: (src: *wchar_t, dest: *wchar_t, force: BOOL) -> s32 #foreign kernel32;
 

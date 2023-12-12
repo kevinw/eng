@@ -1,7 +1,7 @@
 #scope_file
 
 #if OS == .WINDOWS {
-    miniz_lib :: #foreign_library,no_dll "win/miniz";
+    miniz_lib :: #library,no_dll "win/miniz";
 }
 
 #scope_module

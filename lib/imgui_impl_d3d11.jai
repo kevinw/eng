@@ -565,7 +565,7 @@ CWPRETSTRUCT :: struct {
     message: u32;
     hwnd:    HWND;
 }
-user32 :: #foreign_system_library "user32";
+user32 :: #system_library "user32";
 
 CallNextHookEx      :: (hhk: HHOOK, code: s32, wparam: WPARAM, lparam: LPARAM) -> LRESULT #foreign user32;
 SetWindowsHookExA   :: (id_hook: s32, hook_fn: HOOKPROC, hmod: HINSTANCE, thread_id: DWORD) -> HHOOK #foreign user32;
@@ -660,7 +660,7 @@ ImGui_Impl_DidReloadDLL :: (ui_state: *UI_State, host_state: *Host_State) {
 Win32 :: #import "Windows";
 last_point: Win32.POINT;
 get_client_mouse_pos :: (window: *void) -> (x: s32, y: s32) {
-    user32 :: #foreign_system_library "user32";
+    user32 :: #system_library "user32";
     MapWindowPoints :: (hwnd1: *void, hwnd2: *void, points: *POINT, point_count: u32) -> s32 #foreign user32;
 
     assert(window != null);

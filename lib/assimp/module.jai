@@ -6,7 +6,7 @@ uint32_t :: u32;
 int32_t  :: s32;
 size_t   :: s64;
 #scope_module
-assimp_vc142_mt :: #foreign_library "assimp-vc142-mt";
+assimp_vc142_mt :: #library "assimp-vc142-mt";
 Component :: enum s32 {
     NORMALS :: 2;
     TANGENTS_AND_BITANGENTS :: 4;
@@ -24,7 +24,7 @@ Component :: enum s32 {
 
 real :: float32;
 
-int :: s32;
+// int :: s32;
 
 uint :: u32;
 

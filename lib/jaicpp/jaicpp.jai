@@ -2613,7 +2613,7 @@ check_size :: ($T: Type, expected_size_in_bytes: int, loc := #caller_location) {
 END);
         if context.opts.print_foreign_library_declarations {
             for context.compiler.libraries {
-                if it.is_system print_to_builder(*builder, "% :: #foreign_system_library \"%\";\n", it.name, it.path);
+                if it.is_system print_to_builder(*builder, "% :: #system_library \"%\";\n", it.name, it.path);
                 else print_to_builder(*builder, "% :: #foreign_library \"%\";\n", it.name, it.path);
             }
         }

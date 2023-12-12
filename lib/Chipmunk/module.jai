@@ -3,9 +3,9 @@
 
 #if OS == .WINDOWS {
     #if LINK_STATIC {
-        chipmunk_lib :: #foreign_library,no_dll "win/static/chipmunk";
+        chipmunk_lib :: #library,no_dll "win/static/chipmunk";
     } else {
-        chipmunk_lib :: #foreign_library "win/dll/chipmunk";
+        chipmunk_lib :: #library "win/dll/chipmunk";
     }
 }
 

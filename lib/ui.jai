@@ -254,5 +254,5 @@ decompress :: (compressed_bytes: string) -> string {
 }
 
 File :: #import "File";
-lz4 :: #import "lz4-1.9.3";
+lz4 :: #import "lz4-1.9.1"; // 1.9.3
 Compiler :: #import "Compiler";

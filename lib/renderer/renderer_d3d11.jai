@@ -954,7 +954,7 @@ find_fxc :: () -> string { // returns temporary string
 }
 
 get_temporary_filename :: () -> string {
-    kernel32 :: #foreign_system_library "kernel32";
+    kernel32 :: #system_library "kernel32";
     GetTempPathW     :: (buffer_length_in_tchars: u32, buffer: *u16) -> u32 #foreign kernel32;
     GetTempFileNameW :: (path_name: *u16, prefix_string: *u16, unique: u32, temp_filename: *u16) -> u32 #foreign kernel32;
 
@@ -1779,7 +1779,7 @@ create_d3d_blob_from_str :: (blob_bytes: string) -> *ID3DBlob {
 SWAPCHAIN_BUFFER_COUNT :: 3;
 
 #import "Bitmap";
-#import "Render/Texture_Format";
+#import "Simp/texture_format";
 
 #import "d3d11";
 #import "Basic";

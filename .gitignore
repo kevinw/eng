@@ -20,3 +20,5 @@ enc_temp_folder/
 # TODO: these two are a bug...the plugin reload system shouldn't be leaving them in the root directory. once that is fixed, these can go away.
 *_reloaded_*.dll 
 *_reloaded_*.lib
+
+.DS_Store

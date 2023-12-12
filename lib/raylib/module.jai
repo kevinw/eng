@@ -790,7 +790,7 @@ constant_or_temp_cstring :: inline ($$text: string) -> *u8 {
 Basic :: #import "Basic";
 Window_Creation :: #import "Window_Creation";
 print :: Basic.print;
-#import "Render/Texture_Format";
+#import "Simp/texture_format";
 
 _to_temp_c_string :: (s: string) -> *u8 {
     result : *u8 = Basic.talloc(s.count + 1);

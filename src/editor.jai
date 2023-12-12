@@ -2301,7 +2301,7 @@ HelpMarker :: (desc: string) {
 }
 
 #scope_export
-ImGui :: #import "imgui_docking";
+ImGui :: #import "ImGui";
 #scope_file
 
 

@@ -433,7 +433,7 @@ is_any_mouse_down :: () -> bool {
 }
 
 #if OS == .WINDOWS {
-    user32 :: #foreign_system_library "user32";
+    user32 :: #system_library "user32";
     GetCapture :: () -> HWND #foreign user32;
     SetCursor :: (hCursor: HCURSOR) -> HCURSOR #foreign user32;
     LoadCursorW :: (hInstance: HINSTANCE, lpCursorName: *void) -> HCURSOR #foreign user32;

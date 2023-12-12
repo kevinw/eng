@@ -467,7 +467,7 @@ miniexr_write :: (width: u32, height: u32, rgba16f: *void) -> *void, size:int {
 */
 
 #scope_file
-#import "Render/Texture_Format";
+#import "Simp/texture_format";
 #import "Basic";
 #import "String";
 #import "Math";

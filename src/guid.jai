@@ -31,7 +31,7 @@ gen_guid :: () -> string {
 #if OS == .WINDOWS {
     #import "Windows";
     #import "Windows_Utf8";
-    ole32 :: #foreign_system_library "ole32";
+    ole32 :: #system_library "ole32";
     CoCreateGuid :: (guid: *GUID) -> HRESULT #foreign ole32;
     StringFromGUID2 :: (guid: *GUID, str_buf: *u16, str_buf_max: s32) -> s32 #foreign ole32;
 }

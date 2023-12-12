@@ -546,10 +546,10 @@ WavStream_stop :: (WavStream_instance: *WavStream) #foreign soloud_lib;
 
 #if OS == .WINDOWS {
     #if LINK_STATIC {
-        #foreign_library,no_dll "soloud_static_c_x64";
-        #foreign_system_library "uuid";
-        soloud_lib :: #foreign_library,no_dll "soloud_static_x64";
+        #library,no_dll "soloud_static_c_x64";
+        #system_library "uuid";
+        soloud_lib :: #library,no_dll "soloud_static_x64";
     } else {
-        soloud_lib :: #foreign_library "soloud_x64";
+        soloud_lib :: #library "soloud_x64";
     }
 }

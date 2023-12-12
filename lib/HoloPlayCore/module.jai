@@ -53,5 +53,5 @@ License_Type :: enum s32 {
 }
 
 #if OS == .WINDOWS {
-    HoloPlayCore_lib :: #foreign_library "win/dll/HoloPlayCore";
+    HoloPlayCore_lib :: #library "win/dll/HoloPlayCore";
 }
