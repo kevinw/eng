@@ -36,7 +36,7 @@ build_plugin :: (build_flags: Build_Flags, game_dll_source_name: string, loc := 
             opts.output_executable_name = game_dll_source_name;
         }
 
-        set_optimization(*opts, build_flags);
+        set_opt(*opts, build_flags);
         set_build_options(opts, w);
 
         define_constants(w, build_flags, is_host = false, print_constants_to_stdout = PRINT_CONSTANTS);
@@ -71,7 +71,7 @@ build_host :: (build_flags: Build_Flags) {
         if build_flags & .Check_Only {
             opts.output_path = CHECK_PATH;
         }
-        set_optimization(*opts, build_flags);
+        set_opt(*opts, build_flags);
         set_build_options(opts, w);
         define_constants(w, build_flags, is_host = true, print_constants_to_stdout = PRINT_CONSTANTS);
         if build_flags & .Release {
@@ -103,20 +103,22 @@ build_tests :: (build_flags: Build_Flags) {
     exit(1);
 }
 
-set_optimization :: (build_opts: *Build_Options, build_flags: Build_Flags) {
+set_opt :: (build_opts: *Build_Options, build_flags: Build_Flags) {
     if build_flags & .Release {
         print("RELEASE MODE\n");
         build_opts.backend = .LLVM;
-        set_optimization_level(build_opts, opt_level=3, size_level=1);
+        set_optimization(build_opts, .OPTIMIZED);
     } else {
         //build_opts.backend = .LLVM;
         build_opts.backend = .X64;
-        set_optimization_level(build_opts, opt_level=0, size_level=0);
+        set_optimization(build_opts, .DEBUG);
     }
 }
 
 build :: () {
-    args := compiler_get_command_line_arguments();
+    options := get_build_options();
+    args := options.compile_time_command_line;
+
     flags := Build_Flags.None;
 
     //print("args:\n");

@@ -191,7 +191,7 @@ generate_systems :: (metaprogram: *Metaprogram) {
         if needs_entity_at_end
             array_add(*arg_names, "entity_ptr");
 
-        stage, found := Reflection.get_enum_by_name(System_Stage, it.name);
+        stage, found := Reflection.enum_name_to_value(System_Stage, it.name);
         if found {
             if !is_event_func(stage) {
                 push_builder :: () #expand { `sb: String_Builder; `defer free_buffers(*sb); }
